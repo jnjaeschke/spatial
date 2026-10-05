@@ -1,6 +1,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeNodeData, ZoomLevel } from "../graph.ts";
 import { DiffView } from "../DiffView.tsx";
+import { InlineText } from "../InlineText.tsx";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 
@@ -9,12 +10,12 @@ export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
   return (
     <div className={`node change-node level-${level}`} data-testid={`change-${change.id}`} data-level={level}>
       <Handle type="target" position={Position.Top} />
-      <div className="title">{change.title}</div>
+      <div className="title"><InlineText text={change.title} /></div>
       <div className="body nodrag nopan">
         {level !== "patch" && (
           <>
-            <p className="explanation">{change.explanation}</p>
-            <p className="rationale"><b>Why:</b> {change.rationale}</p>
+            <p className="explanation"><InlineText text={change.explanation} hunks={hunks} diffId={diffId} /></p>
+            <p className="rationale"><b>Why:</b> <InlineText text={change.rationale} hunks={hunks} diffId={diffId} /></p>
           </>
         )}
         {level === "concept" && (

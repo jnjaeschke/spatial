@@ -59,3 +59,16 @@ test("open the whole file in the side panel", async ({ page }) => {
   await panel.getByRole("button", { name: "Close file" }).click();
   await expect(panel).toHaveCount(0);
 });
+
+test("code span in an explanation opens the file at the matching line", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "concept"; i++) {
+    await page.getByRole("button", { name: (await page.getByTestId("change-c1").getAttribute("data-level")) === "patch" ? "zoom in" : "zoom out" }).click();
+    await page.waitForTimeout(150);
+  }
+  await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
+  const focus = page.getByTestId("file-panel").locator("tr.focus");
+  await expect(focus).toHaveText(/THIRTY/);
+  await expect(focus).toBeInViewport();
+});

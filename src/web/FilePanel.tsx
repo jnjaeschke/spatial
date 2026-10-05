@@ -7,6 +7,7 @@ export interface OpenFile {
   diffId: string;
   path: string;
   hunkId: string;
+  text?: string;
 }
 
 export const FileViewContext = createContext<((file: OpenFile) => void) | null>(null);
@@ -55,10 +56,13 @@ export function FilePanel({ sessionId, diff, open, onClose }: {
 
   useEffect(() => {
     if (!body.current) return;
-    const target = [...body.current.querySelectorAll<HTMLElement>("[data-hunk]")]
-      .find((row) => row.dataset.hunk === open.hunkId);
+    const rows = [...body.current.querySelectorAll<HTMLElement>("[data-hunk]")];
+    body.current.querySelector("tr.focus")?.classList.remove("focus");
+    const focus = open.text === undefined ? undefined : rows.find((row) => row.dataset.hunk === open.hunkId && row.querySelector("td.code")?.textContent === open.text);
+    focus?.classList.add("focus");
+    const target = focus ?? rows.find((row) => row.dataset.hunk === open.hunkId);
     target?.scrollIntoView({ block: "center" });
-  }, [rows, open.hunkId]);
+  }, [rows, open.hunkId, open.text]);
 
   return <aside className="file-panel" data-testid="file-panel">
     <header><span>{open.path}</span><button aria-label="Close file" onClick={onClose}>×</button></header>

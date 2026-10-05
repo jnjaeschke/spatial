@@ -18,7 +18,7 @@ repo.commit({ "a.txt": `${baseLines.join("\n")}\n`, "c.txt": "c\n" }, "Bug 1 - C
 const narrative = {
   summary: "Edits a and adds c.",
   changes: [
-    { id: "c1", title: "Edit a", explanation: "Changes line 2 of a.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] },
+    { id: "c1", title: "Edit a", explanation: "Replaces `line 30` with `THIRTY`.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] },
     { id: "c2", title: "Add c", explanation: "Adds file c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] },
   ],
 };

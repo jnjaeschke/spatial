@@ -53,7 +53,7 @@
         "diffId": "D",
         "summary": "Navigation now tracks whether a commit is pending and defers navigatesuccess until the commit happened, matching the navigate algorithm.",
         "changes": [
-          { "id": "c1", "title": "Introduce pending-commit state", "explanation": "Adds mPendingCommit to Navigation with accessor and setter declarations.", "rationale": "Later steps need to know whether the commit has happened yet.", "hunkIds": ["f0h0", "f0h1"], "dependsOn": [], "specUrls": [] },
+          { "id": "c1", "title": "Introduce pending-commit state", "explanation": "Adds `mPendingCommit` to Navigation with accessor and setter declarations.", "rationale": "Later steps need to know whether the commit has happened yet.", "hunkIds": ["f0h0", "f0h1"], "dependsOn": [], "specUrls": [] },
           { "id": "c2", "title": "Fire navigatesuccess when the commit completes", "explanation": "SetPendingCommit(false) fires navigatesuccess if a navigate event is ongoing.", "rationale": "The spec fires navigatesuccess only after commit; firing earlier was observable.", "hunkIds": ["f1h0"], "dependsOn": ["c1"], "specUrls": ["https://html.spec.whatwg.org/#navigate"] },
           { "id": "c3", "title": "Assert ordering in FireNavigateSuccess", "explanation": "Asserts no commit is pending when navigatesuccess fires.", "rationale": "Likely guards against regressions of the ordering fixed in c2.", "hunkIds": ["f1h1"], "dependsOn": ["c1"], "specUrls": [] }
         ]

@@ -11,6 +11,7 @@ Rules:
 - A change is one conceptual step (introduce state, propagate it, expose behavior, tests, mechanical rename, ...), not one file. Group hunks across files when they serve the same purpose.
 - `title`: short imperative phrase.
 - `explanation`: what this change does at the concept level, 1-3 sentences. Name the key classes/functions.
+- In `summary`, `title`, `explanation` and `rationale`, wrap code identifiers, file names and literals in backticks, e.g. `` `FragmentDirective::SetTextDirectives()` ``.
 - `rationale`: why it is needed, grounded in the commit messages, code comments, or the code itself. If you are inferring, say so ("Likely ...").
 - `dependsOn`: ids of changes that must be understood first. No cycles.
 - `specUrls`: full specification URLs with anchors that this change implements or follows, taken from the diff, comments, or commit messages, or that you are certain identify the implemented algorithm. Use an empty list when unsure.

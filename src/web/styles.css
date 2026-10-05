@@ -12,12 +12,15 @@ html, body, #root { margin: 0; height: 100%; }
 .file-panel table { table-layout: auto; }
 .file-panel tr.in-hunk { border-left: 3px solid #c9c9c9; }
 .file-panel tr.target { border-left: 3px solid #6b7fd7; }
+.file-panel tr.focus { background: #fff3b0; }
 .file-panel-error { padding: 8px 12px; color: #b00020; }
 .empty { padding: 32px; color: #666; }
 .node { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 12px 14px; box-sizing: border-box; }
 .node .title { font-weight: 600; cursor: grab; }
 .node .body { cursor: text; user-select: text; }
 .node p { margin: 6px 0; line-height: 1.35; }
+.node code, .code-link { font-family: ui-monospace, monospace; font-size: 0.9em; background: #f0f0f0; border-radius: 3px; padding: 0 3px; }
+.code-link { border: none; color: #0b57d0; cursor: pointer; }
 .level-patch { font-size: 28px; }
 .level-concept { font-size: 16px; }
 .level-code { font-size: 13px; }
