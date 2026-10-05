@@ -28,12 +28,15 @@ function fixture() {
   };
   const out = join(dir, "claude-out.json");
   writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: narrative, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));
+  const reviewOut = join(dir, "findings.json");
+  writeFileSync(reviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { findings: [] }, session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
+  process.env.FAKE_LLM_ROUTES = JSON.stringify({ '"findings"': reviewOut });
   process.env.FAKE_LLM_STDOUT = out;
   process.env.FAKE_LLM_LOG = join(dir, "log.jsonl");
   return { dir, r, narrative };
 }
 
-test("narratePatch: importDiff, narrate, then resolve spec refs, persisted with events", async () => {
+test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted with events", async () => {
   const { dir, r, narrative } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
   const session = await createSession(rt.store, r.dir, "t");
@@ -42,9 +45,10 @@ test("narratePatch: importDiff, narrate, then resolve spec refs, persisted with 
   assert.deepEqual(n.data, { diffId, ...narrative });
   assert.deepEqual(n.provenance.llm, { backend: "claude", model: "sonnet", effort: "medium" });
   const types = rt.store.listEvents(session.id).map((e) => e.type);
-  assert.equal(types.filter((t) => t === "task.succeeded").length, 3);
+  assert.equal(types.filter((t) => t === "task.succeeded").length, 4);
+  assert.equal(rt.store.listTasks(session.id).at(-1)?.kind, "review");
   assert.ok(types.includes("llm.usage"));
-  const call = JSON.parse(readFileSync(process.env.FAKE_LLM_LOG!, "utf8").trim());
+  const call = JSON.parse(readFileSync(process.env.FAKE_LLM_LOG!, "utf8").trim().split("\n")[0]);
   assert.equal(call.cwd, session.repo);
 });
 

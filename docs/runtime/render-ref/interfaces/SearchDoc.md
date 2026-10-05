@@ -16,7 +16,7 @@
 
 ### kind
 
-> **kind**: `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"spec"` \| `"chat"`
+> **kind**: `"spec"` \| `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"chat"` \| `"finding"`
 
 ***
 

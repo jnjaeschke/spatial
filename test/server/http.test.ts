@@ -16,9 +16,10 @@ import { makeRepo } from "../helpers/git-fixture.ts";
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
 const CHAT_REPLY = { answer: "hi", questions: [], revisions: [] };
 const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
+const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.system?.includes("You review a code patch") || !!prompt.schema && "properties" in prompt.schema && "findings" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { const chat = replyFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { const chat = replyFor(prompt); const review = reviewFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -73,10 +74,10 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.equal((await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" })).status, 202);
   const state = await waitFor(async () => {
     const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return snapshot.tasks.some((task) => task.kind === "resolveSpecRefs" && task.status !== "running" && task.status !== "pending") ? snapshot : undefined;
+    return snapshot.tasks.some((task) => task.kind === "review" && task.status !== "running" && task.status !== "pending") ? snapshot : undefined;
   });
   assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
-  assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
+  assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
   assert.equal(state.searchfox, null);
   const repeated = await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
@@ -94,7 +95,8 @@ test("narrate rejects a second request while narration is running", async () => 
     async run(selection, prompt) {
       if (prompt.schema) { started(); await gate; }
       const chat = replyFor(prompt);
-      return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+      const review = reviewFor(prompt);
+      return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
   const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
@@ -227,7 +229,7 @@ test("SSE replays events after after and honors Last-Event-ID", async () => {
   await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   await waitFor(async () => {
     const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return state.tasks.length === 3 && state.tasks.every((task) => task.status === "succeeded") ? true : undefined;
+    return state.tasks.length === 4 && state.tasks.every((task) => task.status === "succeeded") ? true : undefined;
   });
   const read = async (headers: Record<string, string> = {}) => {
     const response = await fetch(`${base}/api/sessions/${session.id}/events?after=0`, { headers });

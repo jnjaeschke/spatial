@@ -105,6 +105,17 @@ export interface ChatThreadData {
   lines?: { path: string; side: "old" | "new"; start: number; end: number };
 }
 
+/** Data of a `ReviewFinding` artifact; linked `derivedFrom → narrative` and `about → anchor`. `anchor`, `quote`, `lines` mean the same as on `ChatThreadData`. */
+export interface ReviewFindingData {
+  anchor: Ref;
+  quote?: string;
+  lines?: ChatThreadData["lines"];
+  category: "correctness" | "spec" | "tests" | "style";
+  severity: "high" | "medium" | "low";
+  title: string;
+  body: string;
+}
+
 /** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. */
 export interface ChatMessageData {
   role: "user" | "assistant";

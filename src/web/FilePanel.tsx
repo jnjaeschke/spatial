@@ -1,6 +1,6 @@
 import { createContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Artifact, DiffData } from "../shared/types.ts";
-import { fileRows, numberLines, type Row } from "./diff-lines.ts";
+import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
 
 export interface OpenFile {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderRef, sessionOverview, type SessionView } from "../../src/runtime/render-ref.ts";
+import { renderRef, searchDocs, sessionOverview, type SessionView } from "../../src/runtime/render-ref.ts";
 import type { Artifact, Link } from "../../src/shared/types.ts";
 
 const artifact = <T,>(id: string, type: string, data: T): Artifact<T> => ({
@@ -23,14 +23,20 @@ const spec = artifact("R", "SpecReference", {
   origin: "code" as const, geckoRefs: [],
 });
 const thread = artifact("T", "ChatThread", { anchor: "N#c1" });
+const finding = artifact("F", "ReviewFinding", { anchor: "D#f0h0", quote: "line f0h0", lines: { path: "src/a.ts", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Check parser", body: "This is a finding body." });
+const otherFinding = artifact("F2", "ReviewFinding", { anchor: "D#f0h1", category: "style", severity: "low", title: "Old finding", body: "Old." });
+const findingThread = artifact("FT", "ChatThread", { anchor: "F" });
 const user = artifact("U", "ChatMessage", { role: "user" as const, text: "Why this change?" });
 const assistant = artifact("A", "ChatMessage", { role: "assistant" as const, text: "It fixes the parser." });
 const view: SessionView = {
-  artifacts: [diff, narrative, spec, thread, user, assistant],
+  artifacts: [diff, narrative, spec, thread, user, assistant, finding, otherFinding, findingThread],
   links: [
     { id: "l1", sessionId: "s", from: "R", to: "N#c2", kind: "supports" },
     { id: "l2", sessionId: "s", from: "U", to: "T", kind: "reply" },
     { id: "l3", sessionId: "s", from: "A", to: "T", kind: "reply" },
+    { id: "l4", sessionId: "s", from: "F", to: "N", kind: "derivedFrom" },
+    { id: "l5", sessionId: "s", from: "F", to: "D#f0h0", kind: "about" },
+    { id: "l6", sessionId: "s", from: "F2", to: "old-narrative", kind: "derivedFrom" },
   ] as Link[],
 };
 
@@ -55,10 +61,17 @@ test("renderRef renders artifacts and supported subrefs", () => {
   assert.match(renderedThread, /User: Why this change\?/);
   assert.match(renderedThread, /Assistant: It fixes the parser\./);
   assert.match(renderRef(view, "U"), /Why this change\?/);
+  const renderedFinding = renderRef(view, "F");
+  for (const expected of ["# Finding F: Check parser", "Category: correctness, severity: high", "Anchor: D#f0h0", "> line f0h0", "This is a finding body."]) assert.ok(renderedFinding.includes(expected), expected);
+  assert.match(renderRef(view, "FT"), /Anchor: F/);
+  assert.deepEqual(searchDocs(view, finding), [{ ref: "F", kind: "finding", body: "Check parser\nThis is a finding body." }]);
   assert.throws(() => renderRef(view, "N#nope"), /Unknown ref: N#nope/);
 });
 
 test("sessionOverview lists latest narrative changes, specs, and threads", () => {
   const overview = sessionOverview(view);
   for (const expected of ["N#c1", "N#c2", "f0h0", "f0h1", "R", "T"]) assert.ok(overview.includes(expected));
+  assert.ok(overview.includes("# Findings"));
+  assert.ok(overview.includes("- F [high correctness] Check parser (D#f0h0)"));
+  assert.ok(!overview.includes("Old finding"));
 });

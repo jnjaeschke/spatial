@@ -25,7 +25,7 @@ export function createSessionServer(store: Store, sessionId: Id): McpServer {
     description: "Search this session's artifacts",
     inputSchema: {
       query: z.string(),
-      kinds: z.array(z.enum(["change", "summary", "hunk", "commit", "spec", "chat"])).optional(),
+      kinds: z.array(z.enum(["change", "summary", "hunk", "commit", "spec", "chat", "finding"])).optional(),
       limit: z.number().int().min(1).max(50).optional(),
     }, annotations,
   }, async ({ query, kinds, limit }) => answer(() => {
