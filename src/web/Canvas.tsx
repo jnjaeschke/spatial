@@ -80,6 +80,25 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
 
   useEffect(() => offsets.current.clear(), [graph]);
 
+  // Offset of each quote below its anchor's top, in flow units. Measured whenever the anchor is rendered, so a
+  // chat placed while its anchor was off-screen (`onlyRenderVisibleElements`) moves to its quote once it renders.
+  const quoteDy = useRef(new Map<string, number>());
+  const [quoteDyVersion, setQuoteDyVersion] = useState(0);
+  useEffect(() => quoteDy.current.clear(), [level]);
+  const measureQuoteDy = () => {
+    let changed = false;
+    for (const n of quoted) {
+      const range = rangeOf(n);
+      const anchorEl = container.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(n.anchors![0]!)}"]`);
+      if (!range || !anchorEl) continue;
+      const dy = (range.getBoundingClientRect().top - anchorEl.getBoundingClientRect().top) / rf.getZoom();
+      if (Math.abs(dy - (quoteDy.current.get(n.id) ?? NaN)) <= 0.5) continue;
+      quoteDy.current.set(n.id, dy);
+      changed = true;
+    }
+    return changed;
+  };
+
   const arrange = (sized: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
     const mainPos = layout(main, shown.edges.filter((e) => !satelliteAnchors.has(e.source)));
@@ -108,15 +127,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   useEffect(() => {
     if (nodes.length !== shown.nodes.length || nodes.some((n) => !shown.nodes.some((g) => g.id === n.id))) return;
     if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
-    if (sizeKey === laidOutKey.current) return;
-    laidOutKey.current = sizeKey;
-    const dy = new Map<string, number>();
-    for (const n of quoted) {
-      const range = rangeOf(n);
-      const anchorEl = container.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(n.anchors![0]!)}"]`);
-      if (range && anchorEl) dy.set(n.id, (range.getBoundingClientRect().top - anchorEl.getBoundingClientRect().top) / rf.getZoom());
-    }
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), dy);
+    const key = `${sizeKey}#${quoteDyVersion}`;
+    if (key === laidOutKey.current) return;
+    laidOutKey.current = key;
+    measureQuoteDy();
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
@@ -125,7 +140,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
     }
-  }, [sizeKey, nodes, rf, setNodes, shown]);
+  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown]);
 
   const quoteAt = (x: number, y: number) => {
     const highlight = CSS.highlights.get("chat-quote");
@@ -223,6 +238,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       const strong = new Highlight(...active);
       strong.priority = 1;
       CSS.highlights.set("chat-quote-active", strong);
+      if (measureQuoteDy()) setQuoteDyVersion((v) => v + 1);
     };
     // Synchronous: the previous run's cleanup deleted the highlights, and a click in this frame must still hit them.
     build();

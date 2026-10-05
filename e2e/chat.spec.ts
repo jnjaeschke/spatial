@@ -191,8 +191,19 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
     const rowBox = await row.boundingBox();
     return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
   }).toBeLessThan(40);
+  await draft.getByLabel("message").fill("Why?");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  const thread = page.locator(".chat-node").filter({ has: answer });
+  await expect.poll(async () => {
+    const chatBox = await thread.boundingBox();
+    const rowBox = await row.boundingBox();
+    return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
+  }).toBeLessThan(40);
 
-  await draft.getByLabel("message").focus();
+  console.log("DBG", JSON.stringify(await thread.boundingBox()), JSON.stringify(await row.boundingBox()), JSON.stringify(await page.getByTestId("hunk-f0h0").boundingBox()), JSON.stringify(await page.getByTestId("change-c1").boundingBox()));
+  await thread.getByLabel("message").focus();
   await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(1);
   await page.locator(".react-flow__pane").click({ position: { x: 5, y: 5 } });
   await page.mouse.move(5, 5);
@@ -264,4 +275,52 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
   await expect(answer).toHaveCount(0);
   await page.getByRole("button", { name: "Expand all" }).click();
   await expect(answer).toBeVisible();
+});
+
+test("a quoted chat aligns to its quote once its unrendered anchor comes into view", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "code");
+  const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();
+  await row.locator("td.code").dblclick();
+  await page.locator("button.ask-selection").click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await draft.getByLabel("message").fill("Why?");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  await zoomTo(page, "concept");
+
+  const panY = async (dy: number) => {
+    const grab = await page.evaluate((dy) => {
+      for (let y = dy < 0 ? innerHeight - 20 : 20; y > 0 && y < innerHeight; y += dy < 0 ? -20 : 20) {
+        for (let x = 20; x < innerWidth; x += 40) {
+          if (document.elementFromPoint(x, y)?.classList.contains("react-flow__pane")) return { x, y };
+        }
+      }
+      throw new Error("no empty pane");
+    }, dy);
+    await page.mouse.move(grab.x, grab.y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x, grab.y + dy, { steps: 8 });
+    await page.mouse.up();
+  };
+  for (let i = 0; i < 20 && await page.getByTestId("change-c1").count(); i++) await panY(-600);
+  const scale = async () => Number(/scale\(([\d.]+)\)/.exec((await page.locator(".react-flow__viewport").getAttribute("style"))!)![1]);
+  for (let i = 0; i < 10 && await scale() < 0.9; i++) {
+    await page.getByRole("button", { name: "zoom in" }).click();
+    await page.waitForTimeout(150);
+  }
+  await page.waitForTimeout(500);
+  for (let i = 0; i < 40; i++) {
+    const box = await row.count() ? await row.boundingBox() : null;
+    if (box && box.y > 100 && box.y < 700) break;
+    await panY(box && box.y >= 700 ? -300 : 300);
+  }
+  await expect(row).toBeInViewport();
+  const thread = page.locator(".chat-node").filter({ has: answer });
+  await expect.poll(async () => {
+    const chatBox = await thread.boundingBox();
+    const rowBox = await row.boundingBox();
+    return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
+  }).toBeLessThan(40);
 });
