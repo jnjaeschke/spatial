@@ -23,7 +23,7 @@ const narrative = {
   ],
 };
 const out = join(dir, "claude.json");
-writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "Stub answer.", structured_output: narrative, session_id: "stub-session", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```", structured_output: narrative, session_id: "stub-session", usage: { input_tokens: 1, output_tokens: 1 } }));
 process.env.FAKE_LLM_STDOUT = out;
 process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 

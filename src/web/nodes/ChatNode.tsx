@@ -5,6 +5,9 @@ import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
 import type { ChatNodeData, ZoomLevel } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
+import { CodeSpan } from "../CodeSpan.tsx";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
@@ -30,7 +33,17 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
       <div className="messages body nodrag nopan nowheel">
         {data.messages.map((m) => (
           <div key={m.id} className={`msg ${m.data.role}`}>
-            {m.data.text}
+            {m.data.role === "assistant"
+              ? <Markdown remarkPlugins={[remarkGfm]} components={{
+                code: ({ className, children }) => {
+                  const code = String(children);
+                  return className?.startsWith("language-") || /[\r\n]/.test(code)
+                    ? <code className={className}>{children}</code>
+                    : <CodeSpan text={code} hunks={data.hunks} diffId={data.diffId} />;
+                },
+                a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
+              }}>{m.data.text}</Markdown>
+              : m.data.text}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>
         ))}

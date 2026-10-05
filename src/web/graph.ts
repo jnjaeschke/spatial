@@ -32,6 +32,8 @@ export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
 export interface ChatNodeData {
   kind: "chat";
   anchor: Ref;
+  diffId: string;
+  hunks: { file: DiffFile; hunk: Hunk }[];
   threadId: string | null;
   draftId: string | null;
   /** Task of the turn that created the thread (or that the draft sent); later turns carry `threadId` in their input. */
@@ -110,6 +112,7 @@ export function sessionGraph(state: SessionState, drafts: { id: string; anchor: 
     g.nodes.push({ id: a.id, anchors, data: { kind: "spec", ref: a as Artifact<SpecReferenceData> } });
     for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
   }
+  const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   for (const thread of threads) {
     const node = anchorNodeId(thread.data.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
@@ -117,13 +120,13 @@ export function sessionGraph(state: SessionState, drafts: { id: string; anchor: 
     const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
       .map((l) => state.artifacts.find((a) => a.id === l.from))
       .filter((a): a is Artifact<ChatMessageData> => !!a);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, diffId: latest.diff.id, hunks: allHunks, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
     const node = anchorNodeId(draft.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
     if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
   return g;

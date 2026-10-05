@@ -31,12 +31,18 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await chat.getByLabel("message").fill("Why this change?");
   await chat.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator(".msg.user", { hasText: "Why this change?" })).toBeVisible();
+  const assistant = page.locator(".msg.assistant");
+  await expect(assistant.locator("li strong", { hasText: "THIRTY" })).toBeVisible();
+  await expect(assistant.locator("pre code", { hasText: "int x = 1;" })).toBeVisible();
+  await expect(assistant.locator("button.code-link", { hasText: "THIRTY" })).toBeVisible();
+  const userMessage = page.locator(".msg.user", { hasText: "Why this change?" });
+  await expect(userMessage).toBeVisible();
+  await expect(userMessage.locator("p")).toHaveCount(0);
   await page.reload();
   await zoomTo(page, "concept");
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible();
-  await answer.click({ clickCount: 3 });
+  await answer.locator("p").first().click({ clickCount: 3 });
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
