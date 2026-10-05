@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiffData, PatchNarrativeData, SessionState } from "../../src/shared/types.ts";
-import { estimateSize, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, zoomLevel } from "../../src/web/graph.ts";
+import { anchorNodeId, estimateSize, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, zoomLevel } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -105,4 +105,25 @@ test("placeSatellites: column right of the story, aligned to anchors, no overlap
   assert.equal(pos.get("s1")!.y, 0);
   assert.ok(pos.get("s2")!.y >= 250 + 24);
   assert.ok(pos.get("s3")!.y >= pos.get("s2")!.y + 100 + 24);
+});
+
+test("anchorNodeId maps change refs and hunk refs to change nodes", () => {
+  const n = narrative("N");
+  assert.equal(anchorNodeId("N#c2", "N", n.data, "D"), "N#c2");
+  assert.equal(anchorNodeId("D#f1h0", "N", n.data, "D"), "N#c2");
+  assert.equal(anchorNodeId("OLD#c1", "N", n.data, "D"), null);
+  assert.equal(anchorNodeId("D#f9h9", "N", n.data, "D"), null);
+});
+
+test("sessionGraph adds chat satellites for threads and drafts", () => {
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
+  const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "user", text: "q" } };
+  const st = state([diff, narrative("N"), thread, msg]);
+  st.links = [{ id: "l", sessionId: "S", from: "M", to: "T", kind: "reply" }];
+  const g = sessionGraph(st, [{ id: "draft-1", anchor: "N#c3" }])!;
+  const chat = g.nodes.find((x) => x.id === "T")!;
+  assert.deepEqual(chat.anchors, ["N#c1"]);
+  assert.equal(chat.data.kind === "chat" && chat.data.messages.length, 1);
+  const draft = g.nodes.find((x) => x.id === "draft-1")!;
+  assert.deepEqual(draft.anchors, ["N#c3"]);
 });

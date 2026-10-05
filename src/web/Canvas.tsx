@@ -1,18 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background, Controls, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
-import type { SessionState } from "../shared/types.ts";
+import type { ModelsResponse, Ref, SessionState, TaskRecord } from "../shared/types.ts";
 import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SPEC_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
 import { SourceBaseContext } from "./DiffView.tsx";
+import { ChatNode } from "./nodes/ChatNode.tsx";
 
-const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode };
+const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode };
 
-interface Props { state: SessionState }
+export const AskContext = createContext<{ ask(anchor: Ref): void } | null>(null);
+export interface ChatActions {
+  models: ModelsResponse;
+  sessionId: string;
+  tasks: TaskRecord[];
+  pendingDrafts: Set<string>;
+  onSent(draftId: string, taskId: string): void;
+}
+export const ChatActionsContext = createContext<ChatActions | null>(null);
+
+interface Props { state: SessionState; models?: ModelsResponse | null }
 
 export function Canvas(props: Props) {
   return (
@@ -22,15 +33,30 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ state }: Props) {
+function CanvasInner({ state, models = null }: Props) {
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
+  const anchor = useRef<string | null>(null);
+  const [drafts, setDrafts] = useState<{ id: string; anchor: Ref; taskId?: string }[]>([]);
+  useEffect(() => {
+    const completed = new Set(state.artifacts.filter((a) => a.type === "ChatThread").map((a) => a.provenance.taskId));
+    setDrafts((current) => current.filter((d) => !d.taskId || !completed.has(d.taskId)));
+  }, [state]);
+  const ask = useCallback((ref: Ref) => {
+    const id = `draft-${crypto.randomUUID()}`;
+    anchor.current = id;
+    setDrafts((current) => [...current, { id, anchor: ref }]);
+  }, []);
+  const onSent = useCallback((draftId: string, taskId: string) => setDrafts((current) => current.map((d) => d.id === draftId ? { ...d, taskId } : d)), []);
+  const pendingDrafts = useMemo(() => new Set(drafts.filter((d) => d.taskId).map((d) => d.id)), [drafts]);
+  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, pendingDrafts, onSent } : null,
+    [models, state.session.id, state.tasks, pendingDrafts, onSent]);
   const graph = useMemo(() => {
-    const g = sessionGraph(state);
+    const g = sessionGraph(state, drafts);
     if (!g) throw new Error("Canvas needs a session with a narrative");
     return g;
-  }, [state]);
-  const satelliteAnchors = useMemo(() => new Map(graph.nodes.filter((n) => n.data.kind === "spec").map((n) => [n.id, n.anchors ?? []])), [graph]);
+  }, [state, drafts]);
+  const satelliteAnchors = useMemo(() => new Map(graph.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat").map((n) => [n.id, n.anchors ?? []])), [graph]);
   const edges = useMemo<Edge[]>(() => graph.edges.map((e) => satelliteAnchors.has(e.source)
     ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
     : { ...e, type: "smoothstep" }), [graph, satelliteAnchors]);
@@ -38,7 +64,6 @@ function CanvasInner({ state }: Props) {
   const levelRef = useRef(level);
   levelRef.current = level;
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const anchor = useRef<string | null>(null);
   const laidOutKey = useRef("");
   const offsets = useRef(new Map<string, { dx: number; dy: number }>());
   const basePos = useRef(new Map<string, { x: number; y: number }>());
@@ -68,7 +93,7 @@ function CanvasInner({ state }: Props) {
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
-      style: { width: n.data.kind === "spec" ? SPEC_WIDTH : NODE_WIDTH[level] },
+      style: { width: n.data.kind === "spec" ? SPEC_WIDTH : n.data.kind === "chat" ? 420 : NODE_WIDTH[level] },
       draggable: true,
       dragHandle: ".title",
     })));
@@ -76,6 +101,7 @@ function CanvasInner({ state }: Props) {
 
   const sizeKey = nodes.map((n) => `${n.id}:${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`).join("|");
   useEffect(() => {
+    if (nodes.length !== graph.nodes.length || nodes.some((n) => !graph.nodes.some((g) => g.id === n.id))) return;
     if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
     if (sizeKey === laidOutKey.current) return;
     laidOutKey.current = sizeKey;
@@ -122,6 +148,7 @@ function CanvasInner({ state }: Props) {
   };
 
   return (
+    <AskContext.Provider value={models ? { ask } : null}><ChatActionsContext.Provider value={chatActions}>
     <SourceBaseContext.Provider value={state.sourceBase}><div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
       <ReactFlow
         nodes={nodes}
@@ -146,5 +173,6 @@ function CanvasInner({ state }: Props) {
         <Panel position="top-right"><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
     </div></SourceBaseContext.Provider>
+    </ChatActionsContext.Provider></AskContext.Provider>
   );
 }

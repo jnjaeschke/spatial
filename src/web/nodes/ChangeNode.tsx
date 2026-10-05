@@ -1,16 +1,19 @@
+import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeNodeData, ZoomLevel } from "../graph.ts";
 import { DiffView } from "../DiffView.tsx";
 import { InlineText } from "../InlineText.tsx";
+import { AskContext } from "../Canvas.tsx";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 
 export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
   const { change, level, files, hunks, sessionId, diffId } = data;
+  const ask = useContext(AskContext);
   return (
     <div className={`node change-node level-${level}`} data-testid={`change-${change.id}`} data-level={level}>
       <Handle type="target" position={Position.Top} />
-      <div className="title"><InlineText text={change.title} /></div>
+      <div className="title"><InlineText text={change.title} />{ask && level !== "patch" && <button aria-label={`Ask about ${change.id}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#${change.id}`)}>Ask</button>}</div>
       <div className="body nodrag nopan">
         {level !== "patch" && (
           <>

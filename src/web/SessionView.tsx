@@ -18,7 +18,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     <div className="topbar"><a href="/">Sessions</a><b>{state.session.title}</b><code>{state.session.repo}</code><NarrateForm sessionId={sessionId} models={models} busy={busy} /></div>
     <FileViewContext.Provider value={setOpenFile}>
       <div className="session-body">
-        {n ? <Canvas state={state} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>}
+        {n ? <Canvas state={state} models={models} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>}
         {n && openFile?.diffId === n.diff.id && <FilePanel sessionId={sessionId} diff={n.diff} open={openFile} onClose={() => setOpenFile(null)} />}
       </div>
     </FileViewContext.Provider>

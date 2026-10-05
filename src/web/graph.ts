@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, Commit, DiffData, DiffFile, Hunk, PatchNarrativeData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, PatchNarrativeData, Ref, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
@@ -27,8 +27,15 @@ export interface SummaryNodeData {
 }
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
+export interface ChatNodeData {
+  kind: "chat";
+  anchor: Ref;
+  threadId: string | null;
+  draftId: string | null;
+  messages: Artifact<ChatMessageData>[];
+}
 
-export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData;
+export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 
@@ -61,7 +68,19 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   return { nodes, edges };
 }
 
-export function sessionGraph(state: SessionState): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
+export function anchorNodeId(anchor: Ref, narrativeId: string, narrative: PatchNarrativeData, diffId: string): string | null {
+  const i = anchor.indexOf("#");
+  if (i < 0) return null;
+  const artifactId = anchor.slice(0, i), subId = anchor.slice(i + 1);
+  if (artifactId === narrativeId) return narrative.changes.some((c) => c.id === subId) ? anchor : null;
+  if (artifactId === diffId) {
+    const change = narrative.changes.find((c) => c.hunkIds.includes(subId));
+    return change ? `${narrativeId}#${change.id}` : null;
+  }
+  return null;
+}
+
+export function sessionGraph(state: SessionState, drafts: { id: string; anchor: Ref }[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
@@ -75,6 +94,22 @@ export function sessionGraph(state: SessionState): { nodes: GraphNode[]; edges: 
     if (a.type !== "SpecReference" || !anchors) continue;
     g.nodes.push({ id: a.id, anchors, data: { kind: "spec", ref: a as Artifact<SpecReferenceData> } });
     for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
+  }
+  const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  for (const thread of threads) {
+    const node = anchorNodeId(thread.data.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
+    if (!node) continue;
+    const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
+      .map((l) => state.artifacts.find((a) => a.id === l.from))
+      .filter((a): a is Artifact<ChatMessageData> => !!a);
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, threadId: thread.id, draftId: null, messages } });
+    g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
+  }
+  for (const draft of drafts) {
+    const node = anchorNodeId(draft.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
+    if (!node) continue;
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, threadId: null, draftId: draft.id, messages: [] } });
+    g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
   return g;
 }
@@ -100,6 +135,7 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "spec") return { width: SPEC_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
+  if (data.kind === "chat") return { width: 420, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];
   if (data.kind === "summary") {
     return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 };
