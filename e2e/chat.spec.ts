@@ -68,6 +68,29 @@ test("ask about a hunk anchors the chat to its change", async ({ page, request }
   expect(chatBox.x).toBeGreaterThan(c1.x + c1.width);
 });
 
+test("selecting text in a chat opens a chat anchored to the original chat", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "concept");
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const original = page.locator('[data-testid^="chat-draft-"]');
+  await original.getByLabel("message").fill("Start a chat");
+  await original.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  const box = (await answer.locator("p").first().boundingBox())!;
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.locator("button.ask-selection")).toBeVisible();
+  await page.locator("button.ask-selection").click();
+  const nested = page.locator('[data-testid^="chat-draft-"]').filter({ has: page.getByLabel("message") });
+  await expect(nested).toHaveCount(1);
+  const nestedBox = (await nested.boundingBox())!;
+  const originalBox = (await page.locator(".chat-node").first().boundingBox())!;
+  expect(nestedBox.x).toBeGreaterThan(originalBox.x + originalBox.width);
+});
+
 test("selecting text on a change opens a quoted chat; cross-card selection is ignored", async ({ page, request }) => {
   await openNarrated(page, request);
   await zoomTo(page, "concept");

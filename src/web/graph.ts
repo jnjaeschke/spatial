@@ -78,9 +78,21 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   return { nodes, edges };
 }
 
-export function anchorNodeId(anchor: Ref, narrativeId: string, narrative: PatchNarrativeData, diffId: string): string | null {
+/** The graph node an anchor attaches to, or null. Whole-artifact anchors (summary, spec, chat) resolve only to nodes in `nodeIds`; a message resolves to its thread's node. */
+export function anchorNodeId(
+  anchor: Ref,
+  narrativeId: string,
+  narrative: PatchNarrativeData,
+  diffId: string,
+  nodeIds: ReadonlySet<string> = new Set(),
+  links: SessionState["links"] = [],
+): string | null {
   const i = anchor.indexOf("#");
-  if (i < 0) return null;
+  if (i < 0) {
+    if (nodeIds.has(anchor)) return anchor;
+    const thread = links.find((l) => l.kind === "reply" && l.from === anchor)?.to;
+    return thread && nodeIds.has(thread) ? thread : null;
+  }
   const artifactId = anchor.slice(0, i), subId = anchor.slice(i + 1);
   if (artifactId === narrativeId) return narrative.changes.some((c) => c.id === subId) ? anchor : null;
   if (artifactId === diffId) {
@@ -116,11 +128,14 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     g.nodes.push({ id: a.id, anchors, data: { kind: "spec", ref: a as Artifact<SpecReferenceData> } });
     for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
   }
+  const nodeIds = new Set(g.nodes.map((n) => n.id));
+  const resolve = (anchor: Ref) => anchorNodeId(anchor, latest.narrative.id, latest.narrative.data, latest.diff.id, nodeIds, state.links);
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   for (const thread of threads) {
-    const node = anchorNodeId(thread.data.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
+    const node = resolve(thread.data.anchor);
     if (!node) continue;
+    nodeIds.add(thread.id);
     const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
       .map((l) => state.artifacts.find((a) => a.id === l.from))
       .filter((a): a is Artifact<ChatMessageData> => !!a);
@@ -128,7 +143,7 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
-    const node = anchorNodeId(draft.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
+    const node = resolve(draft.anchor);
     if (!node) continue;
     g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
@@ -140,14 +155,29 @@ const SATELLITE_GAP_X = 80;
 const SATELLITE_GAP_Y = 24;
 
 export function placeSatellites(main: Map<string, { x: number; y: number; width: number; height: number }>, satellites: { id: string; width: number; height: number; anchors: string[] }[]): Map<string, { x: number; y: number }> {
-  const x = Math.max(...[...main.values()].map((r) => r.x + r.width)) + SATELLITE_GAP_X;
-  const anchorY = (s: { anchors: string[] }) => Math.min(...s.anchors.map((a) => main.get(a)?.y ?? Infinity));
+  const maxRight = Math.max(...[...main.values()].map((r) => r.x + r.width));
+  const rects = new Map([...main].map(([id, r]) => [id, { ...r, column: 0 }]));
   const out = new Map<string, { x: number; y: number }>();
-  let nextFree = -Infinity;
-  for (const s of [...satellites].sort((a, b) => anchorY(a) - anchorY(b))) {
-    const y = Math.max(anchorY(s), nextFree);
-    out.set(s.id, { x, y });
-    nextFree = y + s.height + SATELLITE_GAP_Y;
+  const pending = [...satellites];
+  const colY = new Map<number, number>();
+  while (pending.length) {
+    const eligible = pending.filter((s) => s.anchors.length > 0 && s.anchors.every((a) => rects.has(a)));
+    if (!eligible.length) break;
+    const anchorY = (s: typeof eligible[number]) => Math.min(...s.anchors.map((a) => rects.get(a)!.y));
+    eligible.sort((a, b) => Math.max(...a.anchors.map((id) => rects.get(id)!.column)) - Math.max(...b.anchors.map((id) => rects.get(id)!.column)) || anchorY(a) - anchorY(b));
+    for (const s of eligible) {
+      const anchorRects = s.anchors.map((id) => rects.get(id)!);
+      const anchorColumn = Math.max(...anchorRects.map((r) => r.column));
+      const x = anchorColumn === 0
+        ? maxRight + SATELLITE_GAP_X
+        : Math.max(...anchorRects.filter((r) => r.column === anchorColumn).map((r) => r.x + r.width)) + SATELLITE_GAP_X;
+      const column = anchorColumn + 1;
+      const y = Math.max(anchorY(s), colY.get(column) ?? -Infinity);
+      out.set(s.id, { x, y });
+      rects.set(s.id, { x, y, width: s.width, height: s.height, column });
+      colY.set(column, y + s.height + SATELLITE_GAP_Y);
+      pending.splice(pending.indexOf(s), 1);
+    }
   }
   return out;
 }

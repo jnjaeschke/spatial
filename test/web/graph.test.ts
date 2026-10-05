@@ -142,6 +142,34 @@ test("anchorNodeId maps change refs and hunk refs to change nodes", () => {
   assert.equal(anchorNodeId("D#f9h9", "N", n.data, "D"), null);
 });
 
+test("anchorNodeId resolves summaries, specs, chats and chat messages to graph nodes", () => {
+  const n = narrative("N");
+  const nodes = new Set(["N", "R", "T"]);
+  const links = [{ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" as const }, { id: "reply2", sessionId: "S", from: "M2", to: "T2", kind: "reply" as const }];
+  assert.equal(anchorNodeId("R", "N", n.data, "D", nodes, links), "R");
+  assert.equal(anchorNodeId("N", "N", n.data, "D", nodes, links), "N");
+  assert.equal(anchorNodeId("T", "N", n.data, "D", nodes, links), "T");
+  assert.equal(anchorNodeId("M", "N", n.data, "D", nodes, links), "T");
+  assert.equal(anchorNodeId("M2", "N", n.data, "D", nodes, links), null);
+  assert.equal(anchorNodeId("R2", "N", n.data, "D", nodes, links), null);
+});
+
+test("sessionGraph skips a chat anchored to a change in an older narrative", () => {
+  const oldThread = { id: "T-old", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N1#c1" } };
+  const g = sessionGraph(state([diff, narrative("N1"), narrative("N2"), oldThread]))!;
+  assert.ok(!g.nodes.some((n) => n.id === "T-old"));
+});
+
+test("sessionGraph skips a chat anchored to a message of a hidden chat", () => {
+  const hidden = { id: "T1", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N1#c1" } };
+  const message = { id: "M1", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "answer" } };
+  const nested = { id: "T2", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "6", provenance: { taskId: "t" }, data: { anchor: "M1" } };
+  const st = state([diff, narrative("N1"), narrative("N2"), hidden, message, nested]);
+  st.links = [{ id: "reply", sessionId: "S", from: "M1", to: "T1", kind: "reply" }];
+  const g = sessionGraph(st)!;
+  assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T2"));
+});
+
 test("sessionGraph adds chat satellites for threads and drafts", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
   const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "user", text: "q" } };
@@ -153,4 +181,41 @@ test("sessionGraph adds chat satellites for threads and drafts", () => {
   assert.equal(chat.data.kind === "chat" && chat.data.messages.length, 1);
   const draft = g.nodes.find((x) => x.id === "draft-1")!;
   assert.deepEqual(draft.anchors, ["N#c3"]);
+});
+
+test("chat satellites can anchor to spec, another chat, and narrative summary", () => {
+  const spec = { id: "R", sessionId: "S", type: "SpecReference", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" }, data: { url: "u", resolved: null, geckoRefs: [] } };
+  const first = { id: "T1", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } };
+  const message = { id: "M1", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "answer" } };
+  const onSpec = { id: "T2", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "6", provenance: { taskId: "t" }, data: { anchor: "R" } };
+  const onChat = { id: "T3", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "7", provenance: { taskId: "t" }, data: { anchor: "M1" } };
+  const onSummary = { id: "T4", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "8", provenance: { taskId: "t" }, data: { anchor: "N" } };
+  const st = state([diff, narrative("N"), spec, first, message, onSpec, onChat, onSummary]);
+  st.links = [
+    { id: "support", sessionId: "S", from: "R", to: "N#c1", kind: "supports" },
+    { id: "reply", sessionId: "S", from: "M1", to: "T1", kind: "reply" },
+  ];
+  const g = sessionGraph(st)!;
+  assert.deepEqual(g.nodes.find((n) => n.id === "T2")?.anchors, ["R"]);
+  assert.deepEqual(g.nodes.find((n) => n.id === "T3")?.anchors, ["T1"]);
+  assert.deepEqual(g.nodes.find((n) => n.id === "T4")?.anchors, ["N"]);
+});
+
+test("placeSatellites uses columns to the right of placed anchors and preserves column one", () => {
+  const main = new Map([
+    ["N", { x: 0, y: 0, width: 400, height: 100 }],
+    ["N#c1", { x: 0, y: 180, width: 400, height: 100 }],
+  ]);
+  const pos = placeSatellites(main, [
+    { id: "first", width: 300, height: 100, anchors: ["N#c1"] },
+    { id: "second", width: 300, height: 100, anchors: ["N"] },
+    { id: "nested", width: 300, height: 100, anchors: ["first"] },
+    { id: "missing", width: 300, height: 100, anchors: ["missing"] },
+  ]);
+  assert.equal(pos.get("first")?.x, 480);
+  assert.equal(pos.get("second")?.x, 480);
+  assert.equal(pos.get("nested")?.x, 860);
+  assert.ok(!pos.has("missing"));
+  assert.equal(pos.get("first")?.y, 180);
+  assert.equal(pos.get("second")?.y, 0);
 });
