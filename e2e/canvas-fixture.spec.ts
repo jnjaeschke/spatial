@@ -65,7 +65,17 @@ test("explanation text is selectable without panning", async ({ page }) => {
   expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
 });
 
-const flowX = (page: Page, id: string) =>
+test("spec text is selectable without panning", async ({ page }) => {
+  await page.goto(URL);
+  await zoomUntil(page, "zoom out", "concept");
+  const before = await page.locator(".react-flow__viewport").getAttribute("style");
+  await page.getByTestId("spec-R").locator(".spec-text").dblclick();
+  const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+  expect(selected.length).toBeGreaterThan(0);
+  expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
+});
+
+const flowX =(page: Page, id: string) =>
   page.getByTestId(`change-${id}`).locator("..").evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).m41);
 
 test("dragging a node by its title survives relayout until reset", async ({ page }) => {

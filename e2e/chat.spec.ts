@@ -34,7 +34,10 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(page.locator(".msg.user", { hasText: "Why this change?" })).toBeVisible();
   await page.reload();
   await zoomTo(page, "concept");
-  await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible();
+  await answer.click({ clickCount: 3 });
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
 test("a failed first turn shows its error in the chat", async ({ page, request }) => {

@@ -27,7 +27,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   return (
     <div className={`node chat-node level-${data.level}`} data-testid={`chat-${id}`}>
       <Handle type="source" position={Position.Left} />
-      <div className="messages nodrag nopan nowheel">
+      <div className="messages body nodrag nopan nowheel">
         {data.messages.map((m) => (
           <div key={m.id} className={`msg ${m.data.role}`}>
             {m.data.text}
