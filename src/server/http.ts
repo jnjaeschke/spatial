@@ -106,6 +106,14 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
+      if (rt.store.listArtifacts(id).some((artifact) => artifact.type === "PatchNarrative")) {
+        throw new HttpError(409, "Session already has a narrative");
+      }
+      if (rt.store.listTasks(id).some((task) =>
+        (task.kind === "importDiff" || task.kind === "narrate" || task.kind === "resolveSpecRefs") &&
+        (task.status === "pending" || task.status === "running"))) {
+        throw new HttpError(409, "Narration already running");
+      }
       const body = await readJson(req);
       const llm = body.llm as LlmSelection | undefined;
       narratePatch(rt, id, { base: str(body.base, "base"), head: str(body.head, "head"), llm }).catch((e) =>

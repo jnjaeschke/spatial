@@ -30,7 +30,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const n = latestNarrative(state);
   const busy = state.tasks.some((t) => (t.kind === "importDiff" || t.kind === "narrate") && (t.status === "running" || t.status === "pending"));
   return <div className="app">
-    <div className="topbar"><a href="/">Sessions</a><b>{state.session.title}</b><code>{state.session.repo}</code><NarrateForm sessionId={sessionId} models={models} busy={busy} /></div>
+    <div className="topbar"><a href="/">Sessions</a><b>{state.session.title}</b><code>{state.session.repo}</code>{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} />}</div>
     <AskContext.Provider value={askContext}><FileViewContext.Provider value={setOpenFile}>
       <div className="session-body">
         {n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>}

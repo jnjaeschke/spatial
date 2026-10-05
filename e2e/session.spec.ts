@@ -10,6 +10,7 @@ test("pick session, narrate, see canvas and activity", async ({ page }) => {
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("task-narrate")).toHaveAttribute("data-status", "succeeded");
   await expect(page.getByText("Edits a and adds c.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Narrate" })).toHaveCount(0);
 });
 
 test("expand context around a hunk", async ({ page }) => {
@@ -45,14 +46,19 @@ test("expand context around a hunk", async ({ page }) => {
   await expect(hunk.getByRole("button", { name: "↓ 20 lines" })).toHaveCount(0);
 });
 
-test("failed narrate shows the error in the activity strip and keeps the canvas", async ({ page }) => {
+test("failed narrate shows the error in the activity strip and keeps the canvas", async ({ page, request }) => {
+  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; repo: string }[];
+  const fixture = sessions.find((session) => session.title === "fixture")!;
+  const title = `failed-narrate-${crypto.randomUUID()}`;
+  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.repo, title } });
   await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: "fixture" }).click();
+  await page.getByRole("link", { name: title }).click();
   await page.getByLabel("base").fill("HEAD");
   await page.getByLabel("head").fill("HEAD~1");
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("task-importDiff").first()).toHaveAttribute("data-status", "failed", { timeout: 10_000 });
   await expect(page.getByText(/is not an ancestor of/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Narrate" })).toBeVisible();
 });
 
 test("open the whole file in the side panel", async ({ page }) => {

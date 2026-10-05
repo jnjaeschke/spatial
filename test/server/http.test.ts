@@ -76,6 +76,39 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
   assert.equal(state.searchfox, null);
+  const repeated = await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+  assert.equal(repeated.status, 409);
+  assert.deepEqual(await repeated.json(), { error: "Session already has a narrative" });
+});
+
+test("narrate rejects a second request while narration is running", async () => {
+  let started!: () => void;
+  let release!: () => void;
+  const startedPromise = new Promise<void>((resolve) => { started = resolve; });
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const gatedLlm: LlmService = {
+    ...llm,
+    async run(selection, prompt) {
+      if (prompt.schema) { started(); await gate; }
+      return { text: prompt.schema ? "" : "hi", json: prompt.schema ? NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+    },
+  };
+  const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const gatedServer = createHttpServer(gatedRt, { staticDir });
+  await new Promise<void>((resolve) => gatedServer.listen(0, "127.0.0.1", resolve));
+  try {
+    const gatedBase = `http://127.0.0.1:${(gatedServer.address() as AddressInfo).port}`;
+    const create = (path: string, body: unknown) => fetch(gatedBase + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const session: Session = await (await create("/api/sessions", { repo: repo.dir, title: "gated narration" })).json();
+    assert.equal((await create(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" })).status, 202);
+    await startedPromise;
+    const repeated = await create(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+    assert.equal(repeated.status, 409);
+    assert.deepEqual(await repeated.json(), { error: "Narration already running" });
+  } finally {
+    release();
+    await new Promise<void>((resolve) => gatedServer.close(() => resolve()));
+  }
 });
 
 test("turns: first turn creates thread; busy thread is 409", async () => {
