@@ -11,7 +11,10 @@
     "docs": "typedoc",
     "docs:check": "node scripts/docs-check.ts",
     "check": "npm run typecheck && npm test && npm run docs:check",
-    "server": "node src/server/main.ts"
+    "server": "node src/server/main.ts",
+    "web": "vite",
+    "build:web": "vite build",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

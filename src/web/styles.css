@@ -1,0 +1,27 @@
+:root { font-family: system-ui, sans-serif; color: #1d1d1f; background: #f6f6f4; }
+html, body, #root { margin: 0; height: 100%; }
+.app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+.topbar { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #ddd; background: #fff; }
+.canvas { position: relative; min-height: 0; }
+.empty { padding: 32px; color: #666; }
+.node { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 12px 14px; box-sizing: border-box; }
+.node .title { font-weight: 600; }
+.node p { margin: 6px 0; line-height: 1.35; }
+.level-patch { font-size: 28px; }
+.level-concept { font-size: 16px; }
+.level-code { font-size: 13px; }
+.summary-node { border-color: #6b7fd7; background: #f3f5ff; }
+.files { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, monospace; font-size: 0.85em; color: #555; }
+.diff { margin-top: 10px; border: 1px solid #e3e3e3; border-radius: 6px; overflow: hidden; cursor: text; user-select: text; }
+.diff-head { font-family: ui-monospace, monospace; font-size: 0.85em; background: #f0f0f0; padding: 4px 8px; }
+.diff table { border-collapse: collapse; width: 100%; font-family: ui-monospace, monospace; font-size: 0.9em; }
+.diff td { padding: 0 6px; white-space: pre-wrap; word-break: break-all; vertical-align: top; }
+.diff td.ln { color: #999; text-align: right; width: 1%; white-space: nowrap; user-select: none; }
+.diff td.sign { width: 1%; user-select: none; }
+.diff tr.add { background: #e6ffec; }
+.diff tr.del { background: #ffebe9; }
+.react-flow__handle { opacity: 0; pointer-events: none; }
+.activity { display: flex; gap: 12px; padding: 6px 12px; border-top: 1px solid #ddd; background: #fff; font-size: 13px; overflow-x: auto; }
+.activity .task { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.activity .failed { color: #b00020; }
+.activity .running { color: #0b57d0; }
