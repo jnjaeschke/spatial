@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Background, Controls, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
+  Background, Controls, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
 import type { Artifact, DiffData, PatchNarrativeData } from "../shared/types.ts";
@@ -34,18 +34,29 @@ function CanvasInner({ narrative, diff }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const anchor = useRef<string | null>(null);
   const laidOutKey = useRef("");
+  const offsets = useRef(new Map<string, { dx: number; dy: number }>());
+  const basePos = useRef(new Map<string, { x: number; y: number }>());
+
+  const place = (id: string, p: { x: number; y: number }) => {
+    const o = offsets.current.get(id);
+    return o ? { x: p.x + o.dx, y: p.y + o.dy } : p;
+  };
+
+  useEffect(() => offsets.current.clear(), [graph]);
 
   useEffect(() => {
     const sized = graph.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data, level) }));
     const pos = layout(sized, graph.edges);
+    basePos.current = pos;
     laidOutKey.current = "";
     setNodes(graph.nodes.map((n) => ({
       id: n.id,
       type: n.data.kind,
       data: { ...n.data, level },
-      position: pos.get(n.id)!,
+      position: place(n.id, pos.get(n.id)!),
       style: { width: NODE_WIDTH[level] },
-      draggable: false,
+      draggable: true,
+      dragHandle: ".title",
     })));
   }, [graph, level, setNodes]);
 
@@ -55,10 +66,11 @@ function CanvasInner({ narrative, diff }: Props) {
     if (sizeKey === laidOutKey.current) return;
     laidOutKey.current = sizeKey;
     const pos = layout(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), graph.edges);
-    setNodes((ns) => ns.map((n) => ({ ...n, position: pos.get(n.id)! })));
+    basePos.current = pos;
+    setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
     if (a) {
-      const p = pos.get(a.id)!;
+      const p = place(a.id, pos.get(a.id)!);
       rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
     }
@@ -87,6 +99,14 @@ function CanvasInner({ narrative, diff }: Props) {
     }
   }, [nodeNearestCenter]);
 
+  const reset = () => {
+    offsets.current.clear();
+    setNodes((ns) => ns.map((n) => {
+      const p = basePos.current.get(n.id);
+      return p ? { ...n, position: p } : n;
+    }));
+  };
+
   return (
     <div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
       <ReactFlow
@@ -96,8 +116,12 @@ function CanvasInner({ narrative, diff }: Props) {
         onNodesChange={onNodesChange}
         onMove={onMove}
         onInit={(inst) => setLevel(zoomLevel(inst.getZoom()))}
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
+        onNodeDragStop={(_, node) => {
+          const b = basePos.current.get(node.id)!;
+          offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
+        }}
         onlyRenderVisibleElements
         fitView
         minZoom={0.1}
@@ -105,6 +129,7 @@ function CanvasInner({ narrative, diff }: Props) {
       >
         <Background />
         <Controls showInteractive={false} />
+        <Panel position="top-right"><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
     </div>
   );

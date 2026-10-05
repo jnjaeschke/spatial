@@ -54,3 +54,36 @@ test("diff text is selectable without panning the canvas", async ({ page }) => {
   expect(selected.length).toBeGreaterThan(0);
   expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
 });
+
+test("explanation text is selectable without panning", async ({ page }) => {
+  await page.goto(URL);
+  await zoomUntil(page, "zoom out", "concept");
+  const before = await page.locator(".react-flow__viewport").getAttribute("style");
+  await page.getByTestId("change-c1").locator(".explanation").dblclick();
+  const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+  expect(selected.length).toBeGreaterThan(0);
+  expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
+});
+
+const flowX = (page: Page, id: string) =>
+  page.getByTestId(`change-${id}`).locator("..").evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).m41);
+
+test("dragging a node by its title survives relayout until reset", async ({ page }) => {
+  await page.goto(URL);
+  await zoomUntil(page, "zoom out", "concept");
+  const zoom = await page.locator(".react-flow__viewport").evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a);
+  const title = page.getByTestId("change-c2").locator(".title");
+  const box = (await title.boundingBox())!;
+  await page.mouse.move(box.x + 10, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 230, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  await zoomUntil(page, "zoom in", "code");
+  await page.waitForTimeout(400);
+  const dragged = await flowX(page, "c2") - await flowX(page, "c1");
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await page.waitForTimeout(400);
+  const reset = await flowX(page, "c2") - await flowX(page, "c1");
+  expect(Math.abs(dragged - reset - 200 / zoom)).toBeLessThan(5);
+});

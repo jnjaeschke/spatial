@@ -5,7 +5,8 @@ html, body, #root { margin: 0; height: 100%; }
 .canvas { position: relative; min-height: 0; }
 .empty { padding: 32px; color: #666; }
 .node { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 12px 14px; box-sizing: border-box; }
-.node .title { font-weight: 600; }
+.node .title { font-weight: 600; cursor: grab; }
+.node .body { cursor: text; user-select: text; }
 .node p { margin: 6px 0; line-height: 1.35; }
 .level-patch { font-size: 28px; }
 .level-concept { font-size: 16px; }
@@ -21,6 +22,7 @@ html, body, #root { margin: 0; height: 100%; }
 .diff tr.add { background: #e6ffec; }
 .diff tr.del { background: #ffebe9; }
 .react-flow__handle { opacity: 0; pointer-events: none; }
+.react-flow__panel button { font: inherit; padding: 4px 10px; }
 .activity { display: flex; gap: 12px; padding: 6px 12px; border-top: 1px solid #ddd; background: #fff; font-size: 13px; overflow-x: auto; }
 .activity .task { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 .activity .failed { color: #b00020; }
