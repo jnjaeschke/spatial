@@ -20,6 +20,12 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ***
 
+### mcpServers?
+
+> `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](McpServerSpec.md)\>
+
+***
+
 ### prompt
 
 > **prompt**: `string`

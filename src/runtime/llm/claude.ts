@@ -25,7 +25,13 @@ export class ClaudeBackend implements LlmBackend {
       "--setting-sources", "",
       "--tools", req.tools === "none" ? "" : "Read,Grep,Glob,Bash",
     ];
-    if (req.tools === "read-only") args.push("--allowedTools", "Bash(searchfox-cli:*)");
+    if (req.tools === "read-only") {
+      const mcpTools = Object.keys(req.mcpServers ?? {}).map((name) => `mcp__${name}__*`);
+      args.push("--allowedTools", ["Bash(searchfox-cli:*)", ...mcpTools].join(" "));
+    }
+    if (req.mcpServers && Object.keys(req.mcpServers).length) {
+      args.push("--mcp-config", JSON.stringify({ mcpServers: req.mcpServers }), "--strict-mcp-config");
+    }
     if (req.resumeProviderSession) args.push("--resume", req.resumeProviderSession);
     if (req.system !== undefined) args.push("--system-prompt", req.system);
     if (req.schema) args.push("--json-schema", JSON.stringify(req.schema));

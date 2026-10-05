@@ -36,6 +36,22 @@
 
 ***
 
+### sessionMcp?
+
+> `optional` **sessionMcp?**: (`sessionId`) => `Record`\<`string`, [`McpServerSpec`](../../llm/types/interfaces/McpServerSpec.md)\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Record`\<`string`, [`McpServerSpec`](../../llm/types/interfaces/McpServerSpec.md)\>
+
+***
+
 ### store
 
 > **store**: [`Store`](../../store/classes/Store.md)

@@ -10,6 +10,7 @@ import { Store } from "./store.ts";
 import { Runtime } from "./tasks.ts";
 import { makeSearchfox } from "./searchfox.ts";
 import { makeWebspec } from "./webspec.ts";
+import { fileURLToPath } from "node:url";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
@@ -30,5 +31,12 @@ export function createRuntime(opts: {
     [new ClaudeBackend({ bin: opts.claudeBin }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
     opts.defaultLlm ?? DEFAULT_LLM,
   );
-  return new Runtime({ store: new Store(opts.dbPath), tasks, llm, git: makeGit, webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }) });
+  return new Runtime({
+    store: new Store(opts.dbPath), tasks, llm, git: makeGit,
+    webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }),
+    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: {
+      command: process.execPath,
+      args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", opts.dbPath, "--session", sessionId],
+    } }),
+  });
 }

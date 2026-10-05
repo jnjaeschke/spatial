@@ -84,6 +84,14 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
 
+#### view()
+
+> **view**(): [`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+##### Returns
+
+[`SessionView`](../../render-ref/interfaces/SessionView.md)
+
 ***
 
 ### git
@@ -159,6 +167,12 @@ Everything a task may touch. Tasks get capabilities only through this.
 ### sessionId
 
 > **sessionId**: `string`
+
+***
+
+### sessionMcp
+
+> **sessionMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/interfaces/McpServerSpec.md)\>
 
 ***
 

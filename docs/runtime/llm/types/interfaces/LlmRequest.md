@@ -30,6 +30,16 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ***
 
+### mcpServers?
+
+> `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](McpServerSpec.md)\>
+
+#### Inherited from
+
+[`LlmPrompt`](LlmPrompt.md).[`mcpServers`](LlmPrompt.md#mcpservers)
+
+***
+
 ### model
 
 > **model**: `string`

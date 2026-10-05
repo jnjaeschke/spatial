@@ -10,7 +10,10 @@ export interface LlmPrompt {
   tools: "none" | "read-only";
   /** Continue this provider session instead of starting a new one. */
   resumeProviderSession?: string;
+  mcpServers?: Record<string, McpServerSpec>;
 }
+
+export interface McpServerSpec { command: string; args: string[] }
 
 export interface LlmRequest extends LlmPrompt {
   model: string;

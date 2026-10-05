@@ -36,6 +36,7 @@ function setup(opts: { failWith?: string; hang?: boolean } = {}) {
   const rt = new Runtime({
     store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
+    sessionMcp: (sessionId) => ({ spatial: { command: "node", args: ["server.ts", "--session", sessionId] } }),
   });
   const session = store.createSession("/repo", "t");
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
@@ -71,7 +72,20 @@ test("first turn on a change creates the thread and injects change context", asy
   assert.equal(p.resumeProviderSession, undefined);
   assert.match(p.system!, /read-only access/);
   for (const s of ["Add flag", "Adds mFlag.", "Teardown after commit.", "mFlag = true;", "Bug 1 - Add flag", "Why the flag?"]) assert.ok(p.prompt.includes(s), s);
+  assert.ok(p.prompt.includes("# Session"));
+  assert.ok(p.prompt.includes("# You are asked about"));
   assert.ok(!p.prompt.includes("other();"));
+});
+
+test("chat passes session MCP tools on first and resumed turns and includes selected quote", async () => {
+  const { calls, turn, narrativeId, session } = setup();
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", quote: "selected words", lines: { start: 2, end: 4, path: "dom/A.cpp", side: "new" }, llm: SONNET });
+  assert.ok(calls[0].prompt.prompt.includes("selected words"));
+  assert.ok(calls[0].prompt.prompt.includes("lines 2–4 of dom/A.cpp, new side"));
+  const expectedServers = { spatial: { command: "node", args: ["server.ts", "--session", session.id] } };
+  assert.deepEqual(calls[0].prompt.mcpServers, expectedServers);
+  await turn({ threadId: first.threadId, text: "Again", llm: SONNET });
+  assert.deepEqual(calls[1].prompt.mcpServers, calls[0].prompt.mcpServers);
 });
 
 test("same selection resumes the provider session with only the new text", async () => {
@@ -105,7 +119,7 @@ test("input validation", async () => {
   const { turn, narrativeId } = setup();
   await assert.rejects(turn({ text: "x", llm: SONNET }), /exactly one of threadId or anchor/);
   await assert.rejects(turn({ threadId: "t", anchor: `${narrativeId}#c1`, text: "x", llm: SONNET }), /exactly one of threadId or anchor/);
-  await assert.rejects(turn({ anchor: `${narrativeId}#c9`, text: "x", llm: SONNET }), /Unknown change c9/);
+  await assert.rejects(turn({ anchor: `${narrativeId}#c9`, text: "x", llm: SONNET }), /Unknown ref: .*#c9/);
   await assert.rejects(turn({ anchor: `${narrativeId}#c1`, text: "  ", llm: SONNET }), /empty/);
 });
 

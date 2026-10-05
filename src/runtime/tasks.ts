@@ -1,9 +1,9 @@
 import type {
   Actor, Artifact, ArtifactStatus, Commit, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
 } from "../shared/types.ts";
-import type { LlmPrompt, LlmRunResult, LlmService } from "./llm/types.ts";
+import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
-import { searchDocs } from "./render-ref.ts";
+import { searchDocs, sessionView, type SessionView } from "./render-ref.ts";
 
 export interface WebspecCapability {
   readonly effect: "read-only";
@@ -43,10 +43,12 @@ export interface TaskContext {
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult> };
+  sessionMcp: Record<string, McpServerSpec>;
   artifacts: {
     put<T>(type: string, status: ArtifactStatus, data: T, llm?: LlmSelection): Artifact<T>;
     get<T>(id: Id): Artifact<T>;
     linkedTo(to: Ref, kind: LinkKind): Artifact[];
+    view(): SessionView;
   };
   links: { put(from: Ref, to: Ref, kind: LinkKind): Link };
   progress(p: Progress): void;
@@ -86,6 +88,7 @@ export interface RuntimeOptions {
   git: (repo: string) => GitCapability;
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
+  sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
 }
 
 export type Listener = (e: RuntimeEvent) => void;
@@ -97,6 +100,7 @@ export class Runtime {
   #git: (repo: string) => GitCapability;
   #webspec: WebspecCapability;
   #searchfox: SearchfoxCapability;
+  #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
   #running = new Map<Id, AbortController>();
   #listeners = new Set<Listener>();
 
@@ -110,6 +114,7 @@ export class Runtime {
     this.#git = opts.git;
     this.#webspec = opts.webspec;
     this.#searchfox = opts.searchfox;
+    this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
     for (const t of opts.tasks) {
       if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
       this.#tasks.set(t.kind, t);
@@ -173,6 +178,7 @@ export class Runtime {
           return r;
         },
       },
+      sessionMcp: this.#sessionMcp(sessionId),
       artifacts: {
         put: (type, status, data, llm) => {
           const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
@@ -183,6 +189,7 @@ export class Runtime {
         get: (id) => this.#store.getArtifact(id),
         linkedTo: (to, linkKind) =>
           this.#store.listLinks(sessionId).filter((l) => l.to === to && l.kind === linkKind).map((l) => this.#store.getArtifact(l.from)),
+        view: () => sessionView(this.#store, sessionId),
       },
       links: {
         put: (from, to, linkKind) => {

@@ -38,6 +38,10 @@ export class CodexBackend implements LlmBackend {
     const args = req.resumeProviderSession
       ? ["exec", "resume", ...common, "-c", 'sandbox_mode="read-only"']
       : ["exec", ...common, "--sandbox", "read-only", ...(req.cwd ? ["-C", req.cwd] : [])];
+    for (const [name, server] of Object.entries(req.mcpServers ?? {})) {
+      args.push("-c", `mcp_servers.${name}.command=${JSON.stringify(server.command)}`);
+      args.push("-c", `mcp_servers.${name}.args=${JSON.stringify(server.args)}`);
+    }
     let tmp: string | undefined;
     if (req.schema) {
       tmp = mkdtempSync(join(tmpdir(), "codex-schema-"));

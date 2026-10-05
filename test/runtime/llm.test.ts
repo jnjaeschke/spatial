@@ -155,6 +155,19 @@ test("claude: resume and read-only chat tools", async () => {
   assert.equal(flag("--allowedTools"), "Bash(searchfox-cli:*)");
 });
 
+test("claude: configures MCP tools for new and resumed requests", async () => {
+  stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
+  const mcpServers = { spatial: { command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
+  for (const resumeProviderSession of [undefined, "sess-0"]) {
+    await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only", mcpServers, resumeProviderSession }));
+    const a: string[] = calls().at(-1)!.argv;
+    const flag = (f: string) => { const i = a.indexOf(f); assert.notEqual(i, -1, f); return a[i + 1]; };
+    assert.deepEqual(JSON.parse(flag("--mcp-config")), { mcpServers: { spatial: mcpServers.spatial } });
+    assert.ok(a.includes("--strict-mcp-config"));
+    assert.equal(flag("--allowedTools"), "Bash(searchfox-cli:*) mcp__spatial__*");
+  }
+});
+
 test("claude: tools none has no allowedTools and no resume by default", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
   await new ClaudeBackend({ bin: STUB }).run(req());
@@ -176,6 +189,18 @@ test("codex: resume uses `exec resume`, sandbox via -c, prompt from stdin", asyn
   assert.deepEqual(a.slice(-2), ["th-0", "-"]);
   assert.equal(call.stdin, "PROMPT");
   assert.equal(call.cwd, dir);
+});
+
+test("codex: configures MCP servers for exec and exec resume", async () => {
+  stdout(codexOut("answer"));
+  const mcpServers = { spatial: { command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
+  for (const resumeProviderSession of [undefined, "th-0"]) {
+    await new CodexBackend({ bin: STUB }).run(req({ mcpServers, resumeProviderSession }));
+    const a: string[] = calls().at(-1)!.argv;
+    assert.ok(a.includes('-c'));
+    assert.ok(a.includes('mcp_servers.spatial.command="node"'));
+    assert.ok(a.includes(`mcp_servers.spatial.args=${JSON.stringify(mcpServers.spatial.args)}`));
+  }
 });
 
 test("manager: default vs explicit selection, unknown backend", async () => {

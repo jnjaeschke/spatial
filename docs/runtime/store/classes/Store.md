@@ -356,7 +356,7 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ##### docs
 
-`SearchDoc`[]
+[`SearchDoc`](../../render-ref/interfaces/SearchDoc.md)[]
 
 #### Returns
 
