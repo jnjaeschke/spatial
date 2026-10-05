@@ -1,0 +1,59 @@
+import { useEffect, useState } from "react";
+import type { LlmSelection, ModelsResponse, Progress, RuntimeEvent, Session, SessionState } from "../shared/types.ts";
+
+async function parse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `${res.status} ${res.statusText}`);
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+const get = <T>(path: string) => fetch(path).then((r) => parse<T>(r));
+const post = <T>(path: string, body: unknown) =>
+  fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
+
+export const api = {
+  sessions: () => get<Session[]>("/api/sessions"),
+  createSession: (repo: string, title: string) => post<Session>("/api/sessions", { repo, title }),
+  state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
+  narrate: (id: string, body: { base: string; head: string; llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
+  models: () => get<ModelsResponse>("/api/llm/models"),
+  cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
+};
+
+/** Snapshot plus refetch on events. Progress events are kept client-side only. */
+export function useSessionState(id: string) {
+  const [state, setState] = useState<SessionState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Record<string, Progress>>({});
+  useEffect(() => {
+    let cancelled = false;
+    let es: EventSource | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refetch = () => api.state(id).then((s) => !cancelled && setState(s), (e: Error) => !cancelled && setError(e.message));
+    api.state(id).then((s) => {
+      if (cancelled) return;
+      setState(s);
+      es = new EventSource(`/api/sessions/${id}/events?after=${s.lastEventId}`);
+      es.addEventListener("runtime", (m) => {
+        const e = JSON.parse((m as MessageEvent).data) as RuntimeEvent;
+        if (e.type === "task.progress") {
+          const p = e.payload as { taskId: string; progress: Progress };
+          setProgress((x) => ({ ...x, [p.taskId]: p.progress }));
+          return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(refetch, 100);
+      });
+    }, (e: Error) => setError(e.message));
+    return () => { cancelled = true; es?.close(); clearTimeout(timer); };
+  }, [id]);
+  return { state, error, progress };
+}
+
+export function useModels(): ModelsResponse | null {
+  const [models, setModels] = useState<ModelsResponse | null>(null);
+  useEffect(() => { api.models().then(setModels, (e: Error) => console.error(e)); }, []);
+  return models;
+}
