@@ -113,6 +113,20 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       );
       send(res, 202, {});
     }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/turns$/, async ({ req, res, params }) => {
+      const id = requireSession(rt, params[0]).id;
+      const body = await readJson(req);
+      const text = str(body.text, "text");
+      if (typeof body.llm !== "object" || body.llm === null) throw new HttpError(400, "Missing field: llm");
+      const threadId = body.threadId as string | undefined;
+      if (threadId && rt.store.listTasks(id).some((t) =>
+        t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") && (t.input as { threadId?: string }).threadId === threadId)) {
+        throw new HttpError(409, "A turn is already running in this thread");
+      }
+      const { taskId, done } = rt.start(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, text, llm: body.llm });
+      done.catch((e) => console.error(`chatTurn ${taskId} failed: ${(e as Error).message}`));
+      send(res, 202, { taskId });
+    }],
     ["GET", /^\/api\/llm\/models$/, async (): Promise<ModelsResponse> => ({
       default: rt.llm.defaultSelection,
       backends: await rt.llm.listModels(),

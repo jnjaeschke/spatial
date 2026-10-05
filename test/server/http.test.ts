@@ -16,7 +16,7 @@ import { makeRepo } from "../helpers/git-fixture.ts";
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection) { return { text: "", json: NARRATIVE, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { return { text: prompt.schema ? "" : "hi", json: prompt.schema ? NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -76,6 +76,79 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
   assert.equal(state.sourceBase, null);
+});
+
+test("turns: first turn creates thread; busy thread is 409", async () => {
+  const s = await newSession();
+  await post(`/api/sessions/${s.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+  const st = await waitFor(async () => {
+    const x: SessionState = await (await fetch(`${base}/api/sessions/${s.id}/state`)).json();
+    return x.artifacts.some((a) => a.type === "PatchNarrative") ? x : undefined;
+  });
+  const narrative = st.artifacts.find((a) => a.type === "PatchNarrative")!;
+  const llmSel = { backend: "claude" as const, model: "sonnet", effort: "medium" };
+  const r = await post(`/api/sessions/${s.id}/turns`, { anchor: `${narrative.id}#c1`, text: "why?", llm: llmSel });
+  assert.equal(r.status, 202);
+  assert.equal(typeof (await r.json()).taskId, "string");
+  const thread = await waitFor(async () => {
+    const x: SessionState = await (await fetch(`${base}/api/sessions/${s.id}/state`)).json();
+    return x.artifacts.filter((a) => a.type === "ChatMessage").length === 2 ? x.artifacts.find((a) => a.type === "ChatThread") : undefined;
+  });
+  assert.ok(thread);
+  assert.equal((await post(`/api/sessions/${s.id}/turns`, { anchor: `${narrative.id}#c1`, llm: llmSel })).status, 400);
+
+  let block = false;
+  let started!: () => void;
+  let release!: () => void;
+  const startedPromise = new Promise<void>((resolve) => { started = resolve; });
+  let gate = new Promise<void>((resolve) => { release = resolve; });
+  const gatedLlm: LlmService = {
+    ...llm,
+    async run(selection, prompt) {
+      if (block && !prompt.schema) { started(); await gate; }
+      return { text: prompt.schema ? "" : "hi", json: prompt.schema ? NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+    },
+  };
+  const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const gatedServer = createHttpServer(gatedRt, { staticDir });
+  await new Promise<void>((resolve) => gatedServer.listen(0, "127.0.0.1", resolve));
+  try {
+    const gatedBase = `http://127.0.0.1:${(gatedServer.address() as AddressInfo).port}`;
+    const create = (path: string, body: unknown) => fetch(gatedBase + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const gs: Session = await (await create("/api/sessions", { repo: repo.dir, title: "gated" })).json();
+    await create(`/api/sessions/${gs.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+    const ns = await waitFor(async () => {
+      const x: SessionState = await (await fetch(`${gatedBase}/api/sessions/${gs.id}/state`)).json();
+      return x.artifacts.find((a) => a.type === "PatchNarrative");
+    });
+    const anchor = `${ns.id}#c1`;
+    const first = await create(`/api/sessions/${gs.id}/turns`, { anchor, text: "first", llm: llmSel });
+    assert.equal(first.status, 202);
+    const threadArtifact = await waitFor(async () => {
+      const x: SessionState = await (await fetch(`${gatedBase}/api/sessions/${gs.id}/state`)).json();
+      return x.artifacts.find((a) => a.type === "ChatThread");
+    });
+    await waitFor(async () => {
+      const x: SessionState = await (await fetch(`${gatedBase}/api/sessions/${gs.id}/state`)).json();
+      return x.tasks.some((t) => t.kind === "chatTurn" && t.status === "succeeded") ? true : undefined;
+    });
+    block = true;
+    gate = new Promise<void>((resolve) => { release = resolve; });
+    const pending = await create(`/api/sessions/${gs.id}/turns`, { threadId: threadArtifact.id, text: "second", llm: llmSel });
+    assert.equal(pending.status, 202);
+    await startedPromise;
+    const busy = await create(`/api/sessions/${gs.id}/turns`, { threadId: threadArtifact.id, text: "third", llm: llmSel });
+    assert.equal(busy.status, 409);
+    assert.match((await busy.json()).error, /already running/);
+    release();
+    await waitFor(async () => {
+      const x: SessionState = await (await fetch(`${gatedBase}/api/sessions/${gs.id}/state`)).json();
+      return x.tasks.filter((t) => t.kind === "chatTurn").length === 2 && x.tasks.filter((t) => t.kind === "chatTurn").every((t) => t.status === "succeeded") ? true : undefined;
+    });
+  } finally {
+    release();
+    await new Promise<void>((resolve) => gatedServer.close(() => resolve()));
+  }
 });
 
 test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {
