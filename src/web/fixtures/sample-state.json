@@ -1,0 +1,66 @@
+{
+  "session": { "id": "S", "repo": "/fixture", "title": "fixture", "createdAt": "2026-10-05T00:00:00.000Z" },
+  "artifacts": [
+    {
+      "id": "D", "sessionId": "S", "type": "Diff", "status": "verified", "createdAt": "2026-10-05T00:00:01.000Z", "provenance": { "taskId": "t1" },
+      "data": {
+        "baseSha": "1111111111111111111111111111111111111111", "headSha": "2222222222222222222222222222222222222222",
+        "commits": [
+          { "sha": "3333333333333333333333333333333333333333", "subject": "Bug 1 - part 1: Track pending commit on Navigation.", "body": "" },
+          { "sha": "2222222222222222222222222222222222222222", "subject": "Bug 1 - part 2: Fire navigatesuccess after commit.", "body": "Spec: https://html.spec.whatwg.org/#navigate" }
+        ],
+        "files": [
+          { "path": "dom/navigation/Navigation.h", "status": "modified", "binary": false, "hunks": [
+            { "id": "f0h0", "header": "@@ -40,6 +40,8 @@ class Navigation final", "oldStart": 40, "oldLines": 6, "newStart": 40, "newLines": 8, "lines": [
+              { "kind": "ctx", "text": "  void SetEntriesAndCurrentIndex();" },
+              { "kind": "ctx", "text": "" },
+              { "kind": "add", "text": "  bool HasPendingCommit() const { return mPendingCommit; }" },
+              { "kind": "add", "text": "  void SetPendingCommit(bool aPending);" },
+              { "kind": "ctx", "text": " private:" },
+              { "kind": "ctx", "text": "  RefPtr<NavigationHistoryEntry> mCurrentEntry;" }
+            ] },
+            { "id": "f0h1", "header": "@@ -90,3 +92,4 @@ class Navigation final", "oldStart": 90, "oldLines": 3, "newStart": 92, "newLines": 4, "lines": [
+              { "kind": "ctx", "text": "  nsTArray<RefPtr<NavigationHistoryEntry>> mEntries;" },
+              { "kind": "add", "text": "  bool mPendingCommit = false;" },
+              { "kind": "ctx", "text": "};" }
+            ] }
+          ] },
+          { "path": "dom/navigation/Navigation.cpp", "status": "modified", "binary": false, "hunks": [
+            { "id": "f1h0", "header": "@@ -200,7 +200,12 @@ void Navigation::UpdateEntries()", "oldStart": 200, "oldLines": 7, "newStart": 200, "newLines": 12, "lines": [
+              { "kind": "ctx", "text": "void Navigation::SetPendingCommit(bool aPending) {" },
+              { "kind": "del", "text": "  // TODO" },
+              { "kind": "add", "text": "  mPendingCommit = aPending;" },
+              { "kind": "add", "text": "  if (!aPending && mOngoingNavigateEvent) {" },
+              { "kind": "add", "text": "    FireNavigateSuccess();" },
+              { "kind": "add", "text": "  }" },
+              { "kind": "ctx", "text": "}" }
+            ] },
+            { "id": "f1h1", "header": "@@ -410,4 +415,6 @@ void Navigation::FireNavigateSuccess()", "oldStart": 410, "oldLines": 4, "newStart": 415, "newLines": 6, "lines": [
+              { "kind": "ctx", "text": "void Navigation::FireNavigateSuccess() {" },
+              { "kind": "add", "text": "  MOZ_ASSERT(!mPendingCommit);" },
+              { "kind": "add", "text": "  // https://html.spec.whatwg.org/#navigate step 20" },
+              { "kind": "ctx", "text": "  FireEvent(u\"navigatesuccess\"_ns);" },
+              { "kind": "ctx", "text": "}" }
+            ] }
+          ] }
+        ]
+      }
+    },
+    {
+      "id": "N", "sessionId": "S", "type": "PatchNarrative", "status": "proposed", "createdAt": "2026-10-05T00:00:02.000Z",
+      "provenance": { "taskId": "t2", "llm": { "backend": "claude", "model": "sonnet", "effort": "medium" } },
+      "data": {
+        "diffId": "D",
+        "summary": "Navigation now tracks whether a commit is pending and defers navigatesuccess until the commit happened, matching the navigate algorithm.",
+        "changes": [
+          { "id": "c1", "title": "Introduce pending-commit state", "explanation": "Adds mPendingCommit to Navigation with accessor and setter declarations.", "rationale": "Later steps need to know whether the commit has happened yet.", "hunkIds": ["f0h0", "f0h1"], "dependsOn": [], "specUrls": [] },
+          { "id": "c2", "title": "Fire navigatesuccess when the commit completes", "explanation": "SetPendingCommit(false) fires navigatesuccess if a navigate event is ongoing.", "rationale": "The spec fires navigatesuccess only after commit; firing earlier was observable.", "hunkIds": ["f1h0"], "dependsOn": ["c1"], "specUrls": ["https://html.spec.whatwg.org/#navigate"] },
+          { "id": "c3", "title": "Assert ordering in FireNavigateSuccess", "explanation": "Asserts no commit is pending when navigatesuccess fires.", "rationale": "Likely guards against regressions of the ordering fixed in c2.", "hunkIds": ["f1h1"], "dependsOn": ["c1"], "specUrls": [] }
+        ]
+      }
+    }
+  ],
+  "links": [],
+  "tasks": [],
+  "lastEventId": 0
+}

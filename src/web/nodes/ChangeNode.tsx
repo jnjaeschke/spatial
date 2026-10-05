@@ -1,0 +1,28 @@
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import type { ChangeNodeData, ZoomLevel } from "../graph.ts";
+import { DiffView } from "../DiffView.tsx";
+
+export type ChangeFlowNode = Node<ChangeNodeData & { level: ZoomLevel } & Record<string, unknown>, "change">;
+
+export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
+  const { change, level, files, hunks } = data;
+  return (
+    <div className={`node change-node level-${level}`} data-testid={`change-${change.id}`} data-level={level}>
+      <Handle type="target" position={Position.Top} />
+      <div className="title">{change.title}</div>
+      {level !== "patch" && (
+        <>
+          <p className="explanation">{change.explanation}</p>
+          <p className="rationale"><b>Why:</b> {change.rationale}</p>
+        </>
+      )}
+      {level === "concept" && (
+        <ul className="files">
+          {files.map((f) => <li key={f}>{f}</li>)}
+        </ul>
+      )}
+      {level === "code" && hunks.map(({ file, hunk }) => <DiffView key={hunk.id} file={file} hunk={hunk} />)}
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  );
+}
