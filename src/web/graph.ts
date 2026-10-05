@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, RevisionData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 
@@ -8,6 +8,9 @@ export type ZoomLevel = "patch" | "concept" | "code";
 export function zoomLevel(zoom: number): ZoomLevel {
   return zoom < 0.45 ? "patch" : zoom < 0.9 ? "concept" : "code";
 }
+
+/** Highest zoom that still shows each level. Fitting the view stays below it, so a fit never switches to a level with wider nodes. */
+export const LEVEL_MAX_ZOOM: Record<ZoomLevel, number> = { patch: 0.449, concept: 0.899, code: 2 };
 
 export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
 /** Width of spec and chat satellites at every zoom level. */
@@ -47,13 +50,20 @@ export interface ChatNodeData {
   revisions: Record<Id, RevisionData[]>;
 }
 
-export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData;
+export interface FindingNodeData extends ReviewFindingData {
+  kind: "finding";
+  findingId: string;
+  diffId: string;
+  hunks: { file: DiffFile; hunk: Hunk }[];
+}
+
+export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 
-/** The graph without collapsed quoted chats: they live on as a highlight of their quote. */
+/** The graph without collapsed quoted satellites (chat threads, findings): they live on as a highlight of their quote. */
 export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, collapsed: ReadonlySet<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const hidden = new Set(g.nodes.filter((n) => n.data.kind === "chat" && n.data.threadId !== null && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
+  const hidden = new Set(g.nodes.filter((n) => ((n.data.kind === "chat" && n.data.threadId !== null) || n.data.kind === "finding") && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
 }
 
@@ -139,6 +149,15 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   const nodeIds = new Set(g.nodes.map((n) => n.id));
   const resolve = (anchor: Ref) => anchorNodeId(anchor, latest.narrative.id, latest.narrative.data, latest.diff.id, nodeIds, state.links);
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
+  for (const artifact of state.artifacts) {
+    if (artifact.type !== "ReviewFinding") continue;
+    const finding = artifact as Artifact<ReviewFindingData>;
+    const node = resolve(finding.data.anchor);
+    if (!node) continue;
+    nodeIds.add(finding.id);
+    g.nodes.push({ id: finding.id, anchors: [node], data: { kind: "finding", findingId: finding.id, ...finding.data, diffId: latest.diff.id, hunks: allHunks } });
+    g.edges.push({ id: `${finding.id}->${node}`, source: finding.id, target: node });
+  }
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   for (const thread of threads) {
     const node = resolve(thread.data.anchor);
@@ -195,6 +214,7 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+  if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   if (data.kind === "chat") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];

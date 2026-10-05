@@ -6,9 +6,7 @@ import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
 import type { ChatNodeData, ZoomLevel } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
-import { CodeSpan } from "../CodeSpan.tsx";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
@@ -41,15 +39,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
         {data.messages.map((m) => (
           <div key={m.id} className={`msg ${m.data.role}`} data-anchor={m.id}>
             {m.data.role === "assistant"
-              ? <Markdown remarkPlugins={[remarkGfm]} components={{
-                code: ({ className, children }) => {
-                  const code = String(children);
-                  return className?.startsWith("language-") || /[\r\n]/.test(code)
-                    ? <code className={className}>{children}</code>
-                    : <CodeSpan text={code} hunks={data.hunks} diffId={data.diffId} />;
-                },
-                a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
-              }}>{applyRevisions(m.data.text, data.revisions[m.id] ?? [])}</Markdown>
+              ? <AnswerMarkdown text={applyRevisions(m.data.text, data.revisions[m.id] ?? [])} hunks={data.hunks} diffId={data.diffId} />
               : m.data.text}
             {m.data.role === "assistant" && m.data.questions?.length ? <ul className="chat-questions">{m.data.questions.map((question, i) => <li key={i}>{question}</li>)}</ul> : null}
             {m.data.role === "assistant" && m.data.revisionErrors?.length ? <p className="revision-errors">{m.data.revisionErrors.map((revisionError, i) => <span key={i}>{i > 0 ? " " : ""}Could not apply revision: {revisionError}</span>)}</p> : null}

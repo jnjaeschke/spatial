@@ -119,6 +119,14 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
     .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
   await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
     .toHaveAttribute("title", "Searchfox at the patch's base");
+  for (let i = 0; i < 10 && !(await spec.count()); i++) {
+    const x = await page.evaluate(() => [...Array(60).keys()].map((i) => 1200 - i * 20).find((x) => document.elementFromPoint(x, innerHeight / 2)?.classList.contains("react-flow__pane")));
+    expect(x).toBeDefined();
+    await page.mouse.move(x!, 400);
+    await page.mouse.down();
+    await page.mouse.move(x! - 500, 400, { steps: 8 });
+    await page.mouse.up();
+  }
   await expect(spec.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
   await expect(page.getByTestId("change-c1").locator(".explanation a.code-link").first())
     .toHaveAttribute("href", /^https:\/\/searchfox\.org\/firefox-main\/search\?q=/);

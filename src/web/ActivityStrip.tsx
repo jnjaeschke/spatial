@@ -13,6 +13,10 @@ export function ActivityStrip({ tasks, progress }: { tasks: TaskRecord[]; progre
       <b>{t.kind}</b> {t.status}
       {t.status === "running" && <> {describe(progress[t.id])} <button onClick={() => api.cancel(t.id).catch(console.error)}>Cancel</button></>}
       {t.status === "failed" && <> {t.error}</>}
+      {t.kind === "review" && t.status === "succeeded" && (() => {
+        const errors = (t.output as { findingErrors?: string[] } | null)?.findingErrors ?? [];
+        return errors.length > 0 ? <span className="dropped" title={errors.join("\n")}> · {errors.length} findings dropped</span> : null;
+      })()}
     </span>)}
   </div>;
 }

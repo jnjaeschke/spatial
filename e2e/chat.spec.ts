@@ -277,6 +277,61 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
   await expect(answer).toBeVisible();
 });
 
+test("a review finding sits next to its quote and opens a chat", async ({ page, request }) => {
+  await openNarrated(page, request);
+  const finding = page.locator('[data-testid^="finding-"]');
+  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await expect(finding).toContainText("No test for c");
+  await expect(finding.locator(".badge")).toHaveText("medium");
+  await zoomTo(page, "code");
+  const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("finding-quote") ?? [])].map((r) => (r as Range).toString()))).toEqual(["c"]);
+  await expect.poll(() => page.evaluate(() => {
+    const range = [...CSS.highlights.get("finding-quote")!][0] as Range;
+    return range.startContainer.parentElement?.closest("td")?.classList.contains("code") ?? false;
+  })).toBe(true);
+  await expect.poll(async () => {
+    const box = await finding.boundingBox(), rowBox = await row.boundingBox();
+    return box && rowBox ? Math.abs(box.y - rowBox.y) : Infinity;
+  }).toBeLessThan(40);
+
+  await finding.getByRole("button", { name: "Collapse" }).click();
+  await expect(finding).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => CSS.highlights.get("finding-quote")?.size ?? 0)).toBe(1);
+  const quoteCenter = () => page.evaluate(() => {
+    const box = ([...CSS.highlights.get("finding-quote")!][0] as Range).getBoundingClientRect();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  });
+  for (let point = await quoteCenter(); point.x < 100; point = await quoteCenter()) {
+    const dx = Math.min(600, 700 - point.x);
+    const grab = await page.evaluate((dx) => {
+      for (let x = 20; x + dx < innerWidth - 20; x += 20) {
+        if (document.elementFromPoint(x, innerHeight / 2)?.classList.contains("react-flow__pane")) return { x, y: innerHeight / 2 };
+      }
+      throw new Error("no empty pane");
+    }, dx);
+    await page.mouse.move(grab.x, grab.y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x + dx, grab.y, { steps: 8 });
+    await page.mouse.up();
+  }
+  const point = await quoteCenter();
+  await page.mouse.move(point.x, point.y);
+  await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/);
+  await page.mouse.click(point.x, point.y);
+  await expect(finding).toBeVisible();
+  await finding.getByRole("button", { name: "Ask about finding" }).click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await expect(draft).toBeVisible();
+  await draft.getByLabel("message").fill("Why?");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  const chatBox = (await page.locator(".chat-node").filter({ has: answer }).boundingBox())!;
+  const findingBox = (await finding.boundingBox())!;
+  expect(chatBox.x).toBeGreaterThan(findingBox.x + findingBox.width);
+});
+
 test("a quoted chat aligns to its quote once its unrendered anchor comes into view", async ({ page, request }) => {
   await openNarrated(page, request);
   await zoomTo(page, "code");

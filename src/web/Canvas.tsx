@@ -5,16 +5,17 @@ import {
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { estimateSize, layout, placeSatellites, sessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
+import { estimateSize, layout, placeSatellites, sessionGraph, visibleGraph, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { ChatNode } from "./nodes/ChatNode.tsx";
+import { FindingNode } from "./nodes/FindingNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 
-const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode };
+const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, finding: FindingNode };
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
@@ -52,21 +53,23 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const { collapsed, toggle, expandAll } = useCollapsed(state.session.id);
   const shown = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
-  const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: ChatNodeData & { quote: string } } => n.data.kind === "chat" && !!n.data.quote), [graph]);
+  const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: (ChatNodeData | FindingNodeData) & { quote: string } } => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote), [graph]);
   const [hoveredChat, setHoveredChat] = useState<string | null>(null);
   const [focusedChat, setFocusedChat] = useState<string | null>(null);
   const [hoveredQuote, setHoveredQuote] = useState<string | null>(null);
-  // Open chats only: a chat removed by collapsing gets no pointerout or focusout.
-  const chatIds = useMemo(() => new Set(shown.nodes.filter((n) => n.data.kind === "chat").map((n) => n.id)), [shown]);
-  const activeChat = hoveredQuote ?? (hoveredChat && chatIds.has(hoveredChat) ? hoveredChat
-    : focusedChat && chatIds.has(focusedChat) ? focusedChat : null);
+  // Open quoted boxes only: a box removed by collapsing gets no pointerout or focusout.
+  const quotedBoxIds = useMemo(() => new Set(shown.nodes.filter((n) => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote).map((n) => n.id)), [shown]);
+  const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
+    : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
-  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat").map((n) => [n.id, n.anchors ?? []])), [shown]);
+  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding").map((n) => [n.id, n.anchors ?? []])), [shown]);
   const edges = useMemo<Edge[]>(() => shown.edges.map((e) => satelliteAnchors.has(e.source)
     ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
     : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
-  const [level, setLevel] = useState<ZoomLevel>("concept");
+  const [level, setLevel] = useState<ZoomLevel>("code");
   const levelRef = useRef(level);
+  // Until the user touches the canvas, every measured layout refits the view, so nodes that arrive later (findings) show up.
+  const autoFit = useRef(true);
   levelRef.current = level;
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const laidOutKey = useRef("");
@@ -117,7 +120,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
-      style: { width: n.data.kind === "spec" || n.data.kind === "chat" ? SATELLITE_WIDTH : NODE_WIDTH[level] },
+      style: { width: n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" ? SATELLITE_WIDTH : NODE_WIDTH[level] },
       draggable: true,
       dragHandle: ".title",
     })));
@@ -139,13 +142,15 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       const p = place(a.id, pos.get(a.id)!);
       rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
+      autoFit.current = false;
+    } else if (autoFit.current) {
+      void rf.fitView({ maxZoom: LEVEL_MAX_ZOOM[levelRef.current] });
     }
   }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown]);
 
   const quoteAt = (x: number, y: number) => {
-    const highlight = CSS.highlights.get("chat-quote");
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
-      if (hit.highlight !== highlight) continue;
+      if (hit.highlight !== CSS.highlights.get("chat-quote") && hit.highlight !== CSS.highlights.get("finding-quote")) continue;
       for (const range of hit.ranges) {
         const id = rangeOwner.current.get(range);
         if (id) return id;
@@ -173,6 +178,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         el.classList.toggle("over-collapsed-quote", id !== null && collapsed.has(id));
       });
     };
+    const stopAutoFit = () => { autoFit.current = false; };
     const leave = () => {
       cancelAnimationFrame(frame);
       setHoveredQuote(null);
@@ -180,11 +186,15 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     };
     el.addEventListener("click", click);
     el.addEventListener("pointermove", move);
+    el.addEventListener("pointerdown", stopAutoFit, true);
+    el.addEventListener("wheel", stopAutoFit, true);
     el.addEventListener("pointerleave", leave);
     return () => {
       el.removeEventListener("click", click);
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerleave", leave);
+      el.removeEventListener("pointerdown", stopAutoFit, true);
+      el.removeEventListener("wheel", stopAutoFit, true);
       cancelAnimationFrame(frame);
       el.classList.remove("over-collapsed-quote");
     };
@@ -196,7 +206,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const chatAt = (target: EventTarget | null) => {
       if (!(target instanceof Element)) return null;
       const id = target.closest(".react-flow__node")?.getAttribute("data-id") ?? null;
-      return id && chatIds.has(id) ? id : null;
+      return id && quotedBoxIds.has(id) ? id : null;
     };
     const over = (event: PointerEvent) => setHoveredChat(chatAt(event.target));
     const out = (event: PointerEvent) => {
@@ -218,26 +228,28 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       el.removeEventListener("focusin", focus);
       el.removeEventListener("focusout", blur);
     };
-  }, [chatIds]);
+  }, [quotedBoxIds]);
 
   useEffect(() => {
     const el = container.current;
     if (!el) return;
     let frame = 0;
     const build = () => {
-      const all: Range[] = [], active: Range[] = [];
+      const chat: Range[] = [], finding: Range[] = [], chatActive: Range[] = [], findingActive: Range[] = [];
       rangeOwner.current.clear();
       for (const n of quoted) {
         const range = rangeOf(n);
         if (!range) continue;
-        all.push(range);
+        (n.data.kind === "chat" ? chat : finding).push(range);
         rangeOwner.current.set(range, n.id);
-        if (n.id === activeChat) active.push(range);
+        if (n.id === activeQuote) (n.data.kind === "chat" ? chatActive : findingActive).push(range);
       }
-      CSS.highlights.set("chat-quote", new Highlight(...all));
-      const strong = new Highlight(...active);
-      strong.priority = 1;
-      CSS.highlights.set("chat-quote-active", strong);
+      CSS.highlights.set("chat-quote", new Highlight(...chat));
+      CSS.highlights.set("finding-quote", new Highlight(...finding));
+      const chatStrong = new Highlight(...chatActive), findingStrong = new Highlight(...findingActive);
+      chatStrong.priority = findingStrong.priority = 1;
+      CSS.highlights.set("chat-quote-active", chatStrong);
+      CSS.highlights.set("finding-quote-active", findingStrong);
       if (measureQuoteDy()) setQuoteDyVersion((v) => v + 1);
     };
     // Synchronous: the previous run's cleanup deleted the highlights, and a click in this frame must still hit them.
@@ -251,9 +263,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       observer.disconnect();
       cancelAnimationFrame(frame);
       CSS.highlights.delete("chat-quote");
+      CSS.highlights.delete("finding-quote");
       CSS.highlights.delete("chat-quote-active");
+      CSS.highlights.delete("finding-quote-active");
     };
-  }, [quoted, activeChat]);
+  }, [quoted, activeQuote]);
 
   const nodeNearestCenter = useCallback((): string | null => {
     const el = container.current;
@@ -273,7 +287,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const onMove = useCallback((_: unknown, vp: Viewport) => {
     const next = zoomLevel(vp.zoom);
     if (next !== levelRef.current) {
-      anchor.current = nodeNearestCenter();
+      if (!autoFit.current) anchor.current = nodeNearestCenter();
       setLevel(next);
     }
   }, [nodeNearestCenter]);
@@ -296,7 +310,6 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onMove={onMove}
-        onInit={(inst) => setLevel(zoomLevel(inst.getZoom()))}
         nodesDraggable
         nodesConnectable={false}
         onNodeDragStop={(_, node) => {
@@ -304,7 +317,6 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
           offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
         }}
         onlyRenderVisibleElements
-        fitView
         minZoom={0.1}
         maxZoom={2}
       >

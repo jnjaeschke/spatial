@@ -34,11 +34,12 @@ test("expand context around a hunk", async ({ page }) => {
   await expect(hunk.getByRole("button", { name: "↑ 20 lines" })).toHaveCount(0);
   const below = hunk.getByRole("button", { name: "↓ 20 lines" });
   for (let i = 0; i < 5 && (await below.boundingBox())!.y > 800; i++) {
-    expect(await page.evaluate(() => document.elementFromPoint(150, 650)?.classList.contains("react-flow__pane"))).toBe(true);
-    await page.mouse.move(150, 650);
+    const x = await page.evaluate(() => [...Array(60).keys()].map((i) => 10 + i * 20).find((x) => document.elementFromPoint(x, 650)?.classList.contains("react-flow__pane")));
+    expect(x).toBeDefined();
+    await page.mouse.move(x!, 650);
     await page.mouse.down();
-    await page.mouse.move(150, 400, { steps: 5 });
-    await page.mouse.move(150, 150, { steps: 5 });
+    await page.mouse.move(x!, 400, { steps: 5 });
+    await page.mouse.move(x!, 150, { steps: 5 });
     await page.mouse.up();
   }
   await below.click();
