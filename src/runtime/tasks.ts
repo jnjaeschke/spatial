@@ -1,8 +1,21 @@
 import type {
-  Actor, Artifact, ArtifactStatus, Commit, Id, Link, LinkKind, LlmSelection, Progress, Ref, RuntimeEvent,
+  Actor, Artifact, ArtifactStatus, Commit, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService } from "./llm/types.ts";
 import type { Store } from "./store.ts";
+
+export interface WebspecCapability {
+  readonly effect: "read-only";
+  resolve(url: string, signal: AbortSignal): Promise<{ found: true; spec: ResolvedSpec } | { found: false; reason: string }>;
+}
+
+export interface SearchfoxCapability {
+  readonly effect: "read-only";
+  /** Existing Gecko lines referencing a spec section. Network. */
+  specRefs(url: string, signal: AbortSignal): Promise<GeckoSpecRef[]>;
+  /** e.g. `https://searchfox.org/firefox-main/source/`; cached after first success. Network. */
+  sourceBase(): Promise<string>;
+}
 
 /** Read-only git access bound to one session's repo. */
 export interface GitCapability {
@@ -25,6 +38,8 @@ export interface TaskContext {
   repo: string;
   signal: AbortSignal;
   git: GitCapability;
+  webspec: WebspecCapability;
+  searchfox: SearchfoxCapability;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult> };
   artifacts: {
     put<T>(type: string, status: ArtifactStatus, data: T, llm?: LlmSelection): Artifact<T>;
@@ -66,6 +81,8 @@ export interface RuntimeOptions {
   tasks: TaskDefinition<any, any>[];
   llm: LlmService;
   git: (repo: string) => GitCapability;
+  webspec: WebspecCapability;
+  searchfox: SearchfoxCapability;
 }
 
 export type Listener = (e: RuntimeEvent) => void;
@@ -75,6 +92,8 @@ export class Runtime {
   #tasks = new Map<string, TaskDefinition<unknown, unknown>>();
   #llm: LlmService;
   #git: (repo: string) => GitCapability;
+  #webspec: WebspecCapability;
+  #searchfox: SearchfoxCapability;
   #running = new Map<Id, AbortController>();
   #listeners = new Set<Listener>();
 
@@ -82,6 +101,8 @@ export class Runtime {
     this.#store = opts.store;
     this.#llm = opts.llm;
     this.#git = opts.git;
+    this.#webspec = opts.webspec;
+    this.#searchfox = opts.searchfox;
     for (const t of opts.tasks) {
       if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
       this.#tasks.set(t.kind, t);
@@ -94,6 +115,10 @@ export class Runtime {
 
   get llm(): LlmService {
     return this.#llm;
+  }
+
+  get searchfox(): SearchfoxCapability {
+    return this.#searchfox;
   }
 
   /** Read-only git for server queries outside tasks. */
@@ -132,6 +157,8 @@ export class Runtime {
       repo: session.repo,
       signal: controller.signal,
       git: this.#git(session.repo),
+      webspec: this.#webspec,
+      searchfox: this.#searchfox,
       llm: {
         run: async (prompt, selection) => {
           const r = await this.#llm.run(selection, prompt, controller.signal);

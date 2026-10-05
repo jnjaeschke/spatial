@@ -33,6 +33,33 @@ export interface ModelsResponse {
   backends: Record<LlmBackendId, BackendModels>;
 }
 
+export interface ResolvedSpec {
+  spec: string;
+  anchor: string;
+  title: string;
+  type: string;
+  /** Canonical URL from webspec-index. */
+  url: string;
+  /** Section text as markdown with `[text](SPEC#anchor)` links. */
+  content: string;
+}
+
+export interface GeckoSpecRef {
+  group: string;
+  path: string;
+  line: number;
+  url: string;
+}
+
+/** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
+export interface SpecReferenceData {
+  url: string;
+  resolved: ResolvedSpec | null;
+  reason?: string;
+  geckoRefs: GeckoSpecRef[];
+  geckoRefsError?: string;
+}
+
 /** Full snapshot of one session; the web client's only data source besides events. */
 export interface SessionState {
   session: Session;

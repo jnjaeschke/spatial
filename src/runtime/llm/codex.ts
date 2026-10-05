@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelInfo } from "../../shared/types.ts";
-import { runProcess } from "./process.ts";
+import { runProcess } from "../process.ts";
 import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
 
 export class CodexBackend implements LlmBackend {

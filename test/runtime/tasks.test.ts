@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, defineTask, TaskFailedError, TaskCancelledError, type GitCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, defineTask, TaskFailedError, TaskCancelledError, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { RuntimeEvent } from "../../src/shared/types.ts";
 
 const fakeGit = {} as GitCapability;
+const webspec = {} as WebspecCapability;
+const searchfox = {} as SearchfoxCapability;
 const fakeLlm: LlmService = {
   defaultSelection: { backend: "claude", model: "m", effort: "low" },
   async run(selection, prompt) {
@@ -37,7 +39,7 @@ const slow = defineTask<null, string>({
 
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, tasks: [echo, boom, slow], llm: fakeLlm, git: () => fakeGit });
+  const rt = new Runtime({ store, tasks: [echo, boom, slow], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
   const session = store.createSession("/repo", "t");
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
@@ -92,5 +94,5 @@ test("unknown task kind and unknown session throw synchronously", () => {
 });
 
 test("duplicate task kinds are rejected", () => {
-  assert.throws(() => new Runtime({ store: new Store(":memory:"), tasks: [echo, echo], llm: fakeLlm, git: () => fakeGit }), /Duplicate task kind: echo/);
+  assert.throws(() => new Runtime({ store: new Store(":memory:"), tasks: [echo, echo], llm: fakeLlm, git: () => fakeGit, webspec, searchfox }), /Duplicate task kind: echo/);
 });

@@ -1,5 +1,5 @@
 import type { ModelInfo } from "../../shared/types.ts";
-import { runProcess } from "./process.ts";
+import { runProcess } from "../process.ts";
 import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
 
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];

@@ -32,6 +32,14 @@
 
 [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
 
+#### searchfoxBin?
+
+`string`
+
+#### webspecBin?
+
+`string`
+
 ## Returns
 
 [`Runtime`](../../tasks/classes/Runtime.md)

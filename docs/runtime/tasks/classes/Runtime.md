@@ -36,6 +36,18 @@
 
 ***
 
+### searchfox
+
+#### Get Signature
+
+> **get** **searchfox**(): [`SearchfoxCapability`](../interfaces/SearchfoxCapability.md)
+
+##### Returns
+
+[`SearchfoxCapability`](../interfaces/SearchfoxCapability.md)
+
+***
+
 ### store
 
 #### Get Signature

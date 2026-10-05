@@ -16,8 +16,10 @@
 
 - [GitCapability](interfaces/GitCapability.md)
 - [RuntimeOptions](interfaces/RuntimeOptions.md)
+- [SearchfoxCapability](interfaces/SearchfoxCapability.md)
 - [TaskContext](interfaces/TaskContext.md)
 - [TaskDefinition](interfaces/TaskDefinition.md)
+- [WebspecCapability](interfaces/WebspecCapability.md)
 
 ## Type Aliases
 

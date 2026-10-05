@@ -8,6 +8,8 @@ import { CodexBackend } from "./llm/codex.ts";
 import { LlmManager } from "./llm/manager.ts";
 import { Store } from "./store.ts";
 import { Runtime } from "./tasks.ts";
+import { makeSearchfox } from "./searchfox.ts";
+import { makeWebspec } from "./webspec.ts";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
@@ -21,10 +23,12 @@ export function createRuntime(opts: {
   claudeBin?: string;
   codexBin?: string;
   codexHome?: string;
+  webspecBin?: string;
+  searchfoxBin?: string;
 }): Runtime {
   const llm = new LlmManager(
     [new ClaudeBackend({ bin: opts.claudeBin }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
     opts.defaultLlm ?? DEFAULT_LLM,
   );
-  return new Runtime({ store: new Store(opts.dbPath), tasks, llm, git: makeGit });
+  return new Runtime({ store: new Store(opts.dbPath), tasks, llm, git: makeGit, webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }) });
 }

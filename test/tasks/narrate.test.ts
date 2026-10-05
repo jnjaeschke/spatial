@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
 import { narrate, MAX_PROMPT_CHARS } from "../../src/tasks/narrate/task.ts";
@@ -81,7 +81,7 @@ function setup(responses: unknown[]) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [narrate], llm, git: () => ({}) as GitCapability });
+  const rt = new Runtime({ store, tasks: [narrate], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession("/repo", "t");
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   return { store, rt, session, diffId, prompts, sel };

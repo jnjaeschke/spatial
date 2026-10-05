@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { ClaudeBackend } from "../../src/runtime/llm/claude.ts";
 import { CodexBackend } from "../../src/runtime/llm/codex.ts";
 import { LlmManager } from "../../src/runtime/llm/manager.ts";
-import { runProcess } from "../../src/runtime/llm/process.ts";
+import { runProcess } from "../../src/runtime/process.ts";
 import type { LlmBackend, LlmRequest } from "../../src/runtime/llm/types.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));

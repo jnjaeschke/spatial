@@ -132,6 +132,12 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ***
 
+### searchfox
+
+> **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)
+
+***
+
 ### sessionId
 
 > **sessionId**: `string`
@@ -147,6 +153,12 @@ Everything a task may touch. Tasks get capabilities only through this.
 ### taskId
 
 > **taskId**: `string`
+
+***
+
+### webspec
+
+> **webspec**: [`WebspecCapability`](WebspecCapability.md)
 
 ## Methods
 

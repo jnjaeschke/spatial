@@ -30,6 +30,12 @@
 
 ***
 
+### searchfox
+
+> **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)
+
+***
+
 ### store
 
 > **store**: [`Store`](../../store/classes/Store.md)
@@ -39,3 +45,9 @@
 ### tasks
 
 > **tasks**: [`TaskDefinition`](TaskDefinition.md)\<`any`, `any`\>[]
+
+***
+
+### webspec
+
+> **webspec**: [`WebspecCapability`](WebspecCapability.md)

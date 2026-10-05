@@ -13,6 +13,7 @@
 - [DiffData](interfaces/DiffData.md)
 - [DiffFile](interfaces/DiffFile.md)
 - [DiffLine](interfaces/DiffLine.md)
+- [GeckoSpecRef](interfaces/GeckoSpecRef.md)
 - [Hunk](interfaces/Hunk.md)
 - [Link](interfaces/Link.md)
 - [LlmSelection](interfaces/LlmSelection.md)
@@ -20,10 +21,12 @@
 - [ModelsResponse](interfaces/ModelsResponse.md)
 - [PatchNarrativeData](interfaces/PatchNarrativeData.md)
 - [Provenance](interfaces/Provenance.md)
+- [ResolvedSpec](interfaces/ResolvedSpec.md)
 - [RuntimeEvent](interfaces/RuntimeEvent.md)
 - [SemanticChange](interfaces/SemanticChange.md)
 - [Session](interfaces/Session.md)
 - [SessionState](interfaces/SessionState.md)
+- [SpecReferenceData](interfaces/SpecReferenceData.md)
 - [TaskRecord](interfaces/TaskRecord.md)
 
 ## Type Aliases
