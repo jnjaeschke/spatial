@@ -1,0 +1,8 @@
+{
+  "entryPoints": ["src/shared/types.ts", "src/runtime/tasks.ts", "src/runtime/store.ts", "src/runtime/llm/types.ts", "src/runtime/create.ts", "src/workflows/narrate-patch.ts"],
+  "out": "docs",
+  "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "disableSources": true,
+  "excludePrivate": true
+}

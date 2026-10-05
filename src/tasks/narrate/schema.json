@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "changes"],
+  "properties": {
+    "summary": { "type": "string" },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "explanation", "rationale", "hunkIds", "dependsOn", "specUrls"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "explanation": { "type": "string" },
+          "rationale": { "type": "string" },
+          "hunkIds": { "type": "array", "items": { "type": "string" } },
+          "dependsOn": { "type": "array", "items": { "type": "string" } },
+          "specUrls": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

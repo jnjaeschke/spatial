@@ -1,0 +1,21 @@
+{
+  "name": "spatial-ide",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc",
+    "docs": "typedoc",
+    "docs:check": "node scripts/docs-check.ts",
+    "check": "npm run typecheck && npm test && npm run docs:check"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.1",
+    "typescript": "~6.0.3"
+  }
+}

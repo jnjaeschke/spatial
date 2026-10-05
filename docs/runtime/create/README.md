@@ -1,0 +1,15 @@
+[**spatial-ide**](../../README.md)
+
+***
+
+[spatial-ide](../../README.md) / runtime/create
+
+# runtime/create
+
+## Variables
+
+- [DEFAULT\_LLM](variables/DEFAULT_LLM.md)
+
+## Functions
+
+- [createRuntime](functions/createRuntime.md)
