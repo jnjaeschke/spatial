@@ -160,9 +160,45 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
   const state = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { id: string; title: string }[];
   const session = state.find((s) => s.title === title)!;
-  const snapshot = await (await request.get(`http://127.0.0.1:4178/api/sessions/${session.id}/state`)).json() as { artifacts: { type: string; data: { lines?: { start: number; end: number; path: string } } }[] };
+  const snapshot = await (await request.get(`http://127.0.0.1:4178/api/sessions/${session.id}/state`)).json() as { artifacts: { type: string; data: { quote?: string; lines?: { start: number; end: number; path: string } } }[] };
   const thread = snapshot.artifacts.find((a) => a.type === "ChatThread")!;
   expect(thread.data.lines).toBeDefined();
   expect(thread.data.lines!.start).toBeLessThan(thread.data.lines!.end);
   expect(thread.data.lines!.path).toBe("a.txt");
+  const quote = thread.data.quote!;
+  const highlighted = await page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((range) => (range as Range).toString()));
+  expect(highlighted).toHaveLength(1);
+  expect(highlighted[0]!.replace(/\s+/g, "")).toBe(quote.replace(/\s+/g, ""));
+});
+
+test("a quoted diff chat sits next to the quote and highlights it", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "code");
+  const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();
+  const code = row.locator("td.code");
+  const selected = await code.innerText();
+  await code.dblclick();
+  const word = await page.evaluate(() => getSelection()!.toString().trim());
+  const ask = page.locator("button.ask-selection");
+  await expect(ask).toBeVisible();
+  await ask.click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await expect(draft).toBeVisible();
+  expect(selected).toContain(word);
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
+  await expect.poll(async () => {
+    const chatBox = await draft.boundingBox();
+    const rowBox = await row.boundingBox();
+    return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
+  }).toBeLessThan(40);
+
+  await draft.getByLabel("message").focus();
+  await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(1);
+  await page.locator(".react-flow__pane").click({ position: { x: 5, y: 5 } });
+  await page.mouse.move(5, 5);
+  await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(0);
+
+  await zoomTo(page, "concept");
+  await zoomTo(page, "code");
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
 });

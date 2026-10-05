@@ -11,6 +11,7 @@ import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { ChatNode } from "./nodes/ChatNode.tsx";
+import { quoteRange } from "./quote-range.ts";
 
 const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode };
 
@@ -47,6 +48,16 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!g) throw new Error("Canvas needs a session with a narrative");
     return g;
   }, [state, drafts]);
+  const quoted = useMemo(() => graph.nodes.filter((n) => n.data.kind === "chat" && n.data.quote), [graph]);
+  const [hoveredChat, setHoveredChat] = useState<string | null>(null);
+  const [focusedChat, setFocusedChat] = useState<string | null>(null);
+  const chatIds = useMemo(() => new Set(graph.nodes.filter((n) => n.data.kind === "chat").map((n) => n.id)), [graph]);
+  const activeChat = hoveredChat && chatIds.has(hoveredChat) ? hoveredChat
+    : focusedChat && chatIds.has(focusedChat) ? focusedChat : null;
+  const rangeOf = (n: typeof quoted[number]) => {
+    if (n.data.kind !== "chat" || !n.data.quote || !container.current) return null;
+    return quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
+  };
   const satelliteAnchors = useMemo(() => new Map(graph.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat").map((n) => [n.id, n.anchors ?? []])), [graph]);
   const edges = useMemo<Edge[]>(() => graph.edges.map((e) => satelliteAnchors.has(e.source)
     ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
@@ -66,11 +77,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
 
   useEffect(() => offsets.current.clear(), [graph]);
 
-  const arrange = (sized: { id: string; width: number; height: number }[]) => {
+  const arrange = (sized: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
     const mainPos = layout(main, graph.edges.filter((e) => !satelliteAnchors.has(e.source)));
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
-    const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)! }));
+    const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!, ...(dy?.has(n.id) ? { dy: dy.get(n.id)! } : {}) }));
     return new Map([...mainPos, ...placeSatellites(rects, satellites)]);
   };
 
@@ -96,7 +107,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
     if (sizeKey === laidOutKey.current) return;
     laidOutKey.current = sizeKey;
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })));
+    const dy = new Map<string, number>();
+    for (const n of quoted) {
+      const range = rangeOf(n);
+      const anchorEl = container.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(n.anchors![0]!)}"]`);
+      if (range && anchorEl) dy.set(n.id, (range.getBoundingClientRect().top - anchorEl.getBoundingClientRect().top) / rf.getZoom());
+    }
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), dy);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
@@ -106,6 +123,67 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       anchor.current = null;
     }
   }, [sizeKey, nodes, rf, setNodes, graph]);
+
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const chatAt = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return null;
+      const id = target.closest(".react-flow__node")?.getAttribute("data-id") ?? null;
+      return id && chatIds.has(id) ? id : null;
+    };
+    const over = (event: PointerEvent) => setHoveredChat(chatAt(event.target));
+    const out = (event: PointerEvent) => {
+      if (chatAt(event.relatedTarget)) return;
+      setHoveredChat(null);
+    };
+    const focus = (event: FocusEvent) => setFocusedChat(chatAt(event.target));
+    const blur = (event: FocusEvent) => {
+      if (chatAt(event.relatedTarget)) return;
+      setFocusedChat(null);
+    };
+    el.addEventListener("pointerover", over);
+    el.addEventListener("pointerout", out);
+    el.addEventListener("focusin", focus);
+    el.addEventListener("focusout", blur);
+    return () => {
+      el.removeEventListener("pointerover", over);
+      el.removeEventListener("pointerout", out);
+      el.removeEventListener("focusin", focus);
+      el.removeEventListener("focusout", blur);
+    };
+  }, [chatIds]);
+
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const all: Range[] = [], active: Range[] = [];
+        for (const n of quoted) {
+          const range = rangeOf(n);
+          if (!range) continue;
+          all.push(range);
+          if (n.id === activeChat) active.push(range);
+        }
+        CSS.highlights.set("chat-quote", new Highlight(...all));
+        const strong = new Highlight(...active);
+        strong.priority = 1;
+        CSS.highlights.set("chat-quote-active", strong);
+      });
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      CSS.highlights.delete("chat-quote");
+      CSS.highlights.delete("chat-quote-active");
+    };
+  }, [quoted, activeChat]);
 
   const nodeNearestCenter = useCallback((): string | null => {
     const el = container.current;

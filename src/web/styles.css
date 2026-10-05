@@ -41,6 +41,8 @@ html, body, #root { margin: 0; height: 100%; }
 .revision-errors { margin: 6px 0 0; color: #888; font-size: 0.85em; }
 .chat-quote { margin: 8px 10px 0; padding: 4px 8px; border-left: 3px solid #888; color: #555; max-height: 6em; overflow: auto; }
 .ask-selection { padding: 4px 10px; border: 1px solid #777; border-radius: 4px; background: white; box-shadow: 0 2px 8px #0003; cursor: pointer; }
+::highlight(chat-quote) { background-color: rgb(255 200 0 / 0.25); }
+::highlight(chat-quote-active) { background-color: rgb(255 200 0 / 0.6); }
 .msg.pending { color: #888; }
 .msg-llm { display: block; font-size: 0.7em; color: #999; margin-top: 2px; }
 .chat-node textarea { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; }
