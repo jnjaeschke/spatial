@@ -92,6 +92,7 @@ test("dragging a node by its title survives relayout until reset", async ({ page
 
 test("spec node sits right of the story and diff lines link to Searchfox", async ({ page }) => {
   await page.goto(URL);
+  await expect(page.getByTestId("summary").locator(".spec-status")).toContainText("Specs: 1 cited in code");
   const spec = page.getByTestId("spec-R");
   await expect(spec).toBeVisible();
   await expect(spec.getByText("unverified")).toHaveCount(0);

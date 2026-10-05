@@ -91,6 +91,33 @@ test("sessionGraph ignores spec refs of older narratives", () => {
   assert.ok(!sessionGraph(st)!.nodes.some((n) => n.id === "R"));
 });
 
+test("summary spec status requires a succeeded resolver for this narrative", () => {
+  const refs = [
+    { id: "RC", sessionId: "S", type: "SpecReference", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" }, data: { url: "code", origin: "code" as const, resolved: null, geckoRefs: [] } },
+    { id: "RI", sessionId: "S", type: "SpecReference", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" }, data: { url: "llm", origin: "llm" as const, resolved: null, geckoRefs: [] } },
+    { id: "RP", sessionId: "S", type: "SpecReference", status: "proposed" as const, createdAt: "3", provenance: { taskId: "t" }, data: { url: "proposed", origin: "code" as const, resolved: null, geckoRefs: [] } },
+  ];
+  const st = state([diff, narrative("N"), ...refs]);
+  st.links = refs.map((r, i) => ({ id: `l${i}`, sessionId: "S", from: r.id, to: `N#c${i + 1}`, kind: "supports" as const }));
+  const summary = () => sessionGraph(st)!.nodes[0].data;
+  let data = summary();
+  assert.equal(data.kind, "summary");
+  if (data.kind === "summary") assert.equal(data.specStatus, null);
+
+  st.tasks = [{ id: "resolve", sessionId: "S", kind: "resolveSpecRefs", status: "succeeded", input: { narrativeId: "N" }, output: null, error: null, createdAt: "4", updatedAt: "4" }];
+  data = summary();
+  if (data.kind === "summary") assert.deepEqual(data.specStatus, { code: 1, inferred: 1, unverified: 1 });
+
+  st.tasks = [{ ...st.tasks[0]!, input: { narrativeId: "other" } }];
+  data = summary();
+  if (data.kind === "summary") assert.equal(data.specStatus, null);
+  st.tasks = [{ ...st.tasks[0]!, input: { narrativeId: "N" } }];
+  st.artifacts = [diff, narrative("N")];
+  st.links = [];
+  data = summary();
+  if (data.kind === "summary") assert.deepEqual(data.specStatus, { code: 0, inferred: 0, unverified: 0 });
+});
+
 test("placeSatellites: column right of the story, aligned to anchors, no overlap", () => {
   const main = new Map([
     ["a", { x: 0, y: 0, width: 400, height: 100 }],

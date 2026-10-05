@@ -25,6 +25,7 @@ export interface SummaryNodeData {
   summary: string;
   commits: Commit[];
   changeCount: number;
+  specStatus: { code: number; inferred: number; unverified: number } | null;
 }
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
@@ -56,7 +57,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length },
+    data: { kind: "summary", summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {
@@ -88,6 +89,22 @@ export function sessionGraph(state: SessionState, drafts: { id: string; anchor: 
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
   const prefix = `${latest.narrative.id}#`;
+  const hasResolved = state.tasks.some((task) => {
+    if (task.kind !== "resolveSpecRefs" || task.status !== "succeeded") return false;
+    return (task.input as { narrativeId?: unknown } | null)?.narrativeId === latest.narrative.id;
+  });
+  const supportedSpecs = new Set(state.links
+    .filter((link) => link.kind === "supports" && link.to.startsWith(prefix))
+    .map((link) => link.from));
+  const refs = state.artifacts.filter((artifact) => artifact.type === "SpecReference" && supportedSpecs.has(artifact.id));
+  const specStatus = hasResolved ? refs.reduce((counts, ref) => {
+    if (ref.status !== "verified") counts.unverified++;
+    else if ((ref as Artifact<SpecReferenceData>).data.origin === "code") counts.code++;
+    else counts.inferred++;
+    return counts;
+  }, { code: 0, inferred: 0, unverified: 0 }) : null;
+  const summaryNode = g.nodes.find((node) => node.id === latest.narrative.id)!;
+  if (summaryNode.data.kind === "summary") summaryNode.data.specStatus = specStatus;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {
     if (l.kind === "supports" && l.to.startsWith(prefix)) anchorsBySpec.set(l.from, [...(anchorsBySpec.get(l.from) ?? []), l.to]);

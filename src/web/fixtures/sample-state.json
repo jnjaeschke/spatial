@@ -71,6 +71,6 @@
     }
   ],
   "links": [{ "id": "L1", "sessionId": "S", "from": "R", "to": "N#c2", "kind": "supports" }],
-  "tasks": [],
+  "tasks": [{ "id": "t3", "sessionId": "S", "kind": "resolveSpecRefs", "status": "succeeded", "input": { "narrativeId": "N" }, "output": null, "error": null, "createdAt": "2026-10-05T00:00:03.000Z", "updatedAt": "2026-10-05T00:00:04.000Z" }],
   "lastEventId": 0
 }
