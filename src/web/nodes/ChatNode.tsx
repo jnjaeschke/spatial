@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
+import { applyRevisions } from "../../shared/revisions.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
 import type { ChatNodeData, ZoomLevel } from "../graph.ts";
@@ -43,8 +44,10 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
                     : <CodeSpan text={code} hunks={data.hunks} diffId={data.diffId} />;
                 },
                 a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
-              }}>{m.data.text}</Markdown>
+              }}>{applyRevisions(m.data.text, data.revisions[m.id] ?? [])}</Markdown>
               : m.data.text}
+            {m.data.role === "assistant" && m.data.questions?.length ? <ul className="chat-questions">{m.data.questions.map((question, i) => <li key={i}>{question}</li>)}</ul> : null}
+            {m.data.role === "assistant" && m.data.revisionErrors?.length ? <p className="revision-errors">{m.data.revisionErrors.map((revisionError, i) => <span key={i}>{i > 0 ? " " : ""}Could not apply revision: {revisionError}</span>)}</p> : null}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>
         ))}

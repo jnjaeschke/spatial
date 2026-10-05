@@ -1,5 +1,6 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, PatchNarrativeData, Ref, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, RevisionData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
@@ -43,6 +44,7 @@ export interface ChatNodeData {
   /** Task of the turn that created the thread (or that the draft sent); later turns carry `threadId` in their input. */
   taskId: string | null;
   messages: Artifact<ChatMessageData>[];
+  revisions: Record<Id, RevisionData[]>;
 }
 
 export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData;
@@ -139,13 +141,14 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
       .map((l) => state.artifacts.find((a) => a.id === l.from))
       .filter((a): a is Artifact<ChatMessageData> => !!a);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId: latest.diff.id, hunks: allHunks, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages } });
+    const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId: latest.diff.id, hunks: allHunks, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages, revisions } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
     const node = resolve(draft.anchor);
     if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {} } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
   return g;

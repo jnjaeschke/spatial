@@ -170,6 +170,20 @@ test("sessionGraph skips a chat anchored to a message of a hidden chat", () => {
   assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T2"));
 });
 
+test("sessionGraph attaches revisions to their target chat message", () => {
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
+  const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "Stub answer." } };
+  const revision = { id: "REV", sessionId: "S", type: "Revision", status: "proposed" as const, createdAt: "6", provenance: { taskId: "t" }, data: { quote: "Stub answer.", correction: "Corrected stub answer." } };
+  const st = state([diff, narrative("N"), thread, msg, revision]);
+  st.links = [
+    { id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" },
+    { id: "revises", sessionId: "S", from: "REV", to: "M", kind: "revises" },
+  ];
+  const chat = sessionGraph(st)!.nodes.find((node) => node.id === "T")!.data;
+  assert.equal(chat.kind, "chat");
+  if (chat.kind === "chat") assert.deepEqual(chat.revisions.M, [revision.data]);
+});
+
 test("sessionGraph adds chat satellites for threads and drafts", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
   const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "user", text: "q" } };

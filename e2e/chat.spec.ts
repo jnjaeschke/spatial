@@ -34,6 +34,7 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
   const assistant = page.locator(".msg.assistant");
   await expect(assistant.locator("li strong", { hasText: "THIRTY" })).toBeVisible();
+  await expect(assistant.locator(".chat-questions li")).toContainText("Should c2 really depend on c1?");
   await expect(assistant.locator("pre code", { hasText: "int x = 1;" })).toBeVisible();
   await expect(assistant.locator("button.code-link", { hasText: "THIRTY" })).toBeVisible();
   const userMessage = page.locator(".msg.user", { hasText: "Why this change?" });
@@ -45,6 +46,26 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(answer).toBeVisible();
   await answer.locator("p").first().click({ clickCount: 3 });
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
+});
+
+test("saying an answer is wrong strikes it through", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "concept");
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const chat = page.locator('[data-testid^="chat-draft-"]');
+  await chat.getByLabel("message").fill("Why?");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  const threadChat = page.locator(".chat-node").filter({ has: page.locator(".msg.assistant", { hasText: "Stub answer." }) });
+  await threadChat.getByLabel("message").fill("THAT IS WRONG");
+  await threadChat.getByRole("button", { name: "Send" }).click();
+  const original = threadChat.locator(".msg.assistant").filter({ hasText: "Stub answer." }).first();
+  await expect(original.locator("del")).toHaveText("Stub answer.", { timeout: 10_000 });
+  await expect(original).toContainText("Corrected stub answer.");
+  await page.reload();
+  await zoomTo(page, "concept");
+  const persisted = page.locator(".msg.assistant").filter({ has: page.locator("del", { hasText: "Stub answer." }) });
+  await expect(persisted).toContainText("Corrected stub answer.");
 });
 
 test("a failed first turn shows its error in the chat", async ({ page, request }) => {
