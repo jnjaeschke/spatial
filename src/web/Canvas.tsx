@@ -4,7 +4,7 @@ import {
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
 import type { SessionState } from "../shared/types.ts";
-import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
+import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SPEC_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
@@ -25,10 +25,15 @@ export function Canvas(props: Props) {
 function CanvasInner({ state }: Props) {
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
-  const graph = useMemo(() => sessionGraph(state), [state]);
-  const graphNodes = graph?.nodes ?? [];
-  const graphEdges = graph?.edges ?? [];
-  const edges = useMemo<Edge[]>(() => graphEdges.map((e) => ({ ...e, type: graphNodes.find((n) => n.id === e.source)?.data.kind === "spec" ? "straight" : "smoothstep", style: graphNodes.find((n) => n.id === e.source)?.data.kind === "spec" ? { strokeDasharray: "4 4" } : undefined })), [graphEdges, graphNodes]);
+  const graph = useMemo(() => {
+    const g = sessionGraph(state);
+    if (!g) throw new Error("Canvas needs a session with a narrative");
+    return g;
+  }, [state]);
+  const satelliteAnchors = useMemo(() => new Map(graph.nodes.filter((n) => n.data.kind === "spec").map((n) => [n.id, n.anchors ?? []])), [graph]);
+  const edges = useMemo<Edge[]>(() => graph.edges.map((e) => satelliteAnchors.has(e.source)
+    ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
+    : { ...e, type: "smoothstep" }), [graph, satelliteAnchors]);
   const [level, setLevel] = useState<ZoomLevel>("concept");
   const levelRef = useRef(level);
   levelRef.current = level;
@@ -45,19 +50,16 @@ function CanvasInner({ state }: Props) {
 
   useEffect(() => offsets.current.clear(), [graph]);
 
-  const arrange = (sized: { id: string; width: number; height: number; data: typeof graphNodes[number]["data"] }[]) => {
-    const main = sized.filter((n) => n.data.kind !== "spec");
-    const mainIds = new Set(main.map((n) => n.id));
-    const mainEdges = graphEdges.filter((e) => mainIds.has(e.source) && mainIds.has(e.target));
-    const mainPos = layout(main, mainEdges);
+  const arrange = (sized: { id: string; width: number; height: number }[]) => {
+    const main = sized.filter((n) => !satelliteAnchors.has(n.id));
+    const mainPos = layout(main, graph.edges.filter((e) => !satelliteAnchors.has(e.source)));
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
-    const satellites = sized.filter((n) => n.data.kind === "spec").map((n) => ({ id: n.id, width: n.width, height: n.height, anchors: graphNodes.find((g) => g.id === n.id)?.anchors ?? [] }));
+    const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)! }));
     return new Map([...mainPos, ...placeSatellites(rects, satellites)]);
   };
 
   useEffect(() => {
-    if (!graph) { setNodes([]); return; }
-    const sized = graph.nodes.map((n) => ({ id: n.id, data: n.data, ...estimateSize(n.data, level) }));
+    const sized = graph.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data, level) }));
     const pos = arrange(sized);
     basePos.current = pos;
     laidOutKey.current = "";
@@ -66,7 +68,7 @@ function CanvasInner({ state }: Props) {
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
-      style: { width: n.data.kind === "spec" ? 420 : NODE_WIDTH[level] },
+      style: { width: n.data.kind === "spec" ? SPEC_WIDTH : NODE_WIDTH[level] },
       draggable: true,
       dragHandle: ".title",
     })));
@@ -74,10 +76,10 @@ function CanvasInner({ state }: Props) {
 
   const sizeKey = nodes.map((n) => `${n.id}:${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`).join("|");
   useEffect(() => {
-    if (!graph || nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
+    if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
     if (sizeKey === laidOutKey.current) return;
     laidOutKey.current = sizeKey;
-    const pos = arrange(nodes.map((n) => ({ id: n.id, data: n.data as unknown as typeof graphNodes[number]["data"], width: n.measured!.width!, height: n.measured!.height! })));
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })));
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
@@ -86,7 +88,7 @@ function CanvasInner({ state }: Props) {
       rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
     }
-  }, [sizeKey, nodes, graphEdges, rf, setNodes, graph]);
+  }, [sizeKey, nodes, rf, setNodes, graph]);
 
   const nodeNearestCenter = useCallback((): string | null => {
     const el = container.current;

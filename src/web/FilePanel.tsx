@@ -14,13 +14,14 @@ export const FileViewContext = createContext<((file: OpenFile) => void) | null>(
 
 const SIGN = { ctx: " ", add: "+", del: "-" } as const;
 
-export function DiffRows({ rows, hunkId }: { rows: Row[]; hunkId?: string }) {
+/** `oldHref` links old-side line numbers (e.g. to Searchfox). */
+export function DiffRows({ rows, hunkId, oldHref }: { rows: Row[]; hunkId?: string; oldHref?: (line: number) => string }) {
   return <>{rows.map((row, i) => {
     const inHunk = hunkId !== undefined && row.hunkId !== undefined;
     const target = hunkId !== undefined && row.hunkId === hunkId;
     const classes = [row.kind, inHunk && "in-hunk", target && "target"].filter(Boolean).join(" ");
     return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId}>
-      <td className="ln">{row.old ?? ""}</td><td className="ln">{row.new ?? ""}</td><td className="sign">{SIGN[row.kind]}</td><td className="code">{row.text}</td>
+      <td className="ln">{oldHref && row.old !== undefined ? <a href={oldHref(row.old)} target="_blank" rel="noreferrer">{row.old}</a> : row.old ?? ""}</td><td className="ln">{row.new ?? ""}</td><td className="sign">{SIGN[row.kind]}</td><td className="code">{row.text}</td>
     </tr>;
   })}</>;
 }

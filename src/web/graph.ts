@@ -8,6 +8,7 @@ export function zoomLevel(zoom: number): ZoomLevel {
 }
 
 export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
+export const SPEC_WIDTH = 420;
 
 export interface ChangeNodeData {
   kind: "change";
@@ -98,7 +99,7 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
-  if (data.kind === "spec") return { width: 420, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
+  if (data.kind === "spec") return { width: SPEC_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   const width = NODE_WIDTH[level];
   if (data.kind === "summary") {
     return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 };
