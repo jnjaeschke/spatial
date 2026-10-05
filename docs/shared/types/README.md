@@ -17,17 +17,20 @@
 - [Link](interfaces/Link.md)
 - [LlmSelection](interfaces/LlmSelection.md)
 - [ModelInfo](interfaces/ModelInfo.md)
+- [ModelsResponse](interfaces/ModelsResponse.md)
 - [PatchNarrativeData](interfaces/PatchNarrativeData.md)
 - [Provenance](interfaces/Provenance.md)
 - [RuntimeEvent](interfaces/RuntimeEvent.md)
 - [SemanticChange](interfaces/SemanticChange.md)
 - [Session](interfaces/Session.md)
+- [SessionState](interfaces/SessionState.md)
 - [TaskRecord](interfaces/TaskRecord.md)
 
 ## Type Aliases
 
 - [Actor](type-aliases/Actor.md)
 - [ArtifactStatus](type-aliases/ArtifactStatus.md)
+- [BackendModels](type-aliases/BackendModels.md)
 - [FileStatus](type-aliases/FileStatus.md)
 - [Id](type-aliases/Id.md)
 - [LinkKind](type-aliases/LinkKind.md)

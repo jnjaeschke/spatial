@@ -26,6 +26,23 @@ export interface ModelInfo {
   efforts: string[];
 }
 
+export type BackendModels = { models: ModelInfo[] } | { error: string };
+
+export interface ModelsResponse {
+  default: LlmSelection;
+  backends: Record<LlmBackendId, BackendModels>;
+}
+
+/** Full snapshot of one session; the web client's only data source besides events. */
+export interface SessionState {
+  session: Session;
+  artifacts: Artifact[];
+  links: Link[];
+  tasks: TaskRecord[];
+  /** Subscribe to events after this id to miss nothing. */
+  lastEventId: number;
+}
+
 export interface Provenance {
   taskId: Id;
   /** Present when the artifact content was produced by an LLM. */

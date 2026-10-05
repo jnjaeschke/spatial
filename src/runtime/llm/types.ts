@@ -1,4 +1,4 @@
-import type { LlmBackendId, LlmSelection, ModelInfo } from "../../shared/types.ts";
+import type { BackendModels, LlmBackendId, LlmSelection, ModelInfo } from "../../shared/types.ts";
 
 /** What a task asks of an LLM; model/effort are resolved by the LLM manager. */
 export interface LlmPrompt {
@@ -42,6 +42,8 @@ export interface LlmBackend {
 
 /** Runtime-owned LLM management. `selection` undefined means the configured default. */
 export interface LlmService {
+  readonly defaultSelection: LlmSelection;
   run(selection: LlmSelection | undefined, prompt: LlmPrompt, signal: AbortSignal): Promise<LlmRunResult>;
-  listModels(): Promise<Record<LlmBackendId, ModelInfo[]>>;
+  /** One failing backend (e.g. codex not installed) must not hide the others. */
+  listModels(): Promise<Record<LlmBackendId, BackendModels>>;
 }

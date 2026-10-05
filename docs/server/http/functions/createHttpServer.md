@@ -1,0 +1,25 @@
+[**spatial-ide**](../../../README.md)
+
+***
+
+[spatial-ide](../../../README.md) / [server/http](../README.md) / createHttpServer
+
+# Function: createHttpServer()
+
+> **createHttpServer**(`rt`, `opts?`): `Server`
+
+## Parameters
+
+### rt
+
+[`Runtime`](../../../runtime/tasks/classes/Runtime.md)
+
+### opts?
+
+#### staticDir?
+
+`string`
+
+## Returns
+
+`Server`

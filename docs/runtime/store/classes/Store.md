@@ -166,6 +166,22 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ***
 
+### lastEventId()
+
+> **lastEventId**(`sessionId`): `number`
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`number`
+
+***
+
 ### listArtifacts()
 
 > **listArtifacts**(`sessionId`, `type?`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`unknown`\>[]
@@ -229,6 +245,22 @@ Dumb persistence. Emits no events; the Runtime does that.
 #### Returns
 
 [`Session`](../../../shared/types/interfaces/Session.md)[]
+
+***
+
+### listTasks()
+
+> **listTasks**(`sessionId`): [`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md)[]
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+[`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md)[]
 
 ***
 

@@ -8,7 +8,11 @@ import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData } from "../../src/shared/types.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
-const noLlm = {} as LlmService;
+const noLlm = {
+  defaultSelection: { backend: "claude", model: "m", effort: "low" },
+  async run() { throw new Error("unused"); },
+  async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
+} satisfies LlmService;
 
 async function setup() {
   const r = makeRepo();

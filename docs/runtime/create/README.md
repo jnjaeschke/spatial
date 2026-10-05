@@ -13,3 +13,4 @@
 ## Functions
 
 - [createRuntime](functions/createRuntime.md)
+- [defaultDbPath](functions/defaultDbPath.md)

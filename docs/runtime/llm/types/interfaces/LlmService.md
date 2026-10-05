@@ -8,15 +8,23 @@
 
 Runtime-owned LLM management. `selection` undefined means the configured default.
 
+## Properties
+
+### defaultSelection
+
+> `readonly` **defaultSelection**: [`LlmSelection`](../../../../shared/types/interfaces/LlmSelection.md)
+
 ## Methods
 
 ### listModels()
 
-> **listModels**(): `Promise`\<`Record`\<[`LlmBackendId`](../../../../shared/types/type-aliases/LlmBackendId.md), [`ModelInfo`](../../../../shared/types/interfaces/ModelInfo.md)[]\>\>
+> **listModels**(): `Promise`\<`Record`\<[`LlmBackendId`](../../../../shared/types/type-aliases/LlmBackendId.md), [`BackendModels`](../../../../shared/types/type-aliases/BackendModels.md)\>\>
+
+One failing backend (e.g. codex not installed) must not hide the others.
 
 #### Returns
 
-`Promise`\<`Record`\<[`LlmBackendId`](../../../../shared/types/type-aliases/LlmBackendId.md), [`ModelInfo`](../../../../shared/types/interfaces/ModelInfo.md)[]\>\>
+`Promise`\<`Record`\<[`LlmBackendId`](../../../../shared/types/type-aliases/LlmBackendId.md), [`BackendModels`](../../../../shared/types/type-aliases/BackendModels.md)\>\>
 
 ***
 

@@ -1,5 +1,5 @@
 {
-  "entryPoints": ["src/shared/types.ts", "src/runtime/tasks.ts", "src/runtime/store.ts", "src/runtime/llm/types.ts", "src/runtime/create.ts", "src/workflows/narrate-patch.ts"],
+  "entryPoints": ["src/shared/types.ts", "src/runtime/tasks.ts", "src/runtime/store.ts", "src/runtime/llm/types.ts", "src/runtime/create.ts", "src/workflows/narrate-patch.ts", "src/server/http.ts", "src/runtime/state.ts"],
   "out": "docs",
   "plugin": ["typedoc-plugin-markdown"],
   "readme": "none",

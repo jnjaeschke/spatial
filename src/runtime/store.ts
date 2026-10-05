@@ -109,6 +109,11 @@ export class Store {
     }));
   }
 
+  lastEventId(sessionId: Id): number {
+    const r = this.#db.prepare("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE session_id = ?").get(sessionId) as Row;
+    return Number(r.id);
+  }
+
   createTask(t: { sessionId: Id; kind: string; input: unknown }): TaskRecord {
     const ts = now();
     const id = randomUUID();
@@ -135,12 +140,20 @@ export class Store {
   getTask(id: Id): TaskRecord {
     const r = this.#db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as Row | undefined;
     if (!r) throw new Error(`Unknown task: ${id}`);
+    return toTask(r);
+  }
+
+  listTasks(sessionId: Id): TaskRecord[] {
+    return (this.#db.prepare("SELECT * FROM tasks WHERE session_id = ? ORDER BY created_at, rowid").all(sessionId) as Row[]).map(toTask);
+  }
+}
+
+function toTask(r: Row): TaskRecord {
     return {
       id: r.id as string, sessionId: r.session_id as string, kind: r.kind as string, status: r.status as TaskStatus,
       input: JSON.parse(r.input as string), output: r.output === null ? null : JSON.parse(r.output as string),
       error: (r.error as string | null) ?? null, createdAt: r.created_at as string, updatedAt: r.updated_at as string,
     };
-  }
 }
 
 function toSession(r: Row): Session {

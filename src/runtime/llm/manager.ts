@@ -1,4 +1,4 @@
-import type { LlmBackendId, LlmSelection, ModelInfo } from "../../shared/types.ts";
+import type { BackendModels, LlmBackendId, LlmSelection } from "../../shared/types.ts";
 import type { LlmBackend, LlmPrompt, LlmRunResult, LlmService } from "./types.ts";
 
 export class LlmManager implements LlmService {
@@ -10,6 +10,10 @@ export class LlmManager implements LlmService {
     this.#default = defaultSelection;
   }
 
+  get defaultSelection(): LlmSelection {
+    return this.#default;
+  }
+
   async run(selection: LlmSelection | undefined, prompt: LlmPrompt, signal: AbortSignal): Promise<LlmRunResult> {
     const sel = selection ?? this.#default;
     const backend = this.#backends.get(sel.backend);
@@ -18,9 +22,15 @@ export class LlmManager implements LlmService {
     return { ...r, selection: sel };
   }
 
-  async listModels(): Promise<Record<LlmBackendId, ModelInfo[]>> {
-    const out = {} as Record<LlmBackendId, ModelInfo[]>;
-    for (const [id, b] of this.#backends) out[id] = await b.listModels();
+  async listModels(): Promise<Record<LlmBackendId, BackendModels>> {
+    const out = {} as Record<LlmBackendId, BackendModels>;
+    for (const [id, b] of this.#backends) {
+      try {
+        out[id] = { models: await b.listModels() };
+      } catch (e) {
+        out[id] = { error: (e as Error).message };
+      }
+    }
     return out;
   }
 }

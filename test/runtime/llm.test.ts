@@ -160,7 +160,13 @@ test("manager: default vs explicit selection, unknown backend", async () => {
   assert.equal(seen[0].signal, signal);
   const r2 = await m.run({ backend: "codex", model: "gpt-6-luna", effort: "low" }, { prompt: "p", tools: "none" }, signal);
   assert.equal(r2.text, "codex");
-  assert.deepEqual(await m.listModels(), { claude: [{ id: "claude-m", efforts: ["low"] }], codex: [{ id: "codex-m", efforts: ["low"] }] });
+  assert.deepEqual(m.defaultSelection, { backend: "claude", model: "sonnet", effort: "medium" });
+  assert.deepEqual(await m.listModels(), { claude: { models: [{ id: "claude-m", efforts: ["low"] }] }, codex: { models: [{ id: "codex-m", efforts: ["low"] }] } });
+  const failing = new LlmManager([
+    fake("claude"),
+    { ...fake("codex"), async listModels() { throw new Error("no cache"); } },
+  ], { backend: "claude", model: "s", effort: "low" });
+  assert.deepEqual(await failing.listModels(), { claude: { models: [{ id: "claude-m", efforts: ["low"] }] }, codex: { error: "no cache" } });
   const only = new LlmManager([fake("claude")], { backend: "claude", model: "s", effort: "low" });
   await assert.rejects(only.run({ backend: "codex", model: "x", effort: "low" }, { prompt: "p", tools: "none" }, signal), /Unknown LLM backend: codex/);
 });

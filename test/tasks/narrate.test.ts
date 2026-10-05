@@ -73,12 +73,13 @@ function setup(responses: unknown[]) {
   const prompts: LlmPrompt[] = [];
   const sel: LlmSelection = { backend: "codex", model: "gpt-6-luna", effort: "medium" };
   const llm: LlmService = {
+    defaultSelection: { backend: "claude", model: "m", effort: "low" },
     async run(selection, prompt) {
       prompts.push(prompt);
       if (responses.length === 0) throw new Error("no more responses");
       return { text: "", json: responses.shift(), providerSessionId: "p", selection: selection ?? sel };
     },
-    async listModels() { return { claude: [], codex: [] }; },
+    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({ store, tasks: [narrate], llm, git: () => ({}) as GitCapability });
   const session = store.createSession("/repo", "t");

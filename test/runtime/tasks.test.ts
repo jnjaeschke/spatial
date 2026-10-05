@@ -7,11 +7,12 @@ import type { RuntimeEvent } from "../../src/shared/types.ts";
 
 const fakeGit = {} as GitCapability;
 const fakeLlm: LlmService = {
+  defaultSelection: { backend: "claude", model: "m", effort: "low" },
   async run(selection, prompt) {
     return { text: prompt.prompt.toUpperCase(), providerSessionId: "p1", selection: selection ?? { backend: "claude", model: "m", effort: "low" }, usage: { inputTokens: 1, outputTokens: 2 } };
   },
   async listModels() {
-    return { claude: [], codex: [] };
+    return { claude: { models: [] }, codex: { models: [] } };
   },
 };
 

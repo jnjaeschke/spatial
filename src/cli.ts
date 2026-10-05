@@ -1,9 +1,8 @@
 import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import type { LlmBackendId, PatchNarrativeData } from "./shared/types.ts";
-import { createRuntime, DEFAULT_LLM } from "./runtime/create.ts";
+import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
 import { createSession } from "./runtime/git.ts";
 import { narratePatch } from "./workflows/narrate-patch.ts";
 
@@ -26,7 +25,7 @@ const { positionals, values } = parseArgs({
   },
 });
 
-const dbPath = values.db ?? join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial-ide", "runtime.sqlite");
+const dbPath = values.db ?? defaultDbPath();
 mkdirSync(dirname(dbPath), { recursive: true });
 const rt = createRuntime({ dbPath, claudeBin: process.env.SPATIAL_CLAUDE_BIN, codexBin: process.env.SPATIAL_CODEX_BIN });
 
