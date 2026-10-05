@@ -18,6 +18,8 @@ test("resolve, isAncestor, log, diff", async () => {
   await assert.rejects(git.resolve("nope"), /Cannot resolve revision "nope"/);
   assert.equal(await git.isAncestor(base, head), true);
   assert.equal(await git.isAncestor(head, base), false);
+  assert.equal(await git.show(head, "a.txt"), "1\nTWO\n3\n");
+  await assert.rejects(git.show(head, "missing.txt"), /Cannot read missing\.txt at/);
   const log = await git.log(base, head);
   assert.deepEqual(log.map((c) => [c.sha, c.subject, c.body]), [[mid, "Bug 1 - part 1", "Body line."], [head, "Bug 1 - part 2", ""]]);
   const diff = await git.diff(base, head);

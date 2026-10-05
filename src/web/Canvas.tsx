@@ -11,6 +11,7 @@ import { SummaryNode } from "./nodes/SummaryNode.tsx";
 const nodeTypes = { change: ChangeNode, summary: SummaryNode };
 
 interface Props {
+  sessionId: string;
   narrative: Artifact<PatchNarrativeData>;
   diff: Artifact<DiffData>;
 }
@@ -23,7 +24,7 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ narrative, diff }: Props) {
+function CanvasInner({ sessionId, narrative, diff }: Props) {
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
   const graph = useMemo(() => narrativeGraph(narrative, diff), [narrative, diff]);
@@ -52,7 +53,7 @@ function CanvasInner({ narrative, diff }: Props) {
     setNodes(graph.nodes.map((n) => ({
       id: n.id,
       type: n.data.kind,
-      data: { ...n.data, level },
+      data: { ...n.data, sessionId, level },
       position: place(n.id, pos.get(n.id)!),
       style: { width: NODE_WIDTH[level] },
       draggable: true,

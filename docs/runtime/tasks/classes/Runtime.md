@@ -92,6 +92,24 @@
 
 ***
 
+### gitFor()
+
+> **gitFor**(`sessionId`): [`GitCapability`](../interfaces/GitCapability.md)
+
+Read-only git for server queries outside tasks.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+[`GitCapability`](../interfaces/GitCapability.md)
+
+***
+
 ### onEvent()
 
 > **onEvent**(`listener`): () => `void`

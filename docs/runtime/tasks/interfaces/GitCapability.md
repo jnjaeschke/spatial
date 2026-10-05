@@ -95,3 +95,25 @@ Resolves any revspec to a full commit SHA.
 #### Returns
 
 `Promise`\<`string`\>
+
+***
+
+### show()
+
+> **show**(`sha`, `path`): `Promise`\<`string`\>
+
+File content at a commit.
+
+#### Parameters
+
+##### sha
+
+`string`
+
+##### path
+
+`string`
+
+#### Returns
+
+`Promise`\<`string`\>

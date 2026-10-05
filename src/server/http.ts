@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
-import type { LlmSelection, ModelsResponse } from "../shared/types.ts";
+import type { DiffData, LlmSelection, ModelsResponse } from "../shared/types.ts";
 import { createSession } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
@@ -71,6 +71,26 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
       return buildSessionState(rt.store, params[0]);
+    }],
+    ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {
+      const id = requireSession(rt, params[0]).id;
+      let diff;
+      try {
+        diff = rt.store.getArtifact<DiffData>(params[1]);
+      } catch {
+        throw new HttpError(404, "Unknown diff");
+      }
+      if (diff.sessionId !== id || diff.type !== "Diff") throw new HttpError(404, "Unknown diff");
+      const path = url.searchParams.get("path");
+      const file = diff.data.files.find((entry) => entry.path === path);
+      if (!file) throw new HttpError(404, "Unknown file");
+      if ((file.status !== "modified" && file.status !== "renamed") || file.binary) {
+        throw new HttpError(400, "Context is only available for modified or renamed text files");
+      }
+      const text = await rt.gitFor(id).show(diff.data.headSha, file.path);
+      const lines = text.split("\n");
+      if (text.endsWith("\n")) lines.pop();
+      return { lines };
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/events$/, async ({ req, res, params, url }) => {
       const id = requireSession(rt, params[0]).id;

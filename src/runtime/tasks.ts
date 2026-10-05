@@ -14,6 +14,8 @@ export interface GitCapability {
   log(baseSha: string, headSha: string): Promise<Commit[]>;
   /** Raw `git diff` text for `base..head`. */
   diff(baseSha: string, headSha: string): Promise<string>;
+  /** File content at a commit. */
+  show(sha: string, path: string): Promise<string>;
 }
 
 /** Everything a task may touch. Tasks get capabilities only through this. */
@@ -92,6 +94,11 @@ export class Runtime {
 
   get llm(): LlmService {
     return this.#llm;
+  }
+
+  /** Read-only git for server queries outside tasks. */
+  gitFor(sessionId: Id): GitCapability {
+    return this.#git(this.#store.getSession(sessionId).repo);
   }
 
   onEvent(listener: Listener): () => void {

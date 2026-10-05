@@ -12,6 +12,28 @@ test("pick session, narrate, see canvas and activity", async ({ page }) => {
   await expect(page.getByText("Edits a and adds c.")).toBeVisible();
 });
 
+test("expand context around a hunk", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "code"; i++) {
+    await page.getByRole("button", { name: "zoom in" }).click();
+    await page.waitForTimeout(150);
+  }
+  const hunk = page.getByTestId("hunk-f0h0");
+  await expect(hunk.getByText("line 27", { exact: true })).toBeAttached();
+  await expect(hunk.getByText("line 26", { exact: true })).toHaveCount(0);
+  await hunk.getByRole("button", { name: "↑ 20 lines" }).click();
+  await expect(hunk.getByText("line 7", { exact: true })).toBeAttached();
+  await expect(hunk.getByText("line 6", { exact: true })).toHaveCount(0);
+  await hunk.getByRole("button", { name: "↑ 20 lines" }).click();
+  await expect(hunk.getByText("line 1", { exact: true })).toBeAttached();
+  await expect(hunk.getByRole("button", { name: "↑ 20 lines" })).toHaveCount(0);
+  await hunk.getByRole("button", { name: "↓ 20 lines" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(hunk.getByText("line 53", { exact: true })).toBeAttached();
+  await expect(hunk.getByText("line 54", { exact: true })).toHaveCount(0);
+});
+
 test("failed narrate shows the error in the activity strip and keeps the canvas", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();

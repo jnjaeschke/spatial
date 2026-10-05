@@ -10,8 +10,10 @@ import { makeRepo } from "../test/helpers/git-fixture.ts";
 const STUB = fileURLToPath(new URL("../test/stubs/fake-llm.mjs", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "e2e-"));
 const repo = makeRepo();
-repo.commit({ "a.txt": "1\n2\n3\n" }, "base");
-repo.commit({ "a.txt": "1\nTWO\n3\n", "c.txt": "c\n" }, "Bug 1 - Change things");
+const baseLines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
+repo.commit({ "a.txt": `${baseLines.join("\n")}\n` }, "base");
+baseLines[29] = "THIRTY";
+repo.commit({ "a.txt": `${baseLines.join("\n")}\n`, "c.txt": "c\n" }, "Bug 1 - Change things");
 
 const narrative = {
   summary: "Edits a and adds c.",

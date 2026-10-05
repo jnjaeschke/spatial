@@ -77,6 +77,23 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.ok(state.lastEventId > 0);
 });
 
+test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {
+  const session = await newSession();
+  const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
+  const response = await fetch(`${base}/api/sessions/${session.id}/diffs/${diffId}/file?path=a.txt`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { lines: ["1", "TWO"] });
+  const added = await fetch(`${base}/api/sessions/${session.id}/diffs/${diffId}/file?path=c.txt`);
+  assert.equal(added.status, 400);
+  assert.equal((await added.json()).error, "Context is only available for modified or renamed text files");
+  assert.equal((await fetch(`${base}/api/sessions/${session.id}/diffs/${diffId}/file?path=missing`)).status, 404);
+  assert.equal((await fetch(`${base}/api/sessions/${session.id}/diffs/nope/file?path=a.txt`)).status, 404);
+  const foreign = await newSession();
+  assert.equal((await fetch(`${base}/api/sessions/${foreign.id}/diffs/${diffId}/file?path=a.txt`)).status, 404);
+  const notDiff = rt.store.putArtifact({ sessionId: session.id, type: "Other", status: "verified", data: {}, provenance: { taskId: "task" } });
+  assert.equal((await fetch(`${base}/api/sessions/${session.id}/diffs/${notDiff.id}/file?path=a.txt`)).status, 404);
+});
+
 test("unknown session and API routes return 404 JSON", async () => {
   assert.equal((await fetch(`${base}/api/sessions/nope/state`)).status, 404);
   const response = await fetch(`${base}/api/nope`);

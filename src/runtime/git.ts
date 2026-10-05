@@ -41,6 +41,13 @@ export function makeGit(repo: string): GitCapability {
     async diff(baseSha, headSha) {
       return git(repo, ["diff", "--no-color", "--no-ext-diff", "-M", "-U3", baseSha, headSha]);
     },
+    async show(sha, path) {
+      try {
+        return await git(repo, ["show", `${sha}:${path}`]);
+      } catch {
+        throw new Error(`Cannot read ${path} at ${sha}`);
+      }
+    },
   };
 }
 

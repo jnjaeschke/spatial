@@ -21,6 +21,10 @@ html, body, #root { margin: 0; height: 100%; }
 .diff td.sign { width: 1%; user-select: none; }
 .diff tr.add { background: #e6ffec; }
 .diff tr.del { background: #ffebe9; }
+.diff tr.outside td.code { color: #666; }
+.diff tr.expand td { text-align: center; padding: 4px; }
+.diff tr.expand button { border: 0; color: #555; background: transparent; cursor: pointer; font: inherit; }
+.diff tr.diff-error td { color: #b00020; padding: 6px; }
 .react-flow__handle { opacity: 0; pointer-events: none; }
 .react-flow__panel button { font: inherit; padding: 4px 10px; }
 .activity { display: flex; gap: 12px; padding: 6px 12px; border-top: 1px solid #ddd; background: #fff; font-size: 13px; overflow-x: auto; }
