@@ -22,7 +22,7 @@ export function parseSpecRefs(markdown: string): GeckoSpecRef[] {
 
 export function makeSearchfox(opts: { bin?: string } = {}): SearchfoxCapability {
   const bin = opts.bin ?? "searchfox-cli";
-  let base: Promise<string> | undefined;
+  let tipResult: Promise<{ repoBase: string; rev: string }> | undefined;
   const run = async (args: string[], signal: AbortSignal) => {
     const { stdout, stderr, code } = await runProcess(bin, args, { stdin: "", signal });
     if (code !== 0) throw new Error(`searchfox-cli failed: ${(stderr || stdout).trim().slice(-1000)}`);
@@ -33,14 +33,14 @@ export function makeSearchfox(opts: { bin?: string } = {}): SearchfoxCapability 
     async specRefs(url, signal) {
       return parseSpecRefs(await run(["--spec-refs", url, "-l", "30"], signal));
     },
-    sourceBase() {
-      base ??= run(["--get-file", "moz.build", "--lines", "1", "--link"], new AbortController().signal).then((out) => {
-        const m = /^(https:\/\/\S+\/source\/)moz\.build#1$/.exec(out.trim());
-        if (!m) throw new Error(`Unexpected searchfox-cli link output: ${out.trim().slice(0, 200)}`);
-        return m[1];
+    tip() {
+      tipResult ??= run(["--get-file", "moz.build", "--lines", "1", "--permalink"], new AbortController().signal).then((out) => {
+        const m = /^(https:\/\/\S+\/)rev\/([0-9a-f]{40})\/moz\.build#1$/.exec(out.trim());
+        if (!m) throw new Error(`Unexpected searchfox-cli permalink output: ${out.trim().slice(0, 200)}`);
+        return { repoBase: m[1], rev: m[2] };
       });
-      base.catch(() => { base = undefined; });
-      return base;
+      tipResult.catch(() => { tipResult = undefined; });
+      return tipResult;
     },
   };
 }

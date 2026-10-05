@@ -102,7 +102,11 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
   }
   await zoomUntil(page, "zoom in", "code");
   await expect(page.getByTestId("hunk-f1h0").locator("td.ln a").first())
-    .toHaveAttribute("href", "https://searchfox.org/firefox-main/source/dom/navigation/Navigation.cpp#200");
+    .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
+  await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
+    .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
+  await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
+    .toHaveAttribute("title", "Searchfox at the patch's base");
   await expect(spec.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
   await expect(page.getByTestId("change-c1").locator(".explanation a.code-link").first())
     .toHaveAttribute("href", /^https:\/\/searchfox\.org\/firefox-main\/search\?q=/);

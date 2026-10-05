@@ -72,18 +72,18 @@ test("searchfox: specRefs args and failure", async () => {
   await assert.rejects(sf.specRefs("u", signal), /searchfox-cli failed: network unreachable/);
 });
 
-test("searchfox: sourceBase parsed and cached; bad output throws and is not cached", async () => {
-  stdout("https://searchfox.org/firefox-main/source/moz.build#1\n");
+test("searchfox: tip parsed and cached; bad output throws and is not cached", async () => {
+  stdout("https://searchfox.org/firefox-main/rev/b4b9efb6ee130740a94caf46ffff0625af1d51db/moz.build#1\n");
   const sf = makeSearchfox({ bin: STUB });
-  assert.equal(await sf.sourceBase(), "https://searchfox.org/firefox-main/source/");
-  assert.equal(await sf.sourceBase(), "https://searchfox.org/firefox-main/source/");
+  assert.deepEqual(await sf.tip(), { repoBase: "https://searchfox.org/firefox-main/", rev: "b4b9efb6ee130740a94caf46ffff0625af1d51db" });
+  assert.deepEqual(await sf.tip(), { repoBase: "https://searchfox.org/firefox-main/", rev: "b4b9efb6ee130740a94caf46ffff0625af1d51db" });
   assert.equal(argv().length, 1);
-  assert.deepEqual(argv()[0], ["--get-file", "moz.build", "--lines", "1", "--link"]);
+  assert.deepEqual(argv()[0], ["--get-file", "moz.build", "--lines", "1", "--permalink"]);
   stdout("garbage");
   const sf2 = makeSearchfox({ bin: STUB });
-  await assert.rejects(sf2.sourceBase(), /Unexpected searchfox-cli link output/);
-  stdout("https://searchfox.org/mozilla-central/source/moz.build#1");
-  assert.equal(await sf2.sourceBase(), "https://searchfox.org/mozilla-central/source/");
+  await assert.rejects(sf2.tip(), /Unexpected searchfox-cli permalink output/);
+  stdout("https://searchfox.org/mozilla-central/rev/0123456789012345678901234567890123456789/moz.build#1");
+  assert.deepEqual(await sf2.tip(), { repoBase: "https://searchfox.org/mozilla-central/", rev: "0123456789012345678901234567890123456789" });
 });
 
 test("isGeckoRepo", () => {

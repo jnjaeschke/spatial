@@ -31,6 +31,19 @@ export function makeGit(repo: string): GitCapability {
         throw e;
       }
     },
+    async mergeBase(a, b) {
+      try {
+        await git(repo, ["rev-parse", "--verify", "--quiet", `${b}^{commit}`]);
+      } catch {
+        return null;
+      }
+      try {
+        return (await git(repo, ["merge-base", a, b])).trim();
+      } catch (e) {
+        if ((e as { code?: number }).code === 1) return null;
+        throw e;
+      }
+    },
     async log(baseSha, headSha) {
       const out = await git(repo, ["log", "--reverse", "--format=%H%x00%s%x00%b%x1e", `${baseSha}..${headSha}`]);
       return out.split("\x1e").map((r) => r.replace(/^\n/, "")).filter((r) => r.length > 0).map((r): Commit => {

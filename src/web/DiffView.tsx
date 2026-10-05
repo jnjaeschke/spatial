@@ -1,12 +1,12 @@
-import { createContext, useContext, useState } from "react";
+import { useContext, useState } from "react";
 import type { DiffFile, Hunk } from "../shared/types.ts";
 import { fileRows, numberLines, type Row } from "./diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
 import { DiffRows, FileViewContext } from "./FilePanel.tsx";
 import { AskContext } from "./chat-context.ts";
+import { fileUrl, linkTitle, SearchfoxContext } from "./searchfox-url.ts";
 
 const STEP = 20;
-export const SourceBaseContext = createContext<string | null>(null);
 
 /** Read-only hunk. `nodrag nopan` lets users select text instead of moving the canvas. */
 export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk }) {
@@ -16,8 +16,9 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   const [error, setError] = useState<string | null>(null);
   const openFile = useContext(FileViewContext);
   const ask = useContext(AskContext);
-  const base = useContext(SourceBaseContext);
-  const sfPath = base && file.status !== "added" ? `${base}${file.oldPath ?? file.path}` : null;
+  const sf = useContext(SearchfoxContext);
+  const path = file.oldPath ?? file.path;
+  const linkable = sf && file.status !== "added";
   const canExpand = file.status === "modified" || file.status === "renamed";
   const expand = async (side: "above" | "below") => {
     try {
@@ -44,10 +45,10 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
-      <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{sfPath && <> <a className="sf-link" href={sfPath} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <button aria-label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</button>}</div>
+      <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <button aria-label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</button>}</div>
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} oldHref={sfPath ? (line) => `${sfPath}#${line}` : undefined} />
+        <DiffRows rows={rows} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

@@ -75,7 +75,7 @@ test("narrate runs in background and state reflects the result", async () => {
   });
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
-  assert.equal(state.sourceBase, null);
+  assert.equal(state.searchfox, null);
 });
 
 test("turns: first turn creates thread; busy thread is 409", async () => {

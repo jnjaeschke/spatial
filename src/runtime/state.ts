@@ -3,11 +3,11 @@ import type { Store } from "./store.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
 import { isGeckoRepo } from "./searchfox.ts";
 
-export async function buildSessionState(store: Store, searchfox: SearchfoxCapability, sessionId: Id): Promise<SessionState> {
+export async function buildSessionState(store: Store, searchfoxCapability: SearchfoxCapability, sessionId: Id): Promise<SessionState> {
   const session = store.getSession(sessionId);
-  let sourceBase: string | null = null;
+  let searchfox: SessionState["searchfox"] = null;
   if (isGeckoRepo(session.repo)) {
-    try { sourceBase = await searchfox.sourceBase(); }
+    try { const tip = await searchfoxCapability.tip(); searchfox = { repoBase: tip.repoBase, tipRev: tip.rev }; }
     catch (e) { console.error(`Searchfox unavailable: ${(e as Error).message}`); }
   }
   return {
@@ -16,6 +16,6 @@ export async function buildSessionState(store: Store, searchfox: SearchfoxCapabi
     links: store.listLinks(sessionId),
     tasks: store.listTasks(sessionId),
     lastEventId: store.lastEventId(sessionId),
-    sourceBase,
+    searchfox,
   };
 }

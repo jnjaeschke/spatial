@@ -20,7 +20,7 @@ const narrative = (id: string): Artifact<PatchNarrativeData> => ({
   data: { diffId: "D", summary: "sum", changes: [ch("c1", ["f0h0"]), ch("c2", ["f0h1", "f1h0"], ["c1"]), ch("c3", [], ["c1"])] },
 });
 const state = (artifacts: Artifact[]): SessionState => ({
-  session: { id: "S", repo: "/r", title: "t", createdAt: "0" }, artifacts, links: [], tasks: [], lastEventId: 0, sourceBase: null,
+  session: { id: "S", repo: "/r", title: "t", createdAt: "0" }, artifacts, links: [], tasks: [], lastEventId: 0, searchfox: null,
 });
 
 test("zoomLevel thresholds", () => {

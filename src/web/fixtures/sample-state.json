@@ -1,11 +1,11 @@
 {
   "session": { "id": "S", "repo": "/fixture", "title": "fixture", "createdAt": "2026-10-05T00:00:00.000Z" },
-  "sourceBase": "https://searchfox.org/firefox-main/source/",
+  "searchfox": { "repoBase": "https://searchfox.org/firefox-main/", "tipRev": "4444444444444444444444444444444444444444" },
   "artifacts": [
     {
       "id": "D", "sessionId": "S", "type": "Diff", "status": "verified", "createdAt": "2026-10-05T00:00:01.000Z", "provenance": { "taskId": "t1" },
       "data": {
-        "baseSha": "1111111111111111111111111111111111111111", "headSha": "2222222222222222222222222222222222222222",
+        "baseSha": "1111111111111111111111111111111111111111", "headSha": "2222222222222222222222222222222222222222", "upstreamRev": "5555555555555555555555555555555555555555",
         "commits": [
           { "sha": "3333333333333333333333333333333333333333", "subject": "Bug 1 - part 1: Track pending commit on Navigation.", "body": "" },
           { "sha": "2222222222222222222222222222222222222222", "subject": "Bug 1 - part 2: Fire navigatesuccess after commit.", "body": "Spec: https://html.spec.whatwg.org/#navigate" }

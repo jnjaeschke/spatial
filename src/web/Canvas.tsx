@@ -5,11 +5,11 @@ import {
 } from "@xyflow/react";
 import type { ModelsResponse, Ref, SessionState } from "../shared/types.ts";
 import { AskContext, ChatActionsContext } from "./chat-context.ts";
-import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SATELLITE_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
+import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
-import { SourceBaseContext } from "./DiffView.tsx";
+import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { ChatNode } from "./nodes/ChatNode.tsx";
 
 const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode };
@@ -25,6 +25,10 @@ export function Canvas(props: Props) {
 }
 
 function CanvasInner({ state, models = null }: Props) {
+  const searchfox = useMemo(() => {
+    const latest = latestNarrative(state);
+    return latest ? searchfoxLinks(state, latest.diff.data) : null;
+  }, [state]);
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
   const anchor = useRef<string | null>(null);
@@ -139,7 +143,7 @@ function CanvasInner({ state, models = null }: Props) {
 
   return (
     <AskContext.Provider value={models ? { ask } : null}><ChatActionsContext.Provider value={chatActions}>
-    <SourceBaseContext.Provider value={state.sourceBase}><div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
+    <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -162,7 +166,7 @@ function CanvasInner({ state, models = null }: Props) {
         <Controls showInteractive={false} />
         <Panel position="top-right"><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
-    </div></SourceBaseContext.Provider>
+    </div></SearchfoxContext.Provider>
     </ChatActionsContext.Provider></AskContext.Provider>
   );
 }

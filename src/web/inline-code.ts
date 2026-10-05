@@ -16,11 +16,6 @@ export function splitInlineCode(text: string): { code: boolean; text: string }[]
   }, []);
 }
 
-/** Searchfox search for a code token. `sourceBase` is e.g. `https://searchfox.org/firefox-main/source/`. */
-export function searchfoxSearchUrl(sourceBase: string, token: string): string {
-  return sourceBase.replace(/source\/$/, "search?q=") + encodeURIComponent(token.replace(/\(.*\)$/, ""));
-}
-
 export function findInHunks(token: string, hunks: { file: DiffFile; hunk: Hunk }[]): { path: string; hunkId: string; text: string } | null {
   const full = token.replace(/\(.*\)$/, "");
   const last = full.split(/::|\./).at(-1)!;

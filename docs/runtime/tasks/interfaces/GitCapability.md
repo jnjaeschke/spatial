@@ -80,6 +80,26 @@ Commits in `base..head`, oldest first.
 
 ***
 
+### mergeBase()
+
+> **mergeBase**(`a`, `b`): `Promise`\<`string` \| `null`\>
+
+#### Parameters
+
+##### a
+
+`string`
+
+##### b
+
+`string`
+
+#### Returns
+
+`Promise`\<`string` \| `null`\>
+
+***
+
 ### resolve()
 
 > **resolve**(`rev`): `Promise`\<`string`\>

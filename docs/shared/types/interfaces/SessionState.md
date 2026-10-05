@@ -30,17 +30,17 @@ Subscribe to events after this id to miss nothing.
 
 ***
 
-### session
+### searchfox
 
-> **session**: [`Session`](Session.md)
+> **searchfox**: \{ `repoBase`: `string`; `tipRev`: `string`; \} \| `null`
+
+Searchfox repository base and indexed tip for Gecko repos, else null.
 
 ***
 
-### sourceBase
+### session
 
-> **sourceBase**: `string` \| `null`
-
-Searchfox source URL prefix for Gecko repos, else null.
+> **session**: [`Session`](Session.md)
 
 ***
 

@@ -29,7 +29,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean }) {
       if (opts.searchfoxFails) throw new Error("searchfox-cli failed: offline");
       return [{ group: "Code", path: "dom/N.cpp", line: 1, url: "https://sf/dom/N.cpp#1" }];
     },
-    async sourceBase() { return "https://sf/"; },
+    async tip() { return { repoBase: "https://sf/", rev: "0".repeat(40) }; },
   };
   const store = new Store(":memory:");
   const rt = new Runtime({ store, tasks: [resolveSpecRefs], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec, searchfox });

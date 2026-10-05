@@ -14,18 +14,6 @@
 
 ## Methods
 
-### sourceBase()
-
-> **sourceBase**(): `Promise`\<`string`\>
-
-e.g. `https://searchfox.org/firefox-main/source/`; cached after first success. Network.
-
-#### Returns
-
-`Promise`\<`string`\>
-
-***
-
 ### specRefs()
 
 > **specRefs**(`url`, `signal`): `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>
@@ -45,3 +33,15 @@ Existing Gecko lines referencing a spec section. Network.
 #### Returns
 
 `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>
+
+***
+
+### tip()
+
+> **tip**(): `Promise`\<\{ `repoBase`: `string`; `rev`: `string`; \}\>
+
+Searchfox repository base and indexed revision; cached after first success. Network.
+
+#### Returns
+
+`Promise`\<\{ `repoBase`: `string`; `rev`: `string`; \}\>

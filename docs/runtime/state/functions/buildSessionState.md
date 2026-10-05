@@ -6,7 +6,7 @@
 
 # Function: buildSessionState()
 
-> **buildSessionState**(`store`, `searchfox`, `sessionId`): `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
+> **buildSessionState**(`store`, `searchfoxCapability`, `sessionId`): `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
 
 ## Parameters
 
@@ -14,7 +14,7 @@
 
 [`Store`](../../store/classes/Store.md)
 
-### searchfox
+### searchfoxCapability
 
 [`SearchfoxCapability`](../../tasks/interfaces/SearchfoxCapability.md)
 

@@ -31,3 +31,11 @@ Data of a `Diff` artifact.
 ### headSha
 
 > **headSha**: `string`
+
+***
+
+### upstreamRev?
+
+> `optional` **upstreamRev?**: `string`
+
+Upstream commit the patch applies to (merge-base of base with `main`); Searchfox links pin to it. Absent when unknown.

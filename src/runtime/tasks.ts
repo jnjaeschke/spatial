@@ -13,8 +13,8 @@ export interface SearchfoxCapability {
   readonly effect: "read-only";
   /** Existing Gecko lines referencing a spec section. Network. */
   specRefs(url: string, signal: AbortSignal): Promise<GeckoSpecRef[]>;
-  /** e.g. `https://searchfox.org/firefox-main/source/`; cached after first success. Network. */
-  sourceBase(): Promise<string>;
+  /** Searchfox repository base and indexed revision; cached after first success. Network. */
+  tip(): Promise<{ repoBase: string; rev: string }>;
 }
 
 /** Read-only git access bound to one session's repo. */
@@ -23,6 +23,7 @@ export interface GitCapability {
   /** Resolves any revspec to a full commit SHA. */
   resolve(rev: string): Promise<string>;
   isAncestor(ancestor: string, descendant: string): Promise<boolean>;
+  mergeBase(a: string, b: string): Promise<string | null>;
   /** Commits in `base..head`, oldest first. */
   log(baseSha: string, headSha: string): Promise<Commit[]>;
   /** Raw `git diff` text for `base..head`. */
