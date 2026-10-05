@@ -22,16 +22,27 @@ test("expand context around a hunk", async ({ page }) => {
   const hunk = page.getByTestId("hunk-f0h0");
   await expect(hunk.getByText("line 27", { exact: true })).toBeAttached();
   await expect(hunk.getByText("line 26", { exact: true })).toHaveCount(0);
+  await hunk.getByRole("button", { name: "↓ 20 lines" }).click();
+  await expect(hunk.getByText("line 53", { exact: true })).toBeAttached();
+  await expect(hunk.getByText("line 54", { exact: true })).toHaveCount(0);
   await hunk.getByRole("button", { name: "↑ 20 lines" }).click();
   await expect(hunk.getByText("line 7", { exact: true })).toBeAttached();
   await expect(hunk.getByText("line 6", { exact: true })).toHaveCount(0);
   await hunk.getByRole("button", { name: "↑ 20 lines" }).click();
   await expect(hunk.getByText("line 1", { exact: true })).toBeAttached();
   await expect(hunk.getByRole("button", { name: "↑ 20 lines" })).toHaveCount(0);
-  await hunk.getByRole("button", { name: "↓ 20 lines" }).focus();
-  await page.keyboard.press("Enter");
-  await expect(hunk.getByText("line 53", { exact: true })).toBeAttached();
-  await expect(hunk.getByText("line 54", { exact: true })).toHaveCount(0);
+  const below = hunk.getByRole("button", { name: "↓ 20 lines" });
+  for (let i = 0; i < 5 && (await below.boundingBox())!.y > 800; i++) {
+    expect(await page.evaluate(() => document.elementFromPoint(150, 650)?.classList.contains("react-flow__pane"))).toBe(true);
+    await page.mouse.move(150, 650);
+    await page.mouse.down();
+    await page.mouse.move(150, 400, { steps: 5 });
+    await page.mouse.move(150, 150, { steps: 5 });
+    await page.mouse.up();
+  }
+  await below.click();
+  await expect(hunk.getByText("line 60", { exact: true })).toBeAttached();
+  await expect(hunk.getByRole("button", { name: "↓ 20 lines" })).toHaveCount(0);
 });
 
 test("failed narrate shows the error in the activity strip and keeps the canvas", async ({ page }) => {

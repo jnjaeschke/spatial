@@ -71,19 +71,21 @@ const flowX = (page: Page, id: string) =>
 test("dragging a node by its title survives relayout until reset", async ({ page }) => {
   await page.goto(URL);
   await zoomUntil(page, "zoom out", "concept");
-  const zoom = await page.locator(".react-flow__viewport").evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a);
+  const relX = async () => await flowX(page, "c2") - await flowX(page, "c1");
+  const computed = await relX();
   const title = page.getByTestId("change-c2").locator(".title");
   const box = (await title.boundingBox())!;
   await page.mouse.move(box.x + 10, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + 230, box.y + box.height / 2, { steps: 10 });
   await page.mouse.up();
+  const offset = await relX() - computed;
+  expect(offset).toBeGreaterThan(50);
 
   await zoomUntil(page, "zoom in", "code");
   await page.waitForTimeout(400);
-  const dragged = await flowX(page, "c2") - await flowX(page, "c1");
+  const dragged = await relX();
   await page.getByRole("button", { name: "Reset layout" }).click();
   await page.waitForTimeout(400);
-  const reset = await flowX(page, "c2") - await flowX(page, "c1");
-  expect(Math.abs(dragged - reset - 200 / zoom)).toBeLessThan(5);
+  expect(Math.abs(dragged - await relX() - offset)).toBeLessThan(1);
 });

@@ -36,7 +36,7 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   }
   const expanded = lines !== null && above + below > 0;
   const canShowAbove = canExpand && (expanded ? start > 0 : hunk.newStart > 1);
-  const canShowBelow = canExpand && expanded && start + rows.length < fileRows(file, lines!).length;
+  const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
       <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path} <span className="hunk-header">{hunk.header}</span></div>
