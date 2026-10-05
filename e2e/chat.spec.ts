@@ -37,6 +37,16 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible();
 });
 
+test("a failed first turn shows its error in the chat", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "concept");
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await draft.getByLabel("message").fill("FAIL-THIS-TURN");
+  await draft.getByRole("button", { name: "Send" }).click();
+  await expect(page.locator(".chat-node .msg.failed")).toContainText("stub failure", { timeout: 10_000 });
+});
+
 test("ask about a hunk anchors the chat to its change", async ({ page, request }) => {
   await openNarrated(page, request);
   await zoomTo(page, "code");

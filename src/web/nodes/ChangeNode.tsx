@@ -3,7 +3,7 @@ import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeNodeData, ZoomLevel } from "../graph.ts";
 import { DiffView } from "../DiffView.tsx";
 import { InlineText } from "../InlineText.tsx";
-import { AskContext } from "../Canvas.tsx";
+import { AskContext } from "../chat-context.ts";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 

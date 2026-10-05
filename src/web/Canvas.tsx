@@ -1,10 +1,11 @@
-import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background, Controls, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
-import type { ModelsResponse, Ref, SessionState, TaskRecord } from "../shared/types.ts";
-import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SPEC_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
+import type { ModelsResponse, Ref, SessionState } from "../shared/types.ts";
+import { AskContext, ChatActionsContext } from "./chat-context.ts";
+import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SATELLITE_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
@@ -12,16 +13,6 @@ import { SourceBaseContext } from "./DiffView.tsx";
 import { ChatNode } from "./nodes/ChatNode.tsx";
 
 const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode };
-
-export const AskContext = createContext<{ ask(anchor: Ref): void } | null>(null);
-export interface ChatActions {
-  models: ModelsResponse;
-  sessionId: string;
-  tasks: TaskRecord[];
-  pendingDrafts: Set<string>;
-  onSent(draftId: string, taskId: string): void;
-}
-export const ChatActionsContext = createContext<ChatActions | null>(null);
 
 interface Props { state: SessionState; models?: ModelsResponse | null }
 
@@ -48,9 +39,8 @@ function CanvasInner({ state, models = null }: Props) {
     setDrafts((current) => [...current, { id, anchor: ref }]);
   }, []);
   const onSent = useCallback((draftId: string, taskId: string) => setDrafts((current) => current.map((d) => d.id === draftId ? { ...d, taskId } : d)), []);
-  const pendingDrafts = useMemo(() => new Set(drafts.filter((d) => d.taskId).map((d) => d.id)), [drafts]);
-  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, pendingDrafts, onSent } : null,
-    [models, state.session.id, state.tasks, pendingDrafts, onSent]);
+  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent } : null,
+    [models, state.session.id, state.tasks, onSent]);
   const graph = useMemo(() => {
     const g = sessionGraph(state, drafts);
     if (!g) throw new Error("Canvas needs a session with a narrative");
@@ -93,7 +83,7 @@ function CanvasInner({ state, models = null }: Props) {
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
-      style: { width: n.data.kind === "spec" ? SPEC_WIDTH : n.data.kind === "chat" ? 420 : NODE_WIDTH[level] },
+      style: { width: n.data.kind === "spec" || n.data.kind === "chat" ? SATELLITE_WIDTH : NODE_WIDTH[level] },
       draggable: true,
       dragHandle: ".title",
     })));

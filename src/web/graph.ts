@@ -8,7 +8,8 @@ export function zoomLevel(zoom: number): ZoomLevel {
 }
 
 export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
-export const SPEC_WIDTH = 420;
+/** Width of spec and chat satellites at every zoom level. */
+export const SATELLITE_WIDTH = 420;
 
 export interface ChangeNodeData {
   kind: "change";
@@ -32,6 +33,8 @@ export interface ChatNodeData {
   anchor: Ref;
   threadId: string | null;
   draftId: string | null;
+  /** Task of the turn that created the thread (or that the draft sent); later turns carry `threadId` in their input. */
+  taskId: string | null;
   messages: Artifact<ChatMessageData>[];
 }
 
@@ -80,7 +83,7 @@ export function anchorNodeId(anchor: Ref, narrativeId: string, narrative: PatchN
   return null;
 }
 
-export function sessionGraph(state: SessionState, drafts: { id: string; anchor: Ref }[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
+export function sessionGraph(state: SessionState, drafts: { id: string; anchor: Ref; taskId?: string }[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
@@ -102,13 +105,13 @@ export function sessionGraph(state: SessionState, drafts: { id: string; anchor: 
     const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
       .map((l) => state.artifacts.find((a) => a.id === l.from))
       .filter((a): a is Artifact<ChatMessageData> => !!a);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, threadId: thread.id, draftId: null, messages } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
     const node = anchorNodeId(draft.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
     if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, threadId: null, draftId: draft.id, messages: [] } });
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
   return g;
@@ -134,8 +137,8 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
-  if (data.kind === "spec") return { width: SPEC_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
-  if (data.kind === "chat") return { width: 420, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
+  if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
+  if (data.kind === "chat") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];
   if (data.kind === "summary") {
     return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 };

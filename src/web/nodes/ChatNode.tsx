@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
 import { api } from "../api.ts";
-import { ChatActionsContext } from "../Canvas.tsx";
+import { ChatActionsContext } from "../chat-context.ts";
 import type { ChatNodeData, ZoomLevel } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
 
@@ -14,10 +14,11 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   const [llm, setLlm] = useState<LlmSelection>(lastLlm ?? actions.models.default);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const busy = actions.tasks.some((t) =>
-    t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") &&
-    ((data.threadId && (t.input as { threadId?: string }).threadId === data.threadId) || (data.draftId && actions.pendingDrafts.has(data.draftId))));
-  const failed = actions.tasks.filter((t) => t.kind === "chatTurn" && t.status === "failed" && (t.input as { threadId?: string }).threadId === data.threadId).at(-1);
+  const turns = actions.tasks.filter((t) => t.kind === "chatTurn" &&
+    (t.id === data.taskId || (data.threadId !== null && (t.input as { threadId?: string }).threadId === data.threadId)));
+  const last = turns.at(-1);
+  const busy = last?.status === "running" || last?.status === "pending";
+  const failed = last?.status === "failed" ? last : undefined;
   const id = data.threadId ?? data.draftId!;
 
   if (data.level === "patch") {
@@ -34,7 +35,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
           </div>
         ))}
         {busy && <div className="msg pending">…</div>}
-        {failed && !busy && <div className="msg failed">{failed.error}</div>}
+        {failed && <div className="msg failed">{failed.error}</div>}
       </div>
       <form className="nodrag nopan" onSubmit={(e) => {
         e.preventDefault();

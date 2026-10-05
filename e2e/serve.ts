@@ -25,6 +25,7 @@ const narrative = {
 const out = join(dir, "claude.json");
 writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "Stub answer.", structured_output: narrative, session_id: "stub-session", usage: { input_tokens: 1, output_tokens: 1 } }));
 process.env.FAKE_LLM_STDOUT = out;
+process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
 await createSession(rt.store, repo.dir, "fixture");
