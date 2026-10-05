@@ -89,25 +89,20 @@ export function sessionGraph(state: SessionState, drafts: { id: string; anchor: 
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
   const prefix = `${latest.narrative.id}#`;
-  const hasResolved = state.tasks.some((task) => {
-    if (task.kind !== "resolveSpecRefs" || task.status !== "succeeded") return false;
-    return (task.input as { narrativeId?: unknown } | null)?.narrativeId === latest.narrative.id;
-  });
-  const supportedSpecs = new Set(state.links
-    .filter((link) => link.kind === "supports" && link.to.startsWith(prefix))
-    .map((link) => link.from));
-  const refs = state.artifacts.filter((artifact) => artifact.type === "SpecReference" && supportedSpecs.has(artifact.id));
-  const specStatus = hasResolved ? refs.reduce((counts, ref) => {
-    if (ref.status !== "verified") counts.unverified++;
-    else if ((ref as Artifact<SpecReferenceData>).data.origin === "code") counts.code++;
-    else counts.inferred++;
-    return counts;
-  }, { code: 0, inferred: 0, unverified: 0 }) : null;
-  const summaryNode = g.nodes.find((node) => node.id === latest.narrative.id)!;
-  if (summaryNode.data.kind === "summary") summaryNode.data.specStatus = specStatus;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {
     if (l.kind === "supports" && l.to.startsWith(prefix)) anchorsBySpec.set(l.from, [...(anchorsBySpec.get(l.from) ?? []), l.to]);
+  }
+  const resolved = state.tasks.some((t) => t.kind === "resolveSpecRefs" && t.status === "succeeded" && (t.input as { narrativeId: string }).narrativeId === latest.narrative.id);
+  if (resolved) {
+    const status = { code: 0, inferred: 0, unverified: 0 };
+    for (const a of state.artifacts) {
+      if (a.type !== "SpecReference" || !anchorsBySpec.has(a.id)) continue;
+      if (a.status !== "verified") status.unverified++;
+      else if ((a as Artifact<SpecReferenceData>).data.origin === "code") status.code++;
+      else status.inferred++;
+    }
+    (g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData).specStatus = status;
   }
   for (const a of state.artifacts) {
     const anchors = anchorsBySpec.get(a.id);

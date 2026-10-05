@@ -9,11 +9,11 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   const specText = specStatus && (
     specStatus.code + specStatus.inferred + specStatus.unverified === 0
       ? "No spec references in or near this patch"
-      : [
+      : `Specs: ${[
         specStatus.code > 0 && `${specStatus.code} cited in code`,
         specStatus.inferred > 0 && `${specStatus.inferred} inferred`,
         specStatus.unverified > 0 && `${specStatus.unverified} unverified`,
-      ].filter(Boolean).join(", ").replace(/^/, "Specs: ")
+      ].filter(Boolean).join(", ")}`
   );
   return (
     <div className={`node summary-node level-${data.level}`} data-testid="summary">
