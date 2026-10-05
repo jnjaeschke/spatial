@@ -73,7 +73,7 @@ test("narrate runs in background and state reflects the result", async () => {
     const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
     return snapshot.artifacts.some((artifact) => artifact.type === "PatchNarrative") ? snapshot : undefined;
   });
-  assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"]]);
+  assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
 });
 
@@ -106,7 +106,7 @@ test("SSE replays events after after and honors Last-Event-ID", async () => {
   await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   await waitFor(async () => {
     const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return state.tasks.length === 2 && state.tasks.every((task) => task.status === "succeeded") ? true : undefined;
+    return state.tasks.length === 3 && state.tasks.every((task) => task.status === "succeeded") ? true : undefined;
   });
   const read = async (headers: Record<string, string> = {}) => {
     const response = await fetch(`${base}/api/sessions/${session.id}/events?after=0`, { headers });

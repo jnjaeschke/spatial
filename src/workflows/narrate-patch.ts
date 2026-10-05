@@ -1,7 +1,7 @@
 import type { Id, LlmSelection } from "../shared/types.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 
-/** importDiff → narrate. Plain orchestration; no workflow engine. */
+/** importDiff → narrate → resolveSpecRefs. Plain orchestration; no workflow engine. */
 export async function narratePatch(
   rt: Runtime,
   sessionId: Id,
@@ -9,5 +9,6 @@ export async function narratePatch(
 ): Promise<{ diffId: Id; narrativeId: Id }> {
   const { diffId } = await rt.run<{ diffId: Id }>(sessionId, "importDiff", { base: opts.base, head: opts.head });
   const { narrativeId } = await rt.run<{ narrativeId: Id }>(sessionId, "narrate", { diffId, llm: opts.llm });
+  await rt.run(sessionId, "resolveSpecRefs", { narrativeId });
   return { diffId, narrativeId };
 }

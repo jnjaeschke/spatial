@@ -33,7 +33,7 @@ function fixture() {
   return { dir, r, narrative };
 }
 
-test("narratePatch: importDiff then narrate, persisted with events", async () => {
+test("narratePatch: importDiff, narrate, then resolve spec refs, persisted with events", async () => {
   const { dir, r, narrative } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
   const session = await createSession(rt.store, r.dir, "t");
@@ -42,7 +42,7 @@ test("narratePatch: importDiff then narrate, persisted with events", async () =>
   assert.deepEqual(n.data, { diffId, ...narrative });
   assert.deepEqual(n.provenance.llm, { backend: "claude", model: "sonnet", effort: "medium" });
   const types = rt.store.listEvents(session.id).map((e) => e.type);
-  assert.equal(types.filter((t) => t === "task.succeeded").length, 2);
+  assert.equal(types.filter((t) => t === "task.succeeded").length, 3);
   assert.ok(types.includes("llm.usage"));
   const call = JSON.parse(readFileSync(process.env.FAKE_LLM_LOG!, "utf8").trim());
   assert.equal(call.cwd, session.repo);
