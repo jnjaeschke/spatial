@@ -2,10 +2,16 @@ import { readFileSync } from "node:fs";
 import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, RevisionData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
-import { findSpan, revisionsOf } from "../../shared/revisions.ts";
+import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
+interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[] }
+const isReply = (j: unknown): j is Reply => {
+  const r = j as Partial<Reply> | undefined;
+  return typeof r?.answer === "string" && Array.isArray(r.questions) && r.questions.every((q) => typeof q === "string") && Array.isArray(r.revisions) &&
+    r.revisions.every((v) => (v?.message === null || typeof v?.message === "string") && typeof v.quote === "string" && typeof v.correction === "string");
+};
 const same = (a?: LlmSelection, b?: LlmSelection) => !!a && !!b && a.backend === b.backend && a.model === b.model && a.effort === b.effort;
 
 export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: string; quote?: string; lines?: SelectedText["lines"]; llm: LlmSelection }, { threadId: string; messageId: string }>({
@@ -34,50 +40,52 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
       ? text
       : [
           buildAnchorContext(view, thread.data.anchor, thread.data.quote === undefined ? undefined : { quote: thread.data.quote, lines: thread.data.lines }),
-          ...(history.length ? ["# Conversation so far", "", ...history.map((m) => `${m.data.role === "user" ? "User" : "Assistant"}: ${m.data.text}`), ""] : []),
+          ...(history.length ? ["# Conversation so far", "", ...history.map((m) => `${m.data.role === "user" ? "User" : "Assistant"}: ${revisedText(view, m)}`), ""] : []),
           "# Question", "", text,
         ].join("\n");
 
     const r = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: ctx.sessionMcp }, llm);
-    const json = r.json as { answer?: unknown; questions?: unknown; revisions?: unknown } | undefined;
-    if (!json || typeof json.answer !== "string" || !Array.isArray(json.questions) || !json.questions.every((q) => typeof q === "string") || !Array.isArray(json.revisions) || !json.revisions.every((revision) => revision && typeof revision === "object" && (revision.message === null || typeof revision.message === "string") && typeof revision.quote === "string" && typeof revision.correction === "string")) {
-      throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
-    }
-    const assistantMessages = history.filter((message) => message.type === "ChatMessage" && (message.data as ChatMessageData).role === "assistant");
-    const targets: { target: Artifact<ChatMessageData>; quote: string; correction: string; start: number; end: number }[] = [];
+    const json = r.json as Reply | undefined;
+    if (!isReply(json)) throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
+
+    const newestFirst = history.filter((m) => m.data.role === "assistant").reverse();
+    const accepted: { target: Artifact<ChatMessageData>; data: RevisionData }[] = [];
     const errors: string[] = [];
-    for (const revision of json.revisions as { message: string | null; quote: string; correction: string }[]) {
-      const candidates = revision.message === null ? [...assistantMessages].reverse() : [view.artifacts.find((a) => a.id === revision.message)].filter((a): a is Artifact<ChatMessageData> => !!a);
-      let chosen: typeof targets[number] | undefined;
-      let reason = revision.message === null ? "quote not found in this chat" : `${revision.message}: not an assistant message`;
-      let rejectReason: string | undefined;
-      for (const target of candidates) {
-        if (target.type !== "ChatMessage" || (target.data as ChatMessageData).role !== "assistant" || !view.artifacts.some((a) => a.id === target.id && a.sessionId === ctx.sessionId)) {
-          reason = `${revision.message}: not an assistant message`; continue;
-        }
-        const targetData = target.data as ChatMessageData;
-        const span = findSpan(targetData.text, revision.quote);
-        if ("error" in span) { reason = `${revision.quote.slice(0, 60)}: ${span.error}`; continue; }
-        const prior = [...revisionsOf(view, target.id).map((r) => r.data), ...targets.filter((t) => t.target.id === target.id).map((t) => ({ quote: t.quote, correction: t.correction }))];
-        if (prior.some((r) => { const old = findSpan(targetData.text, r.quote); return !("error" in old) && span.start < old.end && span.end > old.start; })) {
-          rejectReason = `${revision.quote.slice(0, 60)}: overlaps an earlier revision`;
-          break;
-        }
-        chosen = { target, quote: targetData.text.slice(span.start, span.end), correction: revision.correction, ...span };
-        break;
-      }
-      if (chosen) targets.push(chosen); else errors.push(rejectReason ?? (revision.message === null ? "quote not found in this chat" : reason));
+    for (const revision of json.revisions) {
+      const result = resolveRevision(revision);
+      if (typeof result === "string") errors.push(result); else accepted.push(result);
     }
+    function resolveRevision(revision: Reply["revisions"][number]): { target: Artifact<ChatMessageData>; data: RevisionData } | string {
+      const label = revision.quote.slice(0, 60);
+      let candidates = newestFirst;
+      if (revision.message !== null) {
+        const message = view.artifacts.find((a) => a.id === revision.message);
+        if (message?.type !== "ChatMessage" || (message.data as ChatMessageData).role !== "assistant") return `${revision.message}: not an assistant message`;
+        candidates = [message as Artifact<ChatMessageData>];
+      }
+      const failures: string[] = [];
+      for (const target of candidates) {
+        const span = findSpan(target.data.text, revision.quote);
+        if ("error" in span) { failures.push(span.error); continue; }
+        const earlier = [...revisionsOf(view, target.id).map((a) => a.data), ...accepted.filter((a) => a.target.id === target.id).map((a) => a.data)];
+        if (earlier.some((e) => { const old = findSpan(target.data.text, e.quote); return !("error" in old) && span.start < old.end && span.end > old.start; })) {
+          return `${label}: overlaps an earlier revision`;
+        }
+        return { target, data: { quote: target.data.text.slice(span.start, span.end), correction: revision.correction } };
+      }
+      return `${label}: ${failures.find((f) => f !== "quote not found") ?? (revision.message === null ? "quote not found in this chat" : "quote not found")}`;
+    }
+
     const reply = ctx.artifacts.put<ChatMessageData>(
       "ChatMessage", "proposed",
-      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions as string[] } : {}), ...(errors.length ? { revisionErrors: errors } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
+      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
       r.selection,
     );
     ctx.links.put(reply.id, thread.id, "reply");
-    for (const revision of targets) {
-      const artifact = ctx.artifacts.put<RevisionData>("Revision", "proposed", { quote: revision.quote, correction: revision.correction }, r.selection);
-      ctx.links.put(artifact.id, revision.target.id, "revises");
-      ctx.links.put(artifact.id, reply.id, "derivedFrom");
+    for (const { target, data } of accepted) {
+      const revision = ctx.artifacts.put<RevisionData>("Revision", "proposed", data, r.selection);
+      ctx.links.put(revision.id, target.id, "revises");
+      ctx.links.put(revision.id, reply.id, "derivedFrom");
     }
     return { threadId: thread.id, messageId: reply.id };
   },

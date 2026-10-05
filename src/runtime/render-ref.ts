@@ -1,5 +1,5 @@
 import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, Ref, SpecReferenceData } from "../shared/types.ts";
-import { applyRevisions, revisionsOf } from "../shared/revisions.ts";
+import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 
@@ -35,7 +35,7 @@ export function searchDocs(view: SessionView, artifact: Artifact): SearchDoc[] {
   }
   if (artifact.type === "ChatMessage") {
     const text = (artifact.data as Partial<ChatMessageData>).text;
-    return typeof text === "string" ? [{ ref: artifact.id, kind: "chat", body: applyRevisions(text, revisionsOf(view, artifact.id).map((r) => r.data)) }] : [];
+    return typeof text === "string" ? [{ ref: artifact.id, kind: "chat", body: revisedText(view, artifact as Artifact<ChatMessageData>) }] : [];
   }
   return [];
 }
@@ -79,15 +79,11 @@ export function renderRef(view: SessionView, ref: Ref): string {
   if (artifact.type === "ChatThread" && subId === undefined) {
     const thread = artifact.data as ChatThreadData;
     const messages = view.links.filter((link) => link.to === artifact.id && link.kind === "reply").map((link) => view.artifacts.find((item) => item.id === link.from)).filter((item): item is Artifact => item?.type === "ChatMessage");
-    return ["# Chat " + artifact.id, "Anchor: " + thread.anchor, ...messages.map((item) => { const data = item.data as ChatMessageData; return (data.role === "user" ? "User: " : "Assistant: ") + (data.role === "assistant" ? applyRevisions(data.text, revisionsOf(view, item.id).map((r) => r.data)) : data.text); })].join("\n\n");
+    return ["# Chat " + artifact.id, "Anchor: " + thread.anchor, ...messages.map((item) => ((item.data as ChatMessageData).role === "user" ? "User: " : "Assistant: ") + revisedText(view, item as Artifact<ChatMessageData>))].join("\n\n");
   }
   if (artifact.type === "ChatMessage" && subId === undefined) {
     const parent = view.links.find((link) => link.from === artifact.id && link.kind === "reply");
-    if (parent) {
-      const data = artifact.data as ChatMessageData;
-      if (data.role === "assistant") return applyRevisions(data.text, revisionsOf(view, artifact.id).map((r) => r.data));
-      return renderRef(view, parent.to);
-    }
+    if (parent) return renderRef(view, parent.to);
   }
   throw new Error("Unknown ref: " + ref);
 }

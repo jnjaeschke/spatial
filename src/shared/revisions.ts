@@ -1,6 +1,6 @@
-import type { Artifact, Id, Link, RevisionData } from "./types.ts";
+import type { Artifact, ChatMessageData, Id, Link, RevisionData } from "./types.ts";
 
-/** Locates `quote` in `text`, comparing with whitespace runs collapsed. */
+/** Locates `quote` within one line of `text`, comparing with whitespace runs collapsed. A span across lines could break the markdown it is struck through in. */
 export function findSpan(text: string, quote: string): { start: number; end: number } | { error: string } {
   const trimmed = quote.trim();
   if (!trimmed) return { error: "quote not found" };
@@ -8,7 +8,7 @@ export function findSpan(text: string, quote: string): { start: number; end: num
   if ([...trimmed].filter((c) => c === "`").length % 2) return { error: "quote splits inline code" };
   const words = trimmed.split(/\s+/);
   const escaped = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const match = new RegExp(escaped.join("\\s+")).exec(text);
+  const match = new RegExp(escaped.join("[^\\S\\n]+")).exec(text);
   if (!match || match.index === undefined) return { error: "quote not found" };
   const start = match.index, end = start + match[0].length;
   let inFence = false;
@@ -37,4 +37,9 @@ export function applyRevisions(text: string, revisions: RevisionData[]): string 
 export function revisionsOf(s: { artifacts: Artifact[]; links: Link[] }, messageId: Id): Artifact<RevisionData>[] {
   const ids = new Set(s.links.filter((link) => link.kind === "revises" && link.to === messageId).map((link) => link.from));
   return s.artifacts.filter((artifact): artifact is Artifact<RevisionData> => artifact.type === "Revision" && ids.has(artifact.id));
+}
+
+/** The message's text with its revisions applied. */
+export function revisedText(s: { artifacts: Artifact[]; links: Link[] }, message: Artifact<ChatMessageData>): string {
+  return applyRevisions(message.data.text, revisionsOf(s, message.id).map((revision) => revision.data));
 }

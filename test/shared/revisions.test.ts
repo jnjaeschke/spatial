@@ -4,11 +4,14 @@ import { applyRevisions, findSpan, revisionsOf } from "../../src/shared/revision
 import type { Artifact, Link, RevisionData } from "../../src/shared/types.ts";
 
 test("findSpan matches collapsed whitespace and returns the original span", () => {
-  const text = "We should  change\n this behavior.";
+  const text = "We should  change\tthis behavior.";
   const span = findSpan(text, "should change this");
-  assert.deepEqual(span, { start: 3, end: 23 });
   assert.ok(!("error" in span));
-  assert.equal(text.slice(span.start, span.end), "should  change\n this");
+  assert.equal(text.slice(span.start, span.end), "should  change\tthis");
+});
+
+test("findSpan does not match across a line break", () => {
+  assert.deepEqual(findSpan("First paragraph ends.\n\nSecond starts.", "ends. Second"), { error: "quote not found" });
 });
 
 test("findSpan rejects invalid and unsafe quotes", () => {

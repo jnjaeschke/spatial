@@ -106,9 +106,21 @@ test("chat applies exact matched revisions and links them to target and reply", 
   assert.deepEqual(revisions[0].data, { quote: "Original statement", correction: "New statement" });
   assert.ok(store.listLinks(session.id).some((l) => l.from === revisions[0].id && l.to === first.messageId && l.kind === "revises"));
   assert.ok(store.listLinks(session.id).some((l) => l.from === revisions[0].id && l.to === second.messageId && l.kind === "derivedFrom"));
-  assert.match(renderRef(sessionView(store, session.id), first.messageId), /~~Original statement~~.*corrected: New statement/s);
+  assert.equal(renderRef(sessionView(store, session.id), first.messageId), renderRef(sessionView(store, session.id), first.threadId));
   assert.match(renderRef(sessionView(store, session.id), first.threadId), /~~Original statement~~.*corrected: New statement/s);
   assert.ok(store.search(session.id, "statement").some((hit) => hit.ref === first.messageId));
+});
+
+test("a fresh prompt replays earlier answers with their revisions", async () => {
+  const { calls, turn, narrativeId } = setup({ replies: [
+    { answer: "Original statement is incorrect.", questions: [], revisions: [] },
+    { answer: "Corrected.", questions: [], revisions: [{ message: null, quote: "Original statement", correction: "New statement" }] },
+    { answer: "Third", questions: [], revisions: [] },
+  ] });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", llm: SONNET });
+  await turn({ threadId: first.threadId, text: "Fix it", llm: SONNET });
+  await turn({ threadId: first.threadId, text: "Other model", llm: LUNA });
+  assert.ok(calls[2].prompt.prompt.includes("~~Original statement~~ *(corrected: New statement)*"));
 });
 
 test("message null chooses the newest matching assistant message", async () => {
@@ -138,20 +150,24 @@ test("overlapping revisions and revisions of user messages are rejected", async 
   await turn({ threadId: first.threadId, text: "Fix both", llm: SONNET });
   assert.equal(store.listArtifacts(session.id, "Revision").length, 1);
   const assistant = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "assistant" && (a.data as ChatMessageData).revisionErrors);
-  assert.equal((assistant?.data as ChatMessageData).revisionErrors?.length, 2);
   assert.deepEqual((assistant?.data as ChatMessageData).revisionErrors, ["wrong claims: overlaps an earlier revision", `${userMessage.id}: not an assistant message`]);
-  assert.ok((assistant?.data as ChatMessageData).revisionErrors?.some((error) => error === `${userMessage.id}: not an assistant message`));
 });
 
 test("invalid revisions are reported while the chat turn succeeds", async () => {
   const { store, turn, narrativeId } = setup({ replies: [
     { answer: "A strong claim here.", questions: [], revisions: [] },
-    { answer: "I could not apply that.", questions: [], revisions: [{ message: null, quote: "A powerful claim here.", correction: "Changed" }] },
+    { answer: "I could not apply that.", questions: [], revisions: [
+      { message: null, quote: "A powerful claim here.", correction: "Changed" },
+      { message: null, quote: "A strong\nclaim", correction: "Changed" },
+    ] },
   ] });
   const first = await turn({ anchor: `${narrativeId}#c1`, text: "Q", llm: SONNET });
   const second = await turn({ threadId: first.threadId, text: "Actually", llm: SONNET });
   assert.equal(store.listArtifacts(store.getArtifact(second.messageId).sessionId, "Revision").length, 0);
-  assert.match(store.getArtifact<ChatMessageData>(second.messageId).data.revisionErrors?.[0] ?? "", /quote not found/);
+  assert.deepEqual(store.getArtifact<ChatMessageData>(second.messageId).data.revisionErrors, [
+    "A powerful claim here.: quote not found in this chat",
+    "A strong\nclaim: quote spans lines",
+  ]);
 });
 
 test("missing structured JSON fails after keeping the user message", async () => {

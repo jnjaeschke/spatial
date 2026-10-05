@@ -73,8 +73,9 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.equal((await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" })).status, 202);
   const state = await waitFor(async () => {
     const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return snapshot.artifacts.some((artifact) => artifact.type === "PatchNarrative") ? snapshot : undefined;
+    return snapshot.tasks.some((task) => task.kind === "resolveSpecRefs" && task.status !== "running" && task.status !== "pending") ? snapshot : undefined;
   });
+  assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
   assert.equal(state.searchfox, null);
