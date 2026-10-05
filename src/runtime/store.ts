@@ -4,6 +4,7 @@ import type {
   Actor, Artifact, ArtifactStatus, Id, Link, LinkKind, Provenance, Ref,
   RuntimeEvent, Session, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
+import type { SearchDoc } from "./render-ref.ts";
 
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
@@ -26,6 +27,10 @@ CREATE INDEX IF NOT EXISTS artifacts_session ON artifacts(session_id, type);
 CREATE INDEX IF NOT EXISTS links_session ON links(session_id);
 CREATE INDEX IF NOT EXISTS events_session ON events(session_id, id);
 CREATE INDEX IF NOT EXISTS tasks_session ON tasks(session_id);
+CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
+  session_id UNINDEXED, artifact_id UNINDEXED, ref UNINDEXED, kind UNINDEXED, body,
+  tokenize = "unicode61 tokenchars '_'"
+);
 `;
 
 type Row = Record<string, unknown>;
@@ -35,10 +40,12 @@ const now = () => new Date().toISOString();
 export class Store {
   #db: DatabaseSync;
 
-  constructor(path: string) {
-    this.#db = new DatabaseSync(path);
-    if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
-    this.#db.exec(SCHEMA);
+  constructor(path: string, opts: { readOnly?: boolean } = {}) {
+    this.#db = opts.readOnly ? new DatabaseSync(path, { readOnly: true }) : new DatabaseSync(path);
+    if (!opts.readOnly) {
+      if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
+      this.#db.exec(SCHEMA);
+    }
   }
 
   close(): void {
@@ -80,6 +87,31 @@ export class Store {
       ? this.#db.prepare("SELECT * FROM artifacts WHERE session_id = ? AND type = ? ORDER BY rowid").all(sessionId, type)
       : this.#db.prepare("SELECT * FROM artifacts WHERE session_id = ? ORDER BY rowid").all(sessionId);
     return (rows as Row[]).map((r) => toArtifact(r));
+  }
+
+  putSearchDocs(sessionId: Id, artifactId: Id, docs: SearchDoc[]): void {
+    this.#db.prepare("DELETE FROM search_index WHERE artifact_id = ?").run(artifactId);
+    const insert = this.#db.prepare("INSERT INTO search_index (session_id, artifact_id, ref, kind, body) VALUES (?, ?, ?, ?, ?)");
+    for (const doc of docs) insert.run(sessionId, artifactId, doc.ref, doc.kind, doc.body);
+  }
+
+  search(sessionId: Id, query: string, opts: { kinds?: SearchDoc["kind"][]; limit?: number } = {}): { ref: Ref; kind: string; snippet: string; score: number }[] {
+    const kinds = opts.kinds ?? [];
+    const filter = kinds.length ? " AND kind IN (" + kinds.map(() => "?").join(", ") + ")" : "";
+    const sql = "SELECT ref, kind, snippet(search_index, 4, '«', '»', '…', 12) AS snippet, bm25(search_index) AS score FROM search_index WHERE search_index MATCH ? AND session_id = ?" + filter + " ORDER BY bm25(search_index) LIMIT ?";
+    try {
+      return (this.#db.prepare(sql).all(query, sessionId, ...kinds, opts.limit ?? 10) as Row[]).map((row) => ({
+        ref: row.ref as Ref, kind: row.kind as string, snippet: row.snippet as string, score: Number(row.score),
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/fts5:|syntax error|unterminated|no such column/i.test(message)) throw new Error("Invalid search query: " + message);
+      throw error;
+    }
+  }
+
+  unindexedArtifactIds(): Id[] {
+    return (this.#db.prepare("SELECT a.id FROM artifacts a LEFT JOIN search_index s ON s.artifact_id = a.id WHERE s.artifact_id IS NULL ORDER BY a.rowid").all() as Row[]).map((row) => row.id as Id);
   }
 
   putLink(l: { sessionId: Id; from: Ref; to: Ref; kind: LinkKind }): Link {

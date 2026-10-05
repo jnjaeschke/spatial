@@ -1,0 +1,109 @@
+import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, Ref, SpecReferenceData } from "../shared/types.ts";
+import type { Store } from "./store.ts";
+import { renderHunk } from "../tasks/narrate/render.ts";
+
+/** What rendering needs from one session; built from Store lists. */
+export interface SessionView { artifacts: Artifact[]; links: Link[] }
+export interface SearchDoc { ref: Ref; kind: "change" | "summary" | "hunk" | "commit" | "spec" | "chat"; body: string }
+
+export function sessionView(store: Store, sessionId: Id): SessionView {
+  return { artifacts: store.listArtifacts(sessionId), links: store.listLinks(sessionId) };
+}
+
+export function searchDocs(artifact: Artifact): SearchDoc[] {
+  if (artifact.type === "Diff") {
+    const diff = artifact.data as DiffData;
+    return [
+      ...diff.files.flatMap((file) => file.hunks.map((hunk) => ({
+        ref: artifact.id + "#" + hunk.id, kind: "hunk" as const,
+        body: [file.path, hunk.header, ...hunk.lines.map((line) => (line.kind === "add" ? "+" : line.kind === "del" ? "-" : " ") + line.text)].join("\n"),
+      }))),
+      { ref: artifact.id, kind: "commit", body: artifact.id + "\n" + diff.commits.map((commit) => commit.subject + "\n" + commit.body).join("\n") },
+    ];
+  }
+  if (artifact.type === "PatchNarrative") {
+    const narrative = artifact.data as PatchNarrativeData;
+    return [
+      { ref: artifact.id, kind: "summary", body: narrative.summary },
+      ...narrative.changes.map((change) => ({ ref: artifact.id + "#" + change.id, kind: "change" as const, body: change.title + "\n" + change.explanation + "\n" + change.rationale })),
+    ];
+  }
+  if (artifact.type === "SpecReference") {
+    const spec = artifact.data as SpecReferenceData;
+    return [{ ref: artifact.id, kind: "spec", body: spec.resolved ? spec.resolved.title + "\n" + spec.resolved.content : spec.url + "\n" + (spec.reason ?? "") }];
+  }
+  if (artifact.type === "ChatMessage") {
+    const text = (artifact.data as Partial<ChatMessageData>).text;
+    return typeof text === "string" ? [{ ref: artifact.id, kind: "chat", body: text }] : [];
+  }
+  return [];
+}
+
+/** Markdown for a ref. Throws Unknown ref when nothing matches. */
+export function renderRef(view: SessionView, ref: Ref): string {
+  const parts = ref.split("#");
+  const id = parts[0], subId = parts[1];
+  const artifact = view.artifacts.find((item) => item.id === id);
+  if (!artifact || parts.length > 2) throw new Error("Unknown ref: " + ref);
+  const linkedSpecs = (narrativeId: string, changeId: string) => view.artifacts.filter((item) => item.type === "SpecReference" && view.links.some((link) => link.from === item.id && link.to === narrativeId + "#" + changeId && link.kind === "supports"));
+  if (artifact.type === "PatchNarrative") {
+    const narrative = artifact.data as PatchNarrativeData;
+    if (subId === undefined) return "# Summary\n" + narrative.summary + "\n\n# Changes\n" + narrative.changes.map((change) => "- " + artifact.id + "#" + change.id + ": " + change.title).join("\n");
+    const change = narrative.changes.find((item) => item.id === subId);
+    if (!change) throw new Error("Unknown ref: " + ref);
+    const diffArtifact = view.artifacts.find((item) => item.id === narrative.diffId && item.type === "Diff");
+    const diff = diffArtifact?.data as DiffData | undefined;
+    const hunks = diff ? diff.files.flatMap((file) => file.hunks.filter((hunk) => change.hunkIds.includes(hunk.id)).map((hunk) => renderHunk(file, hunk))) : [];
+    const specs = linkedSpecs(artifact.id, change.id).map((item) => {
+      const data = item.data as SpecReferenceData;
+      return "## Spec " + item.id + "\n" + (data.resolved?.title ?? data.url);
+    });
+    return ["# " + change.title, change.explanation, "## Rationale\n" + change.rationale, "## Depends on\n" + (change.dependsOn.join(", ") || "None"), ...hunks, ...specs].join("\n\n");
+  }
+  if (artifact.type === "Diff") {
+    const diff = artifact.data as DiffData;
+    if (subId === undefined) return "# Commits\n" + diff.commits.map((commit) => "- " + commit.subject + (commit.body ? "\n  " + commit.body : "")).join("\n") + "\n\n# Files\n" + diff.files.map((file) => "- " + file.path + " (" + file.status + ")").join("\n");
+    const found = diff.files.flatMap((file) => file.hunks.filter((hunk) => hunk.id === subId).map((hunk) => ({ file, hunk })))[0];
+    if (!found) throw new Error("Unknown ref: " + ref);
+    const narrative = [...view.artifacts].reverse().find((item) => item.type === "PatchNarrative" && (item.data as PatchNarrativeData).diffId === artifact.id);
+    const changes = narrative ? (narrative.data as PatchNarrativeData).changes.filter((change) => change.hunkIds.includes(subId)).map((change) => "## " + change.title + "\n" + change.explanation) : [];
+    return [renderHunk(found.file, found.hunk), ...changes].join("\n\n");
+  }
+  if (artifact.type === "SpecReference" && subId === undefined) {
+    const spec = artifact.data as SpecReferenceData;
+    const supported = view.links.filter((link) => link.from === artifact.id && link.kind === "supports").map((link) => link.to);
+    const gecko = spec.geckoRefs.map((item) => "- " + item.group + ": " + item.path + ":" + item.line + " (" + item.url + ")").join("\n");
+    return ["# " + (spec.resolved?.title ?? "Unresolved spec reference"), "Spec: " + (spec.resolved?.spec ?? "Unknown"), "URL: " + (spec.resolved?.url ?? spec.url), "Origin: " + (spec.origin ?? "unknown"), spec.resolved?.content ?? (spec.url + "\n" + (spec.reason ?? "No resolution reason provided.")), "## Gecko references\n" + (gecko || "None"), "## Supported changes\n" + (supported.join("\n") || "None")].join("\n\n");
+  }
+  if (artifact.type === "ChatThread" && subId === undefined) {
+    const thread = artifact.data as ChatThreadData;
+    const messages = view.links.filter((link) => link.to === artifact.id && link.kind === "reply").map((link) => view.artifacts.find((item) => item.id === link.from)).filter((item): item is Artifact => item?.type === "ChatMessage");
+    return ["# Chat " + artifact.id, "Anchor: " + thread.anchor, ...messages.map((item) => ((item.data as ChatMessageData).role === "user" ? "User: " : "Assistant: ") + (item.data as ChatMessageData).text)].join("\n\n");
+  }
+  if (artifact.type === "ChatMessage" && subId === undefined) {
+    const parent = view.links.find((link) => link.from === artifact.id && link.kind === "reply");
+    if (parent) return renderRef(view, parent.to);
+  }
+  throw new Error("Unknown ref: " + ref);
+}
+
+/** Summary, commits, changes, spec refs, and threads for the latest narrative. */
+export function sessionOverview(view: SessionView): string {
+  const latest = [...view.artifacts].reverse().find((artifact) => artifact.type === "PatchNarrative");
+  if (!latest) return "No narrative yet.";
+  const narrative = latest.data as PatchNarrativeData;
+  const diff = view.artifacts.find((artifact) => artifact.id === narrative.diffId && artifact.type === "Diff");
+  const commits = diff ? (diff.data as DiffData).commits.map((commit) => "- " + commit.subject + (commit.body ? "\n  " + commit.body : "")).join("\n") : "None";
+  const changes = narrative.changes.map((change) => "- " + latest.id + "#" + change.id + ": " + change.title + " (hunks: " + (change.hunkIds.join(", ") || "none") + ")").join("\n") || "None";
+  const currentChangeRefs = new Set(narrative.changes.map((change) => latest.id + "#" + change.id));
+  const currentSpecIds = new Set(view.links.filter((link) => link.kind === "supports" && currentChangeRefs.has(link.to)).map((link) => link.from));
+  const specs = view.artifacts.filter((artifact) => artifact.type === "SpecReference" && currentSpecIds.has(artifact.id)).map((artifact) => {
+    const data = artifact.data as SpecReferenceData;
+    return "- " + artifact.id + ": " + (data.resolved?.title ?? data.url) + " (" + (data.origin ?? "unknown") + ")";
+  }).join("\n") || "None";
+  const threads = view.artifacts.filter((artifact) => artifact.type === "ChatThread").map((artifact) => {
+    const first = view.links.filter((link) => link.to === artifact.id && link.kind === "reply").map((link) => view.artifacts.find((item) => item.id === link.from)).find((item) => item?.type === "ChatMessage" && (item.data as ChatMessageData).role === "user");
+    return "- " + artifact.id + " anchored at " + (artifact.data as ChatThreadData).anchor + ": " + (first ? (first.data as ChatMessageData).text : "");
+  }).join("\n") || "None";
+  return ["# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads].join("\n\n");
+}

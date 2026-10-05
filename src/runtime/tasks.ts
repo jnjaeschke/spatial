@@ -3,6 +3,7 @@ import type {
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService } from "./llm/types.ts";
 import type { Store } from "./store.ts";
+import { searchDocs } from "./render-ref.ts";
 
 export interface WebspecCapability {
   readonly effect: "read-only";
@@ -101,6 +102,10 @@ export class Runtime {
 
   constructor(opts: RuntimeOptions) {
     this.#store = opts.store;
+    for (const id of this.#store.unindexedArtifactIds()) {
+      const artifact = this.#store.getArtifact(id);
+      this.#store.putSearchDocs(artifact.sessionId, artifact.id, searchDocs(artifact));
+    }
     this.#llm = opts.llm;
     this.#git = opts.git;
     this.#webspec = opts.webspec;
@@ -171,6 +176,7 @@ export class Runtime {
       artifacts: {
         put: (type, status, data, llm) => {
           const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
+          this.#store.putSearchDocs(sessionId, a.id, searchDocs(a));
           emit("artifact.created", { artifactId: a.id, type });
           return a;
         },

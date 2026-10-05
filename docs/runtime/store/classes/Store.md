@@ -12,13 +12,19 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ### Constructor
 
-> **new Store**(`path`): `Store`
+> **new Store**(`path`, `opts?`): `Store`
 
 #### Parameters
 
 ##### path
 
 `string`
+
+##### opts?
+
+###### readOnly?
+
+`boolean`
 
 #### Returns
 
@@ -331,6 +337,70 @@ Dumb persistence. Emits no events; the Runtime does that.
 #### Returns
 
 [`Link`](../../../shared/types/interfaces/Link.md)
+
+***
+
+### putSearchDocs()
+
+> **putSearchDocs**(`sessionId`, `artifactId`, `docs`): `void`
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### artifactId
+
+`string`
+
+##### docs
+
+`SearchDoc`[]
+
+#### Returns
+
+`void`
+
+***
+
+### search()
+
+> **search**(`sessionId`, `query`, `opts?`): `object`[]
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### query
+
+`string`
+
+##### opts?
+
+###### kinds?
+
+(`"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"spec"` \| `"chat"`)[]
+
+###### limit?
+
+`number`
+
+#### Returns
+
+`object`[]
+
+***
+
+### unindexedArtifactIds()
+
+> **unindexedArtifactIds**(): `string`[]
+
+#### Returns
+
+`string`[]
 
 ***
 
