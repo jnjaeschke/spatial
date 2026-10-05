@@ -34,6 +34,24 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
 
+#### linkedTo()
+
+> **linkedTo**(`to`, `kind`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`unknown`\>[]
+
+##### Parameters
+
+###### to
+
+`string`
+
+###### kind
+
+[`LinkKind`](../../../shared/types/type-aliases/LinkKind.md)
+
+##### Returns
+
+[`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`unknown`\>[]
+
 #### put()
 
 > **put**\<`T`\>(`type`, `status`, `data`, `llm?`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>

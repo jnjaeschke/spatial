@@ -9,6 +9,8 @@
 ## Interfaces
 
 - [Artifact](interfaces/Artifact.md)
+- [ChatMessageData](interfaces/ChatMessageData.md)
+- [ChatThreadData](interfaces/ChatThreadData.md)
 - [Commit](interfaces/Commit.md)
 - [DiffData](interfaces/DiffData.md)
 - [DiffFile](interfaces/DiffFile.md)

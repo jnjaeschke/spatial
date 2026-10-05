@@ -44,6 +44,7 @@ export interface TaskContext {
   artifacts: {
     put<T>(type: string, status: ArtifactStatus, data: T, llm?: LlmSelection): Artifact<T>;
     get<T>(id: Id): Artifact<T>;
+    linkedTo(to: Ref, kind: LinkKind): Artifact[];
   };
   links: { put(from: Ref, to: Ref, kind: LinkKind): Link };
   progress(p: Progress): void;
@@ -173,6 +174,8 @@ export class Runtime {
           return a;
         },
         get: (id) => this.#store.getArtifact(id),
+        linkedTo: (to, linkKind) =>
+          this.#store.listLinks(sessionId).filter((l) => l.to === to && l.kind === linkKind).map((l) => this.#store.getArtifact(l.from)),
       },
       links: {
         put: (from, to, linkKind) => {

@@ -93,6 +93,19 @@ export type Ref = string;
 
 export type LinkKind = "derivedFrom" | "supports" | "about" | "reply";
 
+/** Data of a `ChatThread` artifact; linked `about → anchor`. */
+export interface ChatThreadData {
+  anchor: Ref;
+}
+
+/** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. */
+export interface ChatMessageData {
+  role: "user" | "assistant";
+  text: string;
+  llm?: LlmSelection;
+  providerSessionId?: string;
+}
+
 export interface Link {
   id: Id;
   sessionId: Id;
