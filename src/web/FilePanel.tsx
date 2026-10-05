@@ -1,0 +1,70 @@
+import { createContext, useEffect, useMemo, useRef, useState } from "react";
+import type { Artifact, DiffData } from "../shared/types.ts";
+import { fileRows, numberLines, type Row } from "./diff-lines.ts";
+import { loadFileLines } from "./file-lines.ts";
+
+export interface OpenFile {
+  diffId: string;
+  path: string;
+  hunkId: string;
+}
+
+export const FileViewContext = createContext<((file: OpenFile) => void) | null>(null);
+
+const SIGN = { ctx: " ", add: "+", del: "-" } as const;
+
+export function DiffRows({ rows, hunkId }: { rows: Row[]; hunkId?: string }) {
+  return <>{rows.map((row, i) => {
+    const inHunk = hunkId !== undefined && row.hunkId !== undefined;
+    const target = hunkId !== undefined && row.hunkId === hunkId;
+    const classes = [row.kind, inHunk && "in-hunk", target && "target"].filter(Boolean).join(" ");
+    return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId}>
+      <td className="ln">{row.old ?? ""}</td><td className="ln">{row.new ?? ""}</td><td className="sign">{SIGN[row.kind]}</td><td className="code">{row.text}</td>
+    </tr>;
+  })}</>;
+}
+
+export function FilePanel({ sessionId, diff, open, onClose }: {
+  sessionId: string;
+  diff: Artifact<DiffData>;
+  open: OpenFile;
+  onClose: () => void;
+}) {
+  const file = diff.data.files.find((item) => item.path === open.path);
+  const [lines, setLines] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const rows = useMemo(() => {
+    if (!file) return [];
+    return lines ? fileRows(file, lines) : file.hunks.flatMap((hunk) => numberLines(hunk).map((row) => ({ ...row, hunkId: hunk.id })));
+  }, [file, lines]);
+
+  useEffect(() => {
+    let active = true;
+    setLines(null);
+    setError(null);
+    if (file && (file.status === "modified" || file.status === "renamed")) {
+      void loadFileLines(sessionId, diff.id, file.path).then((loaded) => {
+        if (active) setLines(loaded);
+      }).catch((e: unknown) => {
+        if (active) setError((e as Error).message);
+      });
+    }
+    return () => { active = false; };
+  }, [sessionId, diff.id, file]);
+
+  useEffect(() => {
+    if (!body.current) return;
+    const target = [...body.current.querySelectorAll<HTMLElement>("[data-hunk]")]
+      .find((row) => row.dataset.hunk === open.hunkId);
+    target?.scrollIntoView({ block: "center" });
+  }, [rows, open.hunkId]);
+
+  return <aside className="file-panel" data-testid="file-panel">
+    <header><span>{open.path}</span><button aria-label="Close file" onClick={onClose}>×</button></header>
+    <div className="file-panel-body" ref={body}>
+      {file && <table><tbody><DiffRows rows={rows} hunkId={open.hunkId} /></tbody></table>}
+      {error && <p className="file-panel-error">{error}</p>}
+    </div>
+  </aside>;
+}

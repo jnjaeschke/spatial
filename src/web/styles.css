@@ -3,6 +3,16 @@ html, body, #root { margin: 0; height: 100%; }
 .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
 .topbar { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #ddd; background: #fff; }
 .canvas { position: relative; min-height: 0; }
+.session-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; }
+.session-body > .canvas { min-width: 0; }
+.file-panel { width: min(50vw, 900px); min-height: 0; display: flex; flex-direction: column; border-left: 1px solid #ccc; background: #fff; }
+.file-panel > header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #ddd; font: 13px ui-monospace, monospace; }
+.file-panel-body { min-height: 0; overflow: auto; }
+.file-panel .diff { margin: 0; border: 0; border-radius: 0; overflow: visible; }
+.file-panel table { table-layout: auto; }
+.file-panel tr.in-hunk { border-left: 3px solid #c9c9c9; }
+.file-panel tr.target { border-left: 3px solid #6b7fd7; }
+.file-panel-error { padding: 8px 12px; color: #b00020; }
 .empty { padding: 32px; color: #666; }
 .node { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 12px 14px; box-sizing: border-box; }
 .node .title { font-weight: 600; cursor: grab; }
@@ -15,6 +25,7 @@ html, body, #root { margin: 0; height: 100%; }
 .files { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, monospace; font-size: 0.85em; color: #555; }
 .diff { margin-top: 10px; border: 1px solid #e3e3e3; border-radius: 6px; overflow: hidden; cursor: text; user-select: text; }
 .diff-head { font-family: ui-monospace, monospace; font-size: 0.85em; background: #f0f0f0; padding: 4px 8px; }
+.file-link { padding: 0; border: 0; background: transparent; color: #2456a6; text-decoration: underline; cursor: pointer; font: inherit; }
 .diff table { border-collapse: collapse; width: 100%; font-family: ui-monospace, monospace; font-size: 0.9em; }
 .diff td { padding: 0 6px; white-space: pre-wrap; word-break: break-all; vertical-align: top; }
 .diff td.ln { color: #999; text-align: right; width: 1%; white-space: nowrap; user-select: none; }

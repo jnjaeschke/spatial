@@ -43,3 +43,19 @@ test("failed narrate shows the error in the activity strip and keeps the canvas"
   await expect(page.getByTestId("task-importDiff").first()).toHaveAttribute("data-status", "failed", { timeout: 10_000 });
   await expect(page.getByText(/is not an ancestor of/)).toBeVisible();
 });
+
+test("open the whole file in the side panel", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "code"; i++) {
+    await page.getByRole("button", { name: "zoom in" }).click();
+    await page.waitForTimeout(150);
+  }
+  await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt" }).click();
+  const panel = page.getByTestId("file-panel");
+  await expect(panel.getByText("line 1", { exact: true })).toBeAttached();
+  await expect(panel.getByText("line 60", { exact: true })).toBeAttached();
+  await expect(panel.getByText("THIRTY", { exact: true })).toBeInViewport();
+  await panel.getByRole("button", { name: "Close file" }).click();
+  await expect(panel).toHaveCount(0);
+});

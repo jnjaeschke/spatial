@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import type { DiffFile, Hunk } from "../shared/types.ts";
 import { fileRows, numberLines, type Row } from "./diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
+import { DiffRows, FileViewContext } from "./FilePanel.tsx";
 
-const SIGN = { ctx: " ", add: "+", del: "-" } as const;
 const STEP = 20;
 
 /** Read-only hunk. `nodrag nopan` lets users select text instead of moving the canvas. */
@@ -12,6 +12,7 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   const [below, setBelow] = useState(0);
   const [lines, setLines] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const openFile = useContext(FileViewContext);
   const canExpand = file.status === "modified" || file.status === "renamed";
   const expand = async (side: "above" | "below") => {
     try {
@@ -36,17 +37,12 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   const expanded = lines !== null && above + below > 0;
   const canShowAbove = canExpand && (expanded ? start > 0 : hunk.newStart > 1);
   const canShowBelow = canExpand && expanded && start + rows.length < fileRows(file, lines!).length;
-  const renderRow = (row: Row, i: number) => (
-    <tr key={`${row.hunkId ?? "context"}-${i}`} className={`${row.kind}${row.hunkId && row.hunkId !== hunk.id ? " outside" : ""}`}>
-      <td className="ln">{row.old ?? ""}</td><td className="ln">{row.new ?? ""}</td><td className="sign">{SIGN[row.kind]}</td><td className="code">{row.text}</td>
-    </tr>
-  );
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
-      <div className="diff-head">{file.path} <span className="hunk-header">{hunk.header}</span></div>
+      <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path} <span className="hunk-header">{hunk.header}</span></div>
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        {rows.map(renderRow)}
+        <DiffRows rows={rows} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>
