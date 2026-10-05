@@ -1,10 +1,14 @@
+import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData, ZoomLevel } from "../graph.ts";
 import { InlineText } from "../InlineText.tsx";
+import { CollapseContext } from "../collapse.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
 
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
+  const collapse = useContext(CollapseContext);
+  const closed = collapse?.collapsed.has(data.narrativeId) ?? false;
   const specStatus = data.specStatus;
   const specText = specStatus && (
     specStatus.code + specStatus.inferred + specStatus.unverified === 0
@@ -17,8 +21,8 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   );
   return (
     <div className={`node summary-node level-${data.level}`} data-anchor={data.narrativeId} data-testid="summary">
-      <div className="title">{data.changeCount} changes</div>
-      <div className="body nodrag nopan">
+      <div className="title">{data.changeCount} changes{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.narrativeId)}>{closed ? "▸" : "▾"}</button>}</div>
+      {!closed && <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>
         {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}
         {data.level !== "patch" && (
@@ -26,7 +30,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             {data.commits.map((c) => <li key={c.sha}>{c.subject}</li>)}
           </ul>
         )}
-      </div>
+      </div>}
       <Handle type="source" position={Position.Bottom} />
     </div>
   );

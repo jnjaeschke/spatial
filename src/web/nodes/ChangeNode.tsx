@@ -4,17 +4,20 @@ import type { ChangeNodeData, ZoomLevel } from "../graph.ts";
 import { DiffView } from "../DiffView.tsx";
 import { InlineText } from "../InlineText.tsx";
 import { AskContext } from "../chat-context.ts";
+import { CollapseContext } from "../collapse.ts";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 
 export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
   const { change, level, files, hunks, sessionId, diffId } = data;
   const ask = useContext(AskContext);
+  const collapse = useContext(CollapseContext);
+  const closed = collapse?.collapsed.has(`${data.narrativeId}#${change.id}`) ?? false;
   return (
     <div className={`node change-node level-${level}`} data-anchor={`${data.narrativeId}#${change.id}`} data-testid={`change-${change.id}`} data-level={level}>
       <Handle type="target" position={Position.Top} />
-      <div className="title"><InlineText text={change.title} />{ask && level !== "patch" && <button aria-label={`Ask about ${change.id}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#${change.id}`)}>Ask</button>}</div>
-      <div className="body nodrag nopan">
+      <div className="title"><InlineText text={change.title} />{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(`${data.narrativeId}#${change.id}`)}>{closed ? "▸" : "▾"}</button>}{ask && level !== "patch" && <button aria-label={`Ask about ${change.id}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#${change.id}`)}>Ask</button>}</div>
+      {!closed && <div className="body nodrag nopan">
         {level !== "patch" && (
           <>
             <p className="explanation"><InlineText text={change.explanation} hunks={hunks} diffId={diffId} /></p>
@@ -27,7 +30,7 @@ export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
           </ul>
         )}
         {level === "code" && hunks.map(({ file, hunk }) => <DiffView key={hunk.id} sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} />)}
-      </div>
+      </div>}
       <Handle type="source" position={Position.Bottom} />
     </div>
   );

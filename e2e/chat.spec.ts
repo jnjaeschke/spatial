@@ -166,9 +166,8 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
   expect(thread.data.lines!.start).toBeLessThan(thread.data.lines!.end);
   expect(thread.data.lines!.path).toBe("a.txt");
   const quote = thread.data.quote!;
-  const highlighted = await page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((range) => (range as Range).toString()));
-  expect(highlighted).toHaveLength(1);
-  expect(highlighted[0]!.replace(/\s+/g, "")).toBe(quote.replace(/\s+/g, ""));
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((range) => (range as Range).toString().replace(/\s+/g, ""))))
+    .toEqual([quote.replace(/\s+/g, "")]);
 });
 
 test("a quoted diff chat sits next to the quote and highlights it", async ({ page, request }) => {
@@ -185,7 +184,8 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await expect(draft).toBeVisible();
   expect(selected).toContain(word);
-  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])]
+    .map((r) => `${r.startContainer.parentElement?.closest("td")?.className}:${(r as Range).toString()}`))).toContain(`code:${word}`);
   await expect.poll(async () => {
     const chatBox = await draft.boundingBox();
     const rowBox = await row.boundingBox();
@@ -201,4 +201,64 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   await zoomTo(page, "concept");
   await zoomTo(page, "code");
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
+});
+
+test("collapse a change and expand it after reload", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "concept");
+  const change = page.getByTestId("change-c1");
+  await change.getByRole("button", { name: "Collapse" }).click();
+  await expect(change.locator(".explanation")).toBeHidden();
+  await expect(change.getByRole("button", { name: "Expand" })).toBeVisible();
+  await page.reload();
+  await zoomTo(page, "concept");
+  const reloaded = page.getByTestId("change-c1");
+  await expect(reloaded.locator(".explanation")).toBeHidden();
+  await reloaded.getByRole("button", { name: "Expand" }).click();
+  await expect(reloaded.locator(".explanation")).toBeVisible();
+});
+
+test("a collapsed quoted chat reopens from its highlight", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "code");
+  const code = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand) td.code').last();
+  await code.dblclick();
+  const word = await page.evaluate(() => getSelection()!.toString().trim());
+  await page.locator("button.ask-selection").click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await draft.getByLabel("message").fill("Why?");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  await page.locator(".chat-node").filter({ has: answer }).getByRole("button", { name: "Collapse" }).click();
+  await expect(answer).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
+
+  const quoteCenter = () => page.evaluate(() => {
+    const box = ([...CSS.highlights.get("chat-quote")!][0] as Range).getBoundingClientRect();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  });
+  for (let point = await quoteCenter(); point.x < 100; point = await quoteCenter()) {
+    const dx = Math.min(600, 700 - point.x);
+    const grab = await page.evaluate((dx) => {
+      for (let x = 20; x + dx < innerWidth - 20; x += 20) {
+        if (document.elementFromPoint(x, innerHeight / 2)?.classList.contains("react-flow__pane")) return { x, y: innerHeight / 2 };
+      }
+      throw new Error("no empty pane");
+    }, dx);
+    await page.mouse.move(grab.x, grab.y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x + dx, grab.y, { steps: 8 });
+    await page.mouse.up();
+  }
+  const point = await quoteCenter();
+  await page.mouse.move(point.x, point.y);
+  await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/);
+  await page.mouse.click(point.x, point.y);
+  await expect(answer).toBeVisible();
+
+  await page.locator(".chat-node").filter({ has: answer }).getByRole("button", { name: "Collapse" }).click();
+  await expect(answer).toHaveCount(0);
+  await page.getByRole("button", { name: "Expand all" }).click();
+  await expect(answer).toBeVisible();
 });

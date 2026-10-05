@@ -3,7 +3,8 @@ import type { ChatThreadData, Ref } from "../shared/types.ts";
 /**
  * Range of `quote` inside the rendered anchor under `root`, or null when the anchor (or those lines) is not
  * rendered or the quote is not found. Compares ignoring all whitespace: `Selection.toString()` inserts tabs and
- * newlines between table cells and blocks that the DOM text does not contain. The first match wins.
+ * newlines between table cells and blocks that the DOM text does not contain. Text a selection cannot contain
+ * (`user-select: none`, like diff line numbers) is skipped. The first match wins.
  */
 export function quoteRange(root: ParentNode, anchor: Ref, quote: string, lines?: ChatThreadData["lines"]): Range | null {
   const selector = `[data-anchor="${CSS.escape(anchor)}"]`;
@@ -20,7 +21,9 @@ export function quoteRange(root: ParentNode, anchor: Ref, quote: string, lines?:
   let flat = "";
   const at: { node: Text; offset: number }[] = [];
   for (const scope of scopes) {
-    const walker = scope.ownerDocument.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+    const walker = scope.ownerDocument.createTreeWalker(scope, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, (node) =>
+      node instanceof Element && getComputedStyle(node).userSelect === "none" ? NodeFilter.FILTER_REJECT
+        : node instanceof Text ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP);
     for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
       for (let i = 0; i < node.data.length; i++) {
         if (/\s/.test(node.data[i]!)) continue;

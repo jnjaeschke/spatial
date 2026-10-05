@@ -9,11 +9,13 @@ import { LlmPicker } from "../LlmPicker.tsx";
 import { CodeSpan } from "../CodeSpan.tsx";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CollapseContext } from "../collapse.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
 export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   const actions = useContext(ChatActionsContext)!;
+  const collapse = useContext(CollapseContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection>(lastLlm ?? actions.models.default);
   const [text, setText] = useState("");
@@ -24,13 +26,16 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   const busy = last?.status === "running" || last?.status === "pending";
   const failed = last?.status === "failed" ? last : undefined;
   const id = data.threadId ?? data.draftId!;
+  const closed = data.threadId !== null && (collapse?.collapsed.has(data.threadId) ?? false);
 
   if (data.level === "patch") {
-    return <div className="node chat-node level-patch" data-testid={`chat-${id}`}><Handle type="source" position={Position.Left} />💬 {data.messages.length}</div>;
+    return <div className="node chat-node level-patch" data-testid={`chat-${id}`}><Handle type="source" position={Position.Left} /><div className="title">💬 {data.messages.length}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}</div></div>;
   }
   return (
     <div className={`node chat-node level-${data.level}`} data-testid={`chat-${id}`}>
       <Handle type="source" position={Position.Left} />
+      <div className="title">Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}</div>
+      {!closed && <>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <div className="messages body nodrag nopan nowheel">
         {data.messages.map((m) => (
@@ -68,6 +73,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
         <button type="submit" disabled={busy || !text.trim()}>Send</button>
         {error && <span className="failed">{error}</span>}
       </form>
+      </>}
     </div>
   );
 }

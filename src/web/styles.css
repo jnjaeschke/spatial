@@ -17,6 +17,8 @@ html, body, #root { margin: 0; height: 100%; }
 .empty { padding: 32px; color: #666; }
 .node { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 12px 14px; box-sizing: border-box; }
 .node .title { font-weight: 600; cursor: grab; }
+.collapse { margin-left: 8px; padding: 0 3px; border: 0; background: transparent; font: inherit; font-size: 0.8em; cursor: pointer; }
+.over-collapsed-quote .react-flow__node, .over-collapsed-quote .react-flow__node * { cursor: pointer; }
 .node .body { cursor: text; user-select: text; }
 .node p { margin: 6px 0; line-height: 1.35; }
 .node code, .code-link { font-family: ui-monospace, monospace; font-size: 0.9em; background: #f0f0f0; border-radius: 3px; padding: 0 3px; }

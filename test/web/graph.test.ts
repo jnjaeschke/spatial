@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiffData, PatchNarrativeData, SessionState } from "../../src/shared/types.ts";
-import { anchorNodeId, estimateSize, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, zoomLevel } from "../../src/web/graph.ts";
+import { anchorNodeId, estimateSize, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -252,4 +252,22 @@ test("placeSatellites aligns quoted chats to their quote and stacks by effective
   ]);
   assert.equal(stacked.get("earlier")?.y, 100);
   assert.equal(stacked.get("later")?.y, 100 + 250 + 24);
+});
+
+test("visibleGraph hides only collapsed quoted threads and their edges", () => {
+  const node = (id: string, data: GraphNode["data"]): GraphNode => ({ id, data });
+  const nodes: GraphNode[] = [
+    node("quoted", { kind: "chat", anchor: "N#c1", quote: "quote", diffId: "D", hunks: [], threadId: "quoted", draftId: null, taskId: null, messages: [], revisions: {} }),
+    node("plain", { kind: "chat", anchor: "N#c1", diffId: "D", hunks: [], threadId: "plain", draftId: null, taskId: null, messages: [], revisions: {} }),
+    node("draft", { kind: "chat", anchor: "N#c1", quote: "draft quote", diffId: "D", hunks: [], threadId: null, draftId: "draft", taskId: null, messages: [], revisions: {} }),
+    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [] }),
+  ];
+  const edges = [
+    { id: "quoted-edge", source: "quoted", target: "N#c1" },
+    { id: "plain-edge", source: "plain", target: "N#c1" },
+    { id: "draft-edge", source: "draft", target: "N#c1" },
+  ];
+  const visible = visibleGraph({ nodes, edges }, new Set(["quoted", "plain", "draft", "N#c1"]));
+  assert.deepEqual(visible.nodes.map((n) => n.id), ["plain", "draft", "N#c1"]);
+  assert.deepEqual(visible.edges.map((e) => e.id), ["plain-edge", "draft-edge"]);
 });

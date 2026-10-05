@@ -51,6 +51,12 @@ export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | Ch
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 
+/** The graph without collapsed quoted chats: they live on as a highlight of their quote. */
+export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, collapsed: ReadonlySet<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const hidden = new Set(g.nodes.filter((n) => n.data.kind === "chat" && n.data.threadId !== null && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
+  return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
+}
+
 export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {
   const narratives = state.artifacts.filter((a) => a.type === "PatchNarrative") as Artifact<PatchNarrativeData>[];
   const narrative = narratives.at(-1);
