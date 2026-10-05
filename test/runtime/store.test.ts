@@ -72,3 +72,13 @@ test("data persists across Store instances on a file", async () => {
   assert.equal(s2.getSession(session.id).title, "t");
   s2.close();
 });
+
+test("listTasks and lastEventId", () => {
+  const { store, session } = fresh();
+  assert.equal(store.lastEventId(session.id), 0);
+  const t1 = store.createTask({ sessionId: session.id, kind: "a", input: null });
+  const t2 = store.createTask({ sessionId: session.id, kind: "b", input: null });
+  assert.deepEqual(store.listTasks(session.id).map((t) => t.id), [t1.id, t2.id]);
+  const e = store.appendEvent({ sessionId: session.id, actor: "runtime", type: "x", payload: null });
+  assert.equal(store.lastEventId(session.id), e.id);
+});
