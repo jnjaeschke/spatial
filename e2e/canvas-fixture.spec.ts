@@ -95,6 +95,7 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
   const spec = page.getByTestId("spec-R");
   await expect(spec).toBeVisible();
   await expect(spec.getByText("unverified")).toHaveCount(0);
+  await expect(spec.getByText("cited in code")).toBeVisible();
   const specBox = (await spec.boundingBox())!;
   for (const id of ["change-c1", "change-c2", "change-c3"]) {
     const b = (await page.getByTestId(id).boundingBox())!;

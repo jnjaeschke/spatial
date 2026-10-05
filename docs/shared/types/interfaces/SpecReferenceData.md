@@ -22,6 +22,14 @@ Data of a `SpecReference` artifact. `resolved` null means webspec-index could no
 
 ***
 
+### origin?
+
+> `optional` **origin?**: `"code"` \| `"llm"`
+
+Whether the reference was found in changed code or inferred by the narrative.
+
+***
+
 ### reason?
 
 > `optional` **reason?**: `string`

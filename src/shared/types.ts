@@ -55,6 +55,8 @@ export interface GeckoSpecRef {
 export interface SpecReferenceData {
   url: string;
   resolved: ResolvedSpec | null;
+  /** Whether the reference was found in changed code or inferred by the narrative. */
+  origin?: "code" | "llm";
   reason?: string;
   geckoRefs: GeckoSpecRef[];
   geckoRefsError?: string;

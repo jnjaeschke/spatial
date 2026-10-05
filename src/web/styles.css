@@ -41,6 +41,8 @@ html, body, #root { margin: 0; height: 100%; }
 .spec-node .spec-text { white-space: pre-wrap; max-height: 360px; overflow: auto; font-family: Georgia, serif; }
 .badge { margin-left: 8px; font-size: 0.7em; padding: 1px 6px; border-radius: 8px; }
 .badge.unverified { background: #fff3cd; color: #7a5b00; }
+.badge.cited { background: #d1fae5; color: #065f46; }
+.badge.inferred { background: #dbeafe; color: #1e40af; }
 .diff td.ln a { color: inherit; text-decoration: none; }
 .diff td.ln a:hover { text-decoration: underline; }
 .file-link { padding: 0; border: 0; background: transparent; color: #2456a6; text-decoration: underline; cursor: pointer; font: inherit; }
