@@ -30,13 +30,14 @@ export class CodexBackend implements LlmBackend {
   }
 
   async run(req: LlmRequest): Promise<LlmResult> {
-    const args = [
-      "exec", "--json", "--skip-git-repo-check", "--ignore-user-config",
+    const common = [
+      "--json", "--skip-git-repo-check", "--ignore-user-config",
       "-m", req.model,
       "-c", `model_reasoning_effort=${req.effort}`,
-      "--sandbox", "read-only",
     ];
-    if (req.cwd) args.push("-C", req.cwd);
+    const args = req.resumeProviderSession
+      ? ["exec", "resume", ...common, "-c", 'sandbox_mode="read-only"']
+      : ["exec", ...common, "--sandbox", "read-only", ...(req.cwd ? ["-C", req.cwd] : [])];
     let tmp: string | undefined;
     if (req.schema) {
       tmp = mkdtempSync(join(tmpdir(), "codex-schema-"));
@@ -44,7 +45,8 @@ export class CodexBackend implements LlmBackend {
       writeFileSync(schemaPath, JSON.stringify(req.schema));
       args.push("--output-schema", schemaPath);
     }
-    const stdin = req.system !== undefined ? `${req.system}\n\n${req.prompt}` : req.prompt;
+    if (req.resumeProviderSession) args.push(req.resumeProviderSession, "-");
+    const stdin = req.system !== undefined && !req.resumeProviderSession ? `${req.system}\n\n${req.prompt}` : req.prompt;
     try {
       const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin, cwd: req.cwd, signal: req.signal });
       return parseCodexOutput(stdout, stderr, code, Boolean(req.schema));

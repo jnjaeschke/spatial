@@ -26,6 +26,14 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ***
 
+### resumeProviderSession?
+
+> `optional` **resumeProviderSession?**: `string`
+
+Continue this provider session instead of starting a new one.
+
+***
+
 ### schema?
 
 > `optional` **schema?**: `object`

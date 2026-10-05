@@ -70,7 +70,8 @@ test("claude: read-only tools", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: "hi", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
   await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only" }));
   const a: string[] = calls()[0].argv;
-  assert.equal(a[a.indexOf("--tools") + 1], "Read,Grep,Glob");
+  assert.equal(a[a.indexOf("--tools") + 1], "Read,Grep,Glob,Bash");
+  assert.equal(a[a.indexOf("--allowedTools") + 1], "Bash(searchfox-cli:*)");
 });
 
 test("claude: is_error surfaces the result text", async () => {
@@ -142,6 +143,39 @@ test("codex: models from models_cache.json; missing file is an error", async () 
   ] }));
   assert.deepEqual(await new CodexBackend({ bin: STUB, codexHome: home }).listModels(), [{ id: "gpt-6-luna", efforts: ["low", "high"] }]);
   await assert.rejects(new CodexBackend({ bin: STUB, codexHome: join(dir, "none") }).listModels(), /Cannot read codex model list/);
+});
+
+test("claude: resume and read-only chat tools", async () => {
+  stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "sess-1", usage: { input_tokens:  1, output_tokens: 1 } }));
+  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only", resumeProviderSession: "sess-0" }));
+  const a: string[] = calls()[0].argv;
+  const flag = (f: string) => a[a.indexOf(f) + 1];
+  assert.equal(flag("--resume"), "sess-0");
+  assert.equal(flag("--tools"), "Read,Grep,Glob,Bash");
+  assert.equal(flag("--allowedTools"), "Bash(searchfox-cli:*)");
+});
+
+test("claude: tools none has no allowedTools and no resume by default", async () => {
+  stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
+  await new ClaudeBackend({ bin: STUB }).run(req());
+  const a: string[] = calls()[0].argv;
+  assert.ok(!a.includes("--allowedTools"));
+  assert.ok(!a.includes("--resume"));
+});
+
+test("codex: resume uses `exec resume`, sandbox via -c, prompt from stdin", async () => {
+  stdout(codexOut("answer"));
+  const r = await new CodexBackend({ bin: STUB }).run(req({ resumeProviderSession: "th-0", cwd: dir, system: "SYS" }));
+  assert.equal(r.text, "answer");
+  const [call] = calls();
+  const a: string[] = call.argv;
+  assert.deepEqual(a.slice(0, 2), ["exec", "resume"]);
+  assert.ok(!a.includes("--sandbox"));
+  assert.ok(!a.includes("-C"));
+  assert.ok(a.includes('sandbox_mode="read-only"'));
+  assert.deepEqual(a.slice(-2), ["th-0", "-"]);
+  assert.equal(call.stdin, "PROMPT");
+  assert.equal(call.cwd, dir);
 });
 
 test("manager: default vs explicit selection, unknown backend", async () => {

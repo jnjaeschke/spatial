@@ -23,8 +23,10 @@ export class ClaudeBackend implements LlmBackend {
       "--model", req.model,
       "--effort", req.effort,
       "--setting-sources", "",
-      "--tools", req.tools === "none" ? "" : "Read,Grep,Glob",
+      "--tools", req.tools === "none" ? "" : "Read,Grep,Glob,Bash",
     ];
+    if (req.tools === "read-only") args.push("--allowedTools", "Bash(searchfox-cli:*)");
+    if (req.resumeProviderSession) args.push("--resume", req.resumeProviderSession);
     if (req.system !== undefined) args.push("--system-prompt", req.system);
     if (req.schema) args.push("--json-schema", JSON.stringify(req.schema));
 

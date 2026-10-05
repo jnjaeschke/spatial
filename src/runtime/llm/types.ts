@@ -8,6 +8,8 @@ export interface LlmPrompt {
   schema?: object;
   cwd?: string;
   tools: "none" | "read-only";
+  /** Continue this provider session instead of starting a new one. */
+  resumeProviderSession?: string;
 }
 
 export interface LlmRequest extends LlmPrompt {
