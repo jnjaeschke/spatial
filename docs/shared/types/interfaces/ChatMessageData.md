@@ -22,6 +22,22 @@ Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages 
 
 ***
 
+### questions?
+
+> `optional` **questions?**: `string`[]
+
+Questions the assistant asks the user.
+
+***
+
+### revisionErrors?
+
+> `optional` **revisionErrors?**: `string`[]
+
+Revisions from this reply that were not applied, with the reason.
+
+***
+
 ### role
 
 > **role**: `"user"` \| `"assistant"`

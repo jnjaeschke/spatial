@@ -108,7 +108,7 @@ export class Runtime {
     this.#store = opts.store;
     for (const id of this.#store.unindexedArtifactIds()) {
       const artifact = this.#store.getArtifact(id);
-      this.#store.putSearchDocs(artifact.sessionId, artifact.id, searchDocs(artifact));
+      this.#store.putSearchDocs(artifact.sessionId, artifact.id, searchDocs(sessionView(this.#store, artifact.sessionId), artifact));
     }
     this.#llm = opts.llm;
     this.#git = opts.git;
@@ -182,7 +182,7 @@ export class Runtime {
       artifacts: {
         put: (type, status, data, llm) => {
           const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
-          this.#store.putSearchDocs(sessionId, a.id, searchDocs(a));
+          this.#store.putSearchDocs(sessionId, a.id, searchDocs(sessionView(this.#store, sessionId), a));
           emit("artifact.created", { artifactId: a.id, type });
           return a;
         },
@@ -194,6 +194,10 @@ export class Runtime {
       links: {
         put: (from, to, linkKind) => {
           const l = this.#store.putLink({ sessionId, from, to, kind: linkKind });
+          if (linkKind === "revises") {
+            const target = this.#store.getArtifact(to);
+            this.#store.putSearchDocs(sessionId, target.id, searchDocs(sessionView(this.#store, sessionId), target));
+          }
           emit("link.created", { linkId: l.id, from, to, kind: linkKind });
           return l;
         },

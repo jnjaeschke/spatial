@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Stub for claude/codex. Logs argv+stdin to $FAKE_LLM_LOG (JSONL), prints $FAKE_LLM_STDOUT
+// Stub for claude/codex. Logs argv+stdin to $FAKE_LLM_LOG (JSONL), routes by $FAKE_LLM_ROUTES or prints $FAKE_LLM_STDOUT
 // file contents, sleeps $FAKE_LLM_SLEEP_MS, exits with $FAKE_LLM_EXIT. Fails with exit 1 when stdin
 // contains $FAKE_LLM_FAIL_ON.
 import { readFileSync, appendFileSync } from "node:fs";
@@ -12,7 +12,15 @@ if (env.FAKE_LLM_FAIL_ON && stdin.includes(env.FAKE_LLM_FAIL_ON)) {
   process.exit(1);
 }
 setTimeout(() => {
-  if (env.FAKE_LLM_STDOUT) process.stdout.write(readFileSync(env.FAKE_LLM_STDOUT, "utf8"));
+  let output = env.FAKE_LLM_STDOUT;
+  if (env.FAKE_LLM_ROUTES) {
+    const routes = JSON.parse(env.FAKE_LLM_ROUTES);
+    const request = process.argv.slice(2).join(" ") + stdin;
+    for (const [needle, file] of Object.entries(routes)) {
+      if (request.includes(needle)) { output = file; break; }
+    }
+  }
+  if (output) process.stdout.write(readFileSync(output, "utf8"));
   if (env.FAKE_LLM_STDERR) process.stderr.write(env.FAKE_LLM_STDERR);
   process.exitCode = Number(env.FAKE_LLM_EXIT ?? 0);
 }, Number(env.FAKE_LLM_SLEEP_MS ?? 0));

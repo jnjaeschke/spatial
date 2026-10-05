@@ -5,6 +5,7 @@ import { defineTask, Runtime, TaskCancelledError, type GitCapability, type Searc
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import type { ChatMessageData, ChatThreadData, DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
 import { chatTurn } from "../../src/tasks/chat-turn/task.ts";
+import { renderRef, sessionView } from "../../src/runtime/render-ref.ts";
 
 const SONNET: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const LUNA: LlmSelection = { backend: "codex", model: "gpt-6-luna", effort: "medium" };
@@ -18,7 +19,7 @@ const DIFF: DiffData = {
   ] }],
 };
 
-function setup(opts: { failWith?: string; hang?: boolean } = {}) {
+function setup(opts: { failWith?: string; hang?: boolean; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[] } | undefined)[] } = {}) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let n = 0;
@@ -29,7 +30,9 @@ function setup(opts: { failWith?: string; hang?: boolean } = {}) {
       if (opts.hang) return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
       if (opts.failWith) return Promise.reject(new Error(opts.failWith));
       n++;
-      return Promise.resolve({ text: `answer ${n}`, providerSessionId: `${selection!.backend}-session-${n}`, selection: selection! });
+      const json = opts.replies ? opts.replies[n - 1] : { answer: `answer ${n}`, questions: [], revisions: [] };
+      if (json) for (const revision of json.revisions ?? []) if (revision.message === "$USER") revision.message = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "user")!.id;
+      return Promise.resolve({ text: json?.answer ?? `answer ${n}`, json, providerSessionId: `${selection!.backend}-session-${n}`, selection: selection! });
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
@@ -75,6 +78,87 @@ test("first turn on a change creates the thread and injects change context", asy
   assert.ok(p.prompt.includes("# Session"));
   assert.ok(p.prompt.includes("# You are asked about"));
   assert.ok(!p.prompt.includes("other();"));
+});
+
+test("chat passes the reply schema on new and resumed turns and stores structured answer fields", async () => {
+  const { store, calls, turn, narrativeId } = setup({ replies: [
+    { answer: "The answer", questions: ["Need a choice?"], revisions: [] },
+    { answer: "Second", questions: [], revisions: [] },
+  ] });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", llm: SONNET });
+  await turn({ threadId: first.threadId, text: "Again", llm: SONNET });
+  assert.ok(calls[0].prompt.schema);
+  assert.deepEqual(calls[0].prompt.schema, calls[1].prompt.schema);
+  const assistant = store.getArtifact<ChatMessageData>(first.messageId).data;
+  assert.equal(assistant.text, "The answer");
+  assert.deepEqual(assistant.questions, ["Need a choice?"]);
+});
+
+test("chat applies exact matched revisions and links them to target and reply", async () => {
+  const { store, turn, narrativeId, session } = setup({ replies: [
+    { answer: "Original statement is incorrect.", revisions: [], questions: [] },
+    { answer: "Corrected.", questions: [], revisions: [{ message: null, quote: "Original   statement", correction: "New statement" }] },
+  ] });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", llm: SONNET });
+  const second = await turn({ threadId: first.threadId, text: "Fix it", llm: SONNET });
+  const revisions = store.listArtifacts(session.id, "Revision");
+  assert.equal(revisions.length, 1);
+  assert.deepEqual(revisions[0].data, { quote: "Original statement", correction: "New statement" });
+  assert.ok(store.listLinks(session.id).some((l) => l.from === revisions[0].id && l.to === first.messageId && l.kind === "revises"));
+  assert.ok(store.listLinks(session.id).some((l) => l.from === revisions[0].id && l.to === second.messageId && l.kind === "derivedFrom"));
+  assert.match(renderRef(sessionView(store, session.id), first.messageId), /~~Original statement~~.*corrected: New statement/s);
+  assert.match(renderRef(sessionView(store, session.id), first.threadId), /~~Original statement~~.*corrected: New statement/s);
+  assert.ok(store.search(session.id, "statement").some((hit) => hit.ref === first.messageId));
+});
+
+test("message null chooses the newest matching assistant message", async () => {
+  const { store, turn, narrativeId, session } = setup({ replies: [
+    { answer: "Earlier claim.", questions: [], revisions: [] },
+    { answer: "Newest claim.", questions: [], revisions: [] },
+    { answer: "Fixed.", questions: [], revisions: [{ message: null, quote: "claim", correction: "fixed claim" }] },
+  ] });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "First", llm: SONNET });
+  const second = await turn({ threadId: first.threadId, text: "Second", llm: SONNET });
+  await turn({ threadId: first.threadId, text: "Fix", llm: SONNET });
+  const revision = store.listArtifacts(session.id, "Revision")[0];
+  assert.ok(store.listLinks(session.id).some((link) => link.from === revision.id && link.to === second.messageId && link.kind === "revises"));
+});
+
+test("overlapping revisions and revisions of user messages are rejected", async () => {
+  const { store, turn, narrativeId, session } = setup({ replies: [
+    { answer: "Two wrong claims.", questions: [], revisions: [] },
+    { answer: "Attempted corrections.", questions: [], revisions: [
+      { message: null, quote: "Two wrong", correction: "First" },
+      { message: null, quote: "wrong claims", correction: "Second" },
+      { message: "$USER", quote: "Two", correction: "Third" },
+    ] },
+  ] });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "User's message", llm: SONNET });
+  const userMessage = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "user")!;
+  await turn({ threadId: first.threadId, text: "Fix both", llm: SONNET });
+  assert.equal(store.listArtifacts(session.id, "Revision").length, 1);
+  const assistant = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "assistant" && (a.data as ChatMessageData).revisionErrors);
+  assert.equal((assistant?.data as ChatMessageData).revisionErrors?.length, 2);
+  assert.deepEqual((assistant?.data as ChatMessageData).revisionErrors, ["wrong claims: overlaps an earlier revision", `${userMessage.id}: not an assistant message`]);
+  assert.ok((assistant?.data as ChatMessageData).revisionErrors?.some((error) => error === `${userMessage.id}: not an assistant message`));
+});
+
+test("invalid revisions are reported while the chat turn succeeds", async () => {
+  const { store, turn, narrativeId } = setup({ replies: [
+    { answer: "A strong claim here.", questions: [], revisions: [] },
+    { answer: "I could not apply that.", questions: [], revisions: [{ message: null, quote: "A powerful claim here.", correction: "Changed" }] },
+  ] });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Q", llm: SONNET });
+  const second = await turn({ threadId: first.threadId, text: "Actually", llm: SONNET });
+  assert.equal(store.listArtifacts(store.getArtifact(second.messageId).sessionId, "Revision").length, 0);
+  assert.match(store.getArtifact<ChatMessageData>(second.messageId).data.revisionErrors?.[0] ?? "", /quote not found/);
+});
+
+test("missing structured JSON fails after keeping the user message", async () => {
+  const { store, session, turn, narrativeId } = setup({ replies: [undefined] });
+  await assert.rejects(turn({ anchor: `${narrativeId}#c1`, text: "Q", llm: SONNET }), /not valid JSON/);
+  const thread = store.listArtifacts(session.id, "ChatThread")[0];
+  assert.deepEqual(messages(store, session.id, thread.id).map((m) => m.role), ["user"]);
 });
 
 test("chat passes session MCP tools on first and resumed turns and includes selected quote", async () => {

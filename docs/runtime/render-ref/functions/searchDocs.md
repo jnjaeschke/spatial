@@ -6,9 +6,13 @@
 
 # Function: searchDocs()
 
-> **searchDocs**(`artifact`): [`SearchDoc`](../interfaces/SearchDoc.md)[]
+> **searchDocs**(`view`, `artifact`): [`SearchDoc`](../interfaces/SearchDoc.md)[]
 
 ## Parameters
+
+### view
+
+[`SessionView`](../interfaces/SessionView.md)
 
 ### artifact
 

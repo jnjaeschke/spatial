@@ -93,7 +93,10 @@ export interface Artifact<T = unknown> {
 /** An artifact id, or `<artifactId>#<subId>` addressing a part of one (change id, hunk id). */
 export type Ref = string;
 
-export type LinkKind = "derivedFrom" | "supports" | "about" | "reply";
+export type LinkKind = "derivedFrom" | "supports" | "about" | "reply" | "revises";
+
+/** Data of a `Revision` artifact: a wrong span and its correction. Linked `revises → message`, `derivedFrom → the assistant message that made the revision`. */
+export interface RevisionData { quote: string; correction: string }
 
 /** Data of a `ChatThread` artifact; linked `about → anchor`. */
 export interface ChatThreadData {
@@ -108,6 +111,10 @@ export interface ChatMessageData {
   text: string;
   llm?: LlmSelection;
   providerSessionId?: string;
+  /** Questions the assistant asks the user. */
+  questions?: string[];
+  /** Revisions from this reply that were not applied, with the reason. */
+  revisionErrors?: string[];
 }
 
 export interface Link {

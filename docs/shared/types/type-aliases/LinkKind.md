@@ -6,4 +6,4 @@
 
 # Type Alias: LinkKind
 
-> **LinkKind** = `"derivedFrom"` \| `"supports"` \| `"about"` \| `"reply"`
+> **LinkKind** = `"derivedFrom"` \| `"supports"` \| `"about"` \| `"reply"` \| `"revises"`

@@ -14,9 +14,11 @@ import type { Session, SessionState } from "../../src/shared/types.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
+const CHAT_REPLY = { answer: "hi", questions: [], revisions: [] };
+const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { return { text: prompt.schema ? "" : "hi", json: prompt.schema ? NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { const chat = replyFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -90,7 +92,8 @@ test("narrate rejects a second request while narration is running", async () => 
     ...llm,
     async run(selection, prompt) {
       if (prompt.schema) { started(); await gate; }
-      return { text: prompt.schema ? "" : "hi", json: prompt.schema ? NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+      const chat = replyFor(prompt);
+      return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
   const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
@@ -138,8 +141,9 @@ test("turns: first turn creates thread; busy thread is 409", async () => {
   const gatedLlm: LlmService = {
     ...llm,
     async run(selection, prompt) {
-      if (block && !prompt.schema) { started(); await gate; }
-      return { text: prompt.schema ? "" : "hi", json: prompt.schema ? NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+      if (block && replyFor(prompt)) { started(); await gate; }
+      const chat = replyFor(prompt);
+      return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
   const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });

@@ -24,6 +24,7 @@
 - [PatchNarrativeData](interfaces/PatchNarrativeData.md)
 - [Provenance](interfaces/Provenance.md)
 - [ResolvedSpec](interfaces/ResolvedSpec.md)
+- [RevisionData](interfaces/RevisionData.md)
 - [RuntimeEvent](interfaces/RuntimeEvent.md)
 - [SemanticChange](interfaces/SemanticChange.md)
 - [Session](interfaces/Session.md)

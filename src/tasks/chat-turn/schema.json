@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["answer", "questions", "revisions"],
+  "properties": {
+    "answer": { "type": "string" },
+    "questions": { "type": "array", "items": { "type": "string" } },
+    "revisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["message", "quote", "correction"],
+        "properties": {
+          "message": { "type": ["string", "null"] },
+          "quote": { "type": "string" },
+          "correction": { "type": "string" }
+        }
+      }
+    }
+  }
+}

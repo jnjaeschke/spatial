@@ -25,6 +25,12 @@ const narrative = {
 const out = join(dir, "claude.json");
 writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```", structured_output: narrative, session_id: "stub-session", usage: { input_tokens: 1, output_tokens: 1 } }));
 process.env.FAKE_LLM_STDOUT = out;
+const chatOut = join(dir, "chat.json");
+const chatAnswer = "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```";
+writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [] }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+const revisedOut = join(dir, "revised-chat.json");
+writeFileSync(revisedOut, JSON.stringify({ type: "result", is_error: false, result: "You are right, corrected.", structured_output: { answer: "You are right, corrected.", questions: [], revisions: [{ message: null, quote: "Stub answer.", correction: "Corrected stub answer." }] }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ "THAT IS WRONG": revisedOut, '"revisions"': chatOut });
 process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
