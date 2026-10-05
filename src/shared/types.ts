@@ -98,6 +98,8 @@ export type LinkKind = "derivedFrom" | "supports" | "about" | "reply";
 /** Data of a `ChatThread` artifact; linked `about → anchor`. */
 export interface ChatThreadData {
   anchor: Ref;
+  quote?: string;
+  lines?: { path: string; side: "old" | "new"; start: number; end: number };
 }
 
 /** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. */

@@ -15,12 +15,12 @@ export const FileViewContext = createContext<((file: OpenFile) => void) | null>(
 const SIGN = { ctx: " ", add: "+", del: "-" } as const;
 
 /** `oldHref` links old-side line numbers (e.g. to Searchfox). */
-export function DiffRows({ rows, hunkId, oldHref }: { rows: Row[]; hunkId?: string; oldHref?: (line: number) => string }) {
+export function DiffRows({ rows, hunkId, diffId, path, oldHref }: { rows: Row[]; hunkId?: string; diffId: string; path: string; oldHref?: (line: number) => string }) {
   return <>{rows.map((row, i) => {
     const inHunk = hunkId !== undefined && row.hunkId !== undefined;
     const target = hunkId !== undefined && row.hunkId === hunkId;
     const classes = [row.kind, inHunk && "in-hunk", target && "target"].filter(Boolean).join(" ");
-    return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId}>
+    return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId} data-anchor={`${diffId}#${row.hunkId ?? hunkId}`} data-path={path} data-old={row.old} data-new={row.new}>
       <td className="ln">{oldHref && row.old !== undefined ? <a href={oldHref(row.old)} target="_blank" rel="noreferrer">{row.old}</a> : row.old ?? ""}</td><td className="ln">{row.new ?? ""}</td><td className="sign">{SIGN[row.kind]}</td><td className="code">{row.text}</td>
     </tr>;
   })}</>;
@@ -68,7 +68,7 @@ export function FilePanel({ sessionId, diff, open, onClose }: {
   return <aside className="file-panel" data-testid="file-panel">
     <header><span>{open.path}</span><button aria-label="Close file" onClick={onClose}>×</button></header>
     <div className="file-panel-body" ref={body}>
-      {file && <div className="diff"><table><tbody><DiffRows rows={rows} hunkId={open.hunkId} /></tbody></table></div>}
+      {file && <div className="diff"><table><tbody><DiffRows rows={rows} hunkId={open.hunkId} diffId={diff.id} path={file.path} /></tbody></table></div>}
       {error && <p className="file-panel-error">{error}</p>}
     </div>
   </aside>;

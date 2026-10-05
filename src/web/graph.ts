@@ -1,5 +1,6 @@
 import dagre from "@dagrejs/dagre";
 import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, PatchNarrativeData, Ref, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Draft } from "./chat-context.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
@@ -22,6 +23,7 @@ export interface ChangeNodeData {
 
 export interface SummaryNodeData {
   kind: "summary";
+  narrativeId: string;
   summary: string;
   commits: Commit[];
   changeCount: number;
@@ -32,6 +34,8 @@ export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
 export interface ChatNodeData {
   kind: "chat";
   anchor: Ref;
+  quote?: string;
+  lines?: ChatThreadData["lines"];
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
   threadId: string | null;
@@ -59,7 +63,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null },
+    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {
@@ -86,7 +90,7 @@ export function anchorNodeId(anchor: Ref, narrativeId: string, narrative: PatchN
   return null;
 }
 
-export function sessionGraph(state: SessionState, drafts: { id: string; anchor: Ref; taskId?: string }[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
+export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
@@ -120,13 +124,13 @@ export function sessionGraph(state: SessionState, drafts: { id: string; anchor: 
     const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
       .map((l) => state.artifacts.find((a) => a.id === l.from))
       .filter((a): a is Artifact<ChatMessageData> => !!a);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, diffId: latest.diff.id, hunks: allHunks, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId: latest.diff.id, hunks: allHunks, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
     const node = anchorNodeId(draft.anchor, latest.narrative.id, latest.narrative.data, latest.diff.id);
     if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
   return g;

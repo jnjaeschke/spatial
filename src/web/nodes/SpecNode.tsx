@@ -8,7 +8,7 @@ export function SpecNode({ data }: NodeProps<SpecFlowNode>) {
   const { ref, level } = data;
   const r = ref.data.resolved;
   return (
-    <div className={`node spec-node level-${level}`} data-testid={`spec-${ref.id}`}>
+    <div className={`node spec-node level-${level}`} data-anchor={ref.id} data-testid={`spec-${ref.id}`}>
       <Handle type="source" position={Position.Left} />
       <div className="title">{r ? `${r.spec}#${r.anchor}` : ref.data.url}{ref.status !== "verified" && <span className="badge unverified">unverified</span>}{ref.status === "verified" && ref.data.origin === "code" && <span className="badge cited">cited in code</span>}{ref.status === "verified" && ref.data.origin === "llm" && <span className="badge inferred">inferred</span>}</div>
       {level !== "patch" && <div className="body nodrag nopan">

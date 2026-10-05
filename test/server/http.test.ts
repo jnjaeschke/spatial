@@ -151,6 +151,15 @@ test("turns: first turn creates thread; busy thread is 409", async () => {
   }
 });
 
+test("turns reject selected quotes over 20000 characters", async () => {
+  const s = await newSession();
+  const response = await post(`/api/sessions/${s.id}/turns`, {
+    anchor: "anything", text: "why?", quote: "x".repeat(20001),
+    llm: { backend: "claude", model: "sonnet", effort: "medium" },
+  });
+  assert.equal(response.status, 400);
+});
+
 test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {
   const session = await newSession();
   const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });

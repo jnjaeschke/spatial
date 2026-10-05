@@ -30,9 +30,10 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   return (
     <div className={`node chat-node level-${data.level}`} data-testid={`chat-${id}`}>
       <Handle type="source" position={Position.Left} />
+      {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <div className="messages body nodrag nopan nowheel">
         {data.messages.map((m) => (
-          <div key={m.id} className={`msg ${m.data.role}`}>
+          <div key={m.id} className={`msg ${m.data.role}`} data-anchor={m.id}>
             {m.data.role === "assistant"
               ? <Markdown remarkPlugins={[remarkGfm]} components={{
                 code: ({ className, children }) => {
@@ -53,7 +54,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
       <form className="nodrag nopan" onSubmit={(e) => {
         e.preventDefault();
         setError(null);
-        const body = data.threadId ? { threadId: data.threadId, text, llm } : { anchor: data.anchor, text, llm };
+        const body = data.threadId ? { threadId: data.threadId, text, llm } : { anchor: data.anchor, text, llm, ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
         api.turn(actions.sessionId, body).then(({ taskId }) => {
           setText("");
           if (data.draftId) actions.onSent(data.draftId, taskId);

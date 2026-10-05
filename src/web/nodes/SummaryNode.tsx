@@ -16,7 +16,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
       ].filter(Boolean).join(", ")}`
   );
   return (
-    <div className={`node summary-node level-${data.level}`} data-testid="summary">
+    <div className={`node summary-node level-${data.level}`} data-anchor={data.narrativeId} data-testid="summary">
       <div className="title">{data.changeCount} changes</div>
       <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>

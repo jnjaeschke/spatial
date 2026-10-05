@@ -11,7 +11,7 @@ export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
   const { change, level, files, hunks, sessionId, diffId } = data;
   const ask = useContext(AskContext);
   return (
-    <div className={`node change-node level-${level}`} data-testid={`change-${change.id}`} data-level={level}>
+    <div className={`node change-node level-${level}`} data-anchor={`${data.narrativeId}#${change.id}`} data-testid={`change-${change.id}`} data-level={level}>
       <Handle type="target" position={Position.Top} />
       <div className="title"><InlineText text={change.title} />{ask && level !== "patch" && <button aria-label={`Ask about ${change.id}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#${change.id}`)}>Ask</button>}</div>
       <div className="body nodrag nopan">

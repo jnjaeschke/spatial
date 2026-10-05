@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { LlmSelection, ModelsResponse, Progress, RuntimeEvent, Session, SessionState } from "../shared/types.ts";
+import type { ChatThreadData, LlmSelection, ModelsResponse, Progress, RuntimeEvent, Session, SessionState } from "../shared/types.ts";
 
 async function parse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -19,7 +19,7 @@ export const api = {
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
   narrate: (id: string, body: { base: string; head: string; llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
   models: () => get<ModelsResponse>("/api/llm/models"),
-  turn: (sessionId: string, body: { threadId?: string; anchor?: string; text: string; llm: LlmSelection }) =>
+  turn: (sessionId: string, body: { threadId?: string; anchor?: string; text: string; llm: LlmSelection; quote?: string; lines?: ChatThreadData["lines"] }) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/turns`, body),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
 };

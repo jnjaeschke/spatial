@@ -48,7 +48,7 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
       <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <button aria-label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</button>}</div>
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} />
+        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

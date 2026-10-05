@@ -13,3 +13,31 @@ Data of a `ChatThread` artifact; linked `about → anchor`.
 ### anchor
 
 > **anchor**: `string`
+
+***
+
+### lines?
+
+> `optional` **lines?**: `object`
+
+#### end
+
+> **end**: `number`
+
+#### path
+
+> **path**: `string`
+
+#### side
+
+> **side**: `"old"` \| `"new"`
+
+#### start
+
+> **start**: `number`
+
+***
+
+### quote?
+
+> `optional` **quote?**: `string`

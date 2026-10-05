@@ -3,8 +3,8 @@ import {
   Background, Controls, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
-import type { ModelsResponse, Ref, SessionState } from "../shared/types.ts";
-import { AskContext, ChatActionsContext } from "./chat-context.ts";
+import type { ModelsResponse, SessionState } from "../shared/types.ts";
+import { ChatActionsContext, type Draft } from "./chat-context.ts";
 import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
@@ -14,7 +14,8 @@ import { ChatNode } from "./nodes/ChatNode.tsx";
 
 const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode };
 
-interface Props { state: SessionState; models?: ModelsResponse | null }
+interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
+const NO_DRAFTS: Draft[] = [];
 
 export function Canvas(props: Props) {
   return (
@@ -24,7 +25,7 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ state, models = null }: Props) {
+function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {} }: Props) {
   const searchfox = useMemo(() => {
     const latest = latestNarrative(state);
     return latest ? searchfoxLinks(state, latest.diff.data) : null;
@@ -32,17 +33,13 @@ function CanvasInner({ state, models = null }: Props) {
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
   const anchor = useRef<string | null>(null);
-  const [drafts, setDrafts] = useState<{ id: string; anchor: Ref; taskId?: string }[]>([]);
+  const knownDrafts = useRef(new Set<string>());
   useEffect(() => {
-    const completed = new Set(state.artifacts.filter((a) => a.type === "ChatThread").map((a) => a.provenance.taskId));
-    setDrafts((current) => current.filter((d) => !d.taskId || !completed.has(d.taskId)));
-  }, [state]);
-  const ask = useCallback((ref: Ref) => {
-    const id = `draft-${crypto.randomUUID()}`;
-    anchor.current = id;
-    setDrafts((current) => [...current, { id, anchor: ref }]);
-  }, []);
-  const onSent = useCallback((draftId: string, taskId: string) => setDrafts((current) => current.map((d) => d.id === draftId ? { ...d, taskId } : d)), []);
+    const next = new Set(drafts.map((draft) => draft.id));
+    const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
+    knownDrafts.current = next;
+    if (added) anchor.current = added.id;
+  }, [drafts]);
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent } : null,
     [models, state.session.id, state.tasks, onSent]);
   const graph = useMemo(() => {
@@ -142,7 +139,7 @@ function CanvasInner({ state, models = null }: Props) {
   };
 
   return (
-    <AskContext.Provider value={models ? { ask } : null}><ChatActionsContext.Provider value={chatActions}>
+    <ChatActionsContext.Provider value={chatActions}>
     <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
       <ReactFlow
         nodes={nodes}
@@ -167,6 +164,6 @@ function CanvasInner({ state, models = null }: Props) {
         <Panel position="top-right"><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
     </div></SearchfoxContext.Provider>
-    </ChatActionsContext.Provider></AskContext.Provider>
+    </ChatActionsContext.Provider>
   );
 }

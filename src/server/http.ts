@@ -118,12 +118,19 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const body = await readJson(req);
       const text = str(body.text, "text");
       if (typeof body.llm !== "object" || body.llm === null) throw new HttpError(400, "Missing field: llm");
+      if (body.quote !== undefined && (typeof body.quote !== "string" || body.quote.length > 20_000)) throw new HttpError(400, "Invalid quote");
+      if (body.lines !== undefined) {
+        const lines = body.lines as Record<string, unknown>;
+        if (typeof lines !== "object" || lines === null || typeof lines.path !== "string" ||
+          (lines.side !== "old" && lines.side !== "new") || !Number.isInteger(lines.start) || !Number.isInteger(lines.end) ||
+          (lines.start as number) < 1 || (lines.end as number) < (lines.start as number)) throw new HttpError(400, "Invalid lines");
+      }
       const threadId = body.threadId as string | undefined;
       if (threadId && rt.store.listTasks(id).some((t) =>
         t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") && (t.input as { threadId?: string }).threadId === threadId)) {
         throw new HttpError(409, "A turn is already running in this thread");
       }
-      const { taskId, done } = rt.start(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, text, llm: body.llm });
+      const { taskId, done } = rt.start(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, text, llm: body.llm, quote: body.quote, lines: body.lines });
       done.catch((e) => console.error(`chatTurn ${taskId} failed: ${(e as Error).message}`));
       send(res, 202, { taskId });
     }],

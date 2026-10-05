@@ -88,6 +88,19 @@ test("chat passes session MCP tools on first and resumed turns and includes sele
   assert.deepEqual(calls[1].prompt.mcpServers, calls[0].prompt.mcpServers);
 });
 
+test("selection is stored on the thread and reused for fresh prompts", async () => {
+  const { store, calls, turn, narrativeId } = setup();
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", quote: "original selection", lines: { start: 2, end: 4, path: "dom/A.cpp", side: "new" }, llm: SONNET });
+  const thread = store.getArtifact<ChatThreadData>(first.threadId);
+  assert.equal(thread.data.quote, "original selection");
+  assert.deepEqual(thread.data.lines, { start: 2, end: 4, path: "dom/A.cpp", side: "new" });
+  await turn({ threadId: first.threadId, text: "Again", quote: "different selection", llm: LUNA });
+  assert.ok(calls[1].prompt.prompt.includes("original selection"));
+  assert.ok(!calls[1].prompt.prompt.includes("different selection"));
+  await turn({ threadId: first.threadId, text: "Third", quote: "ignored", llm: SONNET });
+  assert.equal(store.getArtifact<ChatThreadData>(first.threadId).data.quote, "original selection");
+});
+
 test("same selection resumes the provider session with only the new text", async () => {
   const { calls, turn, narrativeId } = setup();
   const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "Q1", llm: SONNET });

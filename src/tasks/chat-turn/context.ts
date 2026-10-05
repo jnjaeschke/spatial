@@ -1,11 +1,8 @@
-import type { Ref } from "../../shared/types.ts";
+import type { ChatThreadData, Ref } from "../../shared/types.ts";
 import type { SessionView } from "../../runtime/render-ref.ts";
 import { renderRef, sessionOverview } from "../../runtime/render-ref.ts";
 
-export interface SelectedText {
-  quote: string;
-  lines?: { start: number; end: number; path: string; side: string };
-}
+export interface SelectedText { quote: string; lines?: ChatThreadData["lines"] }
 
 function renderSelection(selection: SelectedText): string {
   const line = selection.lines
