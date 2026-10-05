@@ -233,6 +233,8 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
   await page.locator(".chat-node").filter({ has: answer }).getByRole("button", { name: "Collapse" }).click();
   await expect(answer).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
+  const strong = () => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0);
+  await expect.poll(strong).toBe(0);
 
   const quoteCenter = () => page.evaluate(() => {
     const box = ([...CSS.highlights.get("chat-quote")!][0] as Range).getBoundingClientRect();
@@ -254,6 +256,7 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
   const point = await quoteCenter();
   await page.mouse.move(point.x, point.y);
   await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/);
+  await expect.poll(strong).toBe(1);
   await page.mouse.click(point.x, point.y);
   await expect(answer).toBeVisible();
 

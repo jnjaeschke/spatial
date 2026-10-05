@@ -55,9 +55,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: ChatNodeData & { quote: string } } => n.data.kind === "chat" && !!n.data.quote), [graph]);
   const [hoveredChat, setHoveredChat] = useState<string | null>(null);
   const [focusedChat, setFocusedChat] = useState<string | null>(null);
-  const chatIds = useMemo(() => new Set(graph.nodes.filter((n) => n.data.kind === "chat").map((n) => n.id)), [graph]);
-  const activeChat = hoveredChat && chatIds.has(hoveredChat) ? hoveredChat
-    : focusedChat && chatIds.has(focusedChat) ? focusedChat : null;
+  const [hoveredQuote, setHoveredQuote] = useState<string | null>(null);
+  // Open chats only: a chat removed by collapsing gets no pointerout or focusout.
+  const chatIds = useMemo(() => new Set(shown.nodes.filter((n) => n.data.kind === "chat").map((n) => n.id)), [shown]);
+  const activeChat = hoveredQuote ?? (hoveredChat && chatIds.has(hoveredChat) ? hoveredChat
+    : focusedChat && chatIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
   const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat").map((n) => [n.id, n.anchors ?? []])), [shown]);
   const edges = useMemo<Edge[]>(() => shown.edges.map((e) => satelliteAnchors.has(e.source)
@@ -125,13 +127,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     }
   }, [sizeKey, nodes, rf, setNodes, shown]);
 
-  const collapsedChatAt = (x: number, y: number) => {
+  const quoteAt = (x: number, y: number) => {
     const highlight = CSS.highlights.get("chat-quote");
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
       if (hit.highlight !== highlight) continue;
       for (const range of hit.ranges) {
         const id = rangeOwner.current.get(range);
-        if (id && collapsed.has(id)) return id;
+        if (id) return id;
       }
     }
     return null;
@@ -143,21 +145,31 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     let frame = 0;
     const click = (event: MouseEvent) => {
       if (!getSelection()?.isCollapsed) return;
-      const id = collapsedChatAt(event.clientX, event.clientY);
-      if (!id) return;
+      const id = quoteAt(event.clientX, event.clientY);
+      if (!id || !collapsed.has(id)) return;
       anchor.current = id;
       toggle(id);
     };
     const move = (event: PointerEvent) => {
-      const over = collapsedChatAt(event.clientX, event.clientY) !== null;
+      const id = quoteAt(event.clientX, event.clientY);
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => el.classList.toggle("over-collapsed-quote", over));
+      frame = requestAnimationFrame(() => {
+        setHoveredQuote(id);
+        el.classList.toggle("over-collapsed-quote", id !== null && collapsed.has(id));
+      });
+    };
+    const leave = () => {
+      cancelAnimationFrame(frame);
+      setHoveredQuote(null);
+      el.classList.remove("over-collapsed-quote");
     };
     el.addEventListener("click", click);
     el.addEventListener("pointermove", move);
+    el.addEventListener("pointerleave", leave);
     return () => {
       el.removeEventListener("click", click);
       el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerleave", leave);
       cancelAnimationFrame(frame);
       el.classList.remove("over-collapsed-quote");
     };
