@@ -67,7 +67,7 @@ export function FilePanel({ sessionId, diff, open, onClose }: {
   return <aside className="file-panel" data-testid="file-panel">
     <header><span>{open.path}</span><button aria-label="Close file" onClick={onClose}>×</button></header>
     <div className="file-panel-body" ref={body}>
-      {file && <table><tbody><DiffRows rows={rows} hunkId={open.hunkId} /></tbody></table>}
+      {file && <div className="diff"><table><tbody><DiffRows rows={rows} hunkId={open.hunkId} /></tbody></table></div>}
       {error && <p className="file-panel-error">{error}</p>}
     </div>
   </aside>;

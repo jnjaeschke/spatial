@@ -67,6 +67,8 @@ test("open the whole file in the side panel", async ({ page }) => {
   await expect(panel.getByText("line 1", { exact: true })).toBeAttached();
   await expect(panel.getByText("line 60", { exact: true })).toBeAttached();
   await expect(panel.getByText("THIRTY", { exact: true })).toBeInViewport();
+  await expect(panel.locator("td.code").first()).toHaveCSS("white-space", "pre-wrap");
+  await expect(panel.locator("tr.add")).toHaveCSS("background-color", "rgb(230, 255, 236)");
   await panel.getByRole("button", { name: "Close file" }).click();
   await expect(panel).toHaveCount(0);
 });
