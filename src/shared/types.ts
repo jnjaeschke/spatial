@@ -68,6 +68,8 @@ export interface SessionState {
   tasks: TaskRecord[];
   /** Subscribe to events after this id to miss nothing. */
   lastEventId: number;
+  /** Searchfox source URL prefix for Gecko repos, else null. */
+  sourceBase: string | null;
 }
 
 export interface Provenance {

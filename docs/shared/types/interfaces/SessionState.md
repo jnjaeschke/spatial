@@ -36,6 +36,14 @@ Subscribe to events after this id to miss nothing.
 
 ***
 
+### sourceBase
+
+> **sourceBase**: `string` \| `null`
+
+Searchfox source URL prefix for Gecko repos, else null.
+
+***
+
 ### tasks
 
 > **tasks**: [`TaskRecord`](TaskRecord.md)[]

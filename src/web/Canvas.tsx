@@ -3,18 +3,16 @@ import {
   Background, Controls, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
-import type { Artifact, DiffData, PatchNarrativeData } from "../shared/types.ts";
-import { estimateSize, layout, narrativeGraph, NODE_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
+import type { SessionState } from "../shared/types.ts";
+import { estimateSize, layout, placeSatellites, sessionGraph, NODE_WIDTH, zoomLevel, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
+import { SpecNode } from "./nodes/SpecNode.tsx";
+import { SourceBaseContext } from "./DiffView.tsx";
 
-const nodeTypes = { change: ChangeNode, summary: SummaryNode };
+const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode };
 
-interface Props {
-  sessionId: string;
-  narrative: Artifact<PatchNarrativeData>;
-  diff: Artifact<DiffData>;
-}
+interface Props { state: SessionState }
 
 export function Canvas(props: Props) {
   return (
@@ -24,11 +22,13 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ sessionId, narrative, diff }: Props) {
+function CanvasInner({ state }: Props) {
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
-  const graph = useMemo(() => narrativeGraph(narrative, diff), [narrative, diff]);
-  const edges = useMemo<Edge[]>(() => graph.edges.map((e) => ({ ...e, type: "smoothstep" })), [graph]);
+  const graph = useMemo(() => sessionGraph(state), [state]);
+  const graphNodes = graph?.nodes ?? [];
+  const graphEdges = graph?.edges ?? [];
+  const edges = useMemo<Edge[]>(() => graphEdges.map((e) => ({ ...e, type: graphNodes.find((n) => n.id === e.source)?.data.kind === "spec" ? "straight" : "smoothstep", style: graphNodes.find((n) => n.id === e.source)?.data.kind === "spec" ? { strokeDasharray: "4 4" } : undefined })), [graphEdges, graphNodes]);
   const [level, setLevel] = useState<ZoomLevel>("concept");
   const levelRef = useRef(level);
   levelRef.current = level;
@@ -45,28 +45,39 @@ function CanvasInner({ sessionId, narrative, diff }: Props) {
 
   useEffect(() => offsets.current.clear(), [graph]);
 
+  const arrange = (sized: { id: string; width: number; height: number; data: typeof graphNodes[number]["data"] }[]) => {
+    const main = sized.filter((n) => n.data.kind !== "spec");
+    const mainIds = new Set(main.map((n) => n.id));
+    const mainEdges = graphEdges.filter((e) => mainIds.has(e.source) && mainIds.has(e.target));
+    const mainPos = layout(main, mainEdges);
+    const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
+    const satellites = sized.filter((n) => n.data.kind === "spec").map((n) => ({ id: n.id, width: n.width, height: n.height, anchors: graphNodes.find((g) => g.id === n.id)?.anchors ?? [] }));
+    return new Map([...mainPos, ...placeSatellites(rects, satellites)]);
+  };
+
   useEffect(() => {
-    const sized = graph.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data, level) }));
-    const pos = layout(sized, graph.edges);
+    if (!graph) { setNodes([]); return; }
+    const sized = graph.nodes.map((n) => ({ id: n.id, data: n.data, ...estimateSize(n.data, level) }));
+    const pos = arrange(sized);
     basePos.current = pos;
     laidOutKey.current = "";
     setNodes(graph.nodes.map((n) => ({
       id: n.id,
       type: n.data.kind,
-      data: { ...n.data, sessionId, level },
+      data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
-      style: { width: NODE_WIDTH[level] },
+      style: { width: n.data.kind === "spec" ? 420 : NODE_WIDTH[level] },
       draggable: true,
       dragHandle: ".title",
     })));
-  }, [graph, level, setNodes]);
+  }, [graph, level, setNodes, state.session.id]);
 
   const sizeKey = nodes.map((n) => `${n.id}:${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`).join("|");
   useEffect(() => {
-    if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
+    if (!graph || nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
     if (sizeKey === laidOutKey.current) return;
     laidOutKey.current = sizeKey;
-    const pos = layout(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), graph.edges);
+    const pos = arrange(nodes.map((n) => ({ id: n.id, data: n.data as unknown as typeof graphNodes[number]["data"], width: n.measured!.width!, height: n.measured!.height! })));
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
@@ -75,7 +86,7 @@ function CanvasInner({ sessionId, narrative, diff }: Props) {
       rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
     }
-  }, [sizeKey, nodes, graph.edges, rf, setNodes]);
+  }, [sizeKey, nodes, graphEdges, rf, setNodes, graph]);
 
   const nodeNearestCenter = useCallback((): string | null => {
     const el = container.current;
@@ -109,7 +120,7 @@ function CanvasInner({ sessionId, narrative, diff }: Props) {
   };
 
   return (
-    <div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
+    <SourceBaseContext.Provider value={state.sourceBase}><div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -132,6 +143,6 @@ function CanvasInner({ sessionId, narrative, diff }: Props) {
         <Controls showInteractive={false} />
         <Panel position="top-right"><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
-    </div>
+    </div></SourceBaseContext.Provider>
   );
 }

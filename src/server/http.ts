@@ -70,7 +70,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
-      return buildSessionState(rt.store, params[0]);
+      return await buildSessionState(rt.store, rt.searchfox, params[0]);
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {
       const id = requireSession(rt, params[0]).id;

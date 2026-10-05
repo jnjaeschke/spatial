@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, Commit, DiffData, DiffFile, Hunk, PatchNarrativeData, SemanticChange, SessionState } from "../shared/types.ts";
+import type { Artifact, Commit, DiffData, DiffFile, Hunk, PatchNarrativeData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
@@ -25,8 +25,10 @@ export interface SummaryNodeData {
   changeCount: number;
 }
 
-export type GraphNodeData = ChangeNodeData | SummaryNodeData;
-export interface GraphNode { id: string; data: GraphNodeData }
+export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
+
+export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData;
+export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 
 export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {
@@ -58,10 +60,45 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   return { nodes, edges };
 }
 
+export function sessionGraph(state: SessionState): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
+  const latest = latestNarrative(state);
+  if (!latest) return null;
+  const g = narrativeGraph(latest.narrative, latest.diff);
+  const prefix = `${latest.narrative.id}#`;
+  const anchorsBySpec = new Map<string, string[]>();
+  for (const l of state.links) {
+    if (l.kind === "supports" && l.to.startsWith(prefix)) anchorsBySpec.set(l.from, [...(anchorsBySpec.get(l.from) ?? []), l.to]);
+  }
+  for (const a of state.artifacts) {
+    const anchors = anchorsBySpec.get(a.id);
+    if (a.type !== "SpecReference" || !anchors) continue;
+    g.nodes.push({ id: a.id, anchors, data: { kind: "spec", ref: a as Artifact<SpecReferenceData> } });
+    for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
+  }
+  return g;
+}
+
+const SATELLITE_GAP_X = 80;
+const SATELLITE_GAP_Y = 24;
+
+export function placeSatellites(main: Map<string, { x: number; y: number; width: number; height: number }>, satellites: { id: string; width: number; height: number; anchors: string[] }[]): Map<string, { x: number; y: number }> {
+  const x = Math.max(...[...main.values()].map((r) => r.x + r.width)) + SATELLITE_GAP_X;
+  const anchorY = (s: { anchors: string[] }) => Math.min(...s.anchors.map((a) => main.get(a)?.y ?? Infinity));
+  const out = new Map<string, { x: number; y: number }>();
+  let nextFree = -Infinity;
+  for (const s of [...satellites].sort((a, b) => anchorY(a) - anchorY(b))) {
+    const y = Math.max(anchorY(s), nextFree);
+    out.set(s.id, { x, y });
+    nextFree = y + s.height + SATELLITE_GAP_Y;
+  }
+  return out;
+}
+
 const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text.length / charsPerLine));
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+  if (data.kind === "spec") return { width: 420, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   const width = NODE_WIDTH[level];
   if (data.kind === "summary") {
     return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 };

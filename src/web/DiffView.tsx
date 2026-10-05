@@ -1,10 +1,11 @@
-import { useContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { DiffFile, Hunk } from "../shared/types.ts";
 import { fileRows, numberLines, type Row } from "./diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
-import { DiffRows, FileViewContext } from "./FilePanel.tsx";
+import { FileViewContext } from "./FilePanel.tsx";
 
 const STEP = 20;
+export const SourceBaseContext = createContext<string | null>(null);
 
 /** Read-only hunk. `nodrag nopan` lets users select text instead of moving the canvas. */
 export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk }) {
@@ -13,6 +14,7 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   const [lines, setLines] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const openFile = useContext(FileViewContext);
+  const base = useContext(SourceBaseContext);
   const canExpand = file.status === "modified" || file.status === "renamed";
   const expand = async (side: "above" | "below") => {
     try {
@@ -39,10 +41,13 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
-      <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path} <span className="hunk-header">{hunk.header}</span></div>
+      <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{base && file.status !== "added" && <> <a className="sf-link" href={`${base}${file.oldPath ?? file.path}`} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span></div>
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} />
+        {rows.map((row, i) => <tr key={`${row.hunkId ?? "context"}-${i}`} className={row.kind} data-hunk={row.hunkId}>
+          <td className="ln">{base && row.old !== undefined && file.status !== "added" ? <a href={`${base}${file.oldPath ?? file.path}#${row.old}`} target="_blank" rel="noreferrer">{row.old}</a> : row.old ?? ""}</td>
+          <td className="ln">{row.new ?? ""}</td><td className="sign">{{ ctx: " ", add: "+", del: "-" }[row.kind]}</td><td className="code">{row.text}</td>
+        </tr>)}
         {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

@@ -1,5 +1,6 @@
 {
   "session": { "id": "S", "repo": "/fixture", "title": "fixture", "createdAt": "2026-10-05T00:00:00.000Z" },
+  "sourceBase": "https://searchfox.org/firefox-main/source/",
   "artifacts": [
     {
       "id": "D", "sessionId": "S", "type": "Diff", "status": "verified", "createdAt": "2026-10-05T00:00:01.000Z", "provenance": { "taskId": "t1" },
@@ -58,9 +59,17 @@
           { "id": "c3", "title": "Assert ordering in FireNavigateSuccess", "explanation": "Asserts no commit is pending when navigatesuccess fires.", "rationale": "Likely guards against regressions of the ordering fixed in c2.", "hunkIds": ["f1h1"], "dependsOn": ["c1"], "specUrls": [] }
         ]
       }
+    },
+    {
+      "id": "R", "sessionId": "S", "type": "SpecReference", "status": "verified", "createdAt": "2026-10-05T00:00:03.000Z", "provenance": { "taskId": "t3" },
+      "data": {
+        "url": "https://html.spec.whatwg.org/#navigate",
+        "resolved": { "spec": "HTML", "anchor": "navigate", "title": "navigate", "type": "algorithm", "url": "https://html.spec.whatwg.org/#navigate", "content": "To **navigate** a [navigable](HTML#navigable) *navigable* to a [URL](URL#concept-url) *url*: ... 20. Fire [navigatesuccess](HTML#event-navigatesuccess) after the commit." },
+        "geckoRefs": [{ "group": "Code", "path": "dom/navigation/Navigation.cpp", "line": 120, "url": "https://searchfox.org/firefox-main/source/dom/navigation/Navigation.cpp#120" }]
+      }
     }
   ],
-  "links": [],
+  "links": [{ "id": "L1", "sessionId": "S", "from": "R", "to": "N#c2", "kind": "supports" }],
   "tasks": [],
   "lastEventId": 0
 }

@@ -75,6 +75,7 @@ test("narrate runs in background and state reflects the result", async () => {
   });
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
+  assert.equal(state.sourceBase, null);
 });
 
 test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {

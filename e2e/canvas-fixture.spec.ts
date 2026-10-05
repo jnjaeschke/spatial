@@ -89,3 +89,21 @@ test("dragging a node by its title survives relayout until reset", async ({ page
   await page.waitForTimeout(400);
   expect(Math.abs(dragged - await relX() - offset)).toBeLessThan(1);
 });
+
+test("spec node sits right of the story and diff lines link to Searchfox", async ({ page }) => {
+  await page.goto(URL);
+  const spec = page.getByTestId("spec-R");
+  await expect(spec).toBeVisible();
+  await expect(spec.getByText("unverified")).toHaveCount(0);
+  const specBox = (await spec.boundingBox())!;
+  for (const id of ["change-c1", "change-c2", "change-c3"]) {
+    const b = (await page.getByTestId(id).boundingBox())!;
+    expect(specBox.x).toBeGreaterThan(b.x + b.width);
+  }
+  await zoomUntil(page, "zoom in", "code");
+  await expect(page.getByTestId("hunk-f1h0").locator("td.ln a").first())
+    .toHaveAttribute("href", "https://searchfox.org/firefox-main/source/dom/navigation/Navigation.cpp#200");
+  await expect(spec.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
+  await expect(page.getByTestId("change-c1").locator(".explanation a.code-link").first())
+    .toHaveAttribute("href", /^https:\/\/searchfox\.org\/firefox-main\/search\?q=/);
+});
