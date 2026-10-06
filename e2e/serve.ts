@@ -51,27 +51,44 @@ process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 const arcrc = join(dir, "arcrc");
 writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
 process.env.SPATIAL_ARCRC_PATH = arcrc;
+type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string> };
+const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {} }]]);
+const defaultRawDiff = await makeGit(repo.dir).diff(base, head);
 const conduit = createServer(async (req, res) => {
   let body = "";
   for await (const chunk of req) body += chunk;
+  if (req.method === "POST" && req.url === "/control") {
+    const update = JSON.parse(body || "{}");
+    const state = conduitStates.get(update.revision) ?? { diffs: [1], transactions: [], rawDiffs: {} };
+    if (update.diffs) state.diffs = update.diffs;
+    if (update.transactions) state.transactions = update.transactions;
+    if (update.rawDiffs) state.rawDiffs = update.rawDiffs;
+    conduitStates.set(update.revision, state);
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true }));
+    return;
+  }
   const form = new URLSearchParams(body);
   const method = req.url!.slice("/api/".length);
-  if (JSON.parse(form.get("params") ?? "{}").__conduit__?.token !== "test-token") {
+  const params = JSON.parse(form.get("params") ?? "{}");
+  if (params.__conduit__?.token !== "test-token") {
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: "ERR-INVALID-SESSION", error_info: "Session key is not present.", result: null }));
     return;
   }
-  const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1" }] }
-    : method === "differential.diff.search" ? { data: [{ id: 1 }] }
-      : method === "differential.getrawdiff" ? await makeGit(repo.dir).diff(base, head)
+  const revisionId = Number(params.constraints?.ids?.[0] ?? params.revisionID ?? params.objectIdentifier?.replace("PHID-DREV-", "") ?? params.constraints?.revisionPHIDs?.[0]?.replace("PHID-DREV-", "") ?? 1);
+  const conduitState = conduitStates.get(revisionId) ?? { diffs: [1], transactions: [], rawDiffs: {} };
+  const result = method === "differential.revision.search" ? { data: [{ phid: `PHID-DREV-${revisionId}` }] }
+    : method === "differential.diff.search" ? { data: conduitState.diffs.map((id) => ({ id, phid: `PHID-DIFF-${id}`, fields: { revisionPHID: `PHID-DREV-${revisionId}` } })) }
+      // `getrawdiff` names no revision; diff ids are unique across revisions, as on Phabricator.
+      : method === "differential.getrawdiff" ? [...conduitStates.values()].find((state) => state.rawDiffs[params.diffID])?.rawDiffs[params.diffID] ?? (params.diffID === 1 ? defaultRawDiff : defaultRawDiff.replace("THIRTY", "THIRTY-X"))
           : method === "differential.createinline" ? { id: 77 }
-            : method === "transaction.search" ? { data: [], cursor: { limit: "50", after: null, before: null } }
+            : method === "transaction.search" ? { data: conduitState.transactions, cursor: { limit: "50", after: null, before: null } }
               : method === "user.whoami" ? { phid: "PHID-USER-me", userName: "me", realName: "Me" }
-                : method === "user.search" ? { data: [] }
+                : method === "user.search" ? { data: [{ phid: "PHID-USER-alice", fields: { username: "alice", realName: "Alice" } }] }
           : null;
   res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
 });
-await new Promise<void>((resolve) => conduit.listen(0, "127.0.0.1", resolve));
-process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${(conduit.address() as import("node:net").AddressInfo).port}`;
+await new Promise<void>((resolve) => conduit.listen(4179, "127.0.0.1", resolve));
+process.env.SPATIAL_CONDUIT_BASE_URL = "http://127.0.0.1:4179";
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
 await createSession(rt.store, repo.dir, "fixture");
