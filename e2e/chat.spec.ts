@@ -211,7 +211,6 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
     return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
   }).toBeLessThan(40);
 
-  console.log("DBG", JSON.stringify(await thread.boundingBox()), JSON.stringify(await row.boundingBox()), JSON.stringify(await page.getByTestId("hunk-f0h0").boundingBox()), JSON.stringify(await page.getByTestId("change-c1").boundingBox()));
   await thread.getByLabel("message").focus();
   await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(1);
   await page.locator(".react-flow__pane").click({ position: { x: 5, y: 5 } });
