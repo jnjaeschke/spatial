@@ -19,6 +19,9 @@ const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, ch
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
+const ARROW_PAN: Record<string, { x: number; y: number }> = {
+  ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
+};
 
 export function Canvas(props: Props) {
   return (
@@ -269,6 +272,22 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     };
   }, [quoted, activeQuote]);
 
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const keydown = (event: KeyboardEvent) => {
+      const step = ARROW_PAN[event.key];
+      if (!step || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+      event.preventDefault();
+      autoFit.current = false;
+      const vp = rf.getViewport();
+      void rf.setViewport({ ...vp, x: vp.x - step.x, y: vp.y - step.y });
+    };
+    el.addEventListener("keydown", keydown);
+    return () => el.removeEventListener("keydown", keydown);
+  }, [rf]);
+
   const nodeNearestCenter = useCallback((): string | null => {
     const el = container.current;
     if (!el) return null;
@@ -302,7 +321,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" style={{ width: "100%", height: "100%" }}>
+    <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }}>
     <CollapseContext.Provider value={{ collapsed, toggle }}>
       <ReactFlow
         nodes={nodes}
@@ -317,6 +336,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
           offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
         }}
         onlyRenderVisibleElements
+        panOnScroll
+        disableKeyboardA11y
         minZoom={0.1}
         maxZoom={2}
       >

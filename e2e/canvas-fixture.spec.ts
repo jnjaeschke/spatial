@@ -131,3 +131,46 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
   await expect(page.getByTestId("change-c1").locator(".explanation a.code-link").first())
     .toHaveAttribute("href", /^https:\/\/searchfox\.org\/firefox-main\/search\?q=/);
 });
+
+test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {
+  await page.goto(URL);
+  const hunk = page.getByTestId("change-c1");
+  await expect(hunk).toBeVisible();
+  const viewport = () => page.locator(".react-flow__viewport").evaluate((el) => {
+    const m = new DOMMatrix(getComputedStyle(el).transform);
+    return { x: m.e, y: m.f, zoom: m.a };
+  });
+  const box = (await hunk.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 10);
+  await page.waitForTimeout(400);
+  const start = await viewport();
+
+  await page.mouse.wheel(0, 200);
+  await expect.poll(async () => (await viewport()).y).toBeLessThan(start.y);
+  expect((await viewport()).zoom).toBe(start.zoom);
+
+  await page.mouse.wheel(200, 0);
+  await expect.poll(async () => (await viewport()).x).toBeLessThan(start.x);
+  expect((await viewport()).zoom).toBe(start.zoom);
+
+  await hunk.click({ position: { x: 20, y: 10 } });
+  const before = await viewport();
+  const nodeBefore = await hunk.evaluate((el) => el.closest(".react-flow__node")!.getAttribute("style"));
+  await page.keyboard.press("ArrowDown");
+  await expect.poll(async () => (await viewport()).y).toBeLessThan(before.y);
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(async () => (await viewport()).x).toBeLessThan(before.x);
+  expect((await viewport()).zoom).toBe(before.zoom);
+  expect(await hunk.evaluate((el) => el.closest(".react-flow__node")!.getAttribute("style"))).toBe(nodeBefore);
+
+  const x = await page.evaluate(() => [...Array(60).keys()].map((i) => 10 + i * 20).find((x) => document.elementFromPoint(x, 650)?.classList.contains("react-flow__pane")));
+  await page.mouse.click(x!, 650);
+  const afterPaneClick = await viewport();
+  await page.keyboard.press("ArrowUp");
+  await expect.poll(async () => (await viewport()).y).toBeGreaterThan(afterPaneClick.y);
+
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -200);
+  await page.keyboard.up("Control");
+  await expect.poll(async () => (await viewport()).zoom).toBeGreaterThan(before.zoom);
+});
