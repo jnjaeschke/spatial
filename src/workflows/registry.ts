@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Id, LlmSelection, WorkflowId, WorkflowInfo } from "../shared/types.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "./narrate-patch.ts";
+import { defaultReviewRange } from "./review-range.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
@@ -17,26 +18,27 @@ export interface Workflow<P> extends WorkflowInfo {
 }
 
 const reviewParams = z.strictObject({
-  base: z.string().min(1).describe("Git ref the patch applies to"),
-  head: z.string().min(1).describe("Git ref of the patch head"),
-});
+  base: z.string().min(1).nullable().describe("Git ref the patch applies to; null together with head when the request names no refs"),
+  head: z.string().min(1).nullable().describe("Git ref of the patch head; null together with base when the request names no refs"),
+}).refine((params) => (params.base === null) === (params.head === null), "base and head must both be given or both be null");
 export type ReviewParams = z.infer<typeof reviewParams>;
 export type ReviewArgs = ReviewParams | { revision: { host: string | null; id: number } };
 
-/** `D123`, `https://host/D123`, or `<base>..<head>`. */
+/** `D123`, `https://host/D123`, `<base>..<head>`, or nothing (the default range). */
 export function parseReviewArgs(args: string): ParseResult<ReviewArgs> {
   const text = args.trim();
+  if (!text) return { ok: true, params: { base: null, head: null } };
   const revision = /^(?:(https?:\/\/[^\s/]+)\/)?D(\d+)\/?$/.exec(text);
   if (revision) return { ok: true, params: { revision: { host: revision[1] ?? null, id: Number(revision[2]) } } };
   const range = /^(\S+?)\.\.(\S+)$/.exec(text);
   if (range && !text.includes("...")) return { ok: true, params: { base: range[1]!, head: range[2]! } };
-  return { ok: false, error: "Usage: /review <D-number | base..head>" };
+  return { ok: false, error: "Usage: /review [D-number | base..head]" };
 }
 
 const review: Workflow<ReviewParams> = {
   id: "review",
-  description: "Review a local patch: narrate and review the commits between a base and a head git ref (for example HEAD~1 and HEAD, or main and a feature branch).",
-  argHint: "<D-number | base..head>",
+  description: "Review a local patch: narrate and review the changes between a base and a head git ref (for example main and a feature branch). With no refs it reviews the uncommitted changes in the work tree, or the latest commit when there are none.",
+  argHint: "[D-number | base..head]",
   params: reviewParams,
   parseArgs(args) {
     const parsed = parseReviewArgs(args);
@@ -45,7 +47,10 @@ const review: Workflow<ReviewParams> = {
     return { ok: true, params: parsed.params };
   },
   async start(rt, sessionId, { params, llm }) {
-    await narratePatch(rt, sessionId, { base: params.base, head: params.head, llm });
+    const range = params.base !== null && params.head !== null
+      ? { base: params.base, head: params.head }
+      : await defaultReviewRange(rt, sessionId);
+    await narratePatch(rt, sessionId, { ...range, llm });
   },
 };
 

@@ -13,7 +13,7 @@ test("typing / shows commands; filter, keyboard completion and Escape", async ({
   const list = page.getByRole("listbox", { name: "commands" });
   await expect(list.getByRole("option")).toHaveCount(2);
   await expect(list.getByRole("option").nth(0)).toContainText("/review");
-  await expect(list.getByRole("option").nth(0)).toContainText("<D-number | base..head>");
+  await expect(list.getByRole("option").nth(0)).toContainText("[D-number | base..head]");
   await expect(list.getByRole("option").nth(1)).toContainText("/chat");
   await expect(list.getByRole("option").nth(1)).toContainText("<message>");
 
@@ -63,7 +63,6 @@ test("bad commands show an inline error and create nothing", async ({ page, requ
   for (const [input, message] of [
     ["/nope x", "Unknown command /nope"],
     ["/review D292469", "not available yet"],
-    ["/review", "Usage: /review"],
     ["/chat", "Usage: /chat"],
   ]) {
     await box.fill(input);

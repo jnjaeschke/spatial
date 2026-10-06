@@ -99,7 +99,7 @@ test("workflow start routes support slash commands, selection, and validation", 
   await waitFor(async () => (await (await fetch(`${base}/api/sessions/${reviewSession.id}/state`)).json() as SessionState).artifacts.find((item) => item.type === "PatchNarrative"));
 
   const before = rt.store.listSessions().length;
-  for (const [text, error] of [["/nope x", /Unknown command \/nope/], ["/review D5", /not available yet/], ["/review", /Usage/], ["  ", /Request is empty/]] as const) {
+  for (const [text, error] of [["/nope x", /Unknown command \/nope/], ["/review D5", /not available yet/], ["  ", /Request is empty/]] as const) {
     const response = await post("/api/start", { path: repo.dir, text });
     assert.equal(response.status, 400);
     assert.match((await response.json() as { error: string }).error, error);

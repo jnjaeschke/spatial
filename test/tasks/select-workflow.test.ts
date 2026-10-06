@@ -44,6 +44,7 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.equal(schema.properties.params.anyOf.length, 2);
   assert.ok(!("$schema" in schema));
   for (const text of ["# Workflows", "- review:", "- chat:", "# Request", input]) assert.ok(setupResult.call?.prompt.includes(text), text);
+  assert.ok(setupResult.call?.system?.includes("both `base` and `head` to null"));
 });
 
 test("selector validates review params", async () => {
@@ -52,9 +53,16 @@ test("selector validates review params", async () => {
   assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: "main", head: "f" });
 });
 
+test("selector accepts a default review range", async () => {
+  const { store, rt, session } = setup({ workflow: "review", params: { base: null, head: null }, title: "Review" });
+  const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "Review this" });
+  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: null, head: null });
+});
+
 for (const [label, json, prompt, error] of [
   ["unknown workflow", { workflow: "deploy", params: {}, title: "x" }, "x", /unknown workflow/],
   ["invalid review params", { workflow: "review", params: { base: "main" }, title: "x" }, "x", /invalid params for review/],
+  ["half default review params", { workflow: "review", params: { base: "main", head: null }, title: "x" }, "x", /invalid params for review/],
   ["invalid chat params", { workflow: "chat", params: { x: 1 }, title: "x" }, "x", /invalid params for chat/],
   ["blank title", { workflow: "chat", params: {}, title: "  " }, "x", /no title/],
   ["empty prompt", { workflow: "chat", params: {}, title: "x" }, "  ", /Request is empty/],

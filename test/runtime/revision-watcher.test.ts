@@ -117,3 +117,22 @@ test("resolve errors are swallowed and logged once until the message changes", a
     store.close();
   }
 });
+
+test("snapshot sessions never announce a new revision", async () => {
+  const store = new Store(":memory:");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "snapshot" });
+  const resolved: string[] = [];
+  const runtime = new Runtime({ store, tasks: [], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+    git: () => ({ resolve: async (ref: string) => { resolved.push(ref); return "S1"; } } as unknown as GitCapability) });
+  const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: { baseSha: "B1", headSha: "S1", commits: [], files: [] }, provenance: { taskId: "test" } });
+  const task = store.createTask({ sessionId: session.id, kind: "importDiff", input: { base: "B1", head: "refs/spatial/worktree/0123456789ab" } });
+  store.updateTask(task.id, { status: "succeeded", output: { diffId: diff.id } });
+  const watcher = new RevisionWatcher(runtime);
+  const events: RuntimeEvent[] = [];
+  runtime.onEvent((event) => events.push(event));
+  watcher.watch(session.id);
+  for (let i = 0; i < 5; i++) await watcher.tick();
+  assert.deepEqual(events, []);
+  assert.ok(resolved.includes("refs/spatial/worktree/0123456789ab"));
+  store.close();
+});
