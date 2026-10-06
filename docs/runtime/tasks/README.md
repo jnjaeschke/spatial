@@ -14,6 +14,7 @@
 
 ## Interfaces
 
+- [BlameEntry](interfaces/BlameEntry.md)
 - [GitCapability](interfaces/GitCapability.md)
 - [RuntimeOptions](interfaces/RuntimeOptions.md)
 - [SearchfoxCapability](interfaces/SearchfoxCapability.md)

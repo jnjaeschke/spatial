@@ -29,6 +29,21 @@ test("resolve, isAncestor, log, diff", async () => {
 });
 
 // REQUIRES_REAL_GIT
+test("blame returns forward and reverse line ownership", async () => {
+  const r = makeRepo();
+  const base = r.commit({ "a.txt": "one\ntwo\nthree\n" }, "base");
+  const first = r.commit({ "a.txt": "one\nTWO\nthree\n" }, "first");
+  const head = r.commit({ "a.txt": "one\nTWO\n" }, "second");
+  const git = makeGit(r.dir);
+  const forward = await git.blame(base, head, "a.txt", "forward");
+  assert.equal(forward.find((entry) => entry.line === 2)?.sha, first);
+  assert.equal(forward.find((entry) => entry.line === 2)?.origLine, 2);
+  const reverse = await git.blame(base, head, "a.txt", "reverse");
+  assert.equal(reverse.find((entry) => entry.line === 2)?.sha, base);
+  assert.equal(reverse.find((entry) => entry.line === 3)?.sha, first);
+});
+
+// REQUIRES_REAL_GIT
 test("replay rebases a patch and reports conflicted paths", async () => {
   const clean = makeRepo();
   clean.commit({ "a.txt": Array.from({ length: 30 }, (_, i) => `line${i}`).join("\n") + "\n", "b.txt": "base\n" }, "base");

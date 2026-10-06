@@ -19,6 +19,8 @@ export interface SearchfoxCapability {
   tip(): Promise<{ repoBase: string; rev: string }>;
 }
 
+export interface BlameEntry { line: number; sha: string; origLine: number; path: string }
+
 /** Read-only git access bound to one session's repo. */
 export interface GitCapability {
   readonly effect: "read-only";
@@ -30,6 +32,8 @@ export interface GitCapability {
   log(baseSha: string, headSha: string): Promise<Commit[]>;
   /** Raw `git diff` text for `base..head`. */
   diff(baseSha: string, headSha: string): Promise<string>;
+  /** `git blame --porcelain`; line is in `rev` for forward, in `base` for reverse. */
+  blame(baseSha: string, rev: string, file: string, direction: "forward" | "reverse"): Promise<BlameEntry[]>;
   /** Replays `oldBase..oldHead` onto `newBase` (`git merge-tree --write-tree`). `tree` is the resulting tree id; it contains conflict markers for `conflicts` (paths, possibly empty). Writes only unreachable objects. */
   replay(oldBase: string, newBase: string, oldHead: string): Promise<{ tree: string; conflicts: string[] }>;
   /** File content at a commit. */

@@ -16,6 +16,36 @@ Read-only git access bound to one session's repo.
 
 ## Methods
 
+### blame()
+
+> **blame**(`baseSha`, `rev`, `file`, `direction`): `Promise`\<[`BlameEntry`](BlameEntry.md)[]\>
+
+`git blame --porcelain`; line is in `rev` for forward, in `base` for reverse.
+
+#### Parameters
+
+##### baseSha
+
+`string`
+
+##### rev
+
+`string`
+
+##### file
+
+`string`
+
+##### direction
+
+`"reverse"` \| `"forward"`
+
+#### Returns
+
+`Promise`\<[`BlameEntry`](BlameEntry.md)[]\>
+
+***
+
 ### diff()
 
 > **diff**(`baseSha`, `headSha`): `Promise`\<`string`\>

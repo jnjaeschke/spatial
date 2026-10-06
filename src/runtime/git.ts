@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import type { Commit, Session } from "../shared/types.ts";
 import type { Store } from "./store.ts";
 import type { GitCapability } from "./tasks.ts";
+import { parseBlame } from "./blame.ts";
 
 const run = promisify(execFile);
 const MAX_BUFFER = 512 * 1024 * 1024;
@@ -53,6 +54,12 @@ export function makeGit(repo: string): GitCapability {
     },
     async diff(baseSha, headSha) {
       return git(repo, ["diff", "--no-color", "--no-ext-diff", "-M", "-U3", baseSha, headSha]);
+    },
+    async blame(baseSha, rev, file, direction) {
+      const args = ["blame", "--porcelain"];
+      if (direction === "reverse") args.push("--reverse");
+      args.push(`${baseSha}..${rev}`, "--", file);
+      return parseBlame(await git(repo, args), file);
     },
     async replay(oldBase, newBase, oldHead) {
       let out: string;

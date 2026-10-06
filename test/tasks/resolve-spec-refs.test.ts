@@ -34,7 +34,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean }) {
   };
   const store = new Store(":memory:");
   const git: GitCapability = {
-    effect: "read-only", resolve: async () => "H", isAncestor: async () => true, mergeBase: async () => null,
+    effect: "read-only", resolve: async () => "H", isAncestor: async () => true, mergeBase: async () => null, blame: async () => [],
     log: async () => [], diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }),
     async show(sha, path) {
       showCalls.push(`${sha}:${path}`);

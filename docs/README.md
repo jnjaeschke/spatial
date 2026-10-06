@@ -7,6 +7,8 @@
 ## Modules
 
 - [mcp/session-server](mcp/session-server/README.md)
+- [runtime/attribution](runtime/attribution/README.md)
+- [runtime/blame](runtime/blame/README.md)
 - [runtime/conduit](runtime/conduit/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/drift](runtime/drift/README.md)

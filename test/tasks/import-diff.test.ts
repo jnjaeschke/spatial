@@ -36,6 +36,17 @@ test("imports a range as a verified Diff artifact", async () => {
   assert.equal(a.data.upstreamRev, undefined);
   assert.deepEqual(a.data.commits.map((c) => c.subject), ["Bug 1 - part 1", "Bug 1 - part 2"]);
   assert.deepEqual(a.data.files.map((f) => [f.path, f.status, f.hunks.map((h) => h.id)]), [["a.txt", "modified", ["f0h0"]], ["c.txt", "added", ["f1h0"]]]);
+  // The first commit's replacement and the second commit's added file retain stack ownership.
+  assert.deepEqual(a.data.files.map((f) => f.hunks.flatMap((h) => h.lines.filter((l) => l.kind === "add").map((l) => [l.text, l.commit]))), [[["TWO", 0]], [["c", 1]]]);
+});
+
+// REQUIRES_REAL_GIT
+test("single-commit import stores no line attribution", async () => {
+  const { r, store, rt, session } = await setup();
+  r.commit({ "a.txt": "1\n2\n" }, "base");
+  r.commit({ "a.txt": "1\nTWO\n" }, "one change");
+  const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
+  assert.equal(store.getArtifact<DiffData>(diffId).data.files[0]!.hunks[0]!.lines.some((line) => line.commit !== undefined), false);
 });
 
 test("records the merge-base with main for Gecko repositories", async () => {
