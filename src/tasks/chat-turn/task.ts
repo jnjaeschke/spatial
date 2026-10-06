@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, RevisionData } from "../../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, McpServerData, RevisionData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
@@ -7,11 +7,12 @@ import { prependRepoContext } from "../../runtime/repo-context.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
-interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[] }
+interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[] }
 const isReply = (j: unknown): j is Reply => {
   const r = j as Partial<Reply> | undefined;
   return typeof r?.answer === "string" && Array.isArray(r.questions) && r.questions.every((q) => typeof q === "string") && Array.isArray(r.revisions) &&
-    r.revisions.every((v) => (v?.message === null || typeof v?.message === "string") && typeof v.quote === "string" && typeof v.correction === "string");
+    r.revisions.every((v) => (v?.message === null || typeof v?.message === "string") && typeof v.quote === "string" && typeof v.correction === "string") &&
+    Array.isArray(r.requestMcpServers) && r.requestMcpServers.every((name) => typeof name === "string");
 };
 const same = (a?: LlmSelection, b?: LlmSelection) => !!a && !!b && a.backend === b.backend && a.model === b.model && a.effort === b.effort;
 
@@ -45,9 +46,26 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
           "# Question", "", text,
         ].join("\n");
 
-    const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const enabledNames = (ctx.artifacts.linkedTo(thread.id, "about") as Artifact<McpServerData>[])
+      .filter((artifact) => artifact.type === "McpServerEnabled")
+      .map((artifact) => artifact.data.server);
+    const enabledRepoMcp = Object.fromEntries([...new Set(enabledNames)].filter((name) => ctx.repoRequestableMcp[name]).map((name) => [name, ctx.repoRequestableMcp[name]!]));
+    const requestableNames = Object.keys(ctx.repoRequestableMcp);
+    const system = prependRepoContext(SYSTEM, ctx) + (requestableNames.length
+      ? `\n\n# Repo MCP servers available on request\nThe following server(s) are not active but can be enabled by the user: ${requestableNames.join(", ")}.\nInclude the server name in \`requestMcpServers\` in your reply to request access.`
+      : "");
+    const r = await ctx.llm.run({ prompt, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp, ...enabledRepoMcp } }, llm);
     const json = r.json as Reply | undefined;
     if (!isReply(json)) throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
+
+    const existingRequests = new Set((ctx.artifacts.linkedTo(thread.id, "about") as Artifact<McpServerData>[])
+      .filter((artifact) => artifact.type === "McpServerRequest").map((artifact) => artifact.data.server));
+    for (const name of new Set(json.requestMcpServers)) {
+      if (!ctx.repoRequestableMcp[name]) continue;
+      if (existingRequests.has(name)) continue;
+      const request = ctx.artifacts.put<McpServerData>("McpServerRequest", "proposed", { server: name });
+      ctx.links.put(request.id, thread.id, "about");
+    }
 
     const newestFirst = history.filter((m) => m.data.role === "assistant").reverse();
     const accepted: { target: Artifact<ChatMessageData>; data: RevisionData }[] = [];

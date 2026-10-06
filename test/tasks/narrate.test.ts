@@ -119,7 +119,7 @@ test("narrate: passes session and repo MCP servers with read-only tools", async 
     store, tasks: [narrate], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: () => ({ spatial: { type: "stdio", command: "node", args: ["session-server"] } }),
-    repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } },
+    repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       skills: [{ name: "narrate-skill", description: "Group changes." }], instructions: "Follow narration rules." }),
   });
   const session = store.createSession("/repo", "t");

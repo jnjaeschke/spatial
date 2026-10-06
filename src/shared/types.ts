@@ -105,6 +105,9 @@ export interface ChatThreadData {
   lines?: { path: string; side: "old" | "new"; start: number; end: number };
 }
 
+/** Data for a requested or user-enabled MCP server; artifacts link about → chat thread. */
+export interface McpServerData { server: string }
+
 /** Data of a `ReviewFinding` artifact; linked `derivedFrom → narrative` and `about → anchor`. `anchor`, `quote`, `lines` mean the same as on `ChatThreadData`. */
 export interface ReviewFindingData {
   anchor: Ref;

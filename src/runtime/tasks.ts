@@ -47,6 +47,8 @@ export interface TaskContext {
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
   repoMcp: Record<string, McpServerSpec>;
+  /** Denylisted repo MCP server specs that can be requested for a chat thread. */
+  repoRequestableMcp: Record<string, McpServerSpec>;
   /** Repo skills available through the session MCP server. */
   repoSkills: RepoSkill[];
   /** Repo instructions from AGENTS.md or CLAUDE.md, if present. */
@@ -125,7 +127,7 @@ export class Runtime {
     this.#webspec = opts.webspec;
     this.#searchfox = opts.searchfox;
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
-    this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, skills: [], instructions: null }));
+    this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: null }));
     for (const t of opts.tasks) {
       if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
       this.#tasks.set(t.kind, t);
@@ -191,6 +193,7 @@ export class Runtime {
       },
       sessionMcp: this.#sessionMcp(sessionId),
       repoMcp: {},
+      repoRequestableMcp: {},
       repoSkills: [],
       repoInstructions: null,
       artifacts: {
@@ -226,6 +229,7 @@ export class Runtime {
       try {
         const repoContext = this.#repoContext(session.repo);
         ctx.repoMcp = repoContext.mcpServers;
+        ctx.repoRequestableMcp = repoContext.requestableMcpServers;
         ctx.repoSkills = repoContext.skills;
         ctx.repoInstructions = repoContext.instructions;
         const output = await def.run(ctx, input);

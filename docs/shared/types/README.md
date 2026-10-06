@@ -19,6 +19,7 @@
 - [Hunk](interfaces/Hunk.md)
 - [Link](interfaces/Link.md)
 - [LlmSelection](interfaces/LlmSelection.md)
+- [McpServerData](interfaces/McpServerData.md)
 - [ModelInfo](interfaces/ModelInfo.md)
 - [ModelsResponse](interfaces/ModelsResponse.md)
 - [PatchNarrativeData](interfaces/PatchNarrativeData.md)

@@ -14,7 +14,7 @@ import type { Session, SessionState } from "../../src/shared/types.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
-const CHAT_REPLY = { answer: "hi", questions: [], revisions: [] };
+const CHAT_REPLY = { answer: "hi", questions: [], revisions: [], requestMcpServers: [] };
 const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
 const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.system?.includes("You review a code patch") || !!prompt.schema && "properties" in prompt.schema && "findings" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
@@ -198,6 +198,32 @@ test("turns reject selected quotes over 20000 characters", async () => {
     llm: { backend: "claude", model: "sonnet", effort: "medium" },
   });
   assert.equal(response.status, 400);
+});
+
+test("enable MCP server is scoped to a chat thread and records user provenance", async () => {
+  const session = await newSession();
+  writeFileSync(join(repo.dir, ".mcp.json"), JSON.stringify({ mcpServers: {
+    "firefox-devtools": { type: "stdio", command: "node", args: ["server.js"] },
+    allowed: { type: "stdio", command: "node", args: ["allowed.js"] },
+  } }));
+  const thread = rt.store.putArtifact({ sessionId: session.id, type: "ChatThread", status: "verified", data: { anchor: "anchor" }, provenance: { taskId: "task" } });
+  const path = `/api/sessions/${session.id}/threads/${thread.id}/enable-mcp-server`;
+  const enabled = await post(path, { server: "firefox-devtools" });
+  assert.equal(enabled.status, 201);
+  const { artifactId } = await enabled.json() as { artifactId: string };
+  const artifact = rt.store.getArtifact(artifactId);
+  assert.equal(artifact.type, "McpServerEnabled");
+  assert.equal(artifact.status, "verified");
+  assert.deepEqual(artifact.data, { server: "firefox-devtools" });
+  assert.deepEqual(artifact.provenance, { taskId: "user" });
+  assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifactId && link.to === thread.id && link.kind === "about"));
+  const nonRequestable = await post(path, { server: "allowed" });
+  assert.equal(nonRequestable.status, 400);
+  assert.deepEqual(await nonRequestable.json(), { error: "Not an on-request MCP server: allowed" });
+  assert.equal((await post(`/api/sessions/${session.id}/threads/missing/enable-mcp-server`, { server: "firefox-devtools" })).status, 404);
+  const blank = await post(path, { server: " " });
+  assert.equal(blank.status, 400);
+  assert.deepEqual(await blank.json(), { error: "Not an on-request MCP server:  " });
 });
 
 test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {

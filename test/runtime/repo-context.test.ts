@@ -55,6 +55,9 @@ test("loadRepoContext: excludes firefox-devtools", (t) => {
   assert.deepEqual(loadRepoContext(root).mcpServers, {
     allowed: { type: "stdio", command: "node", args: [] },
   });
+  assert.deepEqual(loadRepoContext(root).requestableMcpServers, {
+    "firefox-devtools": { type: "stdio", command: "node", args: [] },
+  });
 });
 
 test("loadRepoContext: malformed MCP server specs throw", (t) => {
@@ -71,15 +74,27 @@ test("loadRepoContext: expands stdio vars and defaults", (t) => {
     if (previous === undefined) delete process.env.SET_VAR;
     else process.env.SET_VAR = previous;
   });
-  write(root, ".mcp.json", JSON.stringify({ mcpServers: { local: {
-    type: "stdio",
-    command: "${SET_VAR:-x}",
-    args: ["${UNSET:-python3}", "${UNSET}"],
-  } } }));
+  write(root, ".mcp.json", JSON.stringify({ mcpServers: {
+    local: {
+      type: "stdio",
+      command: "${SET_VAR:-x}",
+      args: ["${UNSET:-python3}", "${UNSET}"],
+    },
+    "firefox-devtools": {
+      type: "stdio",
+      command: "${SET_VAR}",
+      args: ["${UNSET:-devtools.js}"],
+    },
+  } }));
   assert.deepEqual(loadRepoContext(root).mcpServers.local, {
     type: "stdio",
     command: "configured-value",
     args: ["python3", ""],
+  });
+  assert.deepEqual(loadRepoContext(root).requestableMcpServers["firefox-devtools"], {
+    type: "stdio",
+    command: "configured-value",
+    args: ["devtools.js"],
   });
 });
 

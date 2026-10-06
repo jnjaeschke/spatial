@@ -31,7 +31,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   );
 }
 
-type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions"> & { lead?: ReactNode };
+type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests"> & { lead?: ReactNode };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -63,6 +63,12 @@ export function Conversation(data: ConversationProps) {
         {busy && <div className="msg pending">…</div>}
         {failed && <div className="msg failed">{failed.error}</div>}
       </div>
+      {data.threadId !== null && data.mcpRequests.map((server) => (
+        <div key={server} className="enable-mcp-request">
+          <span>Enable <code>{server}</code> for this chat?</span>
+          <button className="enable-mcp nodrag" type="button" onClick={() => api.enableMcpServer(actions.sessionId, data.threadId!, server).catch((err: Error) => setError(err.message))}>Enable</button>
+        </div>
+      ))}
       <form className="nodrag nopan" onSubmit={(e) => {
         e.preventDefault();
         setError(null);

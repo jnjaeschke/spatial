@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, Id, McpServerData, PatchNarrativeData, Ref, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 
@@ -48,6 +48,7 @@ export interface ChatNodeData {
   taskId: string | null;
   messages: Artifact<ChatMessageData>[];
   revisions: Record<Id, RevisionData[]>;
+  mcpRequests: string[];
 }
 
 export interface FindingNodeData extends ReviewFindingData {
@@ -56,7 +57,7 @@ export interface FindingNodeData extends ReviewFindingData {
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
   /** The chat anchored at the finding, shown inside the finding box. */
-  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions"> & { threadId: string } | null;
+  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
 }
 
 export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData;
@@ -157,12 +158,20 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   };
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  const mcpRequestsFor = (threadId: string) => {
+    const linked = state.links.filter((link) => link.kind === "about" && link.to === threadId)
+      .map((link) => state.artifacts.find((artifact) => artifact.id === link.from))
+      .filter((artifact): artifact is Artifact<McpServerData> => !!artifact && (artifact.type === "McpServerRequest" || artifact.type === "McpServerEnabled"));
+    const enabled = new Set(linked.filter((artifact) => artifact.type === "McpServerEnabled").map((artifact) => artifact.data.server));
+    return [...new Set(linked.filter((artifact) => artifact.type === "McpServerRequest")
+      .map((artifact) => artifact.data.server).filter((server) => !enabled.has(server)))];
+  };
   const threadContent = (thread: Artifact<ChatThreadData>) => {
     const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
       .map((l) => state.artifacts.find((a) => a.id === l.from))
       .filter((a): a is Artifact<ChatMessageData> => !!a);
     const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
-    return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions };
+    return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(thread.id) };
   };
   for (const artifact of state.artifacts) {
     if (artifact.type !== "ReviewFinding") continue;
@@ -186,7 +195,7 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   for (const draft of drafts) {
     const node = resolve(draft.anchor);
     if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {} } });
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
   return g;

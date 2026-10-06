@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { defineTask, Runtime, TaskCancelledError, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import type { ChatMessageData, ChatThreadData, DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
+import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm/types.ts";
+import type { ChatMessageData, ChatThreadData, DiffData, LlmSelection, McpServerData, PatchNarrativeData } from "../../src/shared/types.ts";
 import { chatTurn } from "../../src/tasks/chat-turn/task.ts";
 import { renderRef, sessionView } from "../../src/runtime/render-ref.ts";
 
@@ -19,7 +19,7 @@ const DIFF: DiffData = {
   ] }],
 };
 
-function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[] } | undefined)[] } = {}) {
+function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[] } | undefined)[] } = {}) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let n = 0;
@@ -30,7 +30,8 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
       if (opts.hang) return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
       if (opts.failWith) return Promise.reject(new Error(opts.failWith));
       n++;
-      const json = opts.replies ? opts.replies[n - 1] : { answer: `answer ${n}`, questions: [], revisions: [] };
+      const reply = opts.replies ? opts.replies[n - 1] : { answer: `answer ${n}`, questions: [], revisions: [] };
+      const json = reply && { requestMcpServers: [], ...reply };
       if (json) for (const revision of json.revisions ?? []) if (revision.message === "$USER") revision.message = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "user")!.id;
       return Promise.resolve({ text: json?.answer ?? `answer ${n}`, json, providerSessionId: `${selection!.backend}-session-${n}`, selection: selection! });
     },
@@ -40,9 +41,9 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
     store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
-    ...(opts.repoMcp ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, skills: [], instructions: null }) } : {}),
+    ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
   });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession(opts.repo ?? "/repo", "t");
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
   const diffId = put("Diff", DIFF).id;
   const narrativeId = put<PatchNarrativeData>("PatchNarrative", {
@@ -88,13 +89,13 @@ test("chat system prompt includes repo instructions and skill index on every tur
     defaultSelection: SONNET,
     async run(selection, prompt) {
       calls.push(prompt);
-      return { text: "ok", json: { answer: "ok", questions: [], revisions: [] }, providerSessionId: `p${calls.length}`, selection: selection! };
+      return { text: "ok", json: { answer: "ok", questions: [], revisions: [], requestMcpServers: [] }, providerSessionId: `p${calls.length}`, selection: selection! };
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({ store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
-    repoContext: () => ({ mcpServers: {}, instructions: "Follow repo rules.", skills: [{ name: "review-skill", description: "Review changes." }] }),
+    repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, instructions: "Follow repo rules.", skills: [{ name: "review-skill", description: "Review changes." }] }),
   });
   const session = store.createSession("/repo", "t");
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
@@ -228,6 +229,42 @@ test("chat merges repo MCP servers with session MCP servers on first and resumed
   assert.deepEqual(calls[0].prompt.mcpServers, expected);
   await turn({ threadId: first.threadId, text: "Again", llm: SONNET });
   assert.deepEqual(calls[1].prompt.mcpServers, expected);
+});
+
+test("chat stores requests only for on-request repo MCP servers and lists them in the system prompt", async () => {
+  const { store, turn, narrativeId, calls, session } = setup({
+    repoMcp: true,
+    repoRequestable: ["firefox-devtools"],
+    replies: [
+      { answer: "Need access", questions: [], revisions: [], requestMcpServers: ["firefox-devtools", "moz", "unknown"] },
+    ],
+  });
+  const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "Inspect", llm: SONNET });
+  const requests = store.listArtifacts(session.id, "McpServerRequest");
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0]!.data, { server: "firefox-devtools" });
+  assert.ok(store.listLinks(session.id).some((link) => link.from === requests[0]!.id && link.to === threadId && link.kind === "about"));
+  assert.match(calls[0]!.prompt.system!, /Repo MCP servers available on request/);
+  assert.match(calls[0]!.prompt.system!, /firefox-devtools/);
+});
+
+test("non-requestable MCP names in a reply create no request", async () => {
+  const { store, turn, narrativeId, session } = setup({
+    repoMcp: true,
+    replies: [{ answer: "No request", questions: [], revisions: [], requestMcpServers: ["moz"] }],
+  });
+  await turn({ anchor: `${narrativeId}#c1`, text: "Inspect", llm: SONNET });
+  assert.equal(store.listArtifacts(session.id, "McpServerRequest").length, 0);
+});
+
+test("enabled on-request MCP server is merged on the next turn of that thread", async () => {
+  const { store, turn, narrativeId, calls, session } = setup({ repoRequestable: ["firefox-devtools"] });
+  const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "First", llm: SONNET });
+  const enabled = store.putArtifact({ sessionId: session.id, type: "McpServerEnabled", status: "verified", data: { server: "firefox-devtools" } satisfies McpServerData, provenance: { taskId: "user" } });
+  store.putLink({ sessionId: session.id, from: enabled.id, to: threadId, kind: "about" });
+  await turn({ threadId, text: "Second", llm: SONNET });
+  assert.deepEqual(calls[1]!.prompt.mcpServers?.["firefox-devtools"], { type: "stdio", command: "node", args: ["firefox-devtools.js"] });
+  assert.equal(calls[0]!.prompt.mcpServers?.["firefox-devtools"], undefined);
 });
 
 test("selection is stored on the thread and reused for fresh prompts", async () => {

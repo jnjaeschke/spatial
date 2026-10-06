@@ -174,6 +174,14 @@ Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json
 
 ***
 
+### repoRequestableMcp
+
+> **repoRequestableMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+Denylisted repo MCP server specs that can be requested for a chat thread.
+
+***
+
 ### repoSkills
 
 > **repoSkills**: [`RepoSkill`](../../repo-context/interfaces/RepoSkill.md)[]

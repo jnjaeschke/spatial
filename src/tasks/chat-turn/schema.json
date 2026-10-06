@@ -1,10 +1,15 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["answer", "questions", "revisions"],
+  "required": ["answer", "questions", "revisions", "requestMcpServers"],
   "properties": {
     "answer": { "type": "string" },
     "questions": { "type": "array", "items": { "type": "string" } },
+    "requestMcpServers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Denylisted repo MCP server names the assistant wants to access, one Enable button per entry."
+    },
     "revisions": {
       "type": "array",
       "items": {

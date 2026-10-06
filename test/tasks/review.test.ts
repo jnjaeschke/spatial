@@ -31,7 +31,7 @@ function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
   };
   const rt = new Runtime({ store, tasks: [review], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
-    ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } },
+    ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       instructions: repoPrompt ? "Review by repo rules." : null,
       skills: repoPrompt ? [{ name: "review-skill", description: "Review changes." }] : [] }) } : {}) });
   const session = store.createSession("/repo", "t");

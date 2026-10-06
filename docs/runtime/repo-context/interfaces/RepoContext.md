@@ -20,6 +20,12 @@
 
 ***
 
+### requestableMcpServers
+
+> **requestableMcpServers**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+***
+
 ### skills
 
 > **skills**: [`RepoSkill`](RepoSkill.md)[]

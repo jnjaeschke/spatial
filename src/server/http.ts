@@ -1,11 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
-import type { DiffData, LlmSelection, ModelsResponse } from "../shared/types.ts";
+import type { DiffData, LlmSelection, McpServerData, ModelsResponse } from "../shared/types.ts";
 import { createSession } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "../workflows/narrate-patch.ts";
+import { loadRepoContext } from "../runtime/repo-context.ts";
 
 class HttpError extends Error {
   status: number;
@@ -71,6 +72,28 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
       return await buildSessionState(rt.store, rt.searchfox, params[0]);
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/threads\/([^/]+)\/enable-mcp-server$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]);
+      const threadId = params[1]!;
+      const body = await readJson(req);
+      const server = str(body.server, "server");
+      let thread;
+      try { thread = rt.store.getArtifact(threadId); }
+      catch { throw new HttpError(404, `Unknown thread: ${threadId}`); }
+      if (thread.sessionId !== session.id || thread.type !== "ChatThread") throw new HttpError(404, `Unknown thread: ${threadId}`);
+      if (!loadRepoContext(session.repo).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
+      const artifact = rt.store.putArtifact({
+        sessionId: session.id,
+        type: "McpServerEnabled",
+        status: "verified",
+        data: { server } satisfies McpServerData,
+        provenance: { taskId: "user" },
+      });
+      const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: threadId, kind: "about" });
+      rt.emit(session.id, "user", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+      rt.emit(session.id, "user", "link.created", { linkId: link.id, from: artifact.id, to: threadId, kind: "about" });
+      send(res, 201, { artifactId: artifact.id });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {
       const id = requireSession(rt, params[0]).id;

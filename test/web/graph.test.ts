@@ -84,6 +84,27 @@ test("sessionGraph adds spec satellites anchored to supported changes", () => {
   assert.equal(sessionGraph(state([diff])), null);
 });
 
+test("sessionGraph exposes unenabled MCP requests per thread", () => {
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } };
+  const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools" } };
+  const st = state([diff, narrative("N"), thread, request]);
+  st.links = [{ id: "about", sessionId: "S", from: "REQ", to: "T", kind: "about" }];
+  const chat = sessionGraph(st)!.nodes.find((node) => node.id === "T")!.data;
+  assert.equal(chat.kind, "chat");
+  if (chat.kind === "chat") assert.deepEqual(chat.mcpRequests, ["firefox-devtools"]);
+
+  const enabled = { id: "EN", sessionId: "S", type: "McpServerEnabled", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { server: "firefox-devtools" } };
+  st.artifacts.push(enabled);
+  st.links.push({ id: "enabled-about", sessionId: "S", from: "EN", to: "T", kind: "about" });
+  const afterEnable = sessionGraph(st)!.nodes.find((node) => node.id === "T")!.data;
+  if (afterEnable.kind === "chat") assert.deepEqual(afterEnable.mcpRequests, []);
+
+  st.artifacts.push({ ...thread, id: "T2", data: { anchor: "N#c2" } }, { ...request, id: "REQ2", data: { server: "firefox-devtools" } });
+  st.links.push({ id: "about2", sessionId: "S", from: "REQ2", to: "T2", kind: "about" });
+  const otherThread = sessionGraph(st)!.nodes.find((node) => node.id === "T2")!.data;
+  if (otherThread.kind === "chat") assert.deepEqual(otherThread.mcpRequests, ["firefox-devtools"]);
+});
+
 test("sessionGraph ignores spec refs of older narratives", () => {
   const spec = { id: "R", sessionId: "S", type: "SpecReference", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" }, data: { url: "u", resolved: null, geckoRefs: [] } };
   const st = state([diff, narrative("N1"), narrative("N2"), spec]);
@@ -299,9 +320,9 @@ test("placeSatellites aligns quoted chats to their quote and stacks by effective
 test("visibleGraph hides only collapsed quoted threads and their edges", () => {
   const node = (id: string, data: GraphNode["data"]): GraphNode => ({ id, data });
   const nodes: GraphNode[] = [
-    node("quoted", { kind: "chat", anchor: "N#c1", quote: "quote", diffId: "D", hunks: [], threadId: "quoted", draftId: null, taskId: null, messages: [], revisions: {} }),
-    node("plain", { kind: "chat", anchor: "N#c1", diffId: "D", hunks: [], threadId: "plain", draftId: null, taskId: null, messages: [], revisions: {} }),
-    node("draft", { kind: "chat", anchor: "N#c1", quote: "draft quote", diffId: "D", hunks: [], threadId: null, draftId: "draft", taskId: null, messages: [], revisions: {} }),
+    node("quoted", { kind: "chat", anchor: "N#c1", quote: "quote", diffId: "D", hunks: [], threadId: "quoted", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
+    node("plain", { kind: "chat", anchor: "N#c1", diffId: "D", hunks: [], threadId: "plain", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
+    node("draft", { kind: "chat", anchor: "N#c1", quote: "draft quote", diffId: "D", hunks: [], threadId: null, draftId: "draft", taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [] }),
   ];
   const edges = [

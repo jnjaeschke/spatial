@@ -9,6 +9,7 @@ export interface RepoSkill {
 
 export interface RepoContext {
   mcpServers: Record<string, McpServerSpec>;
+  requestableMcpServers: Record<string, McpServerSpec>;
   skills: RepoSkill[];
   instructions: string | null;
 }
@@ -21,8 +22,12 @@ const DENYLIST = new Set(["firefox-devtools"]);
  * Malformed files and unresolved instruction includes throw instead of being skipped.
  */
 export function loadRepoContext(repoRoot: string): RepoContext {
+  const all = loadMcpServers(repoRoot);
+  const mcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => !DENYLIST.has(name)));
+  const requestableMcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => DENYLIST.has(name)));
   return {
-    mcpServers: loadMcpServers(repoRoot),
+    mcpServers,
+    requestableMcpServers,
     skills: loadSkills(repoRoot),
     instructions: loadInstructions(repoRoot),
   };
@@ -54,6 +59,7 @@ export function readRepoSkill(repoRoot: string, name: string): string {
   throw new Error(`Skill not found: ${name}`);
 }
 
+/** Loads and expands every repo MCP server spec before applying the denylist. */
 function loadMcpServers(repoRoot: string): Record<string, McpServerSpec> {
   const path = join(repoRoot, ".mcp.json");
   if (!existsSync(path)) return {};
@@ -61,7 +67,6 @@ function loadMcpServers(repoRoot: string): Record<string, McpServerSpec> {
   const raw = JSON.parse(readFileSync(path, "utf8")) as { mcpServers?: Record<string, unknown> };
   const out: Record<string, McpServerSpec> = {};
   for (const [name, spec] of Object.entries(raw.mcpServers ?? {})) {
-    if (DENYLIST.has(name)) continue;
     const server = spec as Record<string, unknown>;
     if (server.type === "http" && typeof server.url === "string") {
       out[name] = { type: "http", url: server.url };
