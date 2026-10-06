@@ -102,7 +102,9 @@ html, body, #root { margin: 0; height: 100%; }
 .diff table { border-collapse: collapse; width: 100%; font-family: ui-monospace, monospace; font-size: 0.9em; }
 .diff td { padding: 0 6px; white-space: pre-wrap; word-break: break-all; vertical-align: top; }
 .diff td.ln { color: #999; text-align: right; width: 1%; white-space: nowrap; user-select: none; }
-.diff td.sign { width: 1%; user-select: none; }
+.diff td.sign { width: 1%; user-select: none; white-space: nowrap; }
+.commit-tag { margin-left: 3px; font-size: 9px; color: #555; }
+.rewrite-flag { padding: 3px 8px; font: 11px ui-monospace, monospace; color: #714500; background: #fff4d6; border-top: 1px solid #eedca9; }
 .diff tr.add { background: #e6ffec; }
 .diff tr.del { background: #ffebe9; }
 .diff tr.outside td.code { color: #666; }

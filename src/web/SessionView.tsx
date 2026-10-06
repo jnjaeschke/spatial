@@ -13,6 +13,7 @@ import { AskContext, type Draft, type SelectionData } from "./chat-context.ts";
 import { AskOnSelect } from "./AskOnSelect.tsx";
 import { RevisionView } from "./RevisionView.tsx";
 import { InterdiffPanel } from "./InterdiffPanel.tsx";
+import { StackContext } from "./stack-context.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
@@ -36,6 +37,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   if (!state || !models) return <p className="empty">Loading…</p>;
   const n = latestNarrative(state);
   const diff = latestDiff(state.artifacts);
+  const stack = diff && diff.data.commits.length > 1 ? diff.data.commits : null;
   const epoch = diff ? epochNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
@@ -46,10 +48,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label></div>
     <AskContext.Provider value={askContext}><FileViewContext.Provider value={(file) => { setOpenFile(file); setAside("file"); }}>
-      <div className="session-body">
+      <StackContext.Provider value={stack}><div className="session-body">
         {n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>}
         {aside === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => setAside(null)} /> : aside === "file" && diff && openFile?.diffId === diff.id && <FilePanel sessionId={sessionId} diff={diff} open={openFile} onClose={() => { setOpenFile(null); setAside(null); }} />}
-      </div>
+      </div></StackContext.Provider>
       <AskOnSelect />
     </FileViewContext.Provider></AskContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />

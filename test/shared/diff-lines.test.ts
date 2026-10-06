@@ -16,6 +16,20 @@ test("numbers old/new sides per line kind", () => {
   ]);
 });
 
+test("numbers attributed lines and preserves commit metadata", () => {
+  const out = numberLines({
+    id: "f0h0", header: "@@ -10 +20 @@", oldStart: 10, oldLines: 1, newStart: 20, newLines: 1,
+    lines: [
+      { kind: "del", text: "old", commit: 0, commitLine: 7, commitPath: "old-name.txt" },
+      { kind: "add", text: "new", commit: 1, commitLine: 22 },
+    ],
+  });
+  assert.deepEqual(out, [
+    { kind: "del", text: "old", old: 10, commit: 0, commitLine: 7, commitPath: "old-name.txt" },
+    { kind: "add", text: "new", new: 20, commit: 1, commitLine: 22 },
+  ]);
+});
+
 const head = Array.from({ length: 10 }, (_, i) => `n${i + 1}`);
 const file = (hunks: DiffFile["hunks"]): DiffFile => ({ path: "a", status: "modified", binary: false, hunks });
 
