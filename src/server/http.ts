@@ -1,12 +1,16 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
-import type { DiffData, FindingDecisionData, LlmSelection, McpServerData, ModelsResponse, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
+import type { Artifact, DiffData, FindingDecisionData, LlmSelection, McpServerData, ModelsResponse, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
 import { createSession } from "../runtime/git.ts";
+import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
+import { checkDrift } from "../runtime/drift.ts";
+import { postableComments } from "../runtime/postable-comments.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "../workflows/narrate-patch.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
+import { phabRevision } from "../shared/phabricator.ts";
 
 class HttpError extends Error {
   status: number;
@@ -141,6 +145,78 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
       done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
       send(res, 202, { taskId });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/post-drafts$/, async ({ params, res }) => {
+      const session = requireSession(rt, params[0]!);
+      const diffArtifact = rt.store.listArtifacts(session.id, "Diff").at(-1) as Artifact<DiffData> | undefined;
+      if (!diffArtifact) throw new HttpError(409, "Session has no imported diff");
+      const diff = diffArtifact.data;
+      const rev = phabRevision(diff);
+      if (!rev) throw new HttpError(409, "The head commit has no Differential Revision trailer");
+
+      let token: string;
+      try { token = readArcToken(rev.host); }
+      catch (e) { throw new HttpError(409, (e as Error).message); }
+
+      const conduit = new ConduitClient(process.env.SPATIAL_CONDUIT_BASE_URL ?? rev.host, token);
+      let revisionPHID: string;
+      let diffID: number;
+      let remote: string;
+      try {
+        const revisionResult = await conduit.call<{ data: { phid: string }[] }>("differential.revision.search", { constraints: { ids: [rev.id] } });
+        const revision = revisionResult.data[0];
+        if (!revision) throw new HttpError(502, `D${rev.id} not found`);
+        revisionPHID = revision.phid;
+        const diffResult = await conduit.call<{ data: { id: number }[] }>("differential.diff.search", { constraints: { revisionPHIDs: [revisionPHID] }, order: "newest", limit: 1 });
+        const latestDiff = diffResult.data[0];
+        if (!latestDiff) throw new HttpError(502, `No diffs found on D${rev.id}`);
+        diffID = latestDiff.id;
+        remote = await conduit.call<string>("differential.getrawdiff", { diffID });
+      } catch (e) {
+        if (e instanceof HttpError) throw e;
+        throw new HttpError(502, (e as Error).message);
+      }
+
+      const local = await rt.gitFor(session.id).diff(diff.baseSha, diff.headSha);
+      const drift = checkDrift(local, remote);
+      if (drift !== null) throw new HttpError(409, `Local patch differs from the latest diff on D${rev.id} (first difference in ${drift}); update the revision or the checkout first`);
+
+      const candidates = postableComments(rt.store, session.id);
+      const skipped: { finding: string; reason: string }[] = [];
+      let postedCount = 0;
+      for (const { finding, comment } of candidates) {
+        const lines = finding.data.lines;
+        if (!lines) {
+          skipped.push({ finding: finding.id, reason: "Finding has no line range" });
+          continue;
+        }
+        let result: { id: number };
+        try {
+          result = await conduit.call<{ id: number }>("differential.createinline", {
+            revisionID: rev.id,
+            diffID,
+            filePath: lines.path,
+            isNewFile: 1,
+            lineNumber: lines.start,
+            lineLength: lines.end - lines.start,
+            content: comment.data.body,
+          });
+        } catch (e) {
+          throw new HttpError(502, (e as Error).message);
+        }
+        const artifact = rt.store.putArtifact({
+          sessionId: session.id,
+          type: "PostedComment",
+          status: "verified",
+          data: { comment: comment.id, revision: rev.id, diff: diffID, inlineId: result.id } satisfies PostedCommentData,
+          provenance: { taskId: "runtime" },
+        });
+        const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: comment.id, kind: "about" });
+        rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+        rt.emit(session.id, "runtime", "link.created", { linkId: link.id, from: artifact.id, to: comment.id, kind: "about" });
+        postedCount++;
+      }
+      send(res, 200, { posted: postedCount, skipped, revision: `D${rev.id}` });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {
       const id = requireSession(rt, params[0]).id;

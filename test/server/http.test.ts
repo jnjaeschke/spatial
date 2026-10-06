@@ -1,6 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
+import { createServer as createNetServer } from "node:http";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +11,7 @@ import { makeGit } from "../../src/runtime/git.ts";
 import { tasks } from "../../src/tasks/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { Session, SessionState } from "../../src/shared/types.ts";
+import type { DiffData, Session, SessionState } from "../../src/shared/types.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
@@ -283,6 +284,86 @@ test("editing a finding comment appends verified user artifacts", async () => {
   assert.deepEqual(artifacts.at(-1)!.provenance, { taskId: "user" });
   assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifacts.at(-1)!.id && link.to === finding.id && link.kind === "about"));
   assert.equal((await put(`/api/sessions/${session.id}/findings/missing/comment`, { body: "x" })).status, 404);
+});
+
+test("post-drafts reports a missing Differential Revision trailer", async () => {
+  const session = await newSession();
+  rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: {
+    baseSha: "base", headSha: "head", commits: [{ sha: "head", subject: "change", body: "No trailer" }], files: [],
+  }, provenance: { taskId: "test" } });
+  const response = await post(`/api/sessions/${session.id}/post-drafts`, {});
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /no Differential Revision trailer/);
+});
+
+test("post-drafts submits verified comments as Conduit drafts", async () => {
+  const testRepo = makeRepo();
+  const baseSha = testRepo.commit({ "a.txt": "before\n" }, "base");
+  const headSha = testRepo.commit({ "a.txt": "after\n" }, "change\n\nDifferential Revision: https://phab.example.com/D1");
+  const session = rt.store.createSession(testRepo.dir, "draft posting");
+  const diffData: DiffData = { baseSha, headSha, commits: [{ sha: headSha, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }], files: [] };
+  rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "test" } });
+  const finding = rt.store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed", data: {
+    anchor: "diff#f0h0", lines: { path: "a.txt", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Finding", body: "Details",
+  }, provenance: { taskId: "test" } });
+  const decision = rt.store.putArtifact({ sessionId: session.id, type: "FindingDecision", status: "verified", data: { finding: finding.id, decision: "accepted" }, provenance: { taskId: "user" } });
+  rt.store.putLink({ sessionId: session.id, from: decision.id, to: finding.id, kind: "about" });
+  const comment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this." }, provenance: { taskId: "user" } });
+  rt.store.putLink({ sessionId: session.id, from: comment.id, to: finding.id, kind: "about" });
+
+  const remote = await makeGit(testRepo.dir).diff(baseSha, headSha);
+  const calls: string[] = [];
+  let mode: "normal" | "drift" | "http-error" = "normal";
+  const conduitServer = createNetServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const form = new URLSearchParams(body);
+    const method = req.url!.slice("/api/".length);
+    calls.push(method);
+    JSON.parse(form.get("params")!);
+    if (mode === "http-error") {
+      res.writeHead(500).end("failure");
+      return;
+    }
+    const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1" }] }
+      : method === "differential.diff.search" ? { data: [{ id: 7 }] }
+        : method === "differential.getrawdiff" ? mode === "drift" ? remote.replace("+after", "+different") : remote
+          : method === "differential.createinline" ? { id: 9 }
+            : null;
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
+  });
+  await new Promise<void>((resolve) => conduitServer.listen(0, "127.0.0.1", resolve));
+  const arcrc = join(mkdtempSync(join(tmpdir(), "spatial-arcrc-")), "arcrc");
+  writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
+  const oldArcrc = process.env.SPATIAL_ARCRC_PATH;
+  const oldConduit = process.env.SPATIAL_CONDUIT_BASE_URL;
+  process.env.SPATIAL_ARCRC_PATH = arcrc;
+  process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${(conduitServer.address() as AddressInfo).port}`;
+  try {
+    const response = await post(`/api/sessions/${session.id}/post-drafts`, {});
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { posted: 1, skipped: [], revision: "D1" });
+    assert.deepEqual(calls, ["differential.revision.search", "differential.diff.search", "differential.getrawdiff", "differential.createinline"]);
+    const posted = rt.store.listArtifacts(session.id, "PostedComment");
+    assert.equal(posted.length, 1);
+    assert.deepEqual(posted[0]!.data, { comment: comment.id, revision: 1, diff: 7, inlineId: 9 });
+    assert.deepEqual(posted[0]!.provenance, { taskId: "runtime" });
+
+    mode = "drift";
+    const drifted = await post(`/api/sessions/${session.id}/post-drafts`, {});
+    assert.equal(drifted.status, 409);
+    assert.match((await drifted.json()).error, /a.txt/);
+
+    mode = "http-error";
+    const upstreamFailure = await post(`/api/sessions/${session.id}/post-drafts`, {});
+    assert.equal(upstreamFailure.status, 502);
+  } finally {
+    if (oldArcrc === undefined) delete process.env.SPATIAL_ARCRC_PATH;
+    else process.env.SPATIAL_ARCRC_PATH = oldArcrc;
+    if (oldConduit === undefined) delete process.env.SPATIAL_CONDUIT_BASE_URL;
+    else process.env.SPATIAL_CONDUIT_BASE_URL = oldConduit;
+    await new Promise<void>((resolve) => conduitServer.close(() => resolve()));
+  }
 });
 
 test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {
