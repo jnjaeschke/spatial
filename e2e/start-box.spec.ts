@@ -1,4 +1,24 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const repoDirs: string[] = [];
+let revisionCount = 50;
+
+test.afterEach(() => {
+  for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function newRevision() {
+  const revision = 7000 + test.info().workerIndex * 100 + revisionCount++;
+  return { revision, diff: revision * 10 + 1 };
+}
+
+function git(dir: string, ...args: string[]) {
+  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
+}
 
 async function openStartBox(page: Page, request: APIRequestContext): Promise<void> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -104,4 +124,49 @@ test("/review with a range runs the review chain", async ({ page, request }) => 
   await expect(page).toHaveURL(/\?session=/);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Epoch 1")).toBeVisible();
+});
+
+test("/review D<id> imports the revision named by .arcconfig and leaves the repo untouched", async ({ page, request }) => {
+  const ids = newRevision();
+  const dir = mkdtempSync(join(tmpdir(), "spatial-start-review-"));
+  repoDirs.push(dir);
+  git(dir, "init", "-b", "main");
+  writeFileSync(join(dir, "a.txt"), `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`);
+  writeFileSync(join(dir, ".arcconfig"), JSON.stringify({ "phabricator.uri": "https://phab.example.com/" }));
+  git(dir, "add", "-A");
+  git(dir, "commit", "-m", "base");
+  const base = git(dir, "rev-parse", "HEAD");
+
+  const scratch = mkdtempSync(join(tmpdir(), "spatial-start-review-scratch-"));
+  repoDirs.push(scratch);
+  execFileSync("git", ["clone", "-q", dir, scratch]);
+  const lines = readFileSync(join(scratch, "a.txt"), "utf8").trimEnd().split("\n");
+  lines[29] = "THIRTY";
+  writeFileSync(join(scratch, "a.txt"), `${lines.join("\n")}\n`);
+  writeFileSync(join(scratch, "c.txt"), "c\n");
+  execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "add", "-A"]);
+  execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-m", "Bug 1 - Remote change"]);
+  const raw = execFileSync("git", ["-C", scratch, "diff", base, "HEAD"], { encoding: "utf8" });
+  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Bug 1 - Remote change", base, diffs: [ids.diff], rawDiffs: { [ids.diff]: raw } } });
+  expect(control.ok()).toBeTruthy();
+
+  const snapshot = () => ({
+    head: git(dir, "rev-parse", "HEAD"), branch: git(dir, "symbolic-ref", "HEAD"), status: git(dir, "status", "--porcelain"),
+    branches: git(dir, "branch", "--list"), heads: git(dir, "for-each-ref", "refs/heads", "refs/tags", "refs/remotes"),
+    index: readFileSync(join(dir, ".git", "index")), files: readdirSync(dir).sort(),
+  });
+  const before = snapshot();
+
+  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  const box = page.getByLabel("start");
+  await box.fill(`/review D${ids.revision}`);
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\?session=/);
+  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("summary")).toContainText("Edits a and adds c.");
+
+  expect(snapshot()).toEqual(before);
+  const spatialRef = git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial").split("\n").find((ref) => ref.startsWith(`refs/spatial/D${ids.revision}/${ids.diff}-`));
+  expect(spatialRef).toBeTruthy();
+  expect(git(dir, "log", "-1", "--format=%B", spatialRef!)).toContain(`Differential Revision: https://phab.example.com/D${ids.revision}`);
 });
