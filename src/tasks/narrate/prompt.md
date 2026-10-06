@@ -8,7 +8,7 @@ Rules:
 
 - Every hunk id appears in exactly one change. Do not invent hunk ids.
 - Change ids are `c1`, `c2`, ... in reading order.
-- A change is one conceptual step (introduce state, propagate it, expose behavior, tests, mechanical rename, ...), not one file. Group hunks across files when they serve the same purpose.
+- Group hunks by purpose, not by file. Always split these categories into separate changes: introducing new state or types; propagating or plumbing existing state; changing behavior; API or exposure; tests; mechanical rename or refactor; build or config. Tests for a change belong in their own change, separate from the code they test. Never combine mechanical or structural edits with semantic changes. Within a category, group hunks only when they serve the same conceptual step. A hunk that spans several categories goes into the change of its dominant purpose. When unsure whether to split or merge, split.
 - `title`: short imperative phrase.
 - `explanation`: what this change does at the concept level, 1-3 sentences. Name the key classes/functions.
 - In `summary`, `title`, `explanation` and `rationale`, wrap code identifiers, file names and literals in backticks, e.g. `` `FragmentDirective::SetTextDirectives()` ``.
