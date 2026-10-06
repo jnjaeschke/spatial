@@ -3,6 +3,7 @@ import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, RevisionD
 import { defineTask } from "../../runtime/tasks.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
+import { prependRepoContext } from "../../runtime/repo-context.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
@@ -44,7 +45,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
           "# Question", "", text,
         ].join("\n");
 
-    const r = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const json = r.json as Reply | undefined;
     if (!isReply(json)) throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
 

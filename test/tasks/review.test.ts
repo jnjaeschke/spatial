@@ -17,7 +17,7 @@ const diffData: DiffData = {
   ] }],
 };
 
-function setup(replies: unknown[], repoMcp = false) {
+function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let index = 0;
@@ -31,7 +31,9 @@ function setup(replies: unknown[], repoMcp = false) {
   };
   const rt = new Runtime({ store, tasks: [review], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
-    ...(repoMcp ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } } }) } : {}) });
+    ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } },
+      instructions: repoPrompt ? "Review by repo rules." : null,
+      skills: repoPrompt ? [{ name: "review-skill", description: "Review changes." }] : [] }) } : {}) });
   const session = store.createSession("/repo", "t");
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "x" } }).id;
   const narrativeId = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: {
@@ -78,6 +80,14 @@ test("review merges repo MCP servers with session MCP servers", async () => {
     spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", session.id] },
     moz: { type: "http", url: "https://example.com/mcp" },
   });
+});
+
+test("review system prompt includes repo instructions and skill index", async () => {
+  const { calls, run } = setup([{ findings: [] }], false, true);
+  await run();
+  assert.ok(calls[0].prompt.system?.startsWith("Review by repo rules."));
+  assert.match(calls[0].prompt.system!, /- review-skill: Review changes\./);
+  assert.match(calls[0].prompt.system!, /read_skill\(name\)/);
 });
 
 test("a change anchor without quote stays on the change", async () => {

@@ -158,11 +158,27 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ***
 
+### repoInstructions
+
+> **repoInstructions**: `string` \| `null`
+
+Repo instructions from AGENTS.md or CLAUDE.md, if present.
+
+***
+
 ### repoMcp
 
 > **repoMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
 
 Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists.
+
+***
+
+### repoSkills
+
+> **repoSkills**: [`RepoSkill`](../../repo-context/interfaces/RepoSkill.md)[]
+
+Repo skills available through the session MCP server.
 
 ***
 

@@ -119,12 +119,16 @@ test("narrate: passes session and repo MCP servers with read-only tools", async 
     store, tasks: [narrate], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: () => ({ spatial: { type: "stdio", command: "node", args: ["session-server"] } }),
-    repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } } }),
+    repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } },
+      skills: [{ name: "narrate-skill", description: "Group changes." }], instructions: "Follow narration rules." }),
   });
   const session = store.createSession("/repo", "t");
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   await rt.run(session.id, "narrate", { diffId });
   assert.equal(prompts[0].tools, "read-only");
+  assert.ok(prompts[0].system?.startsWith("Follow narration rules."));
+  assert.match(prompts[0].system!, /- narrate-skill: Group changes\./);
+  assert.match(prompts[0].system!, /read_skill\(name\)/);
   assert.deepEqual(prompts[0].mcpServers, {
     spatial: { type: "stdio", command: "node", args: ["session-server"] },
     moz: { type: "http", url: "https://example.com/mcp" },

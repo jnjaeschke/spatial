@@ -28,6 +28,32 @@ export function loadRepoContext(repoRoot: string): RepoContext {
   };
 }
 
+export function prependRepoContext(system: string, context: { repoInstructions: string | null; repoSkills: RepoSkill[] }): string {
+  const parts: string[] = [];
+  if (context.repoInstructions) parts.push(context.repoInstructions);
+  if (context.repoSkills.length) {
+    parts.push("# Available skills\n" + context.repoSkills.map((skill) => `- ${skill.name}: ${skill.description}`).join("\n"));
+    parts.push("Use `read_skill(name)` on the `spatial` MCP server to retrieve the full skill instructions.");
+  }
+  return parts.length ? `${parts.join("\n\n")}\n\n${system}` : system;
+}
+
+/** Reads a skill only when its frontmatter name appears in the repo skill index. */
+export function readRepoSkill(repoRoot: string, name: string): string {
+  const base = join(repoRoot, ".agents", "skills");
+  if (existsSync(base)) {
+    for (const entry of readdirSync(base, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const path = join(base, entry.name, "SKILL.md");
+      if (!existsSync(path)) continue;
+      const content = readFileSync(path, "utf8");
+      const frontmatter = parseFrontmatter(path, content);
+      if (frontmatter.name === name && frontmatter.description) return content;
+    }
+  }
+  throw new Error(`Skill not found: ${name}`);
+}
+
 function loadMcpServers(repoRoot: string): Record<string, McpServerSpec> {
   const path = join(repoRoot, ".mcp.json");
   if (!existsSync(path)) return {};

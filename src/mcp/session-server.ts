@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Id } from "../shared/types.ts";
 import { renderRef, sessionOverview, sessionView } from "../runtime/render-ref.ts";
 import { Store } from "../runtime/store.ts";
+import { readRepoSkill } from "../runtime/repo-context.ts";
 
 // Codex refuses MCP tool calls without readOnlyHint, even with approval_policy=never.
 const annotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
@@ -17,10 +18,11 @@ function answer(produce: () => string) {
   }
 }
 
-export function createSessionServer(store: Store, sessionId: Id): McpServer {
+export function createSessionServer(store: Store, sessionId: Id, repoRoot: string): McpServer {
   const server = new McpServer({ name: "spatial", version: "1.0.0" });
   server.registerTool("session_overview", { description: "Summarize this session", inputSchema: {}, annotations }, async () => answer(() => sessionOverview(sessionView(store, sessionId))));
   server.registerTool("get", { description: "Render a session artifact or subref", inputSchema: { ref: z.string() }, annotations }, async ({ ref }) => answer(() => renderRef(sessionView(store, sessionId), ref)));
+  server.registerTool("read_skill", { description: "Return the full content of a repo skill by name", inputSchema: { name: z.string() }, annotations }, async ({ name }) => answer(() => readRepoSkill(repoRoot, name)));
   server.registerTool("search", {
     description: "Search this session's artifacts",
     inputSchema: {
@@ -43,8 +45,7 @@ async function main(args: string[]): Promise<void> {
   };
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
-  store.getSession(sessionId);
-  const server = createSessionServer(store, sessionId);
+  const server = createSessionServer(store, sessionId, store.getSession(sessionId).repo);
   await server.connect(new StdioServerTransport());
 }
 

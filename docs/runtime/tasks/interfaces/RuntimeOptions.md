@@ -32,9 +32,9 @@
 
 ### repoContext?
 
-> `optional` **repoContext?**: (`repo`) => `object`
+> `optional` **repoContext?**: (`repo`) => [`RepoContext`](../../repo-context/interfaces/RepoContext.md)
 
-Called at task start to load repo-specific MCP servers. Defaults to no repo servers.
+Called once at task start to load repo MCP servers, skills, and instructions. Defaults to an empty context.
 
 #### Parameters
 
@@ -44,11 +44,7 @@ Called at task start to load repo-specific MCP servers. Defaults to no repo serv
 
 #### Returns
 
-`object`
-
-##### mcpServers
-
-> **mcpServers**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+[`RepoContext`](../../repo-context/interfaces/RepoContext.md)
 
 ***
 

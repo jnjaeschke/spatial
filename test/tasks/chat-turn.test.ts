@@ -40,7 +40,7 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
     store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
-    ...(opts.repoMcp ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } } }) } : {}),
+    ...(opts.repoMcp ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, skills: [], instructions: null }) } : {}),
   });
   const session = store.createSession("/repo", "t");
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
@@ -79,6 +79,35 @@ test("first turn on a change creates the thread and injects change context", asy
   assert.ok(p.prompt.includes("# Session"));
   assert.ok(p.prompt.includes("# You are asked about"));
   assert.ok(!p.prompt.includes("other();"));
+});
+
+test("chat system prompt includes repo instructions and skill index on every turn", async () => {
+  const store = new Store(":memory:");
+  const calls: LlmPrompt[] = [];
+  const llm: LlmService = {
+    defaultSelection: SONNET,
+    async run(selection, prompt) {
+      calls.push(prompt);
+      return { text: "ok", json: { answer: "ok", questions: [], revisions: [] }, providerSessionId: `p${calls.length}`, selection: selection! };
+    },
+    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
+  };
+  const rt = new Runtime({ store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
+    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
+    repoContext: () => ({ mcpServers: {}, instructions: "Follow repo rules.", skills: [{ name: "review-skill", description: "Review changes." }] }),
+  });
+  const session = store.createSession("/repo", "t");
+  const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
+  const narrativeId = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "verified", data: {
+    diffId, summary: "s", changes: [{ id: "c1", title: "Add flag", explanation: "e", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }],
+  }, provenance: { taskId: "x" } }).id;
+  const first = await rt.run<{ threadId: string }>(session.id, "chatTurn", { anchor: `${narrativeId}#c1`, text: "Why?", llm: SONNET });
+  await rt.run(session.id, "chatTurn", { threadId: first.threadId, text: "Again", llm: SONNET });
+  for (const call of calls) {
+    assert.ok(call.system?.startsWith("Follow repo rules."));
+    assert.match(call.system!, /- review-skill: Review changes\./);
+    assert.match(call.system!, /read_skill\(name\)/);
+  }
 });
 
 test("chat passes the reply schema on new and resumed turns and stores structured answer fields", async () => {

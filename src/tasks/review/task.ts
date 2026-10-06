@@ -3,6 +3,7 @@ import type { DiffData, LlmSelection, PatchNarrativeData, ReviewFindingData } fr
 import { defineTask } from "../../runtime/tasks.ts";
 import { renderRef, sessionOverview } from "../../runtime/render-ref.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
+import { prependRepoContext } from "../../runtime/repo-context.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
@@ -30,7 +31,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
       "# Changes", ...narrative.data.changes.map((c) => renderRef(view, `${narrativeId}#${c.id}`)),
       ...(specIds.length ? ["# Spec references", ...specIds.map((id) => renderRef(view, id))] : []),
     ].join("\n\n");
-    const r = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     if (!isReply(r.json)) throw new Error(`Review reply is not valid JSON: ${JSON.stringify(r.json)}`);
 
     const hunks = new Map(diff.data.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, { file, hunk }] as const)));

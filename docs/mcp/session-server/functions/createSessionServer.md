@@ -6,7 +6,7 @@
 
 # Function: createSessionServer()
 
-> **createSessionServer**(`store`, `sessionId`): `McpServer`
+> **createSessionServer**(`store`, `sessionId`, `repoRoot`): `McpServer`
 
 ## Parameters
 
@@ -15,6 +15,10 @@
 [`Store`](../../../runtime/store/classes/Store.md)
 
 ### sessionId
+
+`string`
+
+### repoRoot
 
 `string`
 

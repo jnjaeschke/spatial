@@ -4,6 +4,7 @@ import type {
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
 import { searchDocs, sessionView, type SessionView } from "./render-ref.ts";
+import type { RepoContext, RepoSkill } from "./repo-context.ts";
 
 export interface WebspecCapability {
   readonly effect: "read-only";
@@ -46,6 +47,10 @@ export interface TaskContext {
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
   repoMcp: Record<string, McpServerSpec>;
+  /** Repo skills available through the session MCP server. */
+  repoSkills: RepoSkill[];
+  /** Repo instructions from AGENTS.md or CLAUDE.md, if present. */
+  repoInstructions: string | null;
   artifacts: {
     put<T>(type: string, status: ArtifactStatus, data: T, llm?: LlmSelection): Artifact<T>;
     get<T>(id: Id): Artifact<T>;
@@ -91,8 +96,8 @@ export interface RuntimeOptions {
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
   sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
-  /** Called at task start to load repo-specific MCP servers. Defaults to no repo servers. */
-  repoContext?: (repo: string) => { mcpServers: Record<string, McpServerSpec> };
+  /** Called once at task start to load repo MCP servers, skills, and instructions. Defaults to an empty context. */
+  repoContext?: (repo: string) => RepoContext;
 }
 
 export type Listener = (e: RuntimeEvent) => void;
@@ -105,7 +110,7 @@ export class Runtime {
   #webspec: WebspecCapability;
   #searchfox: SearchfoxCapability;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
-  #repoContext: (repo: string) => { mcpServers: Record<string, McpServerSpec> };
+  #repoContext: (repo: string) => RepoContext;
   #running = new Map<Id, AbortController>();
   #listeners = new Set<Listener>();
 
@@ -120,7 +125,7 @@ export class Runtime {
     this.#webspec = opts.webspec;
     this.#searchfox = opts.searchfox;
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
-    this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {} }));
+    this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, skills: [], instructions: null }));
     for (const t of opts.tasks) {
       if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
       this.#tasks.set(t.kind, t);
@@ -186,6 +191,8 @@ export class Runtime {
       },
       sessionMcp: this.#sessionMcp(sessionId),
       repoMcp: {},
+      repoSkills: [],
+      repoInstructions: null,
       artifacts: {
         put: (type, status, data, llm) => {
           const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
@@ -217,7 +224,10 @@ export class Runtime {
 
     const done = (async () => {
       try {
-        ctx.repoMcp = this.#repoContext(session.repo).mcpServers;
+        const repoContext = this.#repoContext(session.repo);
+        ctx.repoMcp = repoContext.mcpServers;
+        ctx.repoSkills = repoContext.skills;
+        ctx.repoInstructions = repoContext.instructions;
         const output = await def.run(ctx, input);
         if (controller.signal.aborted) throw controller.signal.reason;
         this.#store.updateTask(task.id, { status: "succeeded", output });
