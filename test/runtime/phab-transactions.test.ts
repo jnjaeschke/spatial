@@ -36,7 +36,8 @@ test("parseTransactions skips removed/unsupported entries and validates its boun
   assert.throws(() => parseTransactions(null));
   assert.throws(() => parseTransactions({}));
   assert.throws(() => parseTransactions({ data: {} }));
-  assert.throws(() => parseTransactions({ data: [{ type: "inline", comments: [{}], fields: {} }], cursor: { after: null } }), /path/);
+  assert.throws(() => parseTransactions({ data: [{ id: 1, type: "inline", comments: [{ phid: "C", version: 1, authorPHID: "U", content: { raw: "x" } }], fields: {} }], cursor: { after: null } }), /path/);
+  assert.throws(() => parseTransactions({ data: [{ id: 1, type: "comment", comments: [{ phid: "C" }] }], cursor: { after: null } }), /malformed comment/);
 });
 
 test("fetchTransactions follows the cursor and concatenates pages", async () => {
@@ -69,6 +70,8 @@ test("storeRemoteComments is idempotent, revises edits and done toggles, and ide
   assert.equal(done[0]?.data.done, true);
   assert.deepEqual(store.listLinks(session.id).map((l) => [l.from, l.to, l.kind]), [[edited[0]!.id, first[0]!.id, "revises"], [done[0]!.id, edited[0]!.id, "revises"], [reopened[0]!.id, done[0]!.id, "revises"]]);
   assert.equal(latestPhabComments(store.listArtifacts(session.id)).find((a) => a.data.phid === "C")?.id, reopened[0]?.id);
+  const versions = storeRemoteComments(store, session.id, 7, [remote({ phid: "V", version: 2, body: "v2" }), remote({ phid: "V", version: 1, body: "v1" })], new Map(), { phid: "U", posted: [] });
+  assert.deepEqual(versions.map((a) => a.data.body), ["v2"]);
 
   const ownInline = storeRemoteComments(store, session.id, 7, [remote({ phid: "OWN", body: "posted" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
   const ownGeneral = storeRemoteComments(store, session.id, 7, [remote({ phid: "OWN-G", body: "posted", path: undefined })], new Map(), { phid: "U", posted: [{ body: "posted", path: null }] });

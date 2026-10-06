@@ -1,12 +1,13 @@
 import type { Artifact, Id, PhabCommentData } from "./types.ts";
 
-function latestByPhid(artifacts: Artifact[]): Map<string, Artifact<PhabCommentData>> {
+/** Latest artifact of every remote comment by `phid`: highest version, then newest. */
+export function latestByPhid(artifacts: Artifact[]): Map<string, Artifact<PhabCommentData>> {
   const latest = new Map<string, Artifact<PhabCommentData>>();
   for (const artifact of artifacts) {
     if (artifact.type !== "PhabComment") continue;
     const candidate = artifact as Artifact<PhabCommentData>;
     const current = latest.get(candidate.data.phid);
-    if (!current || candidate.data.version > current.data.version || candidate.data.version === current.data.version) {
+    if (!current || candidate.data.version >= current.data.version) {
       latest.set(candidate.data.phid, candidate);
     }
   }
