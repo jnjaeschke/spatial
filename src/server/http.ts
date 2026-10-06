@@ -11,6 +11,7 @@ import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "../workflows/narrate-patch.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { phabRevision } from "../shared/phabricator.ts";
+import { latestDiff, narrativeOf } from "../shared/epochs.ts";
 
 class HttpError extends Error {
   status: number;
@@ -148,11 +149,14 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/post-drafts$/, async ({ params, res }) => {
       const session = requireSession(rt, params[0]!);
-      const diffArtifact = rt.store.listArtifacts(session.id, "Diff").at(-1) as Artifact<DiffData> | undefined;
+      const artifacts = rt.store.listArtifacts(session.id);
+      const diffArtifact = latestDiff(artifacts);
       if (!diffArtifact) throw new HttpError(409, "Session has no imported diff");
       const diff = diffArtifact.data;
       const rev = phabRevision(diff);
       if (!rev) throw new HttpError(409, "The head commit has no Differential Revision trailer");
+      const narrative = narrativeOf(artifacts, diffArtifact.id);
+      if (!narrative) throw new HttpError(409, "The latest revision has no narrative");
 
       let token: string;
       try { token = readArcToken(rev.host); }
@@ -181,7 +185,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const drift = checkDrift(local, remote);
       if (drift !== null) throw new HttpError(409, `Local patch differs from the latest diff on D${rev.id} (first difference in ${drift}); update the revision or the checkout first`);
 
-      const candidates = postableComments({ artifacts: rt.store.listArtifacts(session.id), links: rt.store.listLinks(session.id) });
+      const candidates = postableComments({ artifacts, links: rt.store.listLinks(session.id) }, narrative.id);
       const skipped: { finding: string; reason: string }[] = [];
       let postedCount = 0;
       for (const { finding, comment } of candidates) {
@@ -252,9 +256,9 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
-      if (rt.store.listArtifacts(id).some((artifact) => artifact.type === "PatchNarrative")) {
-        throw new HttpError(409, "Session already has a narrative");
-      }
+      const artifacts = rt.store.listArtifacts(id);
+      const latest = latestDiff(artifacts);
+      if (latest && narrativeOf(artifacts, latest.id)) throw new HttpError(409, "Session already has a narrative");
       if (rt.store.listTasks(id).some((task) =>
         (task.kind === "importDiff" || task.kind === "narrate" || task.kind === "resolveSpecRefs" || task.kind === "review") &&
         (task.status === "pending" || task.status === "running"))) {
@@ -262,7 +266,18 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       }
       const body = await readJson(req);
       const llm = body.llm as LlmSelection | undefined;
-      narratePatch(rt, id, { base: str(body.base, "base"), head: str(body.head, "head"), llm }).catch((e) =>
+      let opts: Parameters<typeof narratePatch>[2];
+      if (body.base === undefined && body.head === undefined) {
+        if (!latest) throw new HttpError(400, "Missing string field: base");
+        opts = { diffId: latest.id, llm };
+      } else if (body.base === undefined) {
+        throw new HttpError(400, "Missing string field: base");
+      } else if (body.head === undefined) {
+        throw new HttpError(400, "Missing string field: head");
+      } else {
+        opts = { base: str(body.base, "base"), head: str(body.head, "head"), llm };
+      }
+      narratePatch(rt, id, opts).catch((e) =>
         console.error(`narrate failed in session ${id}: ${(e as Error).message}`),
       );
       send(res, 202, {});

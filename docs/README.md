@@ -17,6 +17,7 @@
 - [runtime/store](runtime/store/README.md)
 - [runtime/tasks](runtime/tasks/README.md)
 - [server/http](server/http/README.md)
+- [shared/epochs](shared/epochs/README.md)
 - [shared/phabricator](shared/phabricator/README.md)
 - [shared/postable-comments](shared/postable-comments/README.md)
 - [shared/types](shared/types/README.md)

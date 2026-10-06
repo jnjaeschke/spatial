@@ -6,7 +6,7 @@
 
 # Function: postableComments()
 
-> **postableComments**(`state`): [`PostableComment`](../interfaces/PostableComment.md)[]
+> **postableComments**(`state`, `narrativeId`): [`PostableComment`](../interfaces/PostableComment.md)[]
 
 Returns each accepted finding's latest verified comment unless that comment was already posted.
 
@@ -21,6 +21,10 @@ Returns each accepted finding's latest verified comment unless that comment was 
 #### links
 
 [`Link`](../../types/interfaces/Link.md)[]
+
+### narrativeId
+
+`string` \| `null`
 
 ## Returns
 

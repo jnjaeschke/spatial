@@ -3,6 +3,7 @@ import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffF
 import { revisionsOf } from "../shared/revisions.ts";
 import { phabRevision, type PhabRevision } from "../shared/phabricator.ts";
 import { postableComments } from "../shared/postable-comments.ts";
+import { latestDiff, narrativeOf } from "../shared/epochs.ts";
 import type { Draft } from "./chat-context.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
@@ -83,11 +84,10 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
 }
 
 export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {
-  const narratives = state.artifacts.filter((a) => a.type === "PatchNarrative") as Artifact<PatchNarrativeData>[];
-  const narrative = narratives.at(-1);
+  const diff = latestDiff(state.artifacts);
+  if (!diff) return null;
+  const narrative = narrativeOf(state.artifacts, diff.id);
   if (!narrative) return null;
-  const diff = state.artifacts.find((a) => a.id === narrative.data.diffId) as Artifact<DiffData> | undefined;
-  if (!diff) throw new Error(`Narrative ${narrative.id} references missing diff ${narrative.data.diffId}`);
   return { narrative, diff };
 }
 
@@ -140,7 +140,7 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
-  summary.pendingComments = postableComments(state).filter(({ finding }) => finding.data.lines !== undefined).length;
+  summary.pendingComments = postableComments(state, latest.narrative.id).filter(({ finding }) => finding.data.lines !== undefined).length;
   const prefix = `${latest.narrative.id}#`;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {

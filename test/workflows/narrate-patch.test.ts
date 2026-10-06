@@ -52,6 +52,17 @@ test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted
   assert.equal(call.cwd, session.repo);
 });
 
+test("narratePatch can narrate an existing Diff without importing another", async () => {
+  const { dir, r } = fixture();
+  const rt = createRuntime({ dbPath: join(dir, "reuse.sqlite"), claudeBin: STUB });
+  const session = await createSession(rt.store, r.dir, "t");
+  const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
+  const before = rt.store.listArtifacts(session.id, "Diff").length;
+  const result = await narratePatch(rt, session.id, { diffId });
+  assert.equal(result.diffId, diffId);
+  assert.equal(rt.store.listArtifacts(session.id, "Diff").length, before);
+});
+
 test("CLI narrate prints the narrative JSON", () => {
   const { dir, r, narrative } = fixture();
   const stdout = execFileSync(process.execPath, [CLI, "narrate", r.dir, "HEAD~1..HEAD", "--db", join(dir, "cli.sqlite")], {

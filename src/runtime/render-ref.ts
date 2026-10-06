@@ -2,6 +2,7 @@ import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, Pat
 import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
+import { latestDiff, narrativeOf } from "../shared/epochs.ts";
 
 /** What rendering needs from one session; built from Store lists. */
 export interface SessionView { artifacts: Artifact[]; links: Link[] }
@@ -98,11 +99,11 @@ export function renderRef(view: SessionView, ref: Ref): string {
 
 /** Summary, commits, changes, spec refs, and threads for the latest narrative. */
 export function sessionOverview(view: SessionView): string {
-  const latest = [...view.artifacts].reverse().find((artifact) => artifact.type === "PatchNarrative");
+  const diffArtifact = latestDiff(view.artifacts);
+  const latest = diffArtifact ? narrativeOf(view.artifacts, diffArtifact.id) : null;
   if (!latest) return "No narrative yet.";
   const narrative = latest.data as PatchNarrativeData;
-  const diff = view.artifacts.find((artifact) => artifact.id === narrative.diffId && artifact.type === "Diff");
-  const commits = diff ? (diff.data as DiffData).commits.map((commit) => "- " + commit.subject + (commit.body ? "\n  " + commit.body : "")).join("\n") : "None";
+  const commits = diffArtifact!.data.commits.map((commit) => "- " + commit.subject + (commit.body ? "\n  " + commit.body : "")).join("\n");
   const changes = narrative.changes.map((change) => "- " + latest.id + "#" + change.id + ": " + change.title + " (hunks: " + (change.hunkIds.join(", ") || "none") + ")").join("\n") || "None";
   const currentChangeRefs = new Set(narrative.changes.map((change) => latest.id + "#" + change.id));
   const currentSpecIds = new Set(view.links.filter((link) => link.kind === "supports" && currentChangeRefs.has(link.to)).map((link) => link.from));

@@ -88,6 +88,31 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.deepEqual(await repeated.json(), { error: "Session already has a narrative" });
 });
 
+test("narrate reuses the latest Diff and rejects narrating it twice", async () => {
+  const session = await newSession();
+  await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+  const first = await waitFor(async () => {
+    const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return snapshot.tasks.some((task) => task.kind === "review" && task.status === "succeeded") ? snapshot : undefined;
+  });
+  const original = first.artifacts.find((item) => item.type === "Diff")!;
+  const second = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { ...(original.data as DiffData), headSha: "new-head" }, provenance: { taskId: "test" } });
+  assert.equal((await post(`/api/sessions/${session.id}/narrate`, {})).status, 202);
+  const updated = await waitFor(async () => {
+    const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return snapshot.artifacts.some((item) => item.type === "PatchNarrative" && (item.data as { diffId: string }).diffId === second.id) ? snapshot : undefined;
+  });
+  assert.equal(updated.artifacts.filter((item) => item.type === "Diff").length, 2);
+  const repeated = await post(`/api/sessions/${session.id}/narrate`, {});
+  assert.equal(repeated.status, 409);
+  assert.deepEqual(await repeated.json(), { error: "Session already has a narrative" });
+  const trailered: DiffData = { ...(original.data as DiffData), headSha: "third-head", commits: [{ sha: "third-head", subject: "change", body: "Differential Revision: https://phab.example.com/D1" }] };
+  rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: trailered, provenance: { taskId: "test" } });
+  const drafts = await post(`/api/sessions/${session.id}/post-drafts`, {});
+  assert.equal(drafts.status, 409);
+  assert.deepEqual(await drafts.json(), { error: "The latest revision has no narrative" });
+});
+
 test("narrate rejects a second request while narration is running", async () => {
   let started!: () => void;
   let release!: () => void;
@@ -302,10 +327,12 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
   const headSha = testRepo.commit({ "a.txt": "after\n" }, "change\n\nDifferential Revision: https://phab.example.com/D1");
   const session = rt.store.createSession(testRepo.dir, "draft posting");
   const diffData: DiffData = { baseSha, headSha, commits: [{ sha: headSha, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }], files: [] };
-  rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "test" } });
+  const diff = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "test" } });
+  const narrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: diff.id, summary: "s", changes: [] }, provenance: { taskId: "test" } });
   const finding = rt.store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed", data: {
     anchor: "diff#f0h0", lines: { path: "a.txt", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Finding", body: "Details",
   }, provenance: { taskId: "test" } });
+  rt.store.putLink({ sessionId: session.id, from: finding.id, to: narrative.id, kind: "derivedFrom" });
   const decision = rt.store.putArtifact({ sessionId: session.id, type: "FindingDecision", status: "verified", data: { finding: finding.id, decision: "accepted" }, provenance: { taskId: "user" } });
   rt.store.putLink({ sessionId: session.id, from: decision.id, to: finding.id, kind: "about" });
   const comment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this." }, provenance: { taskId: "user" } });

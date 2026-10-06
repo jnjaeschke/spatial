@@ -75,3 +75,10 @@ test("sessionOverview lists latest narrative changes, specs, and threads", () =>
   assert.ok(overview.includes("- F [high correctness] Check parser (D#f0h0)"));
   assert.ok(!overview.includes("Old finding"));
 });
+
+test("sessionOverview reports no narrative when the latest Diff is not narrated", () => {
+  const oldDiff = { ...diff, id: "D1" };
+  const oldNarrative = { ...narrative, id: "N1", data: { ...narrative.data, diffId: "D1" } };
+  const newDiff = { ...diff, id: "D2", data: { ...diff.data, headSha: "head2" } };
+  assert.equal(sessionOverview({ artifacts: [oldDiff, oldNarrative, newDiff], links: [] }), "No narrative yet.");
+});

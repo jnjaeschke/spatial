@@ -6,7 +6,8 @@ export interface PostableComment {
 }
 
 /** Returns each accepted finding's latest verified comment unless that comment was already posted. */
-export function postableComments(state: { artifacts: Artifact[]; links: Link[] }): PostableComment[] {
+export function postableComments(state: { artifacts: Artifact[]; links: Link[] }, narrativeId: string | null): PostableComment[] {
+  if (narrativeId === null) return [];
   const linkedTo = (artifactId: string, targetId: string) => state.links.some((link) =>
     link.from === artifactId && link.to === targetId && link.kind === "about",
   );
@@ -17,6 +18,7 @@ export function postableComments(state: { artifacts: Artifact[]; links: Link[] }
   const result: PostableComment[] = [];
 
   for (const finding of findings) {
+    if (!state.links.some((link) => link.from === finding.id && link.to === narrativeId && link.kind === "derivedFrom")) continue;
     const decision = decisions.filter((artifact) => linkedTo(artifact.id, finding.id)).at(-1);
     if (decision?.data.decision !== "accepted") continue;
     const comment = comments.filter((artifact) => linkedTo(artifact.id, finding.id)).at(-1);

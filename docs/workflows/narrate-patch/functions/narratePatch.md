@@ -22,17 +22,7 @@ importDiff → narrate → resolveSpecRefs → review. Plain orchestration; no w
 
 ### opts
 
-#### base
-
-`string`
-
-#### head
-
-`string`
-
-#### llm?
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+\{ `base`: `string`; `head`: `string`; `llm?`: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md); \} \| \{ `diffId`: `string`; `llm?`: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md); \}
 
 ## Returns
 

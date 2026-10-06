@@ -54,6 +54,15 @@ test("latestNarrative picks the newest narrative and its diff", () => {
   assert.equal(r?.diff.id, "D");
 });
 
+test("latestNarrative and sessionGraph hide an older narrative when latest Diff is unnarrated", () => {
+  const oldDiff = { ...diff, id: "D1", createdAt: "1" };
+  const oldNarrative = { ...narrative("N1"), data: { ...narrative("N1").data, diffId: "D1" } };
+  const newDiff = { ...diff, id: "D2", createdAt: "3", data: { ...diff.data, baseSha: "b2", headSha: "h2" } };
+  const st = state([oldDiff, oldNarrative, newDiff]);
+  assert.equal(latestNarrative(st), null);
+  assert.equal(sessionGraph(st), null);
+});
+
 test("sessionGraph summary node includes revision and pendingComments", () => {
   const withRevision = { ...diff, data: { ...diff.data, commits: [{ sha: "1", subject: "Bug 1", body: "Differential Revision: https://phab.example.com/D5" }] } };
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", lines: { path: "a.cpp", side: "new" as const, start: 1, end: 1 }, category: "tests" as const, severity: "low" as const, title: "Finding", body: "Body" } };
@@ -61,6 +70,7 @@ test("sessionGraph summary node includes revision and pendingComments", () => {
   const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { finding: "F", body: "Ready" } };
   const st = state([withRevision, narrative("N"), finding, decision, comment]);
   st.links = [decision, comment].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const }));
+  st.links.push({ id: "finding-narrative", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" });
   const summary = sessionGraph(st)!.nodes.find((n) => n.id === "N")!.data;
   assert.equal(summary.kind, "summary");
   if (summary.kind === "summary") {
@@ -79,6 +89,7 @@ test("pendingComments counts only inline-postable comments", () => {
   const posted = { id: "P", sessionId: "S", type: "PostedComment", status: "verified" as const, createdAt: "9", provenance: { taskId: "runtime" }, data: { comment: "C0", revision: 5, diff: 1, inlineId: 77 } };
   const st = state([withRevision, narrative("N"), withLines, withoutLines, ...accepted, ...comments, posted]);
   st.links = [...accepted, ...comments].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: a.data.finding, kind: "about" as const }));
+  st.links.push(...[withLines, withoutLines].map((f) => ({ id: `${f.id}-narrative`, sessionId: "S", from: f.id, to: "N", kind: "derivedFrom" as const })));
   st.links.push({ id: "posted-about", sessionId: "S", from: "P", to: "C0", kind: "about" });
   const summary = sessionGraph(st)!.nodes.find((n) => n.id === "N")!.data;
   assert.equal(summary.kind, "summary");

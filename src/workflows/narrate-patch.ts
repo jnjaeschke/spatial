@@ -5,9 +5,9 @@ import type { Runtime } from "../runtime/tasks.ts";
 export async function narratePatch(
   rt: Runtime,
   sessionId: Id,
-  opts: { base: string; head: string; llm?: LlmSelection },
+  opts: { base: string; head: string; llm?: LlmSelection } | { diffId: Id; llm?: LlmSelection },
 ): Promise<{ diffId: Id; narrativeId: Id }> {
-  const { diffId } = await rt.run<{ diffId: Id }>(sessionId, "importDiff", { base: opts.base, head: opts.head });
+  const { diffId } = "diffId" in opts ? opts : await rt.run<{ diffId: Id }>(sessionId, "importDiff", { base: opts.base, head: opts.head });
   const { narrativeId } = await rt.run<{ narrativeId: Id }>(sessionId, "narrate", { diffId, llm: opts.llm });
   await rt.run(sessionId, "resolveSpecRefs", { narrativeId });
   await rt.run(sessionId, "review", { narrativeId, llm: opts.llm });
