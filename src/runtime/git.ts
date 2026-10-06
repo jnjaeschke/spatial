@@ -1,5 +1,8 @@
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import type { Commit, Session, WorkflowId } from "../shared/types.ts";
 import type { Store } from "./store.ts";
@@ -9,9 +12,53 @@ import { parseBlame } from "./blame.ts";
 const run = promisify(execFile);
 const MAX_BUFFER = 512 * 1024 * 1024;
 
-async function git(repo: string, args: string[]): Promise<string> {
-  const { stdout } = await run("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8" });
+async function git(repo: string, args: string[], env?: Record<string, string>): Promise<string> {
+  const { stdout } = await run("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}) });
   return stdout;
+}
+
+export interface PatchIdentity { name: string; email: string; /** Unix seconds. */ time: number }
+
+/** Object-database writes for remote review. Not a `GitCapability`: tasks never get it. */
+export interface GitWriter {
+  /** Applies `rawDiff` onto the tree of `parent` in a temporary index and commits the result on top of `parent`. Writes only objects: the work tree, the index, HEAD and all refs are untouched. Deterministic for equal inputs. Rejects when the patch does not apply. Returns the new commit sha. */
+  commitPatch(parent: string, rawDiff: string, message: string, identity: PatchIdentity): Promise<string>;
+  /** Points `ref` at `sha`. Rejects unless `ref` starts with `refs/spatial/`. */
+  updateRef(ref: string, sha: string): Promise<void>;
+}
+
+export function makeGitWriter(repo: string): GitWriter {
+  return {
+    async commitPatch(parent, rawDiff, message, identity) {
+      const dir = await mkdtemp(join(tmpdir(), "spatial-index-"));
+      try {
+        const env = { GIT_INDEX_FILE: join(dir, "index"), GIT_NO_LAZY_FETCH: "1" };
+        const patch = join(dir, "patch");
+        await writeFile(patch, rawDiff);
+        await git(repo, ["read-tree", parent], env);
+        try {
+          await git(repo, ["apply", "--cached", "--whitespace=nowarn", patch], env);
+        } catch (e) {
+          const stderr = (e as { stderr?: string }).stderr?.trim();
+          throw new Error(`Patch does not apply on ${parent}: ${stderr || (e as Error).message}`);
+        }
+        const tree = (await git(repo, ["write-tree"], env)).trim();
+        const when = `${identity.time} +0000`;
+        const sha = await git(repo, ["-c", "commit.gpgsign=false", "commit-tree", tree, "-p", parent, "-m", message], {
+          ...env,
+          GIT_AUTHOR_NAME: identity.name, GIT_AUTHOR_EMAIL: identity.email, GIT_AUTHOR_DATE: when,
+          GIT_COMMITTER_NAME: identity.name, GIT_COMMITTER_EMAIL: identity.email, GIT_COMMITTER_DATE: when,
+        });
+        return sha.trim();
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+    async updateRef(ref, sha) {
+      if (!/^refs\/spatial\/[^.]/.test(ref) || ref.includes("..")) throw new Error(`Refusing to write ${ref}: only refs/spatial/ is writable`);
+      await git(repo, ["update-ref", ref, sha]);
+    },
+  };
 }
 
 export function makeGit(repo: string): GitCapability {

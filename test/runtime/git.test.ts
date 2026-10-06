@@ -1,14 +1,86 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, realpathSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { makeGit, createSession, resolveRepo } from "../../src/runtime/git.ts";
+import { makeGit, makeGitWriter, createSession, resolveRepo } from "../../src/runtime/git.ts";
 import { parseUnifiedDiff } from "../../src/runtime/diff-parse.ts";
 import { attribute } from "../../src/runtime/attribution.ts";
 import { findRewrites } from "../../src/runtime/rewrites.ts";
 import { Store } from "../../src/runtime/store.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
+
+async function rawDiffOf(before: Record<string, string>, after: Record<string, string>) {
+  const r = makeRepo();
+  const a = r.commit(before, "before");
+  const b = r.commit(after, "after");
+  return makeGit(r.dir).diff(a, b);
+}
+
+const identity = { name: "Spatial Review", email: "spatial-review@localhost", time: 1_700_000_000 };
+const snapshot = (r: ReturnType<typeof makeRepo>) => ({
+  head: r.git("rev-parse", "HEAD"),
+  branch: r.git("symbolic-ref", "HEAD"),
+  status: r.git("status", "--porcelain"),
+  refs: r.git("for-each-ref"),
+  index: readFileSync(join(r.dir, ".git", "index")),
+});
+
+// REQUIRES_REAL_GIT
+test("commitPatch writes a deterministic commit without changing checkout state", async () => {
+  const r = makeRepo();
+  const base = r.commit({ "a.txt": "old\n" }, "base");
+  const rawDiff = await rawDiffOf({ "a.txt": "old\n" }, { "a.txt": "new\n", "b.txt": "added\n" });
+  const before = snapshot(r);
+  const writer = makeGitWriter(r.dir);
+  const message = "Title\n\nDifferential Revision: https://phab.example.com/D1";
+  const sha = await writer.commitPatch(base, rawDiff, message, identity);
+  assert.equal(r.git("rev-parse", `${sha}^`), base);
+  assert.equal(await makeGit(r.dir).show(sha, "a.txt"), "new\n");
+  assert.equal(await makeGit(r.dir).show(sha, "b.txt"), "added\n");
+  assert.equal(r.git("log", "-1", "--format=%an,%ae,%cn,%ce,%at,%ct%n%B", sha), `Spatial Review,spatial-review@localhost,Spatial Review,spatial-review@localhost,1700000000,1700000000\n${message}`);
+  assert.deepEqual(snapshot(r), before);
+  r.git("cat-file", "-e", sha);
+  assert.equal(await writer.commitPatch(base, rawDiff, message, identity), sha);
+});
+
+// REQUIRES_REAL_GIT
+test("commitPatch ignores dirty work tree state", async () => {
+  const r = makeRepo();
+  const base = r.commit({ "a.txt": "old\n" }, "base");
+  const rawDiff = await rawDiffOf({ "a.txt": "old\n" }, { "a.txt": "new\n" });
+  writeFileSync(join(r.dir, "a.txt"), "dirty\n");
+  writeFileSync(join(r.dir, "untracked.txt"), "untracked\n");
+  const status = r.git("status", "--porcelain");
+  const sha = await makeGitWriter(r.dir).commitPatch(base, rawDiff, "patch", identity);
+  assert.equal(await makeGit(r.dir).show(sha, "a.txt"), "new\n");
+  assert.equal(r.git("status", "--porcelain"), status);
+  assert.notEqual(status, "");
+});
+
+// REQUIRES_REAL_GIT
+test("commitPatch rejects an inapplicable patch without changing checkout state", async () => {
+  const r = makeRepo();
+  const base = r.commit({ "a.txt": "different\n" }, "base");
+  const rawDiff = await rawDiffOf({ "a.txt": "old\n" }, { "a.txt": "new\n" });
+  const before = snapshot(r);
+  await assert.rejects(makeGitWriter(r.dir).commitPatch(base, rawDiff, "patch", identity), new RegExp(`Patch does not apply on ${base}`));
+  assert.deepEqual(snapshot(r), before);
+});
+
+// REQUIRES_REAL_GIT
+test("updateRef writes only refs under refs/spatial", async () => {
+  const r = makeRepo();
+  const sha = r.commit({ "a.txt": "x\n" }, "base");
+  const before = r.git("for-each-ref", "--format=%(objectname) %(objecttype) %(refname)");
+  const writer = makeGitWriter(r.dir);
+  await writer.updateRef("refs/spatial/D1/5-abc", sha);
+  assert.equal(r.git("rev-parse", "refs/spatial/D1/5-abc"), sha);
+  assert.equal(r.git("for-each-ref", "--format=%(objectname) %(objecttype) %(refname)"), `${before}\n${sha} commit refs/spatial/D1/5-abc`);
+  await assert.rejects(writer.updateRef("refs/heads/main", sha), /refs\/spatial\//);
+  await assert.rejects(writer.updateRef("refs/spatial/..\/heads\/x", sha), /refs\/spatial\//);
+  assert.equal(r.git("rev-parse", "refs/heads/main"), sha);
+});
 
 test("resolve, isAncestor, log, diff", async () => {
   const r = makeRepo();
