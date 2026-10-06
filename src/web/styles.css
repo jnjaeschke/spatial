@@ -38,11 +38,19 @@ html, body, #root { margin: 0; height: 100%; }
 .summary-node .post-drafts { border: 1px solid #6b7fd7; border-radius: 3px; padding: 4px 8px; color: #3348a5; background: #fff; cursor: pointer; font-size: 12px; }
 .summary-node .post-result { color: #1a73e8; font-size: 12px; margin-left: 8px; }
 .summary-node .post-error { color: #d93025; font-size: 12px; margin-left: 8px; }
+.phab-summary { margin-top: 8px; padding-top: 6px; border-top: 1px solid #d9dced; }
+.phab-summary h4 { margin: 0; font-size: 0.95em; }
+.phab-summary ul { margin: 4px 0; padding-left: 18px; }
+.phab-summary li { margin: 3px 0; overflow-wrap: anywhere; }
 .files { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, monospace; font-size: 0.85em; color: #555; }
 .diff { margin-top: 10px; border: 1px solid #e3e3e3; border-radius: 6px; overflow: hidden; cursor: text; user-select: text; }
 .diff-head { font-family: ui-monospace, monospace; font-size: 0.85em; background: #f0f0f0; padding: 4px 8px; }
 .spec-node { border-color: #2e8b57; background: #f2fbf5; }
 .chat-node { border-color: #b26b00; background: #fffaf2; }
+.phab-node { border-color: #9b78bd; background: #faf7fd; }
+.phab-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.phab-node .phab-message strong { display: block; margin-bottom: 3px; }
+.phab-done { background: #e7e7e7; color: #555; }
 .chat-node .messages, .finding-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
 .chat-node .enable-mcp-request, .finding-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 0; }
 .msg { padding: 6px 8px; border-radius: 6px; }

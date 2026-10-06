@@ -9,11 +9,3 @@
 ## Classes
 
 - [PhabricatorSyncer](classes/PhabricatorSyncer.md)
-
-## Interfaces
-
-- [PhabSyncData](interfaces/PhabSyncData.md)
-
-## Functions
-
-- [latestPhabSync](functions/latestPhabSync.md)

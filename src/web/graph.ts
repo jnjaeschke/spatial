@@ -46,6 +46,8 @@ export interface SummaryNodeData {
   pendingComments: number;
   sessionId: Id;
   sinceEpoch: number | null;
+  phabGeneral: Artifact<PhabCommentData>[];
+  phabUnanchored: { diffId: number | null; oldSide: boolean; outdatedEpoch: number | null; comments: Artifact<PhabCommentData>[] }[];
 }
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
@@ -124,7 +126,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const nodes: GraphNode[] = [{
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, revision: phabRevision(diff.data), pendingComments: 0, sessionId: narrative.sessionId,
-      sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null },
+      sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabUnanchored: [] },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {
@@ -216,6 +218,8 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(thread.id) };
   };
   const phab = phabView(state.artifacts, latest.diff, latest.narrative.data);
+  summary.phabGeneral = phab.general;
+  summary.phabUnanchored = phab.unanchored;
   for (const remote of phab.anchored) {
     const node = resolve(remote.anchor);
     if (!node) continue;

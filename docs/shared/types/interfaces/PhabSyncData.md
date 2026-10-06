@@ -2,11 +2,11 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/phabricator-sync](../README.md) / PhabSyncData
+[spatial-ide](../../../README.md) / [shared/types](../README.md) / PhabSyncData
 
 # Interface: PhabSyncData
 
-Matching Phabricator diff observed while this local Diff was the session head.
+The Phabricator diff matching a local Diff while it was the session head, and the revision's newest diff.
 
 ## Properties
 

@@ -30,6 +30,21 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
       {!closed && <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>
         {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}
+        {data.level !== "patch" && data.phabGeneral.length > 0 && <section className="phab-summary">
+          <h4>Phabricator comments</h4>
+          <ul>{data.phabGeneral.map((comment) => <li key={comment.id}>@{comment.data.author}: {comment.data.body} {comment.data.done && <span className="badge phab-done">Done</span>}</li>)}</ul>
+        </section>}
+        {data.level !== "patch" && data.phabUnanchored.map((group, index) => {
+          const id = group.outdatedEpoch === null ? null : `phab-outdated:${group.outdatedEpoch}`;
+          const closedGroup = id !== null && (collapse?.collapsed.has(id) ?? false);
+          const title = group.outdatedEpoch !== null ? `Phabricator comments (outdated, epoch ${group.outdatedEpoch})`
+            : group.oldSide ? `Phabricator comments (diff ${group.diffId}, old side)`
+              : `Phabricator comments${group.diffId === null ? " (not matching local)" : ` (diff ${group.diffId}, not matching local)`}`;
+          return <section className="phab-summary" key={`${group.diffId}:${group.oldSide}:${group.outdatedEpoch}:${index}`}>
+            <h4>{title}{id !== null && collapse && <button aria-label={closedGroup ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(id)}>{closedGroup ? "▸" : "▾"}</button>}</h4>
+            {!closedGroup && <ul>{group.comments.map((comment) => <li key={comment.id}>{comment.data.path}:{comment.data.line} · @{comment.data.author}: {comment.data.body} {comment.data.done && <span className="badge phab-done">Done</span>}</li>)}</ul>}
+          </section>;
+        })}
         {data.level !== "patch" && data.pendingComments > 0 && revNum && <div className="post-drafts-row">
           <button className="post-drafts nodrag" onClick={async () => {
             setPostError(null);

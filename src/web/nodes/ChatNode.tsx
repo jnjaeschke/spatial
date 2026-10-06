@@ -35,13 +35,13 @@ type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diff
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
-  const actions = useContext(ChatActionsContext)!;
+  const actions = useContext(ChatActionsContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
-  const [llm, setLlm] = useState<LlmSelection>(lastLlm ?? actions.models.default);
+  const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
-  const turns = actions.tasks.filter((t) => t.kind === "chatTurn" && (t.id === data.taskId ||
+  const turns = (actions?.tasks ?? []).filter((t) => t.kind === "chatTurn" && (t.id === data.taskId ||
     (data.threadId !== null && (t.input as { threadId?: string }).threadId === data.threadId) ||
     (data.draftId === null && (t.input as { anchor?: string }).anchor === data.anchor)));
   const last = turns.at(-1);
@@ -63,25 +63,26 @@ export function Conversation(data: ConversationProps) {
         {busy && <div className="msg pending">…</div>}
         {failed && <div className="msg failed">{failed.error}</div>}
       </div>
-      {data.threadId !== null && data.mcpRequests.map((server) => (
+      {actions && data.threadId !== null && data.mcpRequests.map((server) => (
         <div key={server} className="enable-mcp-request">
           <span>Enable <code>{server}</code> for this chat?</span>
           <button className="enable-mcp nodrag" type="button" onClick={() => api.enableMcpServer(actions.sessionId, data.threadId!, server).catch((err: Error) => setError(err.message))}>Enable</button>
         </div>
       ))}
-      <form className="nodrag nopan" onSubmit={(e) => {
+      {actions && <form className="nodrag nopan" onSubmit={(e) => {
         e.preventDefault();
         setError(null);
-        const body = data.threadId ? { threadId: data.threadId, text, llm } : { anchor: data.anchor, text, llm, ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
+        const selection = llm ?? actions.models.default;
+        const body = data.threadId ? { threadId: data.threadId, text, llm: selection } : { anchor: data.anchor, text, llm: selection, ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
         api.turn(actions.sessionId, body).then(({ taskId }) => {
           setText("");
           if (data.draftId) actions.onSent(data.draftId, taskId);
         }, (err: Error) => setError(err.message));
       }}>
         <textarea aria-label="message" value={text} onChange={(e) => setText(e.target.value)} rows={2} />
-        <LlmPicker models={actions.models} value={llm} onChange={setLlm} />
+        <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={busy || !text.trim()}>Send</button>
         {error && <span className="failed">{error}</span>}
-      </form>
+      </form>}
   </>;
 }

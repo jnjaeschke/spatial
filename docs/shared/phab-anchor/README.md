@@ -13,4 +13,5 @@
 
 ## Functions
 
+- [latestPhabSync](functions/latestPhabSync.md)
 - [phabView](functions/phabView.md)

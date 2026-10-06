@@ -56,7 +56,10 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!g) throw new Error("Canvas needs a session with a narrative");
     return g;
   }, [state, drafts]);
-  const defaults = useMemo(() => new Set(graph.nodes.filter((n) => n.data.kind === "finding" && n.data.collapsedByDefault).map((n) => n.id)), [graph]);
+  const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => n.data.kind === "finding" && n.data.collapsedByDefault ? [n.id]
+    : n.data.kind === "phab" && n.data.done ? [n.id]
+      : n.data.kind === "summary" ? n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`)
+        : [])), [graph]);
   const { collapsed, toggle, expandAll } = useCollapsed(state.session.id, defaults);
   const shown = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());

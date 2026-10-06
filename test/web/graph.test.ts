@@ -165,6 +165,28 @@ test("sessionGraph hosts anchored Phabricator comments and their chat thread", (
   assert.ok(!g.nodes.some((n) => n.id === "T-PC"));
 });
 
+test("sessionGraph exposes remote comments in summary data and carries root done state", () => {
+  const withRevision = { ...diff, data: { ...diff.data, commits: [{ sha: "1", subject: "Bug 1", body: "Differential Revision: https://phab.example.com/D1" }] } };
+  const root = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", body: "inline", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: true, txId: 1, dateCreated: 1 } };
+  const general = { ...root, id: "PG", data: { ...root.data, phid: "PHID-XCMT-2", body: "general", path: undefined, line: undefined, diffId: undefined, isNewFile: undefined, done: false } };
+  const outdated = { ...root, id: "PO", data: { ...root.data, phid: "PHID-XCMT-3", body: "outdated", path: "b.h", diffId: 9 } };
+  const previousSync = { id: "PS1", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 9, latestDiffId: 9, localDiff: "D" } };
+  const latestSync = { id: "PS2", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "4", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 7, latestDiffId: 9, localDiff: "D2" } };
+  const nextDiff = { ...withRevision, id: "D2", createdAt: "4" };
+  const nextNarrative = { ...narrative("N"), id: "N2", createdAt: "5", data: { ...narrative("N").data, diffId: "D2", changes: [ch("c1", ["f0h0"])] } };
+  const st = state([withRevision, previousSync, root, general, outdated, latestSync, nextDiff, nextNarrative]);
+  const graph = sessionGraph(st)!;
+  const summary = graph.nodes.find((node) => node.id === "N2")!.data;
+  assert.equal(summary.kind, "summary");
+  if (summary.kind === "summary") {
+    assert.deepEqual(summary.phabGeneral.map((item) => item.id), ["PG"]);
+    assert.deepEqual(summary.phabUnanchored.map((group) => [group.diffId, group.oldSide, group.outdatedEpoch, group.comments.map((item) => item.id)]), [[9, false, 1, ["PO"]]]);
+  }
+  const thread = graph.nodes.find((node) => node.id === "PC");
+  assert.equal(thread?.data.kind, "phab");
+  if (thread?.data.kind === "phab") assert.equal(thread.data.done, true);
+});
+
 test("sessionGraph exposes unenabled MCP requests per thread", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } };
   const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools" } };
