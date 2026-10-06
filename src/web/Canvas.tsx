@@ -132,9 +132,19 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     return new Map([...mainPos, ...placeSatellites(rects, satellites)]);
   };
 
+  const sizeBasis = useRef("");
   useEffect(() => {
-    const sized = shown.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data, level, textScale) }));
-    const pos = arrange(sized);
+    // A new graph object (every session event) keeps the measured sizes of unchanged zoom and text scale, so
+    // the view does not jump to estimated positions until the next measurement.
+    const basis = `${level}|${textScale}`;
+    const keepMeasured = basis === sizeBasis.current;
+    sizeBasis.current = basis;
+    const measured = new Map(keepMeasured ? rf.getNodes().flatMap((n) => n.measured?.width && n.measured.height ? [[n.id, n.measured] as const] : []) : []);
+    const sized = shown.nodes.map((n) => {
+      const m = measured.get(n.id);
+      return { id: n.id, ...(m ? { width: m.width!, height: m.height! } : estimateSize(n.data, level, textScale)) };
+    });
+    const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
     basePos.current = pos;
     laidOutKey.current = "";
     setNodes(shown.nodes.map((n) => ({
@@ -142,6 +152,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
+      ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
       style: { width: (n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" || n.data.kind === "phab" ? SATELLITE_WIDTH : NODE_WIDTH[level]) * textScale },
       draggable: true,
       dragHandle: ".title",
