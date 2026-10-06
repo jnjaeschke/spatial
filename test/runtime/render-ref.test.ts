@@ -82,3 +82,18 @@ test("sessionOverview reports no narrative when the latest Diff is not narrated"
   const newDiff = { ...diff, id: "D2", data: { ...diff.data, headSha: "head2" } };
   assert.equal(sessionOverview({ artifacts: [oldDiff, oldNarrative, newDiff], links: [] }), "No narrative yet.");
 });
+
+test("sessionOverview lists carried findings and marks outdated locations", () => {
+  const oldDiff = { ...diff, id: "D1", createdAt: "1" };
+  const oldNarrative = { ...narrative, id: "N1", createdAt: "2", data: { ...narrative.data, diffId: "D1" } };
+  const newDiff = { ...diff, id: "D2", createdAt: "3" };
+  const newNarrative = { ...narrative, id: "N2", createdAt: "4", data: { ...narrative.data, diffId: "D2" } };
+  const carry = artifact("FC", "FindingCarry", { finding: "F", toDiff: "D2", hunkId: null });
+  const state = { artifacts: [oldDiff, oldNarrative, newDiff, newNarrative, finding, carry], links: [
+    { id: "f-n1", sessionId: "s", from: "F", to: "N1", kind: "derivedFrom" },
+    { id: "f-d1", sessionId: "s", from: "F", to: "D1#f0h0", kind: "about" },
+    { id: "carry-f", sessionId: "s", from: "FC", to: "F", kind: "about" },
+  ] as Link[] };
+  const overview = sessionOverview(state);
+  assert.match(overview, /- F \[high correctness\] Check parser \(location outdated\)/);
+});

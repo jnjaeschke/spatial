@@ -383,12 +383,16 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
   const headSha = testRepo.commit({ "a.txt": "after\n" }, "change\n\nDifferential Revision: https://phab.example.com/D1");
   const session = rt.store.createSession(testRepo.dir, "draft posting");
   const diffData: DiffData = { baseSha, headSha, commits: [{ sha: headSha, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }], files: [] };
+  const previousDiff = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { ...diffData, headSha: "previous" }, provenance: { taskId: "test" } });
+  const previousNarrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: previousDiff.id, summary: "previous", changes: [] }, provenance: { taskId: "test" } });
   const diff = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "test" } });
   const narrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: diff.id, summary: "s", changes: [] }, provenance: { taskId: "test" } });
   const finding = rt.store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed", data: {
-    anchor: "diff#f0h0", lines: { path: "a.txt", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Finding", body: "Details",
+    anchor: `${previousDiff.id}#f0h0`, lines: { path: "a.txt", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Finding", body: "Details",
   }, provenance: { taskId: "test" } });
-  rt.store.putLink({ sessionId: session.id, from: finding.id, to: narrative.id, kind: "derivedFrom" });
+  rt.store.putLink({ sessionId: session.id, from: finding.id, to: previousNarrative.id, kind: "derivedFrom" });
+  const carry = rt.store.putArtifact({ sessionId: session.id, type: "FindingCarry", status: "verified", data: { finding: finding.id, toDiff: diff.id, hunkId: "f0h0", lines: { path: "a.txt", side: "new", start: 8, end: 8 } }, provenance: { taskId: "carry" } });
+  rt.store.putLink({ sessionId: session.id, from: carry.id, to: finding.id, kind: "about" });
   const decision = rt.store.putArtifact({ sessionId: session.id, type: "FindingDecision", status: "verified", data: { finding: finding.id, decision: "accepted" }, provenance: { taskId: "user" } });
   rt.store.putLink({ sessionId: session.id, from: decision.id, to: finding.id, kind: "about" });
   const comment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this." }, provenance: { taskId: "user" } });
@@ -396,6 +400,7 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
 
   const remote = await makeGit(testRepo.dir).diff(baseSha, headSha);
   const calls: string[] = [];
+  let inlineLine: number | undefined;
   let mode: "normal" | "drift" | "http-error" = "normal";
   const conduitServer = createNetServer(async (req, res) => {
     let body = "";
@@ -403,7 +408,8 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
     const form = new URLSearchParams(body);
     const method = req.url!.slice("/api/".length);
     calls.push(method);
-    JSON.parse(form.get("params")!);
+    const params = JSON.parse(form.get("params")!);
+    if (method === "differential.createinline") inlineLine = params.lineNumber;
     if (mode === "http-error") {
       res.writeHead(500).end("failure");
       return;
@@ -427,6 +433,7 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { posted: 1, skipped: [], revision: "D1" });
     assert.deepEqual(calls, ["differential.revision.search", "differential.diff.search", "differential.getrawdiff", "differential.createinline"]);
+    assert.equal(inlineLine, 8);
     const posted = rt.store.listArtifacts(session.id, "PostedComment");
     assert.equal(posted.length, 1);
     assert.deepEqual(posted[0]!.data, { comment: comment.id, revision: 1, diff: 7, inlineId: 9 });

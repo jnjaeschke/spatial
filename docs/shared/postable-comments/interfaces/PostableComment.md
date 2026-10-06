@@ -17,3 +17,25 @@
 ### finding
 
 > **finding**: [`Artifact`](../../types/interfaces/Artifact.md)\<[`ReviewFindingData`](../../types/interfaces/ReviewFindingData.md)\>
+
+***
+
+### lines?
+
+> `optional` **lines?**: `object`
+
+#### end
+
+> **end**: `number`
+
+#### path
+
+> **path**: `string`
+
+#### side
+
+> **side**: `"old"` \| `"new"`
+
+#### start
+
+> **start**: `number`

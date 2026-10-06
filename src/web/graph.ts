@@ -1,9 +1,10 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, Hunk, Id, McpServerData, PatchNarrativeData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { phabRevision, type PhabRevision } from "../shared/phabricator.ts";
 import { postableComments } from "../shared/postable-comments.ts";
-import { latestDiff, narrativeOf } from "../shared/epochs.ts";
+import { epochNumber, latestDiff, narrativeOf } from "../shared/epochs.ts";
+import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
@@ -42,6 +43,7 @@ export interface SummaryNodeData {
   revision: PhabRevision | null;
   pendingComments: number;
   sessionId: Id;
+  sinceEpoch: number | null;
 }
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
@@ -71,6 +73,11 @@ export interface FindingNodeData extends ReviewFindingData {
   decision: FindingDecisionData["decision"] | null;
   comment: { id: string; body: string; status: Artifact<ReviewCommentData>["status"] } | null;
   postedTo: number | null;
+  status: FindingStatus;
+  outdated: boolean;
+  verdict: { verdict: FindingVerdictValue; reason: string } | null;
+  fromEpoch: number | null;
+  collapsedByDefault: boolean;
 }
 
 export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData;
@@ -79,7 +86,7 @@ export interface GraphEdge { id: string; source: string; target: string }
 
 /** The graph without collapsed quoted satellites (chat threads, findings): they live on as a highlight of their quote. */
 export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, collapsed: ReadonlySet<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const hidden = new Set(g.nodes.filter((n) => ((n.data.kind === "chat" && n.data.threadId !== null) || n.data.kind === "finding") && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
+  const hidden = new Set(g.nodes.filter((n) => ((n.data.kind === "chat" && n.data.threadId !== null) || (n.data.kind === "finding" && n.data.decision !== "dismissed")) && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
 }
 
@@ -91,12 +98,13 @@ export function latestNarrative(state: SessionState): { narrative: Artifact<Patc
   return { narrative, diff };
 }
 
-export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Artifact<DiffData>): { nodes: GraphNode[]; edges: GraphEdge[] } {
+export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Artifact<DiffData>, artifacts: Artifact[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const byHunk = new Map(diff.data.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, { file, hunk }] as const)));
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, revision: phabRevision(diff.data), pendingComments: 0, sessionId: narrative.sessionId },
+    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, revision: phabRevision(diff.data), pendingComments: 0, sessionId: narrative.sessionId,
+      sinceEpoch: narrative.data.previous ? (() => { const previous = artifacts.find((a) => a.id === narrative.data.previous && a.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined; return previous ? epochNumber(artifacts, previous.data.diffId) : null; })() : null },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {
@@ -138,9 +146,9 @@ export function anchorNodeId(
 export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
-  const g = narrativeGraph(latest.narrative, latest.diff);
+  const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts);
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
-  summary.pendingComments = postableComments(state, latest.narrative.id).filter(({ finding }) => finding.data.lines !== undefined).length;
+  summary.pendingComments = postableComments(state, latest.narrative.id).filter(({ lines }) => lines !== undefined).length;
   const prefix = `${latest.narrative.id}#`;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {
@@ -187,22 +195,24 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
     return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(thread.id) };
   };
-  for (const artifact of state.artifacts) {
-    if (artifact.type !== "ReviewFinding") continue;
-    const finding = artifact as Artifact<ReviewFindingData>;
-    const node = resolve(finding.data.anchor);
+  for (const findingState of findingStates(state, latest.narrative.id)) {
+    const finding = findingState.finding;
+    const node = resolve(findingState.anchor ?? latest.narrative.id);
     if (!node) continue;
     nodeIds.add(finding.id);
     const thread = threads.find((t) => t.data.anchor === finding.id);
     if (thread) { findingOf.set(thread.id, finding.id); nodeIds.add(thread.id); }
     const related = state.links.filter((link) => link.kind === "about" && link.to === finding.id).map((link) => link.from);
-    const decision = state.artifacts.filter((a) => a.type === "FindingDecision" && related.includes(a.id)).at(-1) as Artifact<FindingDecisionData> | undefined;
     const comment = state.artifacts.filter((a) => a.type === "ReviewComment" && related.includes(a.id)).at(-1) as Artifact<ReviewCommentData> | undefined;
     const posted = comment && (state.artifacts.filter((a) => a.type === "PostedComment") as Artifact<PostedCommentData>[]).find((a) => a.data.comment === comment.id);
     g.nodes.push({ id: finding.id, anchors: [node], data: {
-      kind: "finding", findingId: finding.id, ...finding.data, diffId: latest.diff.id, hunks: allHunks,
+      kind: "finding", findingId: finding.id, ...finding.data, anchor: findingState.anchor ?? latest.narrative.id,
+      quote: findingState.quote, lines: findingState.lines, status: findingState.status, outdated: findingState.outdated,
+      verdict: findingState.verdict ? { verdict: findingState.verdict.verdict, reason: findingState.verdict.reason } : null,
+      fromEpoch: findingState.epoch < epochNumber(state.artifacts, latest.diff.id) ? findingState.epoch : null,
+      collapsedByDefault: findingState.collapsedByDefault, diffId: latest.diff.id, hunks: allHunks,
       thread: thread ? threadContent(thread) : null,
-      decision: decision?.data.decision ?? null,
+      decision: findingState.decision,
       comment: comment ? { id: comment.id, body: comment.data.body, status: comment.status } : null,
       postedTo: posted?.data.revision ?? null,
     } });

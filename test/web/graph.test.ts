@@ -20,7 +20,9 @@ const narrative = (id: string): Artifact<PatchNarrativeData> => ({
   data: { diffId: "D", summary: "sum", changes: [ch("c1", ["f0h0"]), ch("c2", ["f0h1", "f1h0"], ["c1"]), ch("c3", [], ["c1"])] },
 });
 const state = (artifacts: Artifact[]): SessionState => ({
-  session: { id: "S", repo: "/r", title: "t", createdAt: "0" }, artifacts, links: [], tasks: [], lastEventId: 0, searchfox: null,
+  session: { id: "S", repo: "/r", title: "t", createdAt: "0" }, artifacts,
+  links: artifacts.filter((a) => a.type === "ReviewFinding").map((a) => ({ id: `derived-${a.id}`, sessionId: "S", from: a.id, to: artifacts.filter((item) => item.type === "PatchNarrative").at(-1)?.id ?? "", kind: "derivedFrom" as const })),
+  tasks: [], lastEventId: 0, searchfox: null,
 });
 
 test("zoomLevel switches up at the entry thresholds", () => {
@@ -69,7 +71,10 @@ test("sessionGraph summary node includes revision and pendingComments", () => {
   const decision = { id: "DEC", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" as const } };
   const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { finding: "F", body: "Ready" } };
   const st = state([withRevision, narrative("N"), finding, decision, comment]);
-  st.links = [decision, comment].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const }));
+  st.links = [
+    ...[decision, comment].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const })),
+    { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" },
+  ];
   st.links.push({ id: "finding-narrative", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" });
   const summary = sessionGraph(st)!.nodes.find((n) => n.id === "N")!.data;
   assert.equal(summary.kind, "summary");
@@ -97,7 +102,7 @@ test("pendingComments counts only inline-postable comments", () => {
 });
 
 test("narrativeGraph: ids are refs, summary feeds roots, deps feed dependents", () => {
-  const g = narrativeGraph(narrative("N"), diff);
+  const g = narrativeGraph(narrative("N"), diff, [diff]);
   assert.deepEqual(g.nodes.map((n) => n.id), ["N", "N#c1", "N#c2", "N#c3"]);
   assert.deepEqual(g.edges.map((e) => [e.source, e.target]), [["N", "N#c1"], ["N#c1", "N#c2"], ["N#c1", "N#c3"]]);
   const c2 = g.nodes[2].data;
@@ -110,7 +115,7 @@ test("narrativeGraph: ids are refs, summary feeds roots, deps feed dependents", 
 });
 
 test("estimateSize grows with level and hunk size", () => {
-  const g = narrativeGraph(narrative("N"), diff);
+  const g = narrativeGraph(narrative("N"), diff, [diff]);
   const c2 = g.nodes[2].data;
   const p = estimateSize(c2, "patch"), c = estimateSize(c2, "concept"), k = estimateSize(c2, "code");
   assert.ok(p.height < c.height && c.height < k.height);
@@ -118,7 +123,7 @@ test("estimateSize grows with level and hunk size", () => {
 });
 
 test("layout: dependents below dependencies, no overlaps, deterministic", () => {
-  const g = narrativeGraph(narrative("N"), diff);
+  const g = narrativeGraph(narrative("N"), diff, [diff]);
   const sized = g.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data, "code") }));
   const pos = layout(sized, g.edges);
   assert.deepEqual(layout(sized, g.edges), pos);
@@ -311,6 +316,71 @@ test("sessionGraph adds findings and skips findings from older diffs", () => {
   assert.ok(!g.nodes.some((n) => n.id === "F-old"));
 });
 
+test("sessionGraph includes carried findings at their new anchor and outdated findings at the summary", () => {
+  const d1 = { ...diff, id: "D1", createdAt: "1" };
+  const n1 = { ...narrative("N1"), data: { ...narrative("N1").data, diffId: "D1" } };
+  const d2 = { ...diff, id: "D2", createdAt: "3" };
+  const n2 = { ...narrative("N2"), data: { ...narrative("N2").data, diffId: "D2", previous: "N1" } };
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "2", provenance: { taskId: "review" }, data: { anchor: "D1#f0h0", quote: "l0", lines: { path: "a.cpp", side: "new" as const, start: 1, end: 1 }, category: "correctness" as const, severity: "high" as const, title: "Finding", body: "Body" } };
+  const carry = (id: string, hunkId: string | null) => ({ id, sessionId: "S", type: "FindingCarry", status: "verified" as const, createdAt: id, provenance: { taskId: "carry" }, data: { finding: "F", toDiff: "D2", hunkId, ...(hunkId ? { lines: { path: "a.cpp", side: "new" as const, start: 12, end: 12 } } : {}) } });
+  const stateWithCarry = (hunkId: string | null) => {
+    const carried = carry(`C-${hunkId}`, hunkId);
+    const st = state([d1, n1, finding, d2, n2, carried]);
+    st.links = [
+      { id: "f-n1", sessionId: "S", from: "F", to: "N1", kind: "derivedFrom" },
+      { id: "f-d1", sessionId: "S", from: "F", to: "D1#f0h0", kind: "about" },
+      { id: "carry-f", sessionId: "S", from: carried.id, to: "F", kind: "about" },
+    ];
+    return st;
+  };
+  const moved = sessionGraph(stateWithCarry("f0h0"))!;
+  const summary = moved.nodes.find((item) => item.id === "N2")!.data;
+  if (summary.kind === "summary") assert.equal(summary.sinceEpoch, 1);
+  const node = moved.nodes.find((item) => item.id === "F")!;
+  assert.deepEqual(node.anchors, ["N2#c1"]);
+  if (node.data.kind === "finding") {
+    assert.equal(node.data.fromEpoch, 1);
+    assert.equal(node.data.quote, "l0");
+    assert.deepEqual(node.data.lines, { path: "a.cpp", side: "new", start: 12, end: 12 });
+  }
+  const outdated = sessionGraph(stateWithCarry(null))!;
+  const stale = outdated.nodes.find((item) => item.id === "F")!;
+  assert.deepEqual(stale.anchors, ["N2"]);
+  if (stale.data.kind === "finding") {
+    assert.equal(stale.data.outdated, true);
+    assert.equal(stale.data.quote, undefined);
+    assert.equal(stale.data.collapsedByDefault, true);
+  }
+  assert.deepEqual(visibleGraph(outdated, new Set(["F"])).nodes.map((item) => item.id).includes("F"), true);
+});
+
+test("sessionGraph shows only current findings and marks addressed carries collapsed", () => {
+  const d1 = { ...diff, id: "D1", createdAt: "1" };
+  const n1 = { ...narrative("N1"), data: { ...narrative("N1").data, diffId: "D1" } };
+  const d2 = { ...diff, id: "D2", createdAt: "3" };
+  const n2 = { ...narrative("N2"), data: { ...narrative("N2").data, diffId: "D2" } };
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "2", provenance: { taskId: "review" }, data: { anchor: "D1#f0h0", category: "correctness" as const, severity: "high" as const, title: "Finding", body: "Body" } };
+  const carry = { id: "C", sessionId: "S", type: "FindingCarry", status: "verified" as const, createdAt: "4", provenance: { taskId: "carry" }, data: { finding: "F", toDiff: "D2", hunkId: "f0h0" } };
+  const verdict = { id: "V", sessionId: "S", type: "FindingVerdict", status: "proposed" as const, createdAt: "5", provenance: { taskId: "review" }, data: { finding: "F", verdict: "addressed" as const, reason: "Fixed" } };
+  const st = state([d1, n1, finding, d2, n2, carry, verdict]);
+  st.links = [
+    { id: "f-n1", sessionId: "S", from: "F", to: "N1", kind: "derivedFrom" },
+    { id: "f-d1", sessionId: "S", from: "F", to: "D1#f0h0", kind: "about" },
+    { id: "carry-f", sessionId: "S", from: "C", to: "F", kind: "about" },
+    { id: "verdict-f", sessionId: "S", from: "V", to: "F", kind: "about" },
+  ];
+  const g = sessionGraph(st)!;
+  const node = g.nodes.find((item) => item.id === "F")!;
+  assert.ok(!g.nodes.some((item) => item.id === "not-carried"));
+  if (node.data.kind === "finding") {
+    assert.equal(node.data.status, "addressed");
+    assert.equal(node.data.collapsedByDefault, true);
+    assert.deepEqual(node.data.verdict, { verdict: "addressed", reason: "Fixed" });
+  }
+  const summary = g.nodes.find((item) => item.id === "N2")!.data;
+  if (summary.kind === "summary") assert.equal(summary.sinceEpoch, null);
+});
+
 test("sessionGraph finding node includes latest decision and comment", () => {
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } };
   const decision = { id: "DEC", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" } };
@@ -319,6 +389,7 @@ test("sessionGraph finding node includes latest decision and comment", () => {
   st.links = [
     { id: "decision-about", sessionId: "S", from: "DEC", to: "F", kind: "about" },
     { id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" },
+    { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" },
   ];
   const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
   assert.equal(node.kind, "finding");
@@ -334,7 +405,7 @@ test("sessionGraph finding exposes posted revision for its latest comment", () =
   const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", body: "Ready" } };
   const posted = { id: "P", sessionId: "S", type: "PostedComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "runtime" }, data: { comment: "C", revision: 12, diff: 8, inlineId: 77 } };
   const st = state([diff, narrative("N"), finding, comment, posted]);
-  st.links = [{ id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" }];
+  st.links = [{ id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" }, { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" }];
   const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
   assert.equal(node.kind, "finding");
   if (node.kind === "finding") assert.equal(node.postedTo, 12);
@@ -355,7 +426,7 @@ test("sessionGraph finding reflects dismissal and latest decision wins", () => {
   const accepted = { id: "DEC1", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" } };
   const dismissed = { ...accepted, id: "DEC2", createdAt: "6", data: { finding: "F", decision: "dismissed" } };
   const st = state([diff, narrative("N"), finding, accepted, dismissed]);
-  st.links = [accepted, dismissed].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const }));
+  st.links = [...[accepted, dismissed].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const })), { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" }];
   const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
   assert.equal(node.kind, "finding");
   if (node.kind === "finding") assert.equal(node.decision, "dismissed");
@@ -368,7 +439,7 @@ test("a finding's thread lives in the finding node, and chats on its messages an
   const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "6", provenance: { taskId: "turn" }, data: { role: "assistant" as const, text: "answer" } };
   const onMessage = { id: "T2", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "7", provenance: { taskId: "t2" }, data: { anchor: "M" } };
   const st = state([diff, narrative("N"), finding, thread, msg, onMessage]);
-  st.links = [{ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" }];
+  st.links = [{ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" }, { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" }];
   const g = sessionGraph(st)!;
   assert.ok(!g.nodes.some((n) => n.id === "T"));
   const node = g.nodes.find((n) => n.id === "F")!.data;
@@ -377,16 +448,16 @@ test("a finding's thread lives in the finding node, and chats on its messages an
   assert.deepEqual(g.nodes.find((n) => n.id === "T2")?.anchors, ["F"]);
 });
 
-test("visibleGraph hides collapsed quoted findings, but keeps unquoted findings", () => {
-  const finding = (id: string, quote?: string): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null, decision: null, comment: null, postedTo: null } });
-  const g = { nodes: [finding("quoted", "l0"), finding("plain")], edges: [{ id: "q", source: "quoted", target: "N#c1" }, { id: "p", source: "plain", target: "N#c1" }] };
-  const visible = visibleGraph(g, new Set(["quoted", "plain"]));
-  assert.deepEqual(visible.nodes.map((n) => n.id), ["plain"]);
-  assert.deepEqual(visible.edges.map((e) => e.id), ["p"]);
+test("visibleGraph hides collapsed quoted findings except dismissed cards", () => {
+  const finding = (id: string, quote?: string, decision: "accepted" | "dismissed" | null = null): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null, decision, comment: null, postedTo: null, status: decision ?? "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } });
+  const g = { nodes: [finding("quoted", "l0"), finding("plain"), finding("dismissed", "l0", "dismissed")], edges: [{ id: "q", source: "quoted", target: "N#c1" }, { id: "p", source: "plain", target: "N#c1" }, { id: "d", source: "dismissed", target: "N#c1" }] };
+  const visible = visibleGraph(g, new Set(["quoted", "plain", "dismissed"]));
+  assert.deepEqual(visible.nodes.map((n) => n.id), ["plain", "dismissed"]);
+  assert.deepEqual(visible.edges.map((e) => e.id), ["p", "d"]);
 });
 
 test("estimateSize gives findings the satellite width", () => {
-  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null };
+  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
   assert.deepEqual(estimateSize(data, "concept"), { width: SATELLITE_WIDTH, height: 110 + 20 });
 });
 

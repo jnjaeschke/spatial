@@ -191,8 +191,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       const candidates = postableComments({ artifacts, links: rt.store.listLinks(session.id) }, narrative.id);
       const skipped: { finding: string; reason: string }[] = [];
       let postedCount = 0;
-      for (const { finding, comment } of candidates) {
-        const lines = finding.data.lines;
+      for (const { finding, comment, lines } of candidates) {
         if (!lines) {
           skipped.push({ finding: finding.id, reason: "Finding has no line range" });
           continue;

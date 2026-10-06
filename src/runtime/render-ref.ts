@@ -3,6 +3,7 @@ import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { latestDiff, narrativeOf } from "../shared/epochs.ts";
+import { findingStates } from "../shared/findings.ts";
 
 /** What rendering needs from one session; built from Store lists. */
 export interface SessionView { artifacts: Artifact[]; links: Link[] }
@@ -115,9 +116,9 @@ export function sessionOverview(view: SessionView): string {
     const first = view.links.filter((link) => link.to === artifact.id && link.kind === "reply").map((link) => view.artifacts.find((item) => item.id === link.from)).find((item) => item?.type === "ChatMessage" && (item.data as ChatMessageData).role === "user");
     return "- " + artifact.id + " anchored at " + (artifact.data as ChatThreadData).anchor + ": " + (first ? (first.data as ChatMessageData).text : "");
   }).join("\n") || "None";
-  const findings = view.artifacts.filter((artifact) => artifact.type === "ReviewFinding" && view.links.some((link) => link.from === artifact.id && link.to === latest.id && link.kind === "derivedFrom")).map((artifact) => {
-    const data = artifact.data as ReviewFindingData;
-    return "- " + artifact.id + " [" + data.severity + " " + data.category + "] " + data.title + " (" + data.anchor + ")";
+  const findings = findingStates(view, latest.id).map((state) => {
+    const data = state.finding.data;
+    return "- " + state.finding.id + " [" + data.severity + " " + data.category + "] " + data.title + " (" + (state.outdated ? "location outdated" : state.anchor) + ")";
   }).join("\n") || "None";
   return ["# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings].join("\n\n");
 }

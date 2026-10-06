@@ -55,7 +55,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!g) throw new Error("Canvas needs a session with a narrative");
     return g;
   }, [state, drafts]);
-  const { collapsed, toggle, expandAll } = useCollapsed(state.session.id);
+  const defaults = useMemo(() => new Set(graph.nodes.filter((n) => n.data.kind === "finding" && n.data.collapsedByDefault).map((n) => n.id)), [graph]);
+  const { collapsed, toggle, expandAll } = useCollapsed(state.session.id, defaults);
   const shown = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
   const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: (ChatNodeData | FindingNodeData) & { quote: string } } => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote), [graph]);
