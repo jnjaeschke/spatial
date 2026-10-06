@@ -6,6 +6,7 @@
 
 ## Modules
 
+- [cli/launch](cli/launch/README.md)
 - [mcp/session-server](mcp/session-server/README.md)
 - [runtime/attribution](runtime/attribution/README.md)
 - [runtime/blame](runtime/blame/README.md)

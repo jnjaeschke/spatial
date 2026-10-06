@@ -2,6 +2,9 @@
   "name": "spatial-ide",
   "private": true,
   "type": "module",
+  "bin": {
+    "spatial": "src/cli.ts"
+  },
   "engines": {
     "node": ">=24"
   },

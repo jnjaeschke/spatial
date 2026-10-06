@@ -1,14 +1,18 @@
+#!/usr/bin/env node
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { fileURLToPath } from "node:url";
 import type { LlmBackendId, PatchNarrativeData } from "./shared/types.ts";
 import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
-import { createSession } from "./runtime/git.ts";
+import { createSession, resolveRepo } from "./runtime/git.ts";
 import { narratePatch } from "./workflows/narrate-patch.ts";
+import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl } from "./cli/launch.ts";
 
 const USAGE = `usage:
-  node src/cli.ts narrate <repo> <base>..<head> [--backend claude|codex] [--model M] [--effort E] [--db PATH]
-  node src/cli.ts models [--db PATH]`;
+  spatial [open [path]] [--port N] [--db PATH]   open the start screen of the repo at path (default: .), starting the server if needed
+  spatial narrate <repo> <base>..<head> [--backend claude|codex] [--model M] [--effort E] [--db PATH]
+  spatial models [--db PATH]`;
 
 function fail(msg: string): never {
   console.error(msg);
@@ -22,18 +26,33 @@ const { positionals, values } = parseArgs({
     model: { type: "string" },
     effort: { type: "string" },
     db: { type: "string" },
+    port: { type: "string" },
   },
 });
 
-const dbPath = values.db ?? defaultDbPath();
-mkdirSync(dirname(dbPath), { recursive: true });
-const rt = createRuntime({ dbPath, claudeBin: process.env.SPATIAL_CLAUDE_BIN, codexBin: process.env.SPATIAL_CODEX_BIN });
+function runtime() {
+  const dbPath = values.db ?? defaultDbPath();
+  mkdirSync(dirname(dbPath), { recursive: true });
+  return createRuntime({ dbPath, claudeBin: process.env.SPATIAL_CLAUDE_BIN, codexBin: process.env.SPATIAL_CODEX_BIN });
+}
 
 const [cmd, ...rest] = positionals;
 try {
-  if (cmd === "models") {
+  if (cmd === undefined || cmd === "open") {
+    const port = Number(values.port ?? DEFAULT_PORT);
+    if (!Number.isInteger(port) || port <= 0) fail(`Invalid --port: ${values.port}`);
+    const { worktree } = await resolveRepo(resolve(rest[0] ?? "."));
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const health = await ensureServer({ port, startServer: () => spawnServer(root, port, values.db) });
+    if (!health.ui) fail(`The server on port ${port} serves no UI (started with \`npm run server\`?). Open the Vite dev server with ?path=${encodeURIComponent(worktree)}`);
+    const url = startScreenUrl(port, worktree);
+    console.log(url);
+    openBrowser(url);
+  } else if (cmd === "models") {
+    const rt = runtime();
     console.log(JSON.stringify(await rt.llm.listModels(), null, 2));
   } else if (cmd === "narrate") {
+    const rt = runtime();
     const [repo, range] = rest;
     if (!repo || !range) fail(USAGE);
     const m = /^(.+?)\.\.(.+)$/.exec(range);
