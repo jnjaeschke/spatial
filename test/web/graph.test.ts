@@ -249,6 +249,56 @@ test("sessionGraph adds findings and skips findings from older diffs", () => {
   assert.ok(!g.nodes.some((n) => n.id === "F-old"));
 });
 
+test("sessionGraph finding node includes latest decision and comment", () => {
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } };
+  const decision = { id: "DEC", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" } };
+  const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { finding: "F", body: "Use a strong ref." } };
+  const st = state([diff, narrative("N"), finding, decision, comment]);
+  st.links = [
+    { id: "decision-about", sessionId: "S", from: "DEC", to: "F", kind: "about" },
+    { id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" },
+  ];
+  const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
+  assert.equal(node.kind, "finding");
+  if (node.kind === "finding") {
+    assert.equal(node.decision, "accepted");
+    assert.deepEqual(node.comment, { id: "C", body: "Use a strong ref.", status: "verified" });
+    assert.equal(node.postedTo, null);
+  }
+});
+
+test("sessionGraph finding exposes posted revision for its latest comment", () => {
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } };
+  const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", body: "Ready" } };
+  const posted = { id: "P", sessionId: "S", type: "PostedComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "runtime" }, data: { comment: "C", revision: 12, diff: 8, inlineId: 77 } };
+  const st = state([diff, narrative("N"), finding, comment, posted]);
+  st.links = [{ id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" }];
+  const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
+  assert.equal(node.kind, "finding");
+  if (node.kind === "finding") assert.equal(node.postedTo, 12);
+});
+
+test("sessionGraph finding without status artifacts has null decision and comment", () => {
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } };
+  const node = sessionGraph(state([diff, narrative("N"), finding]))!.nodes.find((n) => n.id === "F")!.data;
+  assert.equal(node.kind, "finding");
+  if (node.kind === "finding") {
+    assert.equal(node.decision, null);
+    assert.equal(node.comment, null);
+  }
+});
+
+test("sessionGraph finding reflects dismissal and latest decision wins", () => {
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } };
+  const accepted = { id: "DEC1", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" } };
+  const dismissed = { ...accepted, id: "DEC2", createdAt: "6", data: { finding: "F", decision: "dismissed" } };
+  const st = state([diff, narrative("N"), finding, accepted, dismissed]);
+  st.links = [accepted, dismissed].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const }));
+  const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
+  assert.equal(node.kind, "finding");
+  if (node.kind === "finding") assert.equal(node.decision, "dismissed");
+});
+
 test("a finding's thread lives in the finding node, and chats on its messages anchor to the finding", () => {
   const findingData: ReviewFindingData = { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" };
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: findingData };
@@ -266,7 +316,7 @@ test("a finding's thread lives in the finding node, and chats on its messages an
 });
 
 test("visibleGraph hides collapsed quoted findings, but keeps unquoted findings", () => {
-  const finding = (id: string, quote?: string): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null } });
+  const finding = (id: string, quote?: string): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null, decision: null, comment: null, postedTo: null } });
   const g = { nodes: [finding("quoted", "l0"), finding("plain")], edges: [{ id: "q", source: "quoted", target: "N#c1" }, { id: "p", source: "plain", target: "N#c1" }] };
   const visible = visibleGraph(g, new Set(["quoted", "plain"]));
   assert.deepEqual(visible.nodes.map((n) => n.id), ["plain"]);
@@ -274,7 +324,7 @@ test("visibleGraph hides collapsed quoted findings, but keeps unquoted findings"
 });
 
 test("estimateSize gives findings the satellite width", () => {
-  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null };
+  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null };
   assert.deepEqual(estimateSize(data, "concept"), { width: SATELLITE_WIDTH, height: 110 + 20 });
 });
 

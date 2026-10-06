@@ -64,6 +64,11 @@ html, body, #root { margin: 0; height: 100%; }
 .badge.severity-medium { background: #f29900; color: #fff; }
 .badge.severity-low { background: #9aa0a6; color: #fff; }
 .finding-node .category { margin: 0 6px; color: #666; font-weight: 400; }
+.finding-node .accept { background: #1a73e8; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
+.finding-node .dismiss { background: #aaa; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
+.finding-node.dismissed { opacity: 0.5; }
+.finding-node .comment-draft textarea { width: 100%; min-height: 80px; resize: vertical; font-size: 12px; font-family: inherit; }
+.finding-node .comment-status { font-size: 12px; color: #666; }
 .diff td.ln a { color: inherit; text-decoration: none; }
 .diff td.ln a:hover { text-decoration: underline; }
 .file-link { padding: 0; border: 0; background: transparent; color: #2456a6; text-decoration: underline; cursor: pointer; font: inherit; }

@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, Hunk, Id, McpServerData, PatchNarrativeData, Ref, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, Hunk, Id, McpServerData, PatchNarrativeData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 
@@ -58,6 +58,9 @@ export interface FindingNodeData extends ReviewFindingData {
   hunks: { file: DiffFile; hunk: Hunk }[];
   /** The chat anchored at the finding, shown inside the finding box. */
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
+  decision: FindingDecisionData["decision"] | null;
+  comment: { id: string; body: string; status: Artifact<ReviewCommentData>["status"] } | null;
+  postedTo: number | null;
 }
 
 export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData;
@@ -181,7 +184,17 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     nodeIds.add(finding.id);
     const thread = threads.find((t) => t.data.anchor === finding.id);
     if (thread) { findingOf.set(thread.id, finding.id); nodeIds.add(thread.id); }
-    g.nodes.push({ id: finding.id, anchors: [node], data: { kind: "finding", findingId: finding.id, ...finding.data, diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(thread) : null } });
+    const related = state.links.filter((link) => link.kind === "about" && link.to === finding.id).map((link) => link.from);
+    const decision = state.artifacts.filter((a) => a.type === "FindingDecision" && related.includes(a.id)).at(-1) as Artifact<FindingDecisionData> | undefined;
+    const comment = state.artifacts.filter((a) => a.type === "ReviewComment" && related.includes(a.id)).at(-1) as Artifact<ReviewCommentData> | undefined;
+    const posted = comment && (state.artifacts.filter((a) => a.type === "PostedComment") as Artifact<PostedCommentData>[]).find((a) => a.data.comment === comment.id);
+    g.nodes.push({ id: finding.id, anchors: [node], data: {
+      kind: "finding", findingId: finding.id, ...finding.data, diffId: latest.diff.id, hunks: allHunks,
+      thread: thread ? threadContent(thread) : null,
+      decision: decision?.data.decision ?? null,
+      comment: comment ? { id: comment.id, body: comment.data.body, status: comment.status } : null,
+      postedTo: posted?.data.revision ?? null,
+    } });
     g.edges.push({ id: `${finding.id}->${node}`, source: finding.id, target: node });
   }
   for (const thread of threads) {

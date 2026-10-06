@@ -12,6 +12,8 @@ async function parse<T>(res: Response): Promise<T> {
 const get = <T>(path: string) => fetch(path).then((r) => parse<T>(r));
 const post = <T>(path: string, body: unknown) =>
   fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
+const put = <T>(path: string, body: unknown) =>
+  fetch(path, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
 
 export const api = {
   sessions: () => get<Session[]>("/api/sessions"),
@@ -23,6 +25,12 @@ export const api = {
     post<{ taskId: string }>(`/api/sessions/${sessionId}/turns`, body),
   enableMcpServer: (sessionId: string, threadId: string, server: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
+  decide: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/decide`, { decision, llm }),
+  saveComment: (sessionId: string, findingId: string, body: string) =>
+    put<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),
+  regenerateComment: (sessionId: string, findingId: string, llm?: LlmSelection) =>
+    post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
 };
 
