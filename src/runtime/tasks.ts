@@ -24,6 +24,8 @@ export interface BlameEntry { line: number; sha: string; origLine: number; path:
 /** Read-only git access bound to one session's repo. */
 export interface GitCapability {
   readonly effect: "read-only";
+  /** True when `git status` reports staged, unstaged or untracked (non-ignored) changes. Never writes: runs with `--no-optional-locks`, so the index file is not refreshed. */
+  isDirty(): Promise<boolean>;
   /** Resolves any revspec to a full commit SHA. */
   resolve(rev: string): Promise<string>;
   isAncestor(ancestor: string, descendant: string): Promise<boolean>;

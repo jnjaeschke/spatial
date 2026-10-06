@@ -88,6 +88,18 @@ Raw `git diff` text for `base..head`.
 
 ***
 
+### isDirty()
+
+> **isDirty**(): `Promise`\<`boolean`\>
+
+True when `git status` reports staged, unstaged or untracked (non-ignored) changes. Never writes: runs with `--no-optional-locks`, so the index file is not refreshed.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+***
+
 ### log()
 
 > **log**(`baseSha`, `headSha`): `Promise`\<[`Commit`](../../../shared/types/interfaces/Commit.md)[]\>

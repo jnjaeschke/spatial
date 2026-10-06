@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeGit, makeGitWriter, createSession, resolveRepo } from "../../src/runtime/git.ts";
@@ -24,6 +24,97 @@ const snapshot = (r: ReturnType<typeof makeRepo>) => ({
   status: r.git("status", "--porcelain"),
   refs: r.git("for-each-ref"),
   index: readFileSync(join(r.dir, ".git", "index")),
+});
+
+const worktreeState = (r: ReturnType<typeof makeRepo>) => ({
+  ...snapshot(r), files: readdirSync(r.dir).sort(), a: readFileSync(join(r.dir, "a.txt"), "utf8"),
+});
+
+function dirtyRepo() {
+  const r = makeRepo();
+  r.commit({ "a.txt": "1\n2\n3\n", "d.txt": "d\n", "keep.txt": "k\n", ".gitignore": "ignored.log\n" }, "base");
+  writeFileSync(join(r.dir, "a.txt"), "1\nTWO\n3\n");
+  rmSync(join(r.dir, "d.txt"));
+  writeFileSync(join(r.dir, "s.txt"), "staged\n");
+  r.git("add", "s.txt");
+  writeFileSync(join(r.dir, "u.txt"), "untracked\n");
+  writeFileSync(join(r.dir, "ignored.log"), "noise\n");
+  return r;
+}
+
+// REQUIRES_REAL_GIT
+test("snapshotWorktree commits the exact worktree without changing checkout state", async () => {
+  const r = dirtyRepo();
+  const before = worktreeState(r);
+  const sha = await makeGitWriter(r.dir).snapshotWorktree(identity);
+  assert.ok(sha);
+  r.git("cat-file", "-e", sha);
+  assert.equal(r.git("rev-parse", `${sha}^`), before.head);
+  assert.equal(r.git("log", "-1", "--format=%an,%ae,%cn,%ce,%at,%ct,%s", sha), "Spatial Review,spatial-review@localhost,Spatial Review,spatial-review@localhost,1700000000,1700000000,Uncommitted changes");
+  assert.equal(r.git("ls-tree", "-r", "--name-only", sha), ".gitignore\na.txt\nkeep.txt\ns.txt\nu.txt");
+  assert.equal(await makeGit(r.dir).show(sha, "a.txt"), "1\nTWO\n3\n");
+  assert.deepEqual(worktreeState(r), before);
+});
+
+// REQUIRES_REAL_GIT
+test("snapshotWorktree returns null for an unchanged tree, including a reverted staged edit", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "old\n" }, "base");
+  const writer = makeGitWriter(r.dir);
+  assert.equal(await writer.snapshotWorktree(identity), null);
+  writeFileSync(join(r.dir, "a.txt"), "new\n");
+  r.git("add", "a.txt");
+  writeFileSync(join(r.dir, "a.txt"), "old\n");
+  assert.equal(await makeGit(r.dir).isDirty(), true);
+  assert.equal(await writer.snapshotWorktree(identity), null);
+});
+
+// REQUIRES_REAL_GIT
+test("snapshotWorktree rejects when HEAD does not exist", async () => {
+  const r = makeRepo();
+  await assert.rejects(makeGitWriter(r.dir).snapshotWorktree(identity));
+});
+
+// REQUIRES_REAL_GIT
+test("snapshotWorktree reads the correct index in a linked worktree", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "base\n" }, "base");
+  const wt = mkdtempSync(join(tmpdir(), "linked-worktree-"));
+  try {
+    r.git("worktree", "add", "-q", wt, "-b", "side");
+    writeFileSync(join(wt, "new.txt"), "new\n");
+    const sha = await makeGitWriter(wt).snapshotWorktree(identity);
+    assert.ok(sha);
+    assert.equal(r.git("ls-tree", "-r", "--name-only", sha), "a.txt\nnew.txt");
+    assert.equal(r.git("--no-optional-locks", "status", "--porcelain"), "");
+  } finally {
+    rmSync(wt, { recursive: true, force: true });
+  }
+});
+
+// REQUIRES_REAL_GIT
+test("isDirty reports visible changes and does not refresh the index", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "base\n", ".gitignore": "ignored.log\n" }, "base");
+  const git = makeGit(r.dir);
+  assert.equal(await git.isDirty(), false);
+  writeFileSync(join(r.dir, "a.txt"), "edit\n");
+  assert.equal(await git.isDirty(), true);
+  writeFileSync(join(r.dir, "a.txt"), "base\n");
+  writeFileSync(join(r.dir, "untracked"), "u\n");
+  assert.equal(await git.isDirty(), true);
+  rmSync(join(r.dir, "untracked"));
+  writeFileSync(join(r.dir, "staged"), "s\n");
+  r.git("add", "staged");
+  assert.equal(await git.isDirty(), true);
+  r.git("reset", "-q", "--", "staged");
+  rmSync(join(r.dir, "staged"));
+  writeFileSync(join(r.dir, "ignored.log"), "noise\n");
+  assert.equal(await git.isDirty(), false);
+  utimesSync(join(r.dir, "a.txt"), 1_000_000_000, 1_000_000_000);
+  const index = readFileSync(join(r.dir, ".git", "index"));
+  assert.equal(await git.isDirty(), false);
+  assert.deepEqual(readFileSync(join(r.dir, ".git", "index")), index);
 });
 
 // REQUIRES_REAL_GIT
