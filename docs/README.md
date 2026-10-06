@@ -38,6 +38,7 @@
 - [shared/postable-comments](shared/postable-comments/README.md)
 - [shared/reanchor](shared/reanchor/README.md)
 - [shared/repos](shared/repos/README.md)
+- [shared/review-path](shared/review-path/README.md)
 - [shared/types](shared/types/README.md)
 - [workflows/narrate-patch](workflows/narrate-patch/README.md)
 - [workflows/registry](workflows/registry/README.md)

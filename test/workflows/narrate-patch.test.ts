@@ -64,7 +64,7 @@ test("narratePatch can narrate an existing Diff without importing another", asyn
 });
 
 test("narratePatch carries findings after update narration and before resolving specs", async () => {
-  const { dir, r } = fixture();
+  const { dir, r, narrative } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "epoch2.sqlite"), claudeBin: STUB });
   const session = await createSession(rt.store, r.dir, "t", "review");
   const { diffId: firstDiff } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
@@ -72,6 +72,16 @@ test("narratePatch carries findings after update narration and before resolving 
   r.commit({ "a.txt": "1\nTWO-EDITED\n3\n", "c.txt": "c\n" }, "second revision");
   const { diffId: secondDiff } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~2", head: "HEAD" });
   await rt.run(session.id, "interdiff", { fromDiffId: firstDiff, toDiffId: secondDiff });
+  const stackNarrative = {
+    ...narrative,
+    summary: "Adds `c.txt`, then updates `a.txt` again.",
+    commitIntents: ["Adds `c.txt`.", "Updates `a.txt` again."],
+    changes: [
+      { ...narrative.changes[1], dependsOn: [] },
+      { ...narrative.changes[0], dependsOn: ["c2"] },
+    ],
+  };
+  writeFileSync(join(dir, "claude-out.json"), JSON.stringify({ type: "result", is_error: false, result: "", structured_output: stackNarrative, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));
   const result = await narratePatch(rt, session.id, { diffId: secondDiff });
   assert.equal(rt.store.getArtifact<PatchNarrativeData>(result.narrativeId).data.previous, firstNarrative.narrativeId);
   assert.deepEqual(rt.store.listTasks(session.id).slice(-4).map((task) => task.kind), ["narrate", "carryFindings", "resolveSpecRefs", "review"]);

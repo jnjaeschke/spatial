@@ -14,7 +14,7 @@ Rules:
 - Every hunk has a deterministic `[unchanged]`, `[modified]` or `[new]` marker. Do not contradict it.
 - In `summary`, `title`, `explanation` and `rationale`, wrap code identifiers, file names and literals in backticks, e.g. `` `FragmentDirective::SetTextDirectives()` ``.
 - `rationale`: why the group is needed, grounded in the commit messages, prior narrative, or code itself. If inferring, say so ("Likely ..."). Reuse the previous rationale when a group is unchanged.
-- `dependsOn`: ids of changes that must be understood first. No cycles.
+- `dependsOn`: ids of changes that must be understood first. Only changes listed before this one; no cycles.
 - `specUrls`: full specification URLs with anchors for sections this change implements or follows. Include URLs cited in the diff, comments, or commit messages, and sections you believe the change implements even if nobody cited them; the runtime verifies them and marks uncited ones as inferred. Use an empty list when the change has no spec relation.
 - `summary`: 2-4 sentences stating what changed since the previous revision. If the patch was essentially rewritten, say so explicitly ("The previous version did A; this version does B").
 

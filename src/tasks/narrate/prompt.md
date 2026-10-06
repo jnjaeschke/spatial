@@ -13,7 +13,7 @@ Rules:
 - `explanation`: what this change does at the concept level, 1-3 sentences. Name the key classes/functions.
 - In `summary`, `title`, `explanation` and `rationale`, wrap code identifiers, file names and literals in backticks, e.g. `` `FragmentDirective::SetTextDirectives()` ``.
 - `rationale`: why it is needed, grounded in the commit messages, code comments, or the code itself. If you are inferring, say so ("Likely ...").
-- `dependsOn`: ids of changes that must be understood first. No cycles.
+- `dependsOn`: ids of changes that must be understood first. Only changes listed before this one; no cycles.
 - `specUrls`: full specification URLs with anchors for sections this change implements or follows. Include URLs cited in the diff, comments, or commit messages, and sections you believe the change implements even if nobody cited them; the runtime verifies them and marks uncited ones as inferred. Use an empty list when the change has no spec relation.
 - `summary`: 2-4 sentences on what the whole patch achieves.
 

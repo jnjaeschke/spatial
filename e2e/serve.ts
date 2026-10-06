@@ -49,9 +49,22 @@ const updateNarrateOut = join(dir, "update-narrative.json");
 writeFileSync(updateNarrateOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { summary: "Since epoch 1 the author edited `line 30` and added `d.txt`.", changes: [{ id: "c1", title: "Edit a", explanation: "Edits line 30.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }, { id: "c2", title: "Add c", explanation: "Adds c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] }, { id: "c3", title: "Add d", explanation: "Adds d.", rationale: "r", hunkIds: ["f2h0"], dependsOn: ["c1"], specUrls: [] }] }, session_id: "stub-update-narrative", usage: { input_tokens: 1, output_tokens: 1 } }));
 const updateReviewOut = join(dir, "update-review.json");
 writeFileSync(updateReviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { findings: [], verdicts: [{ finding: "F2", verdict: "addressed", reason: "Test coverage for c.txt was added." }] }, session_id: "stub-update-review", usage: { input_tokens: 1, output_tokens: 1 } }));
+const stubOut = (name: string, structured: object) => {
+  const file = join(dir, `${name}.json`);
+  writeFileSync(file, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: structured, session_id: `stub-${name}`, usage: { input_tokens: 1, output_tokens: 1 } }));
+  return file;
+};
+const stackRewriteOut = stubOut("stack-rewrite", { summary: "Edits `a.txt` and adds `c.txt`, then rewrites line 30 again.", commitIntents: ["Replaces `line 30` and adds `c.txt`.", "Rewrites line 30 a second time."], changes: [
+  { id: "c1", title: "Edit a", explanation: "Replaces `line 30`.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] },
+  { id: "c2", title: "Add c", explanation: "Adds file c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] },
+] });
+const stackAddOut = stubOut("stack-add", { summary: "Edits `a.txt`, then adds `c.txt`.", commitIntents: ["Replaces `line 30` with `THIRTY`.", "Adds `c.txt`."], changes: [
+  { id: "c1", title: "Edit a", explanation: "Replaces `line 30` with `THIRTY`.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] },
+  { id: "c2", title: "Add c", explanation: "Adds file c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] },
+] });
 const commentOut = join(dir, "comment.json");
 writeFileSync(commentOut, JSON.stringify({ type: "result", is_error: false, result: "No test was added for the c.txt change.", structured_output: { body: "No test was added for the c.txt change." }, session_id: "stub-comment", usage: { input_tokens: 1, output_tokens: 1 } }));
-process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Previous narrative": updateNarrateOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut });
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut });
 process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 
 const arcrc = join(dir, "arcrc");

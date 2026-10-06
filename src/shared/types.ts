@@ -295,6 +295,8 @@ export interface PatchNarrativeData {
   diffId: Id;
   summary: string;
   changes: SemanticChange[];
+  /** One sentence per stack commit, in commit order, on what the commit achieves within the stack. Present for stacks only. */
+  commitIntents?: string[];
   /** Previous epoch's narrative; present when this narrative describes what changed since it. */
   previous?: Id;
 }

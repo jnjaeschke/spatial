@@ -7,6 +7,7 @@ import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/share
 import { narrate, MAX_PROMPT_CHARS } from "../../src/tasks/narrate/task.ts";
 import { renderDiffForPrompt } from "../../src/tasks/narrate/render.ts";
 import { validateNarrative } from "../../src/tasks/narrate/validate.ts";
+import schema from "../../src/tasks/narrate/schema.json" with { type: "json" };
 
 const DIFF: DiffData = {
   baseSha: "b".repeat(40),
@@ -28,6 +29,19 @@ const change = (id: string, hunkIds: string[], dependsOn: string[] = []) => ({
   id, title: `T${id}`, explanation: "e", rationale: "r", hunkIds, dependsOn, specUrls: [],
 });
 const VALID = { summary: "S", changes: [change("c1", ["f0h0", "f0h1"]), change("c2", ["f2h0"], ["c1"])] };
+const STACK: DiffData = {
+  ...DIFF,
+  commits: [
+    { sha: "1".repeat(40), subject: "Part 1", body: "" },
+    { sha: "2".repeat(40), subject: "Part 2", body: "Differential Revision: https://phab.example.com/D7" },
+  ],
+  files: [{ path: "dom/A.cpp", status: "modified", binary: false, hunks: [
+    { id: "f0h0", header: "@@ -1 +1 @@", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "add", text: "a", commit: 0 }] },
+    { id: "f0h1", header: "@@ -2 +2 @@", oldStart: 2, oldLines: 1, newStart: 2, newLines: 1, lines: [{ kind: "add", text: "b", commit: 1 }] },
+  ] }, { path: "dom/B.cpp", status: "added", binary: false, hunks: [
+    { id: "f1h0", header: "@@ -0,0 +1 @@", oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, lines: [{ kind: "add", text: "c", commit: 0 }] },
+  ] }],
+};
 
 test("render: commits, labelled hunks with prefixes, binary files listed", () => {
   const s = renderDiffForPrompt(DIFF);
@@ -38,8 +52,33 @@ test("render: commits, labelled hunks with prefixes, binary files listed", () =>
   assert.match(s, /img\.png \(added, binary\)/);
 });
 
+test("stack render labels commits and owned hunks only for stacks", () => {
+  const stack = renderDiffForPrompt(STACK);
+  for (const text of ["## C1: Part 1", "## C2: Part 2", "### f0h0 dom/A.cpp [C1]", "### f0h1 dom/A.cpp [C2]"]) assert.ok(stack.includes(text), text);
+  const single = renderDiffForPrompt(DIFF);
+  assert.doesNotMatch(single, /\[C1\]|## C1:/);
+});
+
 test("validate: valid narrative has no errors", () => {
   assert.deepEqual(validateNarrative(VALID, DIFF), []);
+});
+
+test("validate: dependencies must point to earlier changes", () => {
+  assert.deepEqual(validateNarrative({ summary: "S", changes: [change("c1", ["f0h0", "f0h1"], ["c2"]), change("c2", ["f2h0"])] }, DIFF), ["Change c1 depends on c2, which is not listed before it"]);
+  assert.ok(validateNarrative({ summary: "S", changes: [change("c1", ["f0h0"], ["c1"]), change("c2", ["f0h1"])] }, DIFF).some((item) => item.startsWith("Dependency cycle")));
+});
+
+test("validate: stack ownership, order, and commit intents", () => {
+  const valid = { summary: "S", commitIntents: ["a", "b"], changes: [change("c1", ["f0h0"]), change("c2", ["f1h0"], ["c1"]), change("c3", ["f0h1"], ["c1"])] };
+  assert.deepEqual(validateNarrative(valid, STACK), []);
+  for (const intents of [undefined, ["a"], ["a", " "]]) {
+    const result = validateNarrative({ ...valid, commitIntents: intents }, STACK);
+    assert.ok(result.includes("commitIntents must hold one non-empty sentence per commit (2)"));
+  }
+  assert.ok(validateNarrative({ ...valid, changes: [change("c1", ["f0h0", "f0h1"]), ...valid.changes.slice(1)] }, STACK).includes("Change c1 mixes hunks of C1, C2; split it by commit"));
+  const reversed = { ...valid, changes: [change("c1", ["f0h1"]), change("c2", ["f0h0"]), change("c3", ["f1h0"])] };
+  assert.ok(validateNarrative(reversed, STACK).includes("Change c2 (C1) comes after a change of C2; order changes by commit"));
+  assert.ok(validateNarrative({ ...valid, changes: [change("c1", ["f0h0"], ["c2"]), ...valid.changes.slice(1)] }, STACK).includes("Change c1 depends on c2, which is not listed before it"));
 });
 
 test("validate: coverage, duplicates, unknown ids, deps, cycles, shape", () => {
@@ -53,6 +92,8 @@ test("validate: coverage, duplicates, unknown ids, deps, cycles, shape", () => {
     ],
   }, DIFF);
   assert.deepEqual(errs.sort(), [
+    "Change c1 depends on c3, which is not listed before it",
+    "Change c2 depends on c4, which is not listed before it",
     "Change c3 has no hunks",
     "Dependency cycle involving: c1, c3",
     "Dependency cycle involving: c2, c4",
@@ -101,9 +142,21 @@ test("narrate: stores proposed PatchNarrative with provenance and derivedFrom li
   assert.equal(prompts[0].tools, "read-only");
   assert.deepEqual(prompts[0].mcpServers, {});
   assert.match(prompts[0].system!, /exactly one change/);
-  assert.equal((prompts[0].schema as { type: string }).type, "object");
+  assert.match(prompts[0].system!, /Only changes listed before this one/);
+  assert.deepEqual(prompts[0].schema, schema);
+  assert.doesNotMatch(prompts[0].system!, /stack of several commits/);
   assert.equal(prompts[0].prompt, renderDiffForPrompt(DIFF));
   assert.doesNotMatch(prompts[0].prompt, /# Previous narrative|# Interdiff|\[unchanged\]|\[modified\]|\[new\]/);
+});
+
+test("narrate stack: adds stack prompt and schema and stores commit intents", async () => {
+  const narrative = { summary: "S", commitIntents: ["First.", "Second."], changes: [change("c1", ["f0h0"]), change("c2", ["f1h0"], ["c1"]), change("c3", ["f0h1"], ["c1"])] };
+  const { store, rt, session, prompts } = setup([narrative]);
+  const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: STACK, provenance: { taskId: "x" } }).id;
+  const { narrativeId } = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId });
+  assert.match(prompts[0].system!, /stack of several commits/);
+  assert.deepEqual((prompts[0].schema as { required: string[] }).required, [...(schema as { required: string[] }).required, "commitIntents"]);
+  assert.deepEqual(store.getArtifact<PatchNarrativeData>(narrativeId).data.commitIntents, narrative.commitIntents);
 });
 
 test("narrate: passes session and repo MCP servers with read-only tools", async () => {
@@ -189,6 +242,7 @@ test("narrate update mode: renders prior narrative and interdiff, and computes s
   assert.deepEqual(narrative.data.changes.map((item) => item.status), ["modified", "new"]);
   for (const section of ["# Previous narrative", "# Interdiff", "I-f0h0", "[modified]", "[unchanged]", "[new]"]) assert.ok(prompts[0].prompt.includes(section), section);
   assert.ok(prompts[0].system?.includes("Describe what changed since the previous revision"));
+  assert.ok(prompts[0].system?.includes("Only changes listed before this one"));
 });
 
 test("narrate update mode rejects an interdiff that does not connect", async () => {

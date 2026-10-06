@@ -12,6 +12,8 @@ export const MAX_PROMPT_CHARS = 300_000;
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const UPDATE_SYSTEM = readFileSync(new URL("./prompt-update.md", import.meta.url), "utf8");
+const STACK_SYSTEM = readFileSync(new URL("./prompt-stack.md", import.meta.url), "utf8");
+const STACK_SCHEMA = { ...schema, required: [...schema.required, "commitIntents"], properties: { ...schema.properties, commitIntents: { type: "array", items: { type: "string" } } } };
 
 export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?: { previousNarrativeId: string; interdiffId: string } }, { narrativeId: string }>({
   kind: "narrate",
@@ -44,10 +46,14 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?:
       throw new Error(`Diff too large for narration: ${prompt.length} chars (limit ${MAX_PROMPT_CHARS})`);
     }
 
+    const stack = diff.data.commits.length > 1;
+    if (stack) systemPrompt += "\n" + STACK_SYSTEM;
+    const narrationSchema = stack ? STACK_SCHEMA : schema;
+
     ctx.progress({ kind: "steps", step: "Grouping hunks", index: 0, count: 1 });
     const mcpServers = { ...ctx.sessionMcp, ...ctx.repoMcp };
     const system = prependRepoContext(systemPrompt, ctx);
-    let r = await ctx.llm.run({ prompt, system, schema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
+    let r = await ctx.llm.run({ prompt, system, schema: narrationSchema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
     let errors = validateNarrative(r.json, diff.data);
     if (errors.length) {
       ctx.progress({ kind: "steps", step: "Repairing invalid narrative", index: 0, count: 1 });
@@ -62,7 +68,7 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?:
         "",
         "Return a corrected, complete answer.",
       ].join("\n");
-      r = await ctx.llm.run({ prompt: retry, system, schema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
+      r = await ctx.llm.run({ prompt: retry, system, schema: narrationSchema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
       errors = validateNarrative(r.json, diff.data);
       if (errors.length) throw new Error(`Narrative failed validation:\n${errors.join("\n")}`);
     }

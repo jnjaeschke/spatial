@@ -16,6 +16,14 @@ Data of a `PatchNarrative` artifact.
 
 ***
 
+### commitIntents?
+
+> `optional` **commitIntents?**: `string`[]
+
+One sentence per stack commit, in commit order, on what the commit achieves within the stack. Present for stacks only.
+
+***
+
 ### diffId
 
 > **diffId**: `string`

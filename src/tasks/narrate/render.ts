@@ -1,9 +1,11 @@
 import type { ChangeStatus, Commit, DiffData, DiffFile, Hunk } from "../../shared/types.ts";
+import { hunkCommit } from "../../shared/review-path.ts";
 
 const PREFIX = { ctx: " ", add: "+", del: "-" } as const;
 
 export function renderCommits(commits: Commit[]): string {
-  return commits.map((c) => (c.body ? `## ${c.subject}\n${c.body}\n` : `## ${c.subject}\n`)).join("\n");
+  const label = (index: number) => (commits.length > 1 ? `C${index + 1}: ` : "");
+  return commits.map((c, i) => (c.body ? `## ${label(i)}${c.subject}\n${c.body}\n` : `## ${label(i)}${c.subject}\n`)).join("\n");
 }
 
 export function renderHunk(file: DiffFile, hunk: Hunk): string {
@@ -24,6 +26,7 @@ export function renderDiffForPrompt(diff: DiffData, statuses?: Map<string, Chang
   for (const f of diff.files) {
     for (const h of f.hunks) {
       const rendered = renderHunk(f, h).split("\n").slice(0, -1);
+      if (diff.commits.length > 1) rendered[0] += ` [C${hunkCommit(diff, h) + 1}]`;
       const status = statuses?.get(h.id);
       if (status) rendered[0] += ` [${status}]`;
       out.push(...rendered, "");
