@@ -12,6 +12,7 @@ test("commandSuggestions offers only matching slash prefixes", () => {
   assert.deepEqual(commandSuggestions("/", commands), commands);
   assert.deepEqual(commandSuggestions("/c", commands), [commands[1]]);
   assert.deepEqual(commandSuggestions("/rev", commands), [commands[0]]);
+  assert.deepEqual(commandSuggestions("/review", commands), []);
   assert.deepEqual(commandSuggestions("/x", commands), []);
   for (const text of ["/chat ", "/chat hi", "hello", "", " /c"]) {
     assert.deepEqual(commandSuggestions(text, commands), [], text);
