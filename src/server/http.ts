@@ -5,7 +5,7 @@ import type { Artifact, DiffData, FindingDecisionData, LlmSelection, McpServerDa
 import { createSession } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
-import { postableComments } from "../runtime/postable-comments.ts";
+import { postableComments } from "../shared/postable-comments.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "../workflows/narrate-patch.ts";
@@ -181,7 +181,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const drift = checkDrift(local, remote);
       if (drift !== null) throw new HttpError(409, `Local patch differs from the latest diff on D${rev.id} (first difference in ${drift}); update the revision or the checkout first`);
 
-      const candidates = postableComments(rt.store, session.id);
+      const candidates = postableComments({ artifacts: rt.store.listArtifacts(session.id), links: rt.store.listLinks(session.id) });
       const skipped: { finding: string; reason: string }[] = [];
       let postedCount = 0;
       for (const { finding, comment } of candidates) {

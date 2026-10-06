@@ -2,9 +2,9 @@
 
 ***
 
-[spatial-ide](../../README.md) / runtime/postable-comments
+[spatial-ide](../../README.md) / shared/postable-comments
 
-# runtime/postable-comments
+# shared/postable-comments
 
 ## Interfaces
 

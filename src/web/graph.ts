@@ -1,6 +1,8 @@
 import dagre from "@dagrejs/dagre";
 import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, Hunk, Id, McpServerData, PatchNarrativeData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
+import { phabRevision, type PhabRevision } from "../shared/phabricator.ts";
+import { postableComments } from "../shared/postable-comments.ts";
 import type { Draft } from "./chat-context.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
@@ -32,6 +34,9 @@ export interface SummaryNodeData {
   commits: Commit[];
   changeCount: number;
   specStatus: { code: number; inferred: number; unverified: number } | null;
+  revision: PhabRevision | null;
+  pendingComments: number;
+  sessionId: Id;
 }
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
@@ -87,7 +92,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null },
+    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, revision: phabRevision(diff.data), pendingComments: 0, sessionId: narrative.sessionId },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {
@@ -130,6 +135,8 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff);
+  const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
+  summary.pendingComments = postableComments(state).filter(({ finding }) => finding.data.lines !== undefined).length;
   const prefix = `${latest.narrative.id}#`;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {

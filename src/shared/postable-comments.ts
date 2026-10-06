@@ -1,5 +1,4 @@
-import type { Artifact, FindingDecisionData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
-import type { Store } from "./store.ts";
+import type { Artifact, FindingDecisionData, Link, PostedCommentData, ReviewCommentData, ReviewFindingData } from "./types.ts";
 
 export interface PostableComment {
   finding: Artifact<ReviewFindingData>;
@@ -7,15 +6,14 @@ export interface PostableComment {
 }
 
 /** Returns each accepted finding's latest verified comment unless that comment was already posted. */
-export function postableComments(store: Store, sessionId: string): PostableComment[] {
-  const links = store.listLinks(sessionId);
-  const linkedTo = (artifactId: string, targetId: string) => links.some((link) =>
+export function postableComments(state: { artifacts: Artifact[]; links: Link[] }): PostableComment[] {
+  const linkedTo = (artifactId: string, targetId: string) => state.links.some((link) =>
     link.from === artifactId && link.to === targetId && link.kind === "about",
   );
-  const findings = store.listArtifacts(sessionId, "ReviewFinding") as Artifact<ReviewFindingData>[];
-  const decisions = store.listArtifacts(sessionId, "FindingDecision") as Artifact<FindingDecisionData>[];
-  const comments = store.listArtifacts(sessionId, "ReviewComment") as Artifact<ReviewCommentData>[];
-  const posted = store.listArtifacts(sessionId, "PostedComment") as Artifact<PostedCommentData>[];
+  const findings = state.artifacts.filter((a) => a.type === "ReviewFinding") as Artifact<ReviewFindingData>[];
+  const decisions = state.artifacts.filter((a) => a.type === "FindingDecision") as Artifact<FindingDecisionData>[];
+  const comments = state.artifacts.filter((a) => a.type === "ReviewComment") as Artifact<ReviewCommentData>[];
+  const posted = state.artifacts.filter((a) => a.type === "PostedComment") as Artifact<PostedCommentData>[];
   const result: PostableComment[] = [];
 
   for (const finding of findings) {

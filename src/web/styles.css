@@ -30,6 +30,10 @@ html, body, #root { margin: 0; height: 100%; }
 .level-concept { font-size: 16px; }
 .level-code { font-size: 13px; }
 .summary-node { border-color: #6b7fd7; background: #f3f5ff; }
+.summary-node .post-drafts-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.summary-node .post-drafts { border: 1px solid #6b7fd7; border-radius: 3px; padding: 4px 8px; color: #3348a5; background: #fff; cursor: pointer; font-size: 12px; }
+.summary-node .post-result { color: #1a73e8; font-size: 12px; margin-left: 8px; }
+.summary-node .post-error { color: #d93025; font-size: 12px; margin-left: 8px; }
 .files { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, monospace; font-size: 0.85em; color: #555; }
 .diff { margin-top: 10px; border: 1px solid #e3e3e3; border-radius: 6px; overflow: hidden; cursor: text; user-select: text; }
 .diff-head { font-family: ui-monospace, monospace; font-size: 0.85em; background: #f0f0f0; padding: 4px 8px; }
