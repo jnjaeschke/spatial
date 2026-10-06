@@ -51,20 +51,28 @@ process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 const arcrc = join(dir, "arcrc");
 writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
 process.env.SPATIAL_ARCRC_PATH = arcrc;
-type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string> };
-const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {} }]]);
+type ConduitInline = { revisionID: number; diffID: number; filePath: string; isNewFile: number; lineNumber: number; lineLength: number; content: string };
+type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; inlines: ConduitInline[] };
+const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] }]]);
+let nextInlineId = 1;
 const defaultRawDiff = await makeGit(repo.dir).diff(base, head);
 const conduit = createServer(async (req, res) => {
   let body = "";
   for await (const chunk of req) body += chunk;
   if (req.method === "POST" && req.url === "/control") {
     const update = JSON.parse(body || "{}");
-    const state = conduitStates.get(update.revision) ?? { diffs: [1], transactions: [], rawDiffs: {} };
+    const state = conduitStates.get(update.revision) ?? { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] };
     if (update.diffs) state.diffs = update.diffs;
     if (update.transactions) state.transactions = update.transactions;
     if (update.rawDiffs) state.rawDiffs = update.rawDiffs;
     conduitStates.set(update.revision, state);
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/control/inlines")) {
+    const revision = Number(new URL(req.url, "http://127.0.0.1").searchParams.get("revision"));
+    const inlines = conduitStates.get(revision)?.inlines ?? [];
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(inlines));
     return;
   }
   const form = new URLSearchParams(body);
@@ -75,12 +83,25 @@ const conduit = createServer(async (req, res) => {
     return;
   }
   const revisionId = Number(params.constraints?.ids?.[0] ?? params.revisionID ?? params.objectIdentifier?.replace("PHID-DREV-", "") ?? params.constraints?.revisionPHIDs?.[0]?.replace("PHID-DREV-", "") ?? 1);
-  const conduitState = conduitStates.get(revisionId) ?? { diffs: [1], transactions: [], rawDiffs: {} };
+  const conduitState = conduitStates.get(revisionId) ?? { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] };
+  conduitStates.set(revisionId, conduitState);
   const result = method === "differential.revision.search" ? { data: [{ phid: `PHID-DREV-${revisionId}` }] }
     : method === "differential.diff.search" ? { data: conduitState.diffs.map((id) => ({ id, phid: `PHID-DIFF-${id}`, fields: { revisionPHID: `PHID-DREV-${revisionId}` } })) }
       // `getrawdiff` names no revision; diff ids are unique across revisions, as on Phabricator.
       : method === "differential.getrawdiff" ? [...conduitStates.values()].find((state) => state.rawDiffs[params.diffID])?.rawDiffs[params.diffID] ?? (params.diffID === 1 ? defaultRawDiff : defaultRawDiff.replace("THIRTY", "THIRTY-X"))
-          : method === "differential.createinline" ? { id: 77 }
+          : method === "differential.createinline" ? (() => {
+              const inline: ConduitInline = {
+                revisionID: Number(params.revisionID),
+                diffID: Number(params.diffID),
+                filePath: params.filePath,
+                isNewFile: Number(params.isNewFile),
+                lineNumber: Number(params.lineNumber),
+                lineLength: Number(params.lineLength),
+                content: params.content,
+              };
+              conduitState.inlines.push(inline);
+              return { id: nextInlineId++ };
+            })()
             : method === "transaction.search" ? { data: conduitState.transactions, cursor: { limit: "50", after: null, before: null } }
               : method === "user.whoami" ? { phid: "PHID-USER-me", userName: "me", realName: "Me" }
                 : method === "user.search" ? { data: [{ phid: "PHID-USER-alice", fields: { username: "alice", realName: "Alice" } }] }
