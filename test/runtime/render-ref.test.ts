@@ -68,6 +68,11 @@ test("renderRef renders artifacts and supported subrefs", () => {
   assert.throws(() => renderRef(view, "N#nope"), /Unknown ref: N#nope/);
 });
 
+test("renderRef renders a WorkflowStart request", () => {
+  const start = artifact("W", "WorkflowStart", { workflow: "chat", prompt: "Explain X" });
+  assert.equal(renderRef({ artifacts: [start], links: [] }, "W"), "# Session request (chat)\n\nExplain X");
+});
+
 test("sessionOverview lists latest narrative changes, specs, and threads", () => {
   const overview = sessionOverview(view);
   for (const expected of ["N#c1", "N#c2", "f0h0", "f0h1", "R", "T"]) assert.ok(overview.includes(expected));

@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
+import type { Artifact, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
@@ -16,6 +16,8 @@ import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
 import { newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
+import { workflowInfo } from "../workflows/registry.ts";
+import { startSession } from "../workflows/start.ts";
 
 class HttpError extends Error {
   status: number;
@@ -94,6 +96,17 @@ function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unk
 export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher } = {}): Server {
   const routes: Route[] = [
     ["GET", /^\/api\/health$/, async (): Promise<HealthResponse> => ({ app: "spatial-ide", ui: opts.staticDir !== undefined })],
+    ["GET", /^\/api\/workflows$/, async (): Promise<WorkflowInfo[]> => workflowInfo()],
+    ["POST", /^\/api\/start$/, async ({ req, res }) => {
+      const body = await readJson(req);
+      const path = str(body.path, "path");
+      if (!isAbsolute(path)) throw new HttpError(400, "path must be absolute");
+      const text = str(body.text, "text");
+      let session: Session;
+      try { session = await startSession(rt, path, text, body.llm as LlmSelection | undefined); }
+      catch (e) { throw new HttpError(400, (e as Error).message); }
+      send(res, 201, session);
+    }],
     ["GET", /^\/api\/repo$/, async ({ url }): Promise<RepoInfo> => {
       const path = url.searchParams.get("path");
       if (!path || !isAbsolute(path)) throw new HttpError(400, "Query parameter path must be an absolute path");

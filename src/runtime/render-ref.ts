@@ -1,4 +1,4 @@
-import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, PhabCommentData, Ref, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, PhabCommentData, Ref, ReviewFindingData, SpecReferenceData, WorkflowStartData } from "../shared/types.ts";
 import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
@@ -58,6 +58,10 @@ export function renderRef(view: SessionView, ref: Ref): string {
   const id = parts[0], subId = parts[1];
   const artifact = view.artifacts.find((item) => item.id === id);
   if (!artifact || parts.length > 2) throw new Error("Unknown ref: " + ref);
+  if (artifact.type === "WorkflowStart" && subId === undefined) {
+    const data = artifact.data as WorkflowStartData;
+    return `# Session request (${data.workflow})\n\n${data.prompt}`;
+  }
   if (artifact.type === "PhabComment" && subId === undefined) {
     const comments = phabThread(view.artifacts, id);
     if (!comments.length) throw new Error("Unknown ref: " + ref);

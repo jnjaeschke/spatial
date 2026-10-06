@@ -6,5 +6,6 @@ import { review } from "./review/task.ts";
 import { comment } from "./comment/task.ts";
 import { interdiff } from "./interdiff/task.ts";
 import { carryFindings } from "./carry-findings/task.ts";
+import { selectWorkflow } from "./select-workflow/task.ts";
 
-export const tasks = [importDiff, narrate, resolveSpecRefs, chatTurn, review, comment, interdiff, carryFindings];
+export const tasks = [importDiff, narrate, resolveSpecRefs, chatTurn, review, comment, interdiff, carryFindings, selectWorkflow];

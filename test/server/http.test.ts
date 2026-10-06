@@ -20,11 +20,12 @@ import { makeRepo } from "../helpers/git-fixture.ts";
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
 const CHAT_REPLY = { answer: "hi", questions: [], revisions: [], requestMcpServers: [] };
 const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
+const selectorFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "workflow" in (prompt.schema as { properties: object }).properties;
 const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.system?.includes("You review a code patch") || !!prompt.schema && "properties" in prompt.schema && "findings" in (prompt.schema as { properties: object }).properties;
 const commentFor = (prompt: { schema?: object }) => !!prompt.schema && "properties" in prompt.schema && "body" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { const selector = selectorFor(prompt); const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); return { text: "hi", json: prompt.schema ? selector ? { workflow: "chat", params: {}, title: "Picked" } : chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -66,6 +67,68 @@ test("sessions: create, list, validation", async () => {
   assert.equal(bad.status, 400);
   assert.match((await bad.json()).error, /Not a git repository/);
   assert.equal((await post("/api/sessions", { title: "t" })).status, 400);
+});
+
+test("workflow start routes support slash commands, selection, and validation", async () => {
+  const infos = await (await fetch(`${base}/api/workflows`)).json();
+  assert.deepEqual(infos.map((info: { id: string }) => info.id), ["review", "chat"]);
+  assert.ok(infos.every((info: { argHint?: string }) => info.argHint));
+
+  const commandResponse = await post("/api/start", { path: repo.dir, text: "/chat hi there" });
+  assert.equal(commandResponse.status, 201);
+  const commandSession: Session = await commandResponse.json();
+  assert.equal(commandSession.workflow, "chat");
+  assert.equal(commandSession.title, "/chat hi there");
+  const commandState = await waitFor(async () => {
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${commandSession.id}/state`)).json();
+    const thread = state.artifacts.find((item) => item.type === "ChatThread");
+    const messages = state.artifacts.filter((item) => item.type === "ChatMessage").map((item) => item.data as { role: string; text: string });
+    return thread && messages.some((message) => message.role === "assistant") ? { state, thread, messages } : undefined;
+  });
+  const commandStart = commandState.state.artifacts.find((item) => item.type === "WorkflowStart")!;
+  assert.equal((commandState.thread!.data as { anchor: string }).anchor, commandStart.id);
+  assert.deepEqual(commandStart.data, { via: "command", workflow: "chat", params: {}, title: "/chat hi there", prompt: "hi there" });
+  assert.ok(commandStart.provenance.taskId === "user");
+  assert.ok(commandState.messages.some((message) => message.role === "user" && message.text === "hi there"));
+
+  const reviewResponse = await post("/api/start", { path: repo.dir, text: "/review HEAD~1..HEAD" });
+  assert.equal(reviewResponse.status, 201);
+  const reviewSession: Session = await reviewResponse.json();
+  assert.equal(reviewSession.workflow, "review");
+  await waitFor(async () => (await (await fetch(`${base}/api/sessions/${reviewSession.id}/state`)).json() as SessionState).artifacts.find((item) => item.type === "PatchNarrative"));
+
+  const before = rt.store.listSessions().length;
+  for (const [text, error] of [["/nope x", /Unknown command \/nope/], ["/review D5", /not available yet/], ["/review", /Usage/], ["  ", /Request is empty/]] as const) {
+    const response = await post("/api/start", { path: repo.dir, text });
+    assert.equal(response.status, 400);
+    assert.match((await response.json() as { error: string }).error, error);
+  }
+  const relative = await post("/api/start", { path: ".", text: "hi" });
+  assert.equal(relative.status, 400);
+  assert.match((await relative.json() as { error: string }).error, /absolute/);
+  const outside = await post("/api/start", { path: tmpdir(), text: "hi" });
+  assert.equal(outside.status, 400);
+  assert.match((await outside.json() as { error: string }).error, /Not a git repository/);
+  assert.equal(rt.store.listSessions().length, before);
+
+  const selectorResponse = await post("/api/start", { path: repo.dir, text: "what is this repo about?" });
+  assert.equal(selectorResponse.status, 201);
+  const pending: Session = await selectorResponse.json();
+  assert.equal(pending.workflow, null);
+  assert.equal(pending.title, "what is this repo about?");
+  const selected = await waitFor(async () => {
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${pending.id}/state`)).json();
+    const session = rt.store.getSession(pending.id);
+    const start = state.artifacts.find((item) => item.type === "WorkflowStart");
+    const thread = state.artifacts.find((item) => item.type === "ChatThread");
+    return session.workflow === "chat" && start && thread ? { state, session, start, thread } : undefined;
+  });
+  assert.equal(selected.session.title, "Picked");
+  assert.equal((selected.start!.data as { via: string }).via, "selector");
+  assert.equal((selected.thread!.data as { anchor: string }).anchor, selected.start!.id);
+  assert.ok(selected.state.tasks.some((task) => task.kind === "selectWorkflow" && task.status === "succeeded"));
+  assert.ok(selected.state.artifacts.some((item) => item.type === "ChatMessage" && (item.data as { role: string; text: string }).role === "user" && (item.data as { text: string }).text === "what is this repo about?"));
+  assert.ok(rt.store.listEvents(pending.id).some((event) => event.type === "session.updated"));
 });
 
 test("health reports whether the server serves the built UI", async () => {
