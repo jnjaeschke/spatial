@@ -8,6 +8,7 @@ import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
+import { changeCommit } from "../shared/review-path.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
@@ -33,6 +34,18 @@ export interface ChangeNodeData {
   change: SemanticChange;
   hunks: { file: DiffFile; hunk: Hunk }[];
   files: string[];
+  /** Owning stack commit; null for single-commit diffs. */
+  commit: number | null;
+}
+
+export interface CommitNodeData {
+  kind: "commit";
+  narrativeId: string;
+  index: number;
+  commit: Commit;
+  intent: string | null;
+  changeCount: number;
+  findingCount: number;
 }
 
 export interface SummaryNodeData {
@@ -107,7 +120,7 @@ export interface PhabNodeData {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
 }
 
-export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
+export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
@@ -122,6 +135,15 @@ function phabAnchorsOf(artifacts: Artifact[], comments: Artifact<PhabCommentData
 export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, collapsed: ReadonlySet<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const hidden = new Set(g.nodes.filter((n) => ((n.data.kind === "chat" && n.data.threadId !== null) || (n.data.kind === "finding" && n.data.decision !== "dismissed")) && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
+}
+
+export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
+export const isSatellite = (data: GraphNodeData) => data.kind === "spec" || data.kind === "chat" || data.kind === "finding" || data.kind === "phab";
+
+export function levelGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, level: ZoomLevel): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  if (level !== "patch" || !g.nodes.some((n) => n.data.kind === "commit")) return g;
+  const keep = new Set(g.nodes.filter((n) => n.data.kind === "summary" || n.data.kind === "commit").map((n) => n.id));
+  return { nodes: g.nodes.filter((n) => keep.has(n.id)), edges: g.edges.filter((e) => keep.has(e.source) && keep.has(e.target)) };
 }
 
 export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {
@@ -145,13 +167,23 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
       sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [] },
   }];
   const edges: GraphEdge[] = [];
+  const stack = diff.data.commits.length > 1;
+  if (stack) {
+    diff.data.commits.forEach((commit, index) => {
+      const cardId = commitNodeId(narrative.id, index);
+      nodes.push({ id: cardId, data: { kind: "commit", narrativeId: narrative.id, index, commit, intent: narrative.data.commitIntents?.[index] ?? null,
+        changeCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index).length, findingCount: 0 } });
+      edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
+    });
+  }
   for (const change of narrative.data.changes) {
     const hunks = change.hunkIds.map((id) => byHunk.get(id)!);
+    const commit = stack ? changeCommit(diff.data, change) : null;
     nodes.push({
       id: ref(change.id),
-      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))] },
+      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit },
     });
-    const sources = change.dependsOn.length ? change.dependsOn.map(ref) : [narrative.id];
+    const sources = change.dependsOn.length ? change.dependsOn.map(ref) : [commit === null ? narrative.id : commitNodeId(narrative.id, commit)];
     for (const s of sources) edges.push({ id: `${s}->${ref(change.id)}`, source: s, target: ref(change.id) });
   }
   return { nodes, edges };
@@ -294,6 +326,14 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     } });
     g.edges.push({ id: `${finding.id}->${node}`, source: finding.id, target: node });
   }
+  for (const finding of g.nodes.filter((n): n is GraphNode & { data: FindingNodeData } => n.data.kind === "finding" && n.data.decision !== "dismissed" && !n.data.outdated)) {
+    const anchor = finding.anchors?.[0];
+    const change = g.nodes.find((n) => n.id === anchor && n.data.kind === "change");
+    if (change?.data.kind !== "change" || change.data.commit === null) continue;
+    const commit = change.data.commit;
+    const card = g.nodes.find((n) => n.id === commitNodeId(latest.narrative.id, commit));
+    if (card?.data.kind === "commit") card.data.findingCount++;
+  }
   addChats(g, state, drafts, hostOf, nodeIds, resolve, latest.diff.id, allHunks);
   return g;
 }
@@ -369,6 +409,7 @@ function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; heigh
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   if (data.kind === "chat") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];
+  if (data.kind === "commit") return { width, height: level === "patch" ? 120 : 100 + lines(data.intent ?? "", 55) * 22 };
   if (data.kind === "summary") {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
     return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight };
@@ -385,8 +426,13 @@ export function estimateSize(data: GraphNodeData, level: ZoomLevel, textScale = 
 }
 
 /** With enlarged text a fit at code level scrolls instead of shrinking into concept level. */
-export function fitMinZoom(textScale: number, level: ZoomLevel): { minZoom?: number } {
-  return textScale > 1 && level === "code" ? { minZoom: ZOOM_THRESHOLDS.codeToConcept } : {};
+export function fitMinZoom(textScale: number, level: ZoomLevel, stack = false): { minZoom?: number } {
+  const readable = textScale > 1 && level === "code"
+    ? Math.min(LEVEL_MAX_ZOOM[level], Math.round(ZOOM_THRESHOLDS.codeToConcept * textScale * 1000) / 1000)
+    : 0;
+  const visibleStackChanges = stack ? ZOOM_THRESHOLDS.patchToConcept : 0;
+  const minZoom = Math.max(readable, visibleStackChanges);
+  return minZoom > 0 ? { minZoom } : {};
 }
 
 export function layout(
@@ -403,6 +449,63 @@ export function layout(
   for (const n of nodes) {
     const p = g.node(n.id);
     out.set(n.id, { x: p.x - n.width / 2, y: p.y - n.height / 2 });
+  }
+  return out;
+}
+
+const LANE_GAP = 120;
+const LANE_TOP_GAP = 72;
+type Placed = { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[]; dy?: number };
+
+/** Stack layout: summary above commit lanes, with lane-local changes and satellites arranged independently. */
+export function stackLayout(nodes: Placed[], edges: { source: string; target: string }[]): Map<string, { x: number; y: number }> {
+  const root = nodes.find((n) => n.data.kind === "summary")!;
+  const laneOf = new Map<string, number>();
+  for (const n of nodes) {
+    if (n.data.kind === "commit") laneOf.set(n.id, n.data.index);
+    if (n.data.kind === "change") laneOf.set(n.id, n.data.commit!);
+  }
+  const satellites = nodes.filter((n) => isSatellite(n.data));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const s of satellites) {
+      if (laneOf.has(s.id)) continue;
+      const lane = (s.anchors ?? []).map((a) => laneOf.get(a)).find((l) => l !== undefined);
+      if (lane !== undefined) { laneOf.set(s.id, lane); changed = true; }
+    }
+  }
+  const sized = (s: Placed, anchors: string[]) => ({ id: s.id, width: s.width, height: s.height, anchors, ...(s.dy === undefined ? {} : { dy: s.dy }) });
+  const out = new Map<string, { x: number; y: number }>();
+  const rootSats = satellites.filter((s) => !laneOf.has(s.id)).map((s) => sized(s, (s.anchors ?? []).filter((a) => !laneOf.has(a))));
+  const rootPlaced = placeSatellites(new Map([[root.id, { x: 0, y: 0, width: root.width, height: root.height }]]), rootSats);
+  const top = Math.max(root.height, ...rootSats.filter((s) => rootPlaced.has(s.id)).map((s) => rootPlaced.get(s.id)!.y + s.height)) + LANE_TOP_GAP;
+  const lanes = [...new Set(nodes.flatMap((n) => n.data.kind === "commit" ? [n.data.index] : []))].sort((a, b) => a - b);
+  let x = 0;
+  for (const lane of lanes) {
+    const main = nodes.filter((n) => !isSatellite(n.data) && n.data.kind !== "summary" && laneOf.get(n.id) === lane);
+    const card = main.find((n) => n.data.kind === "commit")!;
+    const ids = new Set(main.map((n) => n.id));
+    const inLane = edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+    const reached = new Set(inLane.map((e) => e.target));
+    const local = layout(main, [...inLane, ...main.filter((n) => n !== card && !reached.has(n.id)).map((n) => ({ source: card.id, target: n.id }))]);
+    const minX = Math.min(...main.map((n) => local.get(n.id)!.x));
+    const minY = Math.min(...main.map((n) => local.get(n.id)!.y));
+    const rects = new Map(main.map((n) => [n.id, { x: local.get(n.id)!.x - minX + x, y: local.get(n.id)!.y - minY + top, width: n.width, height: n.height }] as const));
+    const laneSats = satellites.filter((s) => laneOf.get(s.id) === lane).map((s) => sized(s, (s.anchors ?? []).filter((a) => laneOf.get(a) === lane)));
+    const placed = placeSatellites(rects, laneSats);
+    let right = -Infinity;
+    for (const [id, r] of rects) { out.set(id, { x: r.x, y: r.y }); right = Math.max(right, r.x + r.width); }
+    for (const s of laneSats) {
+      const p = placed.get(s.id);
+      if (p) { out.set(s.id, p); right = Math.max(right, p.x + s.width); }
+    }
+    x = right + LANE_GAP;
+  }
+  const dx = Math.max(0, (x - LANE_GAP - root.width) / 2);
+  out.set(root.id, { x: dx, y: 0 });
+  for (const s of rootSats) {
+    const p = rootPlaced.get(s.id);
+    if (p) out.set(s.id, { x: p.x + dx, y: p.y });
   }
   return out;
 }

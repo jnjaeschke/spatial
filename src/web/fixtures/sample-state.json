@@ -8,8 +8,7 @@
       "data": {
         "baseSha": "1111111111111111111111111111111111111111", "headSha": "2222222222222222222222222222222222222222", "upstreamRev": "5555555555555555555555555555555555555555",
         "commits": [
-          { "sha": "3333333333333333333333333333333333333333", "subject": "Bug 1 - part 1: Track pending commit on Navigation.", "body": "" },
-          { "sha": "2222222222222222222222222222222222222222", "subject": "Bug 1 - part 2: Fire navigatesuccess after commit.", "body": "Spec: https://html.spec.whatwg.org/#navigate" }
+          { "sha": "2222222222222222222222222222222222222222", "subject": "Bug 1 - Track pending commit and fire navigatesuccess.", "body": "Spec: https://html.spec.whatwg.org/#navigate" }
         ],
         "files": [
           { "path": "dom/navigation/Navigation.h", "status": "modified", "binary": false, "hunks": [

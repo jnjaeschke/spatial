@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { anchorNodeId, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, type GraphNode } from "../../src/web/graph.ts";
+import { anchorNodeId, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -158,6 +158,88 @@ test("narrativeGraph: ids are refs, summary feeds roots, deps feed dependents", 
   }
 });
 
+const stackDiff: Artifact<DiffData> = {
+  ...diff, id: "DS", data: { ...diff.data, commits: [
+    { sha: "1", subject: "Part 1", body: "" }, { sha: "2", subject: "Part 2", body: "" },
+  ], files: [
+    { path: "a.cpp", status: "modified", binary: false, hunks: [
+      { ...hunk("f0h0", 1), lines: [{ kind: "add", text: "one", commit: 0 }] },
+      { ...hunk("f0h1", 1), lines: [{ kind: "add", text: "two", commit: 1 }] },
+    ] },
+    { path: "b.h", status: "modified", binary: false, hunks: [{ ...hunk("f1h0", 1), lines: [{ kind: "add", text: "three", commit: 0 }] }] },
+  ] },
+};
+const stackNarrative: Artifact<PatchNarrativeData> = {
+  ...narrative("NS"), data: { diffId: "DS", summary: "sum", commitIntents: ["first", "second"], changes: [
+    ch("c1", ["f0h0"]), ch("c2", ["f1h0"], ["c1"]), ch("c3", ["f0h1"], ["c1"]),
+  ] },
+};
+
+test("narrativeGraph creates ordered commit cards and assigns changes to lanes", () => {
+  const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  assert.deepEqual(g.nodes.map((n) => n.id), ["NS", "NS#commit-0", "NS#commit-1", "NS#c1", "NS#c2", "NS#c3"]);
+  assert.deepEqual(g.edges.map(({ source, target }) => [source, target]), [
+    ["NS", "NS#commit-0"], ["NS", "NS#commit-1"], ["NS#commit-0", "NS#c1"], ["NS#c1", "NS#c2"], ["NS#c1", "NS#c3"],
+  ]);
+  assert.deepEqual(g.nodes.filter((n) => n.data.kind === "change").map((n) => n.data.kind === "change" ? n.data.commit : null), [0, 0, 1]);
+  assert.deepEqual(g.nodes.filter((n) => n.data.kind === "commit").map((n) => n.data.kind === "commit" ? [n.data.intent, n.data.changeCount] : null), [["first", 2], ["second", 1]]);
+  const single = narrativeGraph(narrative("N"), diff, [diff]);
+  assert.equal(single.nodes.some((n) => n.data.kind === "commit"), false);
+  assert.ok(single.nodes.filter((n) => n.data.kind === "change").every((n) => n.data.kind === "change" && n.data.commit === null));
+});
+
+test("levelGraph collapses stack changes at patch zoom only", () => {
+  const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  assert.deepEqual(levelGraph(g, "patch").nodes.map((n) => n.id), ["NS", "NS#commit-0", "NS#commit-1"]);
+  assert.deepEqual(levelGraph(g, "patch").edges.map(({ source, target }) => [source, target]), [["NS", "NS#commit-0"], ["NS", "NS#commit-1"]]);
+  assert.equal(levelGraph(g, "concept"), g);
+  const single = narrativeGraph(narrative("N"), diff, [diff]);
+  assert.equal(levelGraph(single, "patch"), single);
+});
+
+test("sessionGraph counts active findings on their owning commit cards", () => {
+  const finding = (id: string, anchor: string) => ({ id, sessionId: "S", type: "ReviewFinding" as const, status: "proposed" as const, createdAt: id, provenance: { taskId: "t" }, data: { anchor, category: "tests" as const, severity: "low" as const, title: id, body: "Body" } });
+  const active = finding("F1", "DS#f0h1"), dismissed = finding("F0", "DS#f0h0");
+  const decision = { id: "DEC", sessionId: "S", type: "FindingDecision" as const, status: "verified" as const, createdAt: "z", provenance: { taskId: "user" }, data: { finding: "F0", decision: "dismissed" as const } };
+  const st = state([stackDiff, stackNarrative, active, dismissed, decision]);
+  st.links.push({ id: "dismissed-about", sessionId: "S", from: "DEC", to: "F0", kind: "about" });
+  const graph = sessionGraph(st)!;
+  const card1 = graph.nodes.find((n) => n.id === "NS#commit-1")!;
+  const card0 = graph.nodes.find((n) => n.id === "NS#commit-0")!;
+  assert.equal(card1.data.kind === "commit" ? card1.data.findingCount : -1, 1);
+  assert.equal(card0.data.kind === "commit" ? card0.data.findingCount : -1, 0);
+});
+
+test("stackLayout keeps lanes and their satellites separate below the summary", () => {
+  const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  const nodes = [...graph.nodes,
+    { id: "F1", anchors: ["NS#c1"], data: { kind: "finding", findingId: "F1", diffId: "DS", hunks: [], anchor: "NS#c1", category: "tests", severity: "low", title: "F1", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
+    { id: "F3", anchors: ["NS#c3"], data: { kind: "finding", findingId: "F3", diffId: "DS", hunks: [], anchor: "NS#c3", category: "tests", severity: "low", title: "F3", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
+    { id: "FS", anchors: ["NS"], data: { kind: "finding", findingId: "FS", diffId: "DS", hunks: [], anchor: "NS", category: "tests", severity: "low", title: "FS", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
+  ] as GraphNode[];
+  const sized = nodes.map((n) => ({ id: n.id, data: n.data, anchors: n.anchors ?? [], ...estimateSize(n.data, "concept") }));
+  const pos = stackLayout(sized, graph.edges);
+  assert.equal(pos.size, nodes.length);
+  const right = (id: string) => pos.get(id)!.x + estimateSize(nodes.find((n) => n.id === id)!.data, "concept").width;
+  const laneOneX = pos.get("NS#commit-1")!.x;
+  for (const id of ["NS#commit-0", "NS#c1", "NS#c2", "F1"]) assert.ok(right(id) < laneOneX, `${id} must fit left of lane 1`);
+  assert.ok(pos.get("NS#commit-0")!.y < pos.get("NS#c1")!.y);
+  assert.ok(pos.get("NS#commit-0")!.y < pos.get("NS#c2")!.y);
+  assert.ok(pos.get("F1")!.x > right("NS#c1"));
+  assert.equal(pos.get("NS")!.y, 0);
+  assert.ok(pos.get("NS#commit-0")!.y >= pos.get("FS")!.y + estimateSize(nodes.find((n) => n.id === "FS")!.data, "concept").height);
+  assert.ok(pos.get("NS#c3")!.y > pos.get("NS#commit-1")!.y);
+});
+
+test("commit card estimates match node widths and shrink at patch level", () => {
+  const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  const card = g.nodes.find((n) => n.data.kind === "commit")!.data;
+  const patch = estimateSize(card, "patch"), concept = estimateSize(card, "concept");
+  assert.ok(patch.height < concept.height);
+  assert.equal(patch.width, NODE_WIDTH.patch);
+  assert.equal(concept.width, NODE_WIDTH.concept);
+});
+
 test("estimateSize grows with level and hunk size", () => {
   const g = narrativeGraph(narrative("N"), diff, [diff]);
   const c2 = g.nodes[2].data;
@@ -176,13 +258,15 @@ test("estimateSize scales change and finding dimensions", () => {
   assert.deepEqual(estimateSize(finding, "code", 1.5), { width: SATELLITE_WIDTH * 1.5, height: findingBase.height * 1.5 });
 });
 
-test("fitMinZoom preserves code level only for enlarged text", () => {
+test("fitMinZoom preserves readable text and expanded stack changes", () => {
   assert.deepEqual(fitMinZoom(1, "code"), {});
   assert.deepEqual(fitMinZoom(0.9, "code"), {});
-  assert.deepEqual(fitMinZoom(1.15, "code"), { minZoom: 0.9 });
+  assert.deepEqual(fitMinZoom(1.15, "code"), { minZoom: 1.035 });
   assert.deepEqual(fitMinZoom(1.6, "patch"), {});
   assert.deepEqual(fitMinZoom(1.6, "concept"), {});
+  assert.deepEqual(fitMinZoom(1.6, "code"), { minZoom: 1.44 });
   assert.equal(zoomLevel(fitMinZoom(1.6, "code").minZoom!, "code"), "code");
+  assert.deepEqual(fitMinZoom(1, "code", true), { minZoom: 0.6 });
 });
 
 test("layout: dependents below dependencies, no overlaps, deterministic", () => {
@@ -605,7 +689,7 @@ test("visibleGraph hides only collapsed quoted threads and their edges", () => {
     node("quoted", { kind: "chat", anchor: "N#c1", quote: "quote", diffId: "D", hunks: [], threadId: "quoted", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("plain", { kind: "chat", anchor: "N#c1", diffId: "D", hunks: [], threadId: "plain", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("draft", { kind: "chat", anchor: "N#c1", quote: "draft quote", diffId: "D", hunks: [], threadId: null, draftId: "draft", taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
-    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [] }),
+    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [], commit: null }),
   ];
   const edges = [
     { id: "quoted-edge", source: "quoted", target: "N#c1" },

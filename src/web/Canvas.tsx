@@ -5,8 +5,9 @@ import {
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, phabCommentCollapseId, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
+import { estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
+import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
@@ -21,11 +22,11 @@ import { useTextScale } from "./text-scale.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
-const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode };
+const nodeTypes = { change: ChangeNode, commit: CommitNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode };
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
-const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
+const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -70,7 +71,10 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : [])), [graph]);
   const { collapsed, toggle, expandAll } = useCollapsed(state.session.id, defaults);
-  const shown = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
+  const [level, setLevel] = useState<ZoomLevel>("code");
+  const levelRef = useRef(level);
+  const open = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
+  const shown = useMemo(() => levelGraph(open, level), [open, level]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
   const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: (ChatNodeData | FindingNodeData) & { quote: string } } => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote), [graph]);
   const [hoveredChat, setHoveredChat] = useState<string | null>(null);
@@ -81,12 +85,10 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
     : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
-  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" || n.data.kind === "phab").map((n) => [n.id, n.anchors ?? []])), [shown]);
+  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => isSatellite(n.data)).map((n) => [n.id, n.anchors ?? []])), [shown]);
   const edges = useMemo<Edge[]>(() => shown.edges.map((e) => satelliteAnchors.has(e.source)
     ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
     : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
-  const [level, setLevel] = useState<ZoomLevel>("code");
-  const levelRef = useRef(level);
   // Until the user touches the canvas, every measured layout refits the view, so nodes that arrive later (findings) show up.
   const autoFit = useRef(true);
   levelRef.current = level;
@@ -125,6 +127,10 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   };
 
   const arrange = (sized: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
+    if (shown.nodes.some((n) => n.data.kind === "commit")) {
+      const byId = new Map(shown.nodes.map((n) => [n.id, n]));
+      return stackLayout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges);
+    }
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
     const mainPos = layout(main, shown.edges.filter((e) => !satelliteAnchors.has(e.source)));
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
@@ -153,7 +159,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
-      style: { width: (n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" || n.data.kind === "phab" ? SATELLITE_WIDTH : NODE_WIDTH[level]) * textScale },
+      style: { width: (isSatellite(n.data) ? SATELLITE_WIDTH : NODE_WIDTH[level]) * textScale },
       draggable: true,
       dragHandle: ".title",
     })));
@@ -177,7 +183,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       anchor.current = null;
       autoFit.current = false;
     } else if (autoFit.current) {
-      const fitFloor = fitMinZoom(textScale, levelRef.current);
+      const fitFloor = fitMinZoom(textScale, levelRef.current, shown.nodes.some((n) => n.data.kind === "commit"));
       void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
     }
   }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale]);
