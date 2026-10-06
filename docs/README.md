@@ -13,6 +13,7 @@
 - [runtime/conduit](runtime/conduit/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/drift](runtime/drift/README.md)
+- [runtime/import-revision](runtime/import-revision/README.md)
 - [runtime/interdiff](runtime/interdiff/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
 - [runtime/phab-revision](runtime/phab-revision/README.md)
