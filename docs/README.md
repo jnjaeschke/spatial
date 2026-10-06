@@ -37,4 +37,5 @@
 - [shared/repos](shared/repos/README.md)
 - [shared/types](shared/types/README.md)
 - [workflows/narrate-patch](workflows/narrate-patch/README.md)
+- [workflows/registry](workflows/registry/README.md)
 - [workflows/update-revision](workflows/update-revision/README.md)

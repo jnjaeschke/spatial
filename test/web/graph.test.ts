@@ -20,7 +20,7 @@ const narrative = (id: string): Artifact<PatchNarrativeData> => ({
   data: { diffId: "D", summary: "sum", changes: [ch("c1", ["f0h0"]), ch("c2", ["f0h1", "f1h0"], ["c1"]), ch("c3", [], ["c1"])] },
 });
 const state = (artifacts: Artifact[]): SessionState => ({
-  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0" }, artifacts,
+  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow: "review" }, artifacts,
   links: artifacts.filter((a) => a.type === "ReviewFinding").map((a) => ({ id: `derived-${a.id}`, sessionId: "S", from: a.id, to: artifacts.filter((item) => item.type === "PatchNarrative").at(-1)?.id ?? "", kind: "derivedFrom" as const })),
   tasks: [], lastEventId: 0, searchfox: null,
 });

@@ -106,7 +106,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
     ["POST", /^\/api\/sessions$/, async ({ req, res }) => {
       const body = await readJson(req);
       try {
-        send(res, 201, await createSession(rt.store, str(body.repo, "repo"), str(body.title, "title")));
+        send(res, 201, await createSession(rt.store, str(body.repo, "repo"), str(body.title, "title"), "review"));
       } catch (e) {
         throw e instanceof HttpError ? e : new HttpError(400, (e as Error).message);
       }

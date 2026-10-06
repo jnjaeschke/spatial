@@ -88,6 +88,10 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 `string`
 
+###### workflow?
+
+[`WorkflowId`](../../../shared/types/type-aliases/WorkflowId.md)
+
 ###### worktree
 
 `string`
@@ -388,7 +392,7 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ###### kinds?
 
-(`"spec"` \| `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"chat"` \| `"finding"` \| `"comment"`)[]
+(`"chat"` \| `"spec"` \| `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"finding"` \| `"comment"`)[]
 
 ###### limit?
 
@@ -397,6 +401,32 @@ Dumb persistence. Emits no events; the Runtime does that.
 #### Returns
 
 `object`[]
+
+***
+
+### setSessionStart()
+
+> **setSessionStart**(`id`, `workflow`, `title`): [`Session`](../../../shared/types/interfaces/Session.md)
+
+Records the chosen workflow and the session title.
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### workflow
+
+[`WorkflowId`](../../../shared/types/type-aliases/WorkflowId.md)
+
+##### title
+
+`string`
+
+#### Returns
+
+[`Session`](../../../shared/types/interfaces/Session.md)
 
 ***
 

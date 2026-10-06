@@ -39,7 +39,7 @@ function fixture() {
 test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted with events", async () => {
   const { dir, r, narrative } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
-  const session = await createSession(rt.store, r.dir, "t");
+  const session = await createSession(rt.store, r.dir, "t", "review");
   const { diffId, narrativeId } = await narratePatch(rt, session.id, { base: "HEAD~1", head: "HEAD" });
   const n = rt.store.getArtifact<PatchNarrativeData>(narrativeId);
   assert.deepEqual(n.data, { diffId, ...narrative });
@@ -55,7 +55,7 @@ test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted
 test("narratePatch can narrate an existing Diff without importing another", async () => {
   const { dir, r } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "reuse.sqlite"), claudeBin: STUB });
-  const session = await createSession(rt.store, r.dir, "t");
+  const session = await createSession(rt.store, r.dir, "t", "review");
   const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
   const before = rt.store.listArtifacts(session.id, "Diff").length;
   const result = await narratePatch(rt, session.id, { diffId });
@@ -66,7 +66,7 @@ test("narratePatch can narrate an existing Diff without importing another", asyn
 test("narratePatch carries findings after update narration and before resolving specs", async () => {
   const { dir, r } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "epoch2.sqlite"), claudeBin: STUB });
-  const session = await createSession(rt.store, r.dir, "t");
+  const session = await createSession(rt.store, r.dir, "t", "review");
   const { diffId: firstDiff } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
   const firstNarrative = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId: firstDiff });
   r.commit({ "a.txt": "1\nTWO-EDITED\n3\n", "c.txt": "c\n" }, "second revision");

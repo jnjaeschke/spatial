@@ -4,7 +4,7 @@ import { groupByRepo, newestFirst, repoName } from "../../src/shared/repos.ts";
 import type { Session } from "../../src/shared/types.ts";
 
 const session = (id: string, repoDir: string, createdAt: string): Session => ({
-  id, worktree: `/${id}`, repoDir, title: id, createdAt,
+  id, worktree: `/${id}`, repoDir, title: id, createdAt, workflow: "review",
 });
 
 test("repoName handles worktree common dirs and .git suffixes", () => {

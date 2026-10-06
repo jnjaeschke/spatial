@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { promisify } from "node:util";
-import type { Commit, Session } from "../shared/types.ts";
+import type { Commit, Session, WorkflowId } from "../shared/types.ts";
 import type { Store } from "./store.ts";
 import type { GitCapability } from "./tasks.ts";
 import { parseBlame } from "./blame.ts";
@@ -97,6 +97,6 @@ export async function resolveRepo(path: string): Promise<{ worktree: string; rep
 }
 
 /** Creates a session in the worktree containing `path`. */
-export async function createSession(store: Store, repo: string, title: string): Promise<Session> {
-  return store.createSession({ ...(await resolveRepo(repo)), title });
+export async function createSession(store: Store, repo: string, title: string, workflow: WorkflowId | null): Promise<Session> {
+  return store.createSession({ ...(await resolveRepo(repo)), title, ...(workflow ? { workflow } : {}) });
 }

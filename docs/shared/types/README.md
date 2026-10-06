@@ -45,6 +45,8 @@
 - [SessionState](interfaces/SessionState.md)
 - [SpecReferenceData](interfaces/SpecReferenceData.md)
 - [TaskRecord](interfaces/TaskRecord.md)
+- [WorkflowInfo](interfaces/WorkflowInfo.md)
+- [WorkflowStartData](interfaces/WorkflowStartData.md)
 
 ## Type Aliases
 
@@ -60,3 +62,4 @@
 - [Progress](type-aliases/Progress.md)
 - [Ref](type-aliases/Ref.md)
 - [TaskStatus](type-aliases/TaskStatus.md)
+- [WorkflowId](type-aliases/WorkflowId.md)

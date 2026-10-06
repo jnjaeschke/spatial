@@ -2,6 +2,20 @@
 
 export type Id = string;
 
+export type WorkflowId = "review" | "chat";
+
+/** A registry entry as the start box shows it: `/<id> <argHint>`, `description`. */
+export interface WorkflowInfo { id: WorkflowId; description: string; argHint: string }
+
+/** Data of a `WorkflowStart` artifact: the request that started the session and the workflow chosen for it. */
+export interface WorkflowStartData {
+  via: "command" | "selector";
+  workflow: WorkflowId;
+  params: unknown;
+  title: string;
+  prompt: string;
+}
+
 /** The user's durable unit of work. Grouped by repo (`repoDir`); runs in one worktree of it. */
 export interface Session {
   id: Id;
@@ -11,6 +25,8 @@ export interface Session {
   repoDir: string;
   title: string;
   createdAt: string;
+  /** The workflow the session runs; null until the start request is interpreted. */
+  workflow: WorkflowId | null;
 }
 
 /** `GET /api/health`. `ui`: the server serves the built web UI. */

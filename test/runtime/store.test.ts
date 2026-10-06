@@ -19,6 +19,15 @@ test("sessions round-trip and list newest last", () => {
   assert.deepEqual(store.listSessions().map((s) => s.id), [session.id, s2.id]);
 });
 
+test("sessions store a nullable workflow and set the chosen workflow and title", () => {
+  const { store, session } = fresh();
+  assert.equal(session.workflow, null);
+  const updated = store.setSessionStart(session.id, "chat", "New title");
+  assert.equal(updated.workflow, "chat");
+  assert.equal(updated.title, "New title");
+  assert.deepEqual(store.getSession(session.id), updated);
+});
+
 test("getSession throws for unknown id", () => {
   const { store } = fresh();
   assert.throws(() => store.getSession("nope"), /Unknown session: nope/);

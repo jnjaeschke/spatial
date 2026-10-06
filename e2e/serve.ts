@@ -114,7 +114,7 @@ await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", r
 process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
-await createSession(rt.store, repo.dir, "fixture");
+await createSession(rt.store, repo.dir, "fixture", "review");
 const watcher = new RevisionWatcher(rt, { intervalMs: 300 });
 watcher.start();
 new PhabricatorSyncer(rt, watcher, { intervalMs: 300 }).start();

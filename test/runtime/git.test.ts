@@ -99,11 +99,12 @@ test("createSession stores worktree and repo identity and rejects non-repos", as
   const r = makeRepo();
   r.commit({ "sub/x.txt": "x" }, "c");
   const store = new Store(":memory:");
-  const s = await createSession(store, join(r.dir, "sub"), "t");
+  const s = await createSession(store, join(r.dir, "sub"), "t", "review");
+  assert.equal(s.workflow, "review");
   assert.equal(s.worktree, realpathSync(r.dir));
   assert.equal(s.repoDir, realpathSync(join(r.dir, ".git")));
   const notRepo = mkdtempSync(join(tmpdir(), "norepo-"));
-  await assert.rejects(createSession(store, notRepo, "t"), /Not a git repository/);
+  await assert.rejects(createSession(store, notRepo, "t", "review"), /Not a git repository/);
 });
 
 // REQUIRES_REAL_GIT

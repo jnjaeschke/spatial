@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type {
-  Actor, Artifact, ArtifactStatus, Id, Link, LinkKind, Provenance, Ref,
+  Actor, Artifact, ArtifactStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
   RuntimeEvent, Session, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
 import type { SearchDoc } from "./render-ref.ts";
@@ -9,7 +9,7 @@ import type { SearchDoc } from "./render-ref.ts";
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY, worktree TEXT NOT NULL, repo_dir TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL);
+  id TEXT PRIMARY KEY, worktree TEXT NOT NULL, repo_dir TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL, workflow TEXT);
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), kind TEXT NOT NULL,
   status TEXT NOT NULL, input TEXT NOT NULL, output TEXT, error TEXT,
@@ -34,7 +34,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
 `;
 
 type Row = Record<string, unknown>;
-const SESSION_COLUMNS = "id,worktree,repo_dir,title,created_at";
+const SESSION_COLUMNS = "id,worktree,repo_dir,title,created_at,workflow";
 const now = () => new Date().toISOString();
 
 /** Dumb persistence. Emits no events; the Runtime does that. */
@@ -55,10 +55,16 @@ export class Store {
     this.#db.close();
   }
 
-  createSession(fields: { worktree: string; repoDir: string; title: string }): Session {
-    const s: Session = { id: randomUUID(), ...fields, createdAt: now() };
-    this.#db.prepare("INSERT INTO sessions (id, worktree, repo_dir, title, created_at) VALUES (?, ?, ?, ?, ?)").run(s.id, s.worktree, s.repoDir, s.title, s.createdAt);
+  createSession(fields: { worktree: string; repoDir: string; title: string; workflow?: WorkflowId }): Session {
+    const s: Session = { id: randomUUID(), ...fields, workflow: fields.workflow ?? null, createdAt: now() };
+    this.#db.prepare("INSERT INTO sessions (id, worktree, repo_dir, title, created_at, workflow) VALUES (?, ?, ?, ?, ?, ?)").run(s.id, s.worktree, s.repoDir, s.title, s.createdAt, s.workflow);
     return s;
+  }
+
+  /** Records the chosen workflow and the session title. */
+  setSessionStart(id: Id, workflow: WorkflowId, title: string): Session {
+    this.#db.prepare("UPDATE sessions SET workflow = ?, title = ? WHERE id = ?").run(workflow, title, id);
+    return this.getSession(id);
   }
 
   getSession(id: Id): Session {
@@ -192,7 +198,7 @@ function toTask(r: Row): TaskRecord {
 }
 
 function toSession(r: Row): Session {
-  return { id: r.id as string, worktree: r.worktree as string, repoDir: r.repo_dir as string, title: r.title as string, createdAt: r.created_at as string };
+  return { id: r.id as string, worktree: r.worktree as string, repoDir: r.repo_dir as string, title: r.title as string, createdAt: r.created_at as string, workflow: (r.workflow as WorkflowId | null) ?? null };
 }
 
 function toArtifact<T>(r: Row): Artifact<T> {

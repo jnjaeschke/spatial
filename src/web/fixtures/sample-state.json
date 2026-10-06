@@ -1,6 +1,6 @@
 {
   "session": { "id": "S", "worktree": "/fixture",
-    "repoDir": "/fixture/.git", "title": "fixture", "createdAt": "2026-10-05T00:00:00.000Z" },
+    "repoDir": "/fixture/.git", "title": "fixture", "createdAt": "2026-10-05T00:00:00.000Z", "workflow": "review" },
   "searchfox": { "repoBase": "https://searchfox.org/firefox-main/", "tipRev": "4444444444444444444444444444444444444444" },
   "artifacts": [
     {
