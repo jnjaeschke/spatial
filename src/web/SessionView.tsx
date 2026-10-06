@@ -45,14 +45,19 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
   const busy = state.tasks.some((t) => (t.kind === "importDiff" || t.kind === "narrate") && (t.status === "running" || t.status === "pending"));
+  const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
+  const body = state.session.workflow === null
+    ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
+    : state.session.workflow === "chat" ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} />
+      : n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>;
   return <div className="app">
-    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} reuse={diff !== null} />}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{state.session.workflow === "review" && <>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} reuse={diff !== null} />}</>}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
     <AskContext.Provider value={askContext}><FileViewContext.Provider value={(file) => { setOpenFile(file); setAside("file"); }}>
       <StackContext.Provider value={stack}><div className="session-body">
-        {n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>}
+        {body}
         {aside === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => setAside(null)} /> : aside === "file" && diff && openFile?.diffId === diff.id && <FilePanel sessionId={sessionId} diff={diff} open={openFile} onClose={() => { setOpenFile(null); setAside(null); }} />}
       </div></StackContext.Provider>
       <AskOnSelect />

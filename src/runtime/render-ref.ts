@@ -115,8 +115,13 @@ export function renderRef(view: SessionView, ref: Ref): string {
   throw new Error("Unknown ref: " + ref);
 }
 
-/** Summary, commits, changes, spec refs, and threads for the latest narrative. */
+/** Overview of the session for its workflow: the latest narrative's summary, commits, changes, spec refs, threads, findings and remote comments for review; title, request and thread count for chat. */
 export function sessionOverview(view: SessionView): string {
+  const start = view.artifacts.findLast((artifact) => artifact.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
+  if (start?.data.workflow === "chat") {
+    const threads = view.artifacts.filter((artifact) => artifact.type === "ChatThread");
+    return ["# Conversation\n" + start.data.title, "# Request\n" + start.data.prompt, "# Threads\n" + threads.length + " thread" + (threads.length === 1 ? "" : "s")].join("\n\n");
+  }
   const diffArtifact = latestDiff(view.artifacts);
   const latest = diffArtifact ? narrativeOf(view.artifacts, diffArtifact.id) : null;
   if (!latest) return "No narrative yet.";

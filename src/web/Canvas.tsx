@@ -13,16 +13,17 @@ import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { ChatNode } from "./nodes/ChatNode.tsx";
 import { FindingNode } from "./nodes/FindingNode.tsx";
 import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
+import { ConversationNode } from "./nodes/ConversationNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
 
-const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, finding: FindingNode, phab: PhabThreadNode };
+const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode };
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
-const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", chat: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
+const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -57,7 +58,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     [models, state.session.id, state.tasks, onSent]);
   const graph = useMemo(() => {
     const g = sessionGraph(state, drafts);
-    if (!g) throw new Error("Canvas needs a session with a narrative");
+    if (!g) throw new Error("Canvas needs a session graph");
     return g;
   }, [state, drafts]);
   const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => n.data.kind === "finding" && n.data.collapsedByDefault ? [n.id]
@@ -86,8 +87,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const autoFit = useRef(true);
   levelRef.current = level;
   // A new epoch is a new graph: fit it again even if the user moved the previous one.
-  const narrativeId = graph.nodes[0]!.id;
-  useEffect(() => { autoFit.current = true; }, [narrativeId]);
+  const rootId = graph.nodes[0]!.id;
+  useEffect(() => { autoFit.current = true; }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const laidOutKey = useRef("");
   const offsets = useRef(new Map<string, { dx: number; dy: number }>());

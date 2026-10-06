@@ -88,6 +88,13 @@ test("sessionOverview reports no narrative when the latest Diff is not narrated"
   assert.equal(sessionOverview({ artifacts: [oldDiff, oldNarrative, newDiff], links: [] }), "No narrative yet.");
 });
 
+test("sessionOverview describes a chat workflow from its latest start artifact", () => {
+  const start = artifact("W", "WorkflowStart", { workflow: "chat", title: "Explain X", prompt: "Explain X in detail" });
+  const root = artifact("T0", "ChatThread", { anchor: "W" });
+  const reply = artifact("T1", "ChatThread", { anchor: "T0" });
+  assert.equal(sessionOverview({ artifacts: [start, root, reply], links: [] }), "# Conversation\nExplain X\n\n# Request\nExplain X in detail\n\n# Threads\n2 threads");
+});
+
 test("sessionOverview lists carried findings and marks outdated locations", () => {
   const oldDiff = { ...diff, id: "D1", createdAt: "1" };
   const oldNarrative = { ...narrative, id: "N1", createdAt: "2", data: { ...narrative.data, diffId: "D1" } };

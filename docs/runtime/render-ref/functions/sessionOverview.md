@@ -8,7 +8,7 @@
 
 > **sessionOverview**(`view`): `string`
 
-Summary, commits, changes, spec refs, and threads for the latest narrative.
+Overview of the session for its workflow: the latest narrative's summary, commits, changes, spec refs, threads, findings and remote comments for review; title, request and thread count for chat.
 
 ## Parameters
 

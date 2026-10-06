@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiffData, PatchNarrativeData, ReviewFindingData, SessionState } from "../../src/shared/types.ts";
+import type { Artifact, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
 import { anchorNodeId, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
@@ -19,10 +19,21 @@ const narrative = (id: string): Artifact<PatchNarrativeData> => ({
   id, sessionId: "S", type: "PatchNarrative", status: "proposed", createdAt: "2", provenance: { taskId: "t" },
   data: { diffId: "D", summary: "sum", changes: [ch("c1", ["f0h0"]), ch("c2", ["f0h1", "f1h0"], ["c1"]), ch("c3", [], ["c1"])] },
 });
-const state = (artifacts: Artifact[]): SessionState => ({
-  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow: "review" }, artifacts,
+const state = (artifacts: Artifact[], workflow: "review" | "chat" | null = "review"): SessionState => ({
+  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow }, artifacts,
   links: artifacts.filter((a) => a.type === "ReviewFinding").map((a) => ({ id: `derived-${a.id}`, sessionId: "S", from: a.id, to: artifacts.filter((item) => item.type === "PatchNarrative").at(-1)?.id ?? "", kind: "derivedFrom" as const })),
   tasks: [], lastEventId: 0, searchfox: null,
+});
+
+test("sessionGraph requires a selected workflow and a chat start", () => {
+  const reviewArtifacts = [diff, narrative("N")];
+  assert.equal(sessionGraph(state(reviewArtifacts, null)), null);
+  assert.equal(sessionGraph(state([], "chat")), null);
+  const start: Artifact<WorkflowStartData> = { id: "W", sessionId: "S", type: "WorkflowStart", data: { via: "selector", workflow: "chat", params: {}, title: "Explain X", prompt: "Explain X" }, status: "proposed", createdAt: "0", provenance: { taskId: "t" } };
+  const graph = sessionGraph(state([start], "chat"));
+  assert.equal(graph?.nodes[0]?.id, "W");
+  assert.equal(graph?.nodes[0]?.data.kind, "conversation");
+  if (graph?.nodes[0]?.data.kind === "conversation") assert.equal(graph.nodes[0].data.prompt, "Explain X");
 });
 
 test("zoomLevel switches up at the entry thresholds", () => {

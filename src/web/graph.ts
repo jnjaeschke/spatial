@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
@@ -66,6 +66,12 @@ export interface ChatNodeData {
   revisions: Record<Id, RevisionData[]>;
   mcpRequests: string[];
 }
+export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests"> {
+  kind: "conversation";
+  title: string;
+  /** The request; shown until the first turn has created the thread. */
+  prompt: string;
+}
 
 export interface FindingNodeData extends ReviewFindingData {
   kind: "finding";
@@ -98,9 +104,10 @@ export interface PhabNodeData {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
 }
 
-export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData | PhabNodeData;
+export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
+type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 /** The graph without collapsed quoted satellites (chat threads, findings): they live on as a highlight of their quote. */
 export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, collapsed: ReadonlySet<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
@@ -165,7 +172,43 @@ export function anchorNodeId(
   return null;
 }
 
-export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes: GraphNode[]; edges: GraphEdge[] } | null {
+function mcpRequestsFor(state: SessionState, threadId: string): string[] {
+  const linked = state.links.filter((link) => link.kind === "about" && link.to === threadId)
+    .map((link) => state.artifacts.find((artifact) => artifact.id === link.from))
+    .filter((artifact): artifact is Artifact<McpServerData> => !!artifact && (artifact.type === "McpServerRequest" || artifact.type === "McpServerEnabled"));
+  const enabled = new Set(linked.filter((artifact) => artifact.type === "McpServerEnabled").map((artifact) => artifact.data.server));
+  return [...new Set(linked.filter((artifact) => artifact.type === "McpServerRequest")
+    .map((artifact) => artifact.data.server).filter((server) => !enabled.has(server)))];
+}
+
+function threadContent(state: SessionState, thread: Artifact<ChatThreadData>) {
+  const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
+    .map((l) => state.artifacts.find((a) => a.id === l.from))
+    .filter((a): a is Artifact<ChatMessageData> => !!a);
+  const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
+  return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(state, thread.id) };
+}
+
+/** Adds chat nodes for threads not in `hostOf` and drafts, each attached to `resolve(anchor)`; unresolvable ones are skipped. */
+function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: ReadonlyMap<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"]): void {
+  const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  for (const thread of threads) {
+    if (hostOf.has(thread.id)) continue;
+    const node = resolve(thread.data.anchor);
+    if (!node) continue;
+    nodeIds.add(thread.id);
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId, hunks, ...threadContent(state, thread), draftId: null } });
+    g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
+  }
+  for (const draft of drafts) {
+    const node = resolve(draft.anchor);
+    if (!node) continue;
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId, hunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
+    g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
+  }
+}
+
+function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts);
@@ -204,21 +247,6 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   };
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
-  const mcpRequestsFor = (threadId: string) => {
-    const linked = state.links.filter((link) => link.kind === "about" && link.to === threadId)
-      .map((link) => state.artifacts.find((artifact) => artifact.id === link.from))
-      .filter((artifact): artifact is Artifact<McpServerData> => !!artifact && (artifact.type === "McpServerRequest" || artifact.type === "McpServerEnabled"));
-    const enabled = new Set(linked.filter((artifact) => artifact.type === "McpServerEnabled").map((artifact) => artifact.data.server));
-    return [...new Set(linked.filter((artifact) => artifact.type === "McpServerRequest")
-      .map((artifact) => artifact.data.server).filter((server) => !enabled.has(server)))];
-  };
-  const threadContent = (thread: Artifact<ChatThreadData>) => {
-    const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
-      .map((l) => state.artifacts.find((a) => a.id === l.from))
-      .filter((a): a is Artifact<ChatMessageData> => !!a);
-    const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
-    return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(thread.id) };
-  };
   const phab = phabView(state.artifacts, latest.diff, latest.narrative.data);
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
@@ -229,7 +257,7 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     if (thread) { hostOf.set(thread.id, remote.anchorId); nodeIds.add(thread.id); }
     g.nodes.push({ id: remote.anchorId, anchors: [node], data: {
       kind: "phab", ...remote, diffId: latest.diff.id,
-      hunks: allHunks, thread: thread ? threadContent(thread) : null,
+      hunks: allHunks, thread: thread ? threadContent(state, thread) : null,
     } });
     g.edges.push({ id: `${remote.anchorId}->${node}`, source: remote.anchorId, target: node });
   }
@@ -249,28 +277,42 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
       verdict: findingState.verdict ? { verdict: findingState.verdict.verdict, reason: findingState.verdict.reason } : null,
       fromEpoch: findingState.epoch < epochNumber(state.artifacts, latest.diff.id) ? findingState.epoch : null,
       collapsedByDefault: findingState.collapsedByDefault, diffId: latest.diff.id, hunks: allHunks,
-      thread: thread ? threadContent(thread) : null,
+      thread: thread ? threadContent(state, thread) : null,
       decision: findingState.decision,
       comment: comment ? { id: comment.id, body: comment.data.body, status: comment.status } : null,
       postedTo: posted?.data.revision ?? null,
     } });
     g.edges.push({ id: `${finding.id}->${node}`, source: finding.id, target: node });
   }
-  for (const thread of threads) {
-    if (hostOf.has(thread.id)) continue;
-    const node = resolve(thread.data.anchor);
-    if (!node) continue;
-    nodeIds.add(thread.id);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId: latest.diff.id, hunks: allHunks, ...threadContent(thread), draftId: null } });
-    g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
-  }
-  for (const draft of drafts) {
-    const node = resolve(draft.anchor);
-    if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId: latest.diff.id, hunks: allHunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
-    g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
-  }
+  addChats(g, state, drafts, hostOf, nodeIds, resolve, latest.diff.id, allHunks);
   return g;
+}
+
+function conversationGraph(state: SessionState, drafts: Draft[]): Graph | null {
+  const start = state.artifacts.find((a) => a.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
+  if (!start) return null;
+  const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  const root = threads.find((t) => t.data.anchor === start.id);
+  const g: Graph = { nodes: [{ id: start.id, data: {
+    kind: "conversation", title: state.session.title, prompt: start.data.prompt, anchor: start.id, diffId: "", hunks: [], draftId: null,
+    ...(root ? threadContent(state, root) : { threadId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
+  } }], edges: [] };
+  const nodeIds = new Set([start.id]);
+  const hostOf = new Map(root ? [[root.id, start.id]] : []);
+  const resolve = (anchor: Ref) => {
+    const target = nodeIds.has(anchor) || hostOf.has(anchor) ? anchor : state.links.find((l) => l.kind === "reply" && l.from === anchor)?.to;
+    const host = target && (hostOf.get(target) ?? target);
+    return host && nodeIds.has(host) ? host : null;
+  };
+  addChats(g, state, drafts, hostOf, nodeIds, resolve, "", []);
+  return g;
+}
+
+const ROOT_GRAPHS: Record<WorkflowId, (state: SessionState, drafts: Draft[]) => Graph | null> = { review: reviewGraph, chat: conversationGraph };
+
+/** The canvas graph; its root (first node) comes from the session's workflow. Null when no workflow is chosen yet or the workflow has nothing to show yet. */
+export function sessionGraph(state: SessionState, drafts: Draft[] = []): Graph | null {
+  return state.session.workflow ? ROOT_GRAPHS[state.session.workflow](state, drafts) : null;
 }
 
 const SATELLITE_GAP_X = 80;
@@ -308,6 +350,7 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+  if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: 140 + Math.max(1, data.messages.length) * 120 };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.comments.map((item) => item.data.body).join("\n"), 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };

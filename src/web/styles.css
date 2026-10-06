@@ -266,6 +266,13 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
     radial-gradient(90% 80% at 100% 0%, color-mix(in oklab, var(--accent-2) 9%, transparent), transparent 60%),
     var(--surface);
 }
+.conversation-node {
+  --kind: var(--kind-chat);
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--kind-chat) 12%, transparent), transparent 60%),
+    radial-gradient(90% 80% at 100% 0%, color-mix(in oklab, var(--accent-2) 9%, transparent), transparent 60%),
+    var(--surface);
+}
 .summary-node > .title { color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.72em; }
 .summary-node.level-patch > .title { font-size: 0.6em; }
 .summary-node .since-epoch { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-2); margin-top: 4px; }
