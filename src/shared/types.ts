@@ -122,6 +122,15 @@ export interface ReviewFindingData {
 /** Latest artifact of this type for a finding wins. Linked `about → findingId`. Provenance: user. */
 export interface FindingDecisionData { finding: Id; decision: "accepted" | "dismissed" }
 
+export type ChangeStatus = "unchanged" | "modified" | "new";
+
+/** Where a finding sits in the Diff `toDiff` after re-anchoring; `hunkId` null means the code is gone. Linked `about → finding`; latest per (finding, toDiff) wins. Verified; no LLM. */
+export interface FindingCarryData { finding: Id; toDiff: Id; hunkId: string | null; lines?: ChatThreadData["lines"] }
+
+export type FindingVerdictValue = "addressed" | "partially" | "not_addressed";
+/** The review's judgement whether a new revision addresses a prior finding. Linked `about → finding`, `derivedFrom → narrative`; latest per finding wins. Provenance: llm. */
+export interface FindingVerdictData { finding: Id; verdict: FindingVerdictValue; reason: string }
+
 /** First version from the `comment` task; reviewer edits create a verified version. Linked `about → findingId`. */
 export interface ReviewCommentData { finding: Id; body: string }
 
@@ -234,6 +243,8 @@ export interface SemanticChange {
   hunkIds: string[];
   dependsOn: string[];
   specUrls: string[];
+  /** Set by the runtime for narratives of epoch >= 2 written in update mode; absent otherwise. */
+  status?: ChangeStatus;
 }
 
 /** Data of a `PatchNarrative` artifact. */
@@ -241,4 +252,6 @@ export interface PatchNarrativeData {
   diffId: Id;
   summary: string;
   changes: SemanticChange[];
+  /** Previous epoch's narrative; present when this narrative describes what changed since it. */
+  previous?: Id;
 }

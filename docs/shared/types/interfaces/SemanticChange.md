@@ -44,6 +44,14 @@
 
 ***
 
+### status?
+
+> `optional` **status?**: [`ChangeStatus`](../type-aliases/ChangeStatus.md)
+
+Set by the runtime for narratives of epoch >= 2 written in update mode; absent otherwise.
+
+***
+
 ### title
 
 > **title**: `string`

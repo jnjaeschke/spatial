@@ -22,6 +22,14 @@ Data of a `PatchNarrative` artifact.
 
 ***
 
+### previous?
+
+> `optional` **previous?**: `string`
+
+Previous epoch's narrative; present when this narrative describes what changed since it.
+
+***
+
 ### summary
 
 > **summary**: `string`
