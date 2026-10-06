@@ -20,7 +20,7 @@ async function openNarrated(page: Page, request: APIRequestContext): Promise<voi
 
 test("accept a finding, edit comment, post to Phabricator", async ({ page, request }) => {
   await openNarrated(page, request);
-  const finding = page.getByTestId(/^finding-/);
+  const finding = page.locator(".finding-node");
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await expect(finding).toContainText("No test for c");
   await finding.getByLabel("Accept finding").click();
@@ -43,7 +43,7 @@ test("accept a finding, edit comment, post to Phabricator", async ({ page, reque
 
 test("dismiss a finding makes it dimmed", async ({ page, request }) => {
   await openNarrated(page, request);
-  const finding = page.getByTestId(/^finding-/);
+  const finding = page.locator(".finding-node");
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await finding.getByLabel("Dismiss finding").click();
   await expect(finding).toHaveClass(/dismissed/);

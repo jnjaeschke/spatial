@@ -71,6 +71,15 @@ html, body, #root { margin: 0; height: 100%; }
 .badge.severity-high { background: #d93025; color: #fff; }
 .badge.severity-medium { background: #f29900; color: #fff; }
 .badge.severity-low { background: #9aa0a6; color: #fff; }
+.status-unchanged { color: #666; }
+.status-modified { color: #b06000; }
+.status-new { color: #137333; }
+.status-addressed { color: #137333; }
+.status-partially, .status-not_addressed { color: #b06000; }
+.badge.outdated { color: #666; border: 1px dashed #999; }
+.epoch-marker { font-size: 11px; color: #666; border: 1px solid #ccc; border-radius: 10px; padding: 0 6px; }
+.verdict-reason { font-size: 12px; color: #444; padding: 2px 12px; }
+.finding-node.outdated { opacity: 0.75; }
 .finding-node .category { margin: 0 6px; color: #666; font-weight: 400; }
 .finding-node .accept { background: #1a73e8; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
 .finding-node .dismiss { background: #aaa; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 12px; }

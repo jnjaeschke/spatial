@@ -16,7 +16,7 @@ export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
   return (
     <div className={`node change-node level-${level}`} data-anchor={`${data.narrativeId}#${change.id}`} data-testid={`change-${change.id}`} data-level={level}>
       <Handle type="target" position={Position.Top} />
-      <div className="title"><InlineText text={change.title} />{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(`${data.narrativeId}#${change.id}`)}>{closed ? "▸" : "▾"}</button>}{ask && level !== "patch" && <button aria-label={`Ask about ${change.id}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#${change.id}`)}>Ask</button>}</div>
+      <div className="title"><InlineText text={change.title} />{change.status && <span className={`badge status-${change.status}`} data-testid="change-status">{change.status}</span>}{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(`${data.narrativeId}#${change.id}`)}>{closed ? "▸" : "▾"}</button>}{ask && level !== "patch" && <button aria-label={`Ask about ${change.id}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#${change.id}`)}>Ask</button>}</div>
       {!closed && <div className="body nodrag nopan">
         {level !== "patch" && (
           <>

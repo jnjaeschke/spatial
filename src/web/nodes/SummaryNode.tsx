@@ -26,6 +26,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   return (
     <div className={`node summary-node level-${data.level}`} data-anchor={data.narrativeId} data-testid="summary">
       <div className="title">{data.changeCount} changes{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.narrativeId)}>{closed ? "▸" : "▾"}</button>}</div>
+      {data.sinceEpoch !== null && <div className="since-epoch" data-testid="since-epoch">Changes since epoch {data.sinceEpoch}</div>}
       {!closed && <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>
         {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}

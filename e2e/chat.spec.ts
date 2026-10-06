@@ -279,7 +279,7 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
 
 test("a review finding sits next to its quote and is a chat", async ({ page, request }) => {
   await openNarrated(page, request);
-  const finding = page.locator('[data-testid^="finding-"]');
+  const finding = page.locator(".finding-node");
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await expect(finding).toContainText("No test for c");
   await expect(finding.locator(".badge")).toHaveText("medium");

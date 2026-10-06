@@ -15,15 +15,17 @@ export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   const [error, setError] = useState<string | null>(null);
   const closed = collapse?.collapsed.has(data.findingId) ?? false;
   const dismissed = data.decision === "dismissed";
+  const statusLabel = data.status === "partially" ? "partially addressed" : data.status === "not_addressed" ? "not addressed" : data.status;
   const finding = <div className="msg assistant finding-body"><AnswerMarkdown text={data.body} hunks={data.hunks} diffId={data.diffId} /></div>;
   const decide = (decision: "accepted" | "dismissed") => {
     if (!actions) return;
     setError(null);
     api.decide(actions.sessionId, data.findingId, decision, actions.models.default).catch((e: Error) => setError(e.message));
   };
-  return <div className={`node finding-node severity-${data.severity} level-${data.level}${dismissed ? " dismissed" : ""}`} data-testid={`finding-${data.findingId}`} data-anchor={data.findingId}>
+  return <div className={`node finding-node severity-${data.severity} level-${data.level}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`} data-testid={`finding-${data.findingId}`} data-anchor={data.findingId}>
     <Handle type="source" position={Position.Left} />
-    <div className="title"><span className={`badge severity-${data.severity}`}>{data.severity}</span><span className="category">{data.category}</span>{data.title}{data.thread && ` · ${data.thread.messages.length}`}{data.decision !== "accepted" && <button aria-label="Accept finding" className="accept nodrag" disabled={!actions} onClick={() => decide("accepted")}>Accept</button>}{data.decision !== "dismissed" && <button aria-label="Dismiss finding" className="dismiss nodrag" disabled={!actions} onClick={() => decide("dismissed")}>Dismiss</button>}{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.findingId)}>{closed ? "▸" : "▾"}</button>}</div>
+    <div className="title"><span className={`badge severity-${data.severity}`}>{data.severity}</span><span className="category">{data.category}</span>{data.status !== "open" && <span className={`badge status-${data.status}`} data-testid="finding-status">{statusLabel}</span>}{data.outdated && <span className="badge outdated" data-testid="finding-outdated">outdated</span>}{data.fromEpoch !== null && <span className="epoch-marker" data-testid="finding-epoch">epoch {data.fromEpoch}</span>}{data.title}{data.thread && ` · ${data.thread.messages.length}`}{data.decision !== "accepted" && <button aria-label="Accept finding" className="accept nodrag" disabled={!actions} onClick={() => decide("accepted")}>Accept</button>}{data.decision !== "dismissed" && <button aria-label="Dismiss finding" className="dismiss nodrag" disabled={!actions} onClick={() => decide("dismissed")}>Dismiss</button>}{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.findingId)}>{closed ? "▸" : "▾"}</button>}</div>
+    {data.verdict && <div className="verdict-reason" data-testid="finding-verdict">{data.verdict.reason}</div>}
     {error && <div className="failed">{error}</div>}
     {!dismissed && !closed && data.level !== "patch" && <>
       {actions
