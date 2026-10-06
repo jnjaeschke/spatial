@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, waitForCanvasSettled } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
 
@@ -197,4 +197,37 @@ test("minimap shows every node, also those culled from the viewport", async ({ p
   await setLevel(page, "code");
   await expect.poll(() => page.locator(".react-flow__node").count()).toBeLessThan(all);
   await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
+});
+
+const zoomOf = (page: Page) => page.locator(".react-flow__viewport").evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+
+test("guide Next from a far-away view keeps the zoom level and centers the step", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "code");
+  await page.locator(".canvas").focus();
+  for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowDown");
+  await waitForCanvasSettled(page);
+  const zoom = await zoomOf(page);
+  await page.getByRole("button", { name: "Next step" }).click();
+  await waitForCanvasSettled(page);
+  const change = page.getByTestId("change-c1");
+  await expect(change).toHaveAttribute("data-level", "code");
+  expect(await zoomOf(page)).toBeCloseTo(zoom, 5);
+  const box = (await change.boundingBox())!;
+  const pane = (await page.locator(".react-flow").boundingBox())!;
+  expect(Math.abs(box.x + box.width / 2 - (pane.x + pane.width / 2))).toBeLessThan(5);
+});
+
+test("zooming with the control buttons from the keyboard stops the automatic fit", async ({ page }) => {
+  await page.goto(URL);
+  await expect(page.getByTestId("change-c1")).toBeVisible();
+  await waitForCanvasSettled(page);
+  await page.getByRole("button", { name: "zoom in" }).focus();
+  await page.keyboard.press("Enter");
+  await waitForCanvasSettled(page);
+  const zoom = await zoomOf(page);
+  await page.keyboard.press("Control+=");
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue("--text-scale"))).toBe("1.15");
+  await waitForCanvasSettled(page);
+  expect(await zoomOf(page)).toBeCloseTo(zoom, 5);
 });

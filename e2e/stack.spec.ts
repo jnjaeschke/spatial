@@ -123,7 +123,6 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(latest).toHaveAttribute("data-commit", "1");
   const latestColor = await latest.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   await expect(page.getByTestId("change-c3").locator(".title > .commit-tag")).toHaveText("C2");
-  await revealNode(page, "change-c1");
   await page.getByTestId("guide").getByRole("button", { name: "Next step" }).click();
   await expect(page.locator(".react-flow__node.guide-current").getByTestId("change-c1")).toBeVisible();
   await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt", exact: true }).click();

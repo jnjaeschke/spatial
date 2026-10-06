@@ -94,6 +94,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
   // Until the user touches the canvas, every measured layout refits the view, so nodes that arrive later (findings) show up.
   const autoFit = useRef(true);
+  const flying = useRef(false);
   levelRef.current = level;
   // A new epoch is a new graph: fit it again even if the user moved the previous one.
   const rootId = graph.nodes[0]!.id;
@@ -114,7 +115,12 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const zoom = rf.getZoom();
     const view = paneHeight / zoom;
     autoFit.current = false;
-    void rf.setCenter(node.position.x + w / 2, h <= view ? node.position.y + h / 2 : node.position.y + view / 2 - 24 / zoom, { zoom, duration: 200 });
+    // The zoom-pan interpolation dips in zoom mid-flight; the level is judged by the final zoom only.
+    flying.current = true;
+    void rf.setCenter(node.position.x + w / 2, h <= view ? node.position.y + h / 2 : node.position.y + view / 2 - 24 / zoom, { zoom, duration: 200 }).then(() => {
+      flying.current = false;
+      onMove(null, rf.getViewport());
+    });
   };
   const moveGuide = (delta: 1 | -1) => {
     if (!steps.length) return;
@@ -390,6 +396,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   }, [rf]);
 
   const onMove = useCallback((_: unknown, vp: Viewport) => {
+    if (flying.current) return;
     const next = zoomLevel(vp.zoom, levelRef.current);
     if (next !== levelRef.current) {
       if (!autoFit.current) anchor.current = nodeNearestCenter();
@@ -431,7 +438,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         colorMode={colorMode}
       >
         <Background />
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
         <Panel position="top-right"><button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap
