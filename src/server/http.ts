@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize, sep } from "node:path";
-import type { Artifact, DiffData, FindingDecisionData, LlmSelection, McpServerData, ModelsResponse, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
-import { createSession } from "../runtime/git.ts";
+import { extname, isAbsolute, join, normalize, sep } from "node:path";
+import type { Artifact, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
+import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
 import { postableComments } from "../shared/postable-comments.ts";
@@ -13,6 +13,7 @@ import { narratePatch } from "../workflows/narrate-patch.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
+import { newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 
@@ -92,6 +93,15 @@ function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unk
 
 export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher } = {}): Server {
   const routes: Route[] = [
+    ["GET", /^\/api\/health$/, async (): Promise<HealthResponse> => ({ app: "spatial-ide", ui: opts.staticDir !== undefined })],
+    ["GET", /^\/api\/repo$/, async ({ url }): Promise<RepoInfo> => {
+      const path = url.searchParams.get("path");
+      if (!path || !isAbsolute(path)) throw new HttpError(400, "Query parameter path must be an absolute path");
+      let repo: { worktree: string; repoDir: string };
+      try { repo = await resolveRepo(path); }
+      catch (e) { throw new HttpError(400, (e as Error).message); }
+      return { ...repo, name: repoName(repo.repoDir), sessions: newestFirst(rt.store.listSessions().filter((s) => s.repoDir === repo.repoDir)) };
+    }],
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
     ["POST", /^\/api\/sessions$/, async ({ req, res }) => {
       const body = await readJson(req);

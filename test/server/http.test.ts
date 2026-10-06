@@ -1,10 +1,12 @@
+// REQUIRES_REAL_GIT
+// REQUIRES_REAL_NET
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { createServer as createNetServer } from "node:http";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import { makeGit } from "../../src/runtime/git.ts";
@@ -64,6 +66,50 @@ test("sessions: create, list, validation", async () => {
   assert.equal(bad.status, 400);
   assert.match((await bad.json()).error, /Not a git repository/);
   assert.equal((await post("/api/sessions", { title: "t" })).status, 400);
+});
+
+test("health reports whether the server serves the built UI", async () => {
+  const response = await fetch(`${base}/api/health`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { app: "spatial-ide", ui: true });
+});
+
+test("repo route resolves paths and lists sessions across worktrees", async () => {
+  const sub = join(repo.dir, "sub-dir-that-exists");
+  mkdirSync(sub);
+  const first = await newSession();
+  await new Promise((resolve) => setTimeout(resolve, 2));
+  const second = await newSession();
+  const elsewhere = rt.store.createSession({ worktree: "/elsewhere", repoDir: "/elsewhere/.git", title: "x" });
+
+  const response = await fetch(`${base}/api/repo?path=${encodeURIComponent(sub)}`);
+  assert.equal(response.status, 200);
+  const info = await response.json();
+  assert.equal(info.worktree, realpathSync(repo.dir));
+  assert.equal(info.name, basename(realpathSync(repo.dir)));
+  const listedIds = info.sessions.map((s: Session) => s.id);
+  assert.ok(listedIds.indexOf(second.id) < listedIds.indexOf(first.id));
+  assert.ok(!listedIds.includes(elsewhere.id));
+
+  const wt = mkdtempSync(join(tmpdir(), "repo-worktree-"));
+  repo.git("worktree", "add", "-q", wt, "-b", "wt-route");
+  const created = await post("/api/sessions", { repo: wt, title: "worktree session" });
+  assert.equal(created.status, 201);
+  const grouped = await (await fetch(`${base}/api/repo?path=${encodeURIComponent(repo.dir)}`)).json();
+  const session = grouped.sessions.find((s: Session) => s.title === "worktree session");
+  assert.equal(session.worktree, realpathSync(wt));
+});
+
+test("repo route requires an absolute path inside a worktree", async () => {
+  const missing = await fetch(`${base}/api/repo`);
+  assert.equal(missing.status, 400);
+  assert.match((await missing.json()).error, /absolute/);
+  const relative = await fetch(`${base}/api/repo?path=relative`);
+  assert.equal(relative.status, 400);
+  assert.match((await relative.json()).error, /absolute/);
+  const outside = await fetch(`${base}/api/repo?path=${encodeURIComponent(mkdtempSync(join(tmpdir(), "not-repo-")))}`);
+  assert.equal(outside.status, 400);
+  assert.match((await outside.json()).error, /Not a git repository/);
 });
 
 test("POST requires JSON content type; foreign Host is rejected", async () => {

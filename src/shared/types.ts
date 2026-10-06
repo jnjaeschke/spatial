@@ -13,6 +13,12 @@ export interface Session {
   createdAt: string;
 }
 
+/** `GET /api/health`. `ui`: the server serves the built web UI. */
+export interface HealthResponse { app: "spatial-ide"; ui: boolean }
+
+/** `GET /api/repo?path=`: the repo containing `path` and all its sessions (any worktree), newest first. */
+export interface RepoInfo { worktree: string; repoDir: string; name: string; sessions: Session[] }
+
 export type ArtifactStatus = "proposed" | "verified" | "rejected";
 
 export type LlmBackendId = "claude" | "codex";
