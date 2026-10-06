@@ -71,6 +71,22 @@ test("failing task: status failed, TaskFailedError, task.failed event", async ()
   assert.equal(events.at(-1)?.type, "task.failed");
 });
 
+test("repo context errors fail the task and emit task.failed", async () => {
+  const store = new Store(":memory:");
+  const rt = new Runtime({
+    store, tasks: [echo], llm: fakeLlm, git: () => fakeGit, webspec, searchfox,
+    repoContext: () => { throw new Error("bad repo context"); },
+  });
+  const session = store.createSession("/repo", "t");
+  const events: RuntimeEvent[] = [];
+  rt.onEvent((e) => events.push(e));
+  const { taskId, done } = rt.start(session.id, "echo", { v: "hi" });
+  await assert.rejects(done, (e: unknown) => e instanceof TaskFailedError && e.message === "bad repo context");
+  assert.equal(store.getTask(taskId).status, "failed");
+  assert.equal(events.at(-1)?.type, "task.failed");
+  assert.deepEqual(events.at(-1)?.payload, { taskId, error: "bad repo context" });
+});
+
 test("cancel aborts ctx.signal and marks task cancelled", async () => {
   const { store, rt, session, events } = setup();
   const { taskId, done } = rt.start(session.id, "slow", null);

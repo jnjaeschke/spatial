@@ -21,7 +21,8 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection }, { narr
     }
 
     ctx.progress({ kind: "steps", step: "Grouping hunks", index: 0, count: 1 });
-    let r = await ctx.llm.run({ prompt, system: SYSTEM, schema, cwd: ctx.repo, tools: "none" }, llm);
+    const mcpServers = { ...ctx.sessionMcp, ...ctx.repoMcp };
+    let r = await ctx.llm.run({ prompt, system: SYSTEM, schema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
     let errors = validateNarrative(r.json, diff.data);
     if (errors.length) {
       ctx.progress({ kind: "steps", step: "Repairing invalid narrative", index: 0, count: 1 });
@@ -36,7 +37,7 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection }, { narr
         "",
         "Return a corrected, complete answer.",
       ].join("\n");
-      r = await ctx.llm.run({ prompt: retry, system: SYSTEM, schema, cwd: ctx.repo, tools: "none" }, llm);
+      r = await ctx.llm.run({ prompt: retry, system: SYSTEM, schema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
       errors = validateNarrative(r.json, diff.data);
       if (errors.length) throw new Error(`Narrative failed validation:\n${errors.join("\n")}`);
     }

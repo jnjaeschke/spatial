@@ -17,7 +17,7 @@ const diffData: DiffData = {
   ] }],
 };
 
-function setup(replies: unknown[]) {
+function setup(replies: unknown[], repoMcp = false) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let index = 0;
@@ -30,7 +30,8 @@ function setup(replies: unknown[]) {
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({ store, tasks: [review], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
-    sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }) });
+    sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
+    ...(repoMcp ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } } }) } : {}) });
   const session = store.createSession("/repo", "t");
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "x" } }).id;
   const narrativeId = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: {
@@ -68,6 +69,15 @@ test("valid findings become artifacts with derived lines and links", async () =>
   assert.equal(p.cwd, "/repo");
   assert.ok(p.mcpServers?.spatial);
   for (const s of ["### f0h0 dom/A.cpp", "+  mFlag = true;", "# Spec references", "Bug 1 - Add flag"]) assert.ok(p.prompt.includes(s), s);
+});
+
+test("review merges repo MCP servers with session MCP servers", async () => {
+  const { calls, run, session } = setup([{ findings: [] }], true);
+  await run();
+  assert.deepEqual(calls[0].prompt.mcpServers, {
+    spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", session.id] },
+    moz: { type: "http", url: "https://example.com/mcp" },
+  });
 });
 
 test("a change anchor without quote stays on the change", async () => {

@@ -158,6 +158,14 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ***
 
+### repoMcp
+
+> **repoMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists.
+
+***
+
 ### searchfox
 
 > **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)

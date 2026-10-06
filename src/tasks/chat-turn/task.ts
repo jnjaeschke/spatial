@@ -44,7 +44,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
           "# Question", "", text,
         ].join("\n");
 
-    const r = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: ctx.sessionMcp }, llm);
+    const r = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const json = r.json as Reply | undefined;
     if (!isReply(json)) throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
 

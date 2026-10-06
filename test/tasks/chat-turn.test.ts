@@ -19,7 +19,7 @@ const DIFF: DiffData = {
   ] }],
 };
 
-function setup(opts: { failWith?: string; hang?: boolean; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[] } | undefined)[] } = {}) {
+function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[] } | undefined)[] } = {}) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let n = 0;
@@ -40,6 +40,7 @@ function setup(opts: { failWith?: string; hang?: boolean; replies?: ({ answer: s
     store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
+    ...(opts.repoMcp ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } } }) } : {}),
   });
   const session = store.createSession("/repo", "t");
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
@@ -186,6 +187,18 @@ test("chat passes session MCP tools on first and resumed turns and includes sele
   assert.deepEqual(calls[0].prompt.mcpServers, expectedServers);
   await turn({ threadId: first.threadId, text: "Again", llm: SONNET });
   assert.deepEqual(calls[1].prompt.mcpServers, calls[0].prompt.mcpServers);
+});
+
+test("chat merges repo MCP servers with session MCP servers on first and resumed turns", async () => {
+  const { calls, turn, narrativeId, session } = setup({ repoMcp: true });
+  const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", llm: SONNET });
+  const expected = {
+    spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", session.id] },
+    moz: { type: "http", url: "https://example.com/mcp" },
+  };
+  assert.deepEqual(calls[0].prompt.mcpServers, expected);
+  await turn({ threadId: first.threadId, text: "Again", llm: SONNET });
+  assert.deepEqual(calls[1].prompt.mcpServers, expected);
 });
 
 test("selection is stored on the thread and reused for fresh prompts", async () => {

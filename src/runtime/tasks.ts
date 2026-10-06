@@ -44,6 +44,8 @@ export interface TaskContext {
   searchfox: SearchfoxCapability;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult> };
   sessionMcp: Record<string, McpServerSpec>;
+  /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
+  repoMcp: Record<string, McpServerSpec>;
   artifacts: {
     put<T>(type: string, status: ArtifactStatus, data: T, llm?: LlmSelection): Artifact<T>;
     get<T>(id: Id): Artifact<T>;
@@ -89,6 +91,8 @@ export interface RuntimeOptions {
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
   sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
+  /** Called at task start to load repo-specific MCP servers. Defaults to no repo servers. */
+  repoContext?: (repo: string) => { mcpServers: Record<string, McpServerSpec> };
 }
 
 export type Listener = (e: RuntimeEvent) => void;
@@ -101,6 +105,7 @@ export class Runtime {
   #webspec: WebspecCapability;
   #searchfox: SearchfoxCapability;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
+  #repoContext: (repo: string) => { mcpServers: Record<string, McpServerSpec> };
   #running = new Map<Id, AbortController>();
   #listeners = new Set<Listener>();
 
@@ -115,6 +120,7 @@ export class Runtime {
     this.#webspec = opts.webspec;
     this.#searchfox = opts.searchfox;
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
+    this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {} }));
     for (const t of opts.tasks) {
       if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
       this.#tasks.set(t.kind, t);
@@ -179,6 +185,7 @@ export class Runtime {
         },
       },
       sessionMcp: this.#sessionMcp(sessionId),
+      repoMcp: {},
       artifacts: {
         put: (type, status, data, llm) => {
           const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
@@ -210,6 +217,7 @@ export class Runtime {
 
     const done = (async () => {
       try {
+        ctx.repoMcp = this.#repoContext(session.repo).mcpServers;
         const output = await def.run(ctx, input);
         if (controller.signal.aborted) throw controller.signal.reason;
         this.#store.updateTask(task.id, { status: "succeeded", output });

@@ -97,10 +97,38 @@ test("narrate: stores proposed PatchNarrative with provenance and derivedFrom li
   assert.deepEqual(a.provenance.llm, sel);
   assert.deepEqual(store.listLinks(session.id).map((l) => [l.from, l.to, l.kind]), [[narrativeId, diffId, "derivedFrom"]]);
   assert.equal(prompts.length, 1);
-  assert.equal(prompts[0].tools, "none");
+  assert.equal(prompts[0].tools, "read-only");
+  assert.deepEqual(prompts[0].mcpServers, {});
   assert.match(prompts[0].system!, /exactly one change/);
   assert.equal((prompts[0].schema as { type: string }).type, "object");
   assert.equal(prompts[0].prompt, renderDiffForPrompt(DIFF));
+});
+
+test("narrate: passes session and repo MCP servers with read-only tools", async () => {
+  const store = new Store(":memory:");
+  const prompts: LlmPrompt[] = [];
+  const llm: LlmService = {
+    defaultSelection: { backend: "claude", model: "m", effort: "low" },
+    async run(selection, prompt) {
+      prompts.push(prompt);
+      return { text: "", json: VALID, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+    },
+    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
+  };
+  const rt = new Runtime({
+    store, tasks: [narrate], llm, git: () => ({}) as GitCapability,
+    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
+    sessionMcp: () => ({ spatial: { type: "stdio", command: "node", args: ["session-server"] } }),
+    repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } } }),
+  });
+  const session = store.createSession("/repo", "t");
+  const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
+  await rt.run(session.id, "narrate", { diffId });
+  assert.equal(prompts[0].tools, "read-only");
+  assert.deepEqual(prompts[0].mcpServers, {
+    spatial: { type: "stdio", command: "node", args: ["session-server"] },
+    moz: { type: "http", url: "https://example.com/mcp" },
+  });
 });
 
 test("narrate: retries once with validation errors, then succeeds", async () => {

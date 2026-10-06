@@ -30,6 +30,28 @@
 
 ***
 
+### repoContext?
+
+> `optional` **repoContext?**: (`repo`) => `object`
+
+Called at task start to load repo-specific MCP servers. Defaults to no repo servers.
+
+#### Parameters
+
+##### repo
+
+`string`
+
+#### Returns
+
+`object`
+
+##### mcpServers
+
+> **mcpServers**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+***
+
 ### searchfox
 
 > **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)

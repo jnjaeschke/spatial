@@ -8,6 +8,7 @@ import { CodexBackend } from "./llm/codex.ts";
 import { LlmManager } from "./llm/manager.ts";
 import { Store } from "./store.ts";
 import { Runtime } from "./tasks.ts";
+import { loadRepoContext } from "./repo-context.ts";
 import { makeSearchfox } from "./searchfox.ts";
 import { makeWebspec } from "./webspec.ts";
 import { fileURLToPath } from "node:url";
@@ -34,6 +35,7 @@ export function createRuntime(opts: {
   return new Runtime({
     store: new Store(opts.dbPath), tasks, llm, git: makeGit,
     webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }),
+    repoContext: loadRepoContext,
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: {
       type: "stdio",
       command: process.execPath,
