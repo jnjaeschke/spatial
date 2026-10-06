@@ -4,6 +4,7 @@ import type { SummaryNodeData, ZoomLevel } from "../graph.ts";
 import { InlineText } from "../InlineText.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { api } from "../api.ts";
+import { commitColors, commitLabel } from "../commit-colors.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
 
@@ -22,7 +23,10 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         specStatus.unverified > 0 && `${specStatus.unverified} unverified`,
       ].filter(Boolean).join(", ")}`
   );
-  const revNum = data.revision?.id;
+  const totalDrafts = data.drafts.reduce((sum, draft) => sum + draft.count, 0);
+  const postLabel = data.drafts.length === 1
+    ? `Post ${totalDrafts} draft${totalDrafts !== 1 ? "s" : ""} to D${data.drafts[0]!.revision}`
+    : `Post ${totalDrafts} drafts to ${data.drafts.map((draft) => `D${draft.revision} (${draft.count})`).join(", ")}`;
   return (
     <div className={`node summary-node level-${data.level}`} data-anchor={data.narrativeId} data-testid="summary">
       <div className="title">{data.changeCount} changes{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.narrativeId)}>{closed ? "▸" : "▾"}</button>}</div>
@@ -45,7 +49,8 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             {!closedGroup && <ul>{group.comments.map((comment) => <li key={comment.id}>{comment.data.path}:{comment.data.line} · @{comment.data.author}: {comment.data.body} {comment.data.done && <span className="badge phab-done">Done</span>}</li>)}</ul>}
           </section>;
         })}
-        {data.level !== "patch" && data.pendingComments > 0 && revNum && <div className="post-drafts-row">
+        {data.level !== "patch" && (data.drafts.length > 0 || data.skipped > 0) && <div className="post-drafts-row">
+          {data.drafts.length > 0 && <>
           <button className="post-drafts nodrag" onClick={async () => {
             setPostError(null);
             setPostResult(null);
@@ -54,13 +59,15 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
               const skipped = result.skipped.map((item) => `${item.finding}: ${item.reason}`).join("; ");
               setPostResult(`Posted ${result.posted} draft${result.posted !== 1 ? "s" : ""} to ${result.revision}${skipped ? `; skipped ${skipped}` : ""}`);
             } catch (e) { setPostError((e as Error).message); }
-          }}>Post {data.pendingComments} draft{data.pendingComments !== 1 ? "s" : ""} to D{revNum}</button>
+          }}>{postLabel}</button>
+          </>}
+          {data.skipped > 0 && <span className="post-skipped">{data.skipped} skipped</span>}
           {postResult && <span className="post-result">{postResult}</span>}
           {postError && <span className="post-error">{postError}</span>}
         </div>}
         {data.level !== "patch" && (
           <ul className="files">
-            {data.commits.map((c) => <li key={c.sha}>{c.subject}</li>)}
+            {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
           </ul>
         )}
       </div>}

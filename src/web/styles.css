@@ -38,6 +38,8 @@ html, body, #root { margin: 0; height: 100%; }
 .summary-node .post-drafts { border: 1px solid #6b7fd7; border-radius: 3px; padding: 4px 8px; color: #3348a5; background: #fff; cursor: pointer; font-size: 12px; }
 .summary-node .post-result { color: #1a73e8; font-size: 12px; margin-left: 8px; }
 .summary-node .post-error { color: #d93025; font-size: 12px; margin-left: 8px; }
+.summary-node .post-skipped { color: #666; font-size: 12px; }
+.summary-node .files .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .phab-summary { margin-top: 8px; padding-top: 6px; border-top: 1px solid #d9dced; }
 .phab-summary h4 { margin: 0; font-size: 0.95em; }
 .phab-summary ul { margin: 4px 0; padding-left: 18px; }

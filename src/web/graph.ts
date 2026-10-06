@@ -1,8 +1,8 @@
 import dagre from "@dagrejs/dagre";
 import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
-import { phabRevision, type PhabRevision } from "../shared/phabricator.ts";
 import { postableComments } from "../shared/postable-comments.ts";
+import { postPlan } from "../shared/post-plan.ts";
 import { epochNumber, latestDiff, narrativeOf } from "../shared/epochs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
@@ -42,8 +42,8 @@ export interface SummaryNodeData {
   commits: Commit[];
   changeCount: number;
   specStatus: { code: number; inferred: number; unverified: number } | null;
-  revision: PhabRevision | null;
-  pendingComments: number;
+  drafts: { commit: number; revision: number; count: number }[];
+  skipped: number;
   sessionId: Id;
   sinceEpoch: number | null;
   phabGeneral: Artifact<PhabCommentData>[];
@@ -125,7 +125,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, revision: phabRevision(diff.data), pendingComments: 0, sessionId: narrative.sessionId,
+    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, sessionId: narrative.sessionId,
       sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabUnanchored: [] },
   }];
   const edges: GraphEdge[] = [];
@@ -170,7 +170,9 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts);
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
-  summary.pendingComments = postableComments(state, latest.narrative.id).filter(({ lines }) => lines !== undefined).length;
+  const plan = postPlan(latest.diff.data, postableComments(state, latest.narrative.id));
+  summary.drafts = plan.revisions.map((r) => ({ commit: r.commit, revision: r.revision.id, count: r.items.length }));
+  summary.skipped = plan.skipped.length;
   const prefix = `${latest.narrative.id}#`;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {
