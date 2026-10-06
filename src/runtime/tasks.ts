@@ -30,6 +30,8 @@ export interface GitCapability {
   log(baseSha: string, headSha: string): Promise<Commit[]>;
   /** Raw `git diff` text for `base..head`. */
   diff(baseSha: string, headSha: string): Promise<string>;
+  /** Replays `oldBase..oldHead` onto `newBase` (`git merge-tree --write-tree`). `tree` is the resulting tree id; it contains conflict markers for `conflicts` (paths, possibly empty). Writes only unreachable objects. */
+  replay(oldBase: string, newBase: string, oldHead: string): Promise<{ tree: string; conflicts: string[] }>;
   /** File content at a commit. */
   show(sha: string, path: string): Promise<string>;
 }

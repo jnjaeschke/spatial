@@ -113,6 +113,61 @@ test("narrate reuses the latest Diff and rejects narrating it twice", async () =
   assert.deepEqual(await drafts.json(), { error: "The latest revision has no narrative" });
 });
 
+// REQUIRES_REAL_GIT
+test("update imports a moved feature ref as a new epoch and detects no-op updates", async () => {
+  const testRepo = makeRepo();
+  const originalBase = testRepo.commit({ "a.txt": "base\n", "b.txt": "base\n" }, "base");
+  testRepo.git("checkout", "-q", "-b", "feature");
+  testRepo.commit({ "a.txt": "first\n", "c.txt": "feature\n" }, "first revision");
+  const session: Session = await (await post("/api/sessions", { repo: testRepo.dir, title: "update" })).json();
+  assert.equal((await post(`/api/sessions/${session.id}/narrate`, { base: "main", head: "feature" })).status, 202);
+  await waitFor(async () => {
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return state.tasks.some((task) => task.kind === "review" && task.status === "succeeded") ? state : undefined;
+  });
+  testRepo.commit({ "a.txt": "second\n", "b.txt": "base\n" }, "amended revision");
+  assert.equal((await post(`/api/sessions/${session.id}/update`, {})).status, 202);
+  const state = await waitFor(async () => {
+    const current: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return current.tasks.some((task) => task.kind === "interdiff" && task.status === "succeeded") ? current : undefined;
+  });
+  assert.equal(state.artifacts.filter((artifact) => artifact.type === "Diff").length, 2);
+  const updatedDiff = state.artifacts.filter((artifact) => artifact.type === "Diff").at(-1)!;
+  const interdiffArtifact = state.artifacts.find((artifact) => artifact.type === "Interdiff")!;
+  assert.equal((interdiffArtifact.data as { toDiff: string }).toDiff, updatedDiff.id);
+  assert.ok(rt.store.listLinks(session.id).some((link) => link.from === interdiffArtifact.id && link.to === updatedDiff.id && link.kind === "about"));
+  const again = await post(`/api/sessions/${session.id}/update`, {});
+  assert.equal(again.status, 409);
+  assert.deepEqual(await again.json(), { error: "No new revision" });
+
+  testRepo.git("checkout", "-q", "main");
+  const movedBase = testRepo.commit({ "a.txt": "base\n", "b.txt": "upstream\n" }, "upstream moved");
+  testRepo.git("checkout", "-q", "feature");
+  testRepo.commit({ "a.txt": "third\n", "b.txt": "base\n" }, "feature without rebase");
+  assert.equal((await post(`/api/sessions/${session.id}/update`, {})).status, 202);
+  const thirdState = await waitFor(async () => {
+    const current: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return current.artifacts.filter((artifact) => artifact.type === "Diff").length === 3 && current.tasks.filter((task) => task.kind === "interdiff" && task.status === "succeeded").length === 2 ? current : undefined;
+  });
+  const thirdDiff = thirdState.artifacts.filter((artifact) => artifact.type === "Diff").at(-1)!;
+  assert.equal((thirdDiff.data as DiffData).baseSha, originalBase);
+  assert.notEqual((thirdDiff.data as DiffData).baseSha, movedBase);
+
+  testRepo.commit({ "a.txt": "fourth\n", "b.txt": "base\n" }, "feature while task pending");
+  rt.store.createTask({ sessionId: session.id, kind: "review", input: {} });
+  const busy = await post(`/api/sessions/${session.id}/update`, {});
+  assert.equal(busy.status, 409);
+  assert.deepEqual(await busy.json(), { error: "A task is already running" });
+});
+
+// REQUIRES_REAL_GIT
+test("update requires an imported diff", async () => {
+  const session = await newSession();
+  const response = await post(`/api/sessions/${session.id}/update`, {});
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: "Session has no imported diff" });
+});
+
 test("narrate rejects a second request while narration is running", async () => {
   let started!: () => void;
   let release!: () => void;

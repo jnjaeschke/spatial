@@ -28,6 +28,28 @@ test("resolve, isAncestor, log, diff", async () => {
   assert.doesNotMatch(diff, /\x1b\[/);
 });
 
+// REQUIRES_REAL_GIT
+test("replay rebases a patch and reports conflicted paths", async () => {
+  const clean = makeRepo();
+  clean.commit({ "a.txt": Array.from({ length: 30 }, (_, i) => `line${i}`).join("\n") + "\n", "b.txt": "base\n" }, "base");
+  clean.git("checkout", "-q", "-b", "feat");
+  const feat = clean.commit({ "a.txt": Array.from({ length: 30 }, (_, i) => i === 9 ? "author" : `line${i}`).join("\n") + "\n" }, "feature");
+  clean.git("checkout", "-q", "main");
+  const newBase = clean.commit({ "c.txt": "added\n" }, "upstream");
+  const cleanReplay = await makeGit(clean.dir).replay(clean.git("rev-parse", "HEAD~1"), newBase, feat);
+  assert.deepEqual(cleanReplay.conflicts, []);
+  assert.equal(await makeGit(clean.dir).show(cleanReplay.tree, "c.txt"), "added\n");
+
+  const conflict = makeRepo();
+  conflict.commit({ "a.txt": Array.from({ length: 30 }, (_, i) => `line${i}`).join("\n") + "\n", "b.txt": "base\n" }, "base");
+  const oldBase = conflict.git("rev-parse", "HEAD");
+  conflict.git("checkout", "-q", "-b", "feat");
+  const conflictHead = conflict.commit({ "a.txt": Array.from({ length: 30 }, (_, i) => i === 9 ? "author" : `line${i}`).join("\n") + "\n" }, "feature");
+  conflict.git("checkout", "-q", "main");
+  const movedBase = conflict.commit({ "a.txt": Array.from({ length: 30 }, (_, i) => i === 9 ? "upstream" : `line${i}`).join("\n") + "\n" }, "upstream conflict");
+  assert.deepEqual((await makeGit(conflict.dir).replay(oldBase, movedBase, conflictHead)).conflicts, ["a.txt"]);
+});
+
 test("createSession stores repo toplevel and rejects non-repos", async () => {
   const r = makeRepo();
   r.commit({ "sub/x.txt": "x" }, "c");

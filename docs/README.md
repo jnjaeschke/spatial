@@ -10,6 +10,7 @@
 - [runtime/conduit](runtime/conduit/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/drift](runtime/drift/README.md)
+- [runtime/interdiff](runtime/interdiff/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
 - [runtime/repo-context](runtime/repo-context/README.md)
@@ -22,3 +23,4 @@
 - [shared/postable-comments](shared/postable-comments/README.md)
 - [shared/types](shared/types/README.md)
 - [workflows/narrate-patch](workflows/narrate-patch/README.md)
+- [workflows/update-revision](workflows/update-revision/README.md)

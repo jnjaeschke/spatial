@@ -11,7 +11,8 @@ import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "../workflows/narrate-patch.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { phabRevision } from "../shared/phabricator.ts";
-import { latestDiff, narrativeOf } from "../shared/epochs.ts";
+import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
+import { updateRevision } from "../workflows/update-revision.ts";
 
 class HttpError extends Error {
   status: number;
@@ -26,6 +27,7 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".json": "application/json", ".png": "image/png", ".woff2": "font/woff2",
 };
 const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const HEAVY_TASKS = new Set(["importDiff", "narrate", "resolveSpecRefs", "review", "interdiff"]);
 
 type Ctx = { req: IncomingMessage; res: ServerResponse; params: string[]; url: URL };
 type Route = [method: string, pattern: RegExp, handler: (c: Ctx) => Promise<unknown>];
@@ -222,6 +224,24 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       }
       send(res, 200, { posted: postedCount, skipped, revision: `D${rev.id}` });
     }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ params, res }) => {
+      const id = requireSession(rt, params[0]!).id;
+      const artifacts = rt.store.listArtifacts(id);
+      const tasks = rt.store.listTasks(id);
+      const prev = latestDiff(artifacts);
+      if (!prev) throw new HttpError(409, "Session has no imported diff");
+      const refs = sessionRefs(artifacts, tasks);
+      if (!refs) throw new HttpError(409, "Cannot find the refs of the session");
+      if (tasks.some((task) => HEAVY_TASKS.has(task.kind) && (task.status === "pending" || task.status === "running"))) {
+        throw new HttpError(409, "A task is already running");
+      }
+      let head: string;
+      try { head = await rt.gitFor(id).resolve(refs.head); }
+      catch (e) { throw new HttpError(409, (e as Error).message); }
+      if (head === prev.data.headSha) throw new HttpError(409, "No new revision");
+      updateRevision(rt, id).catch((e) => console.error(`update failed in session ${id}: ${(e as Error).message}`));
+      send(res, 202, {});
+    }],
     ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {
       const id = requireSession(rt, params[0]).id;
       let diff;
@@ -259,8 +279,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const artifacts = rt.store.listArtifacts(id);
       const latest = latestDiff(artifacts);
       if (latest && narrativeOf(artifacts, latest.id)) throw new HttpError(409, "Session already has a narrative");
-      if (rt.store.listTasks(id).some((task) =>
-        (task.kind === "importDiff" || task.kind === "narrate" || task.kind === "resolveSpecRefs" || task.kind === "review") &&
+      if (rt.store.listTasks(id).some((task) => HEAVY_TASKS.has(task.kind) &&
         (task.status === "pending" || task.status === "running"))) {
         throw new HttpError(409, "Narration already running");
       }

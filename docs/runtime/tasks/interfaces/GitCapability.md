@@ -100,6 +100,32 @@ Commits in `base..head`, oldest first.
 
 ***
 
+### replay()
+
+> **replay**(`oldBase`, `newBase`, `oldHead`): `Promise`\<\{ `conflicts`: `string`[]; `tree`: `string`; \}\>
+
+Replays `oldBase..oldHead` onto `newBase` (`git merge-tree --write-tree`). `tree` is the resulting tree id; it contains conflict markers for `conflicts` (paths, possibly empty). Writes only unreachable objects.
+
+#### Parameters
+
+##### oldBase
+
+`string`
+
+##### newBase
+
+`string`
+
+##### oldHead
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `conflicts`: `string`[]; `tree`: `string`; \}\>
+
+***
+
 ### resolve()
 
 > **resolve**(`rev`): `Promise`\<`string`\>

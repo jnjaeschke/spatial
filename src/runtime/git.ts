@@ -54,6 +54,17 @@ export function makeGit(repo: string): GitCapability {
     async diff(baseSha, headSha) {
       return git(repo, ["diff", "--no-color", "--no-ext-diff", "-M", "-U3", baseSha, headSha]);
     },
+    async replay(oldBase, newBase, oldHead) {
+      let out: string;
+      try {
+        out = await git(repo, ["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", `--merge-base=${oldBase}`, newBase, oldHead]);
+      } catch (e) {
+        if ((e as { code?: number }).code !== 1) throw e;
+        out = (e as { stdout: string }).stdout;
+      }
+      const [tree, ...paths] = out.split("\0");
+      return { tree: tree!, conflicts: paths.filter((path) => path !== "") };
+    },
     async show(sha, path) {
       try {
         return await git(repo, ["show", `${sha}:${path}`]);
