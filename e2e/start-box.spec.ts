@@ -69,7 +69,7 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   await expect(conversation).toContainText("Hello from the start box", { timeout: 10_000 });
   await expect(conversation).toContainText("Stub answer.", { timeout: 10_000 });
   await expect(page.locator(".session-title")).toHaveText("/chat Hello from the start box");
-  await expect(page.getByRole("button", { name: "Narrate" })).toHaveCount(0);
+  await expect(page.getByTestId("analysis")).toHaveCount(0);
 
   await conversation.getByLabel("message").fill("And more?");
   await conversation.getByRole("button", { name: "Send" }).click();
@@ -169,4 +169,49 @@ test("/review D<id> imports the revision named by .arcconfig and leaves the repo
   const spatialRef = git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial").split("\n").find((ref) => ref.startsWith(`refs/spatial/D${ids.revision}/${ids.diff}-`));
   expect(spatialRef).toBeTruthy();
   expect(git(dir, "log", "-1", "--format=%B", spatialRef!)).toContain(`Differential Revision: https://phab.example.com/D${ids.revision}`);
+});
+
+test("Retry repeats a failed revision import", async ({ page, request }) => {
+  const ids = newRevision();
+  const dir = mkdtempSync(join(tmpdir(), "spatial-start-retry-"));
+  repoDirs.push(dir);
+  git(dir, "init", "-b", "main");
+  writeFileSync(join(dir, "a.txt"), `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`);
+  writeFileSync(join(dir, ".arcconfig"), JSON.stringify({ "phabricator.uri": "https://phab.example.com/" }));
+  git(dir, "add", "-A");
+  git(dir, "commit", "-m", "base");
+  const base = git(dir, "rev-parse", "HEAD");
+  const scratch = mkdtempSync(join(tmpdir(), "spatial-start-retry-scratch-"));
+  repoDirs.push(scratch);
+  execFileSync("git", ["clone", "-q", dir, scratch]);
+  const lines = readFileSync(join(scratch, "a.txt"), "utf8").trimEnd().split("\n");
+  lines[29] = "THIRTY";
+  writeFileSync(join(scratch, "a.txt"), `${lines.join("\n")}\n`);
+  writeFileSync(join(scratch, "c.txt"), "c\n");
+  execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "add", "-A"]);
+  execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-m", "Remote change"]);
+  const raw = execFileSync("git", ["-C", scratch, "diff", base, "HEAD"], { encoding: "utf8" });
+  const missing = "e".repeat(40);
+  const register = (revisionBase: string) => request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Remote change", base: revisionBase, diffs: [ids.diff], rawDiffs: { [ids.diff]: raw } } });
+  expect((await register(missing)).ok()).toBeTruthy();
+  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  const box = page.getByLabel("start");
+  await box.fill(`/review D${ids.revision}`);
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\?session=/);
+  await expect(page.getByTestId("analysis")).toHaveAttribute("data-state", "failed");
+  await expect(page.getByTestId("task-importRevision")).toHaveAttribute("data-status", "failed");
+  await expect(page.getByTestId("analysis")).toContainText(new RegExp(`Base commit ${missing} of D${ids.revision}`));
+  expect(git(dir, "status", "--porcelain")).toBe("");
+  expect(git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial")).toBe("");
+
+  expect((await register(base)).ok()).toBeTruthy();
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await expect(async () => {
+    const state = await (await request.get(`http://127.0.0.1:4178/api/sessions/${new URL(page.url()).searchParams.get("session")}/state`)).json() as { tasks: { kind: string }[] };
+    expect(state.tasks.filter((task) => task.kind === "importRevision")).toHaveLength(2);
+  }).toPass();
+  expect(git(dir, "status", "--porcelain")).toBe("");
+  expect(git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial").split("\n").every((ref) => ref.startsWith(`refs/spatial/D${ids.revision}/`))).toBeTruthy();
 });

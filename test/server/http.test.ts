@@ -14,7 +14,7 @@ import { tasks } from "../../src/tasks/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { RevisionWatcher } from "../../src/runtime/revision-watcher.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { DiffData, Session, SessionState } from "../../src/shared/types.ts";
+import type { DiffData, Session, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
 import { commitRevision } from "../../src/shared/phabricator.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
@@ -215,6 +215,25 @@ test("narrate runs in background and state reflects the result", async () => {
   const repeated = await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   assert.equal(repeated.status, 409);
   assert.deepEqual(await repeated.json(), { error: "Session already has a narrative" });
+});
+
+test("narrate retries a failed workflow before a Diff exists", async () => {
+  const session = await newSession();
+  const start = rt.store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "review", prompt: "HEAD~1..HEAD" } });
+  assert.equal((await post(`/api/sessions/${session.id}/narrate`, {})).status, 202);
+  const state = await waitFor(async () => {
+    const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return snapshot.tasks.some((task) => task.kind === "review" && task.status === "succeeded") ? snapshot : undefined;
+  });
+  assert.ok(rt.store.getArtifact(start.id));
+  assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
+});
+
+test("narrate without a Diff still rejects a session without a WorkflowStart", async () => {
+  const session = await newSession();
+  const response = await post(`/api/sessions/${session.id}/narrate`, {});
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "Missing string field: base" });
 });
 
 test("narrate reuses the latest Diff and rejects narrating it twice", async () => {

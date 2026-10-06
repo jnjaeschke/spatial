@@ -87,9 +87,9 @@ test("narratePatch carries findings after update narration and before resolving 
   assert.deepEqual(rt.store.listTasks(session.id).slice(-4).map((task) => task.kind), ["narrate", "carryFindings", "resolveSpecRefs", "review"]);
 });
 
-test("CLI narrate prints the narrative JSON", () => {
+test("CLI review prints the narrative JSON", () => {
   const { dir, r, narrative } = fixture();
-  const stdout = execFileSync(process.execPath, [CLI, "narrate", r.dir, "HEAD~1..HEAD", "--db", join(dir, "cli.sqlite")], {
+  const stdout = execFileSync(process.execPath, [CLI, "review", r.dir, "HEAD~1..HEAD", "--db", join(dir, "cli.sqlite")], {
     encoding: "utf8",
     env: { ...process.env, SPATIAL_CLAUDE_BIN: STUB },
   });
@@ -99,7 +99,7 @@ test("CLI narrate prints the narrative JSON", () => {
   assert.equal(typeof out.sessionId, "string");
 });
 
-test("CLI reports bad usage and task failures on stderr with exit 1", () => {
+test("CLI reports bad usage, revision host failures and task failures on stderr with exit 1", () => {
   const { dir, r } = fixture();
   const run = (args: string[]) => {
     try {
@@ -110,10 +110,22 @@ test("CLI reports bad usage and task failures on stderr with exit 1", () => {
       return { code: err.status, stderr: err.stderr };
     }
   };
-  const bad = run(["narrate", r.dir, "HEAD", "--db", join(dir, "bad-usage.sqlite")]);
+  const bad = run(["review", r.dir, "HEAD", "--db", join(dir, "bad-usage.sqlite")]);
   assert.equal(bad.code, 1);
-  assert.match(bad.stderr, /Range must be <base>\.\.<head>/);
-  const fail = run(["narrate", r.dir, "HEAD..HEAD~1", "--db", join(dir, "x.sqlite")]);
+  assert.match(bad.stderr, /Expected <base>\.\.<head>/);
+  const phab = run(["review", r.dir, "D123", "--db", join(dir, "phab.sqlite")]);
+  assert.equal(phab.code, 1);
+  assert.ok(phab.stderr.trim());
+  const fail = run(["review", r.dir, "HEAD..HEAD~1", "--db", join(dir, "x.sqlite")]);
   assert.equal(fail.code, 1);
   assert.match(fail.stderr, /is not an ancestor of/);
+});
+
+test("CLI review with no target reviews the latest commit", () => {
+  const { dir, r } = fixture();
+  const stdout = execFileSync(process.execPath, [CLI, "review", r.dir, "--db", join(dir, "default.sqlite")], {
+    encoding: "utf8",
+    env: { ...process.env, SPATIAL_CLAUDE_BIN: STUB },
+  });
+  assert.deepEqual(JSON.parse(stdout).narrative.changes.map((c: { id: string }) => c.id), ["c1", "c2"]);
 });

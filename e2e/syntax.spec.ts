@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 4178}`;
 let dir = "";
@@ -28,14 +28,7 @@ test("C++ code in a hunk is painted through the highlight registry", async ({ pa
   git("add", "-A");
   git("commit", "-m", "change");
 
-  const title = `syntax-${crypto.randomUUID()}`;
-  expect((await request.post(`${BASE}/api/sessions`, { data: { repo: dir, title } })).ok()).toBeTruthy();
-  await page.goto(`${BASE}/`);
-  await page.getByRole("link", { name: title }).click();
-  await page.getByLabel("base").fill("main");
-  await page.getByLabel("head").fill("feature");
-  await page.getByRole("button", { name: "Narrate" }).click();
-  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await startReview(page, dir, "main..feature");
   await setLevel(page, "code");
 
   await expect.poll(() => page.evaluate(painted, "syn-keyword")).toEqual(expect.arrayContaining(["static", "const", "return"]));

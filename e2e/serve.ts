@@ -7,6 +7,8 @@ import { createRuntime } from "../src/runtime/create.ts";
 import { RevisionWatcher } from "../src/runtime/revision-watcher.ts";
 import { PhabricatorSyncer } from "../src/runtime/phabricator-sync.ts";
 import { createSession, makeGit } from "../src/runtime/git.ts";
+import type { WorkflowStartData } from "../src/shared/types.ts";
+import { runWorkflow } from "../src/workflows/start.ts";
 import { createHttpServer } from "../src/server/http.ts";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
 
@@ -154,7 +156,9 @@ await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", r
 process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
-await createSession(rt.store, repo.dir, "fixture", "review");
+const fixture = await createSession(rt.store, repo.dir, "fixture", null);
+const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
+await runWorkflow(rt, fixture.id, fixtureStart.id);
 const watcher = new RevisionWatcher(rt, { intervalMs: 300 });
 watcher.start();
 new PhabricatorSyncer(rt, watcher, { intervalMs: 300 }).start();

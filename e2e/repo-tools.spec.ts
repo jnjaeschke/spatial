@@ -1,14 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 test("chat can request a denylisted repo server and enable it for that thread", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
-  const title = `repo-tools-${crypto.randomUUID()}`;
-  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.worktree, title } });
-  await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: title }).click();
-  await page.getByRole("button", { name: "Narrate" }).click();
+  await startReview(page, fixture.worktree, "HEAD~1..HEAD");
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await setLevel(page, "concept");
   const finding = page.locator('[data-testid^="finding-"]').first();

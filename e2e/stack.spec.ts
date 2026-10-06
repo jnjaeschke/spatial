@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 let revisionCount = 0;
@@ -50,22 +50,15 @@ async function buildStack(request: APIRequestContext, commits: StackCommit[]) {
     const response = await request.post(control, { data: { revision: ids[index]!.revision, diffs: [ids[index]!.diff], rawDiffs: { [ids[index]!.diff]: rawDiffs[index] } } });
     expect(response.ok()).toBeTruthy();
   }
-  const title = `stack-${crypto.randomUUID()}`;
-  const response = await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: dir, title } });
-  expect(response.ok()).toBeTruthy();
-  const session = await response.json() as { id: string };
-  return { dir, base, title, sessionId: session.id, ids, rawDiffs };
+  return { dir, base, ids, rawDiffs };
 }
 
 async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>, level: "code" | "concept") {
-  await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: stack.title }).click();
-  await page.getByLabel("base").fill(stack.base);
-  await page.getByLabel("head").fill("feature");
-  await page.getByRole("button", { name: "Narrate" }).click();
+  const sessionId = await startReview(page, stack.dir, `${stack.base}..feature`);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await setLevel(page, level);
   await expect(page.getByTestId("change-c1")).toHaveAttribute("data-level", level);
+  return sessionId;
 }
 
 async function reviewAndPost(page: Page, revision: number) {
@@ -114,7 +107,7 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  await narrate(page, stack, "concept");
+  const sessionId = await narrate(page, stack, "concept");
   const summary = page.getByTestId("summary");
   await expect(summary.locator("li .swatch")).toHaveCount(2);
   await expect(summary).toContainText("C1");
@@ -132,7 +125,7 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await page.getByRole("button", { name: "Next step" }).click();
   const early = page.getByTestId("hunk-f1h0").locator("tr.add");
   await expect(early).toHaveAttribute("data-commit", "0");
-  const diff = (await state(request, stack.sessionId)).artifacts.find((artifact) => artifact.type === "Diff")!.data;
+  const diff = (await state(request, sessionId)).artifacts.find((artifact) => artifact.type === "Diff")!.data;
   const firstSha = (diff.commits as { sha: string }[])[0]!.sha.slice(0, 7);
   await expect(early.locator("td.sign")).toHaveAttribute("title", new RegExp(firstSha));
   const earlyColor = await early.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -145,9 +138,9 @@ test("posts a C1 line to C1", async ({ page, request }) => {
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  await narrate(page, stack, "concept");
+  const sessionId = await narrate(page, stack, "concept");
   await reviewAndPost(page, ids[0]!.revision);
-  const posted = (await state(request, stack.sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
+  const posted = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
   expect(posted).toHaveLength(1);
   expect(posted[0]!.data.revision).toBe(ids[0]!.revision);
   expect(posted[0]!.data.diff).toBe(ids[0]!.diff);
@@ -162,9 +155,9 @@ test("posts a C2 line to C2", async ({ page, request }) => {
     { revision: ids[0]!.revision, subject: "First stack change", apply: (dir) => changeLine(dir, "THIRTY") },
     { revision: ids[1]!.revision, subject: "Add c", apply: (dir) => writeFileSync(join(dir, "c.txt"), "c\n") },
   ]);
-  await narrate(page, stack, "concept");
+  const sessionId = await narrate(page, stack, "concept");
   await reviewAndPost(page, ids[1]!.revision);
-  const posted = (await state(request, stack.sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
+  const posted = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
   expect(posted).toHaveLength(1);
   expect(posted[0]!.data.revision).toBe(ids[1]!.revision);
   expect(posted[0]!.data.diff).toBe(ids[1]!.diff);

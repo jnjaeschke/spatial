@@ -1,17 +1,12 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
 async function openNarrated(page: Page, request: APIRequestContext): Promise<void> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
-  const title = `decisions-${crypto.randomUUID()}`;
-  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.worktree, title } });
-  await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: title }).click();
-  await page.getByRole("button", { name: "Narrate" }).click();
-  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await startReview(page, fixture.worktree, "HEAD~1..HEAD");
   await setLevel(page, "concept");
 }
 

@@ -142,8 +142,6 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .topbar .spacer { flex: 1; }
 .topbar :is(button, select, input:not([type="checkbox"])) { padding-block: 2px; }
 .topbar .desktop-toggle { color: var(--text-2); font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.narrate { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.narrate > span { color: var(--text-3); }
 .llm-picker { display: inline-flex; gap: 4px; }
 .theme-toggle, .text-size { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border); }
 .theme-toggle button, .text-size button { display: inline-grid; place-items: center; border: 0; box-shadow: none; background: transparent; border-radius: 999px; padding: 2px 7px; color: var(--text-3); }
@@ -209,6 +207,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .file-panel tr.focus { background: var(--diff-focus); }
 .file-panel-error { padding: 8px 12px; color: var(--danger); }
 .empty { padding: 32px; color: var(--text-2); }
+.analysis { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; color: var(--text-2); }
 .failed { color: var(--danger); }
 .epoch, .epoch-marker { font-size: 11.5px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent); border-radius: 999px; padding: 1px 9px; }
 .epoch-marker { font-size: 10.5px; padding: 0 7px; margin-right: 6px; }
@@ -237,8 +236,6 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .repo-group .session-list { margin-top: 10px; }
 .repo-paths { margin: 0 0 16px; }
 .start-screen > header > a { margin-left: auto; margin-right: 16px; }
-.new-session { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
-.new-session input { flex: 1 1 200px; min-width: 0; }
 .start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .start-input { position: relative; width: 100%; }
 .start-box textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }

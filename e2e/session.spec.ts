@@ -1,18 +1,16 @@
 import { test, expect } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
-test("pick session, narrate, see canvas and activity", async ({ page }) => {
+test("the fixture session shows the finished analysis", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  await expect(page.getByText("No narrative yet")).toBeVisible();
-  await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await setLevel(page, "code");
   await expect(page.getByTestId("task-narrate")).toHaveAttribute("data-status", "succeeded");
   await expect(page.getByText("Edits a and adds c.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Narrate" })).toHaveCount(0);
+  await expect(page.getByTestId("analysis")).toHaveCount(0);
 });
 
 test("expand context around a hunk", async ({ page }) => {
@@ -46,19 +44,16 @@ test("expand context around a hunk", async ({ page }) => {
   await expect(hunk.getByRole("button", { name: "↓ 20 lines" })).toHaveCount(0);
 });
 
-test("failed narrate shows the error in the activity strip and keeps the canvas", async ({ page, request }) => {
+test("a failed analysis shows the error and a retry", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
-  const title = `failed-narrate-${crypto.randomUUID()}`;
-  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.worktree, title } });
-  await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: title }).click();
-  await page.getByLabel("base").fill("HEAD");
-  await page.getByLabel("head").fill("HEAD~1");
-  await page.getByRole("button", { name: "Narrate" }).click();
+  await startReview(page, fixture.worktree, "HEAD..HEAD~1");
   await expect(page.getByTestId("task-importDiff").first()).toHaveAttribute("data-status", "failed", { timeout: 10_000 });
-  await expect(page.getByText(/is not an ancestor of/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Narrate" })).toBeVisible();
+  await expect(page.getByTestId("analysis")).toContainText(/is not an ancestor of/);
+  await expect(page.getByTestId("analysis")).toHaveAttribute("data-state", "failed");
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByTestId("task-importDiff")).toHaveCount(2, { timeout: 10_000 });
+  await expect(page.getByTestId("analysis")).toContainText(/is not an ancestor of/);
 });
 
 test("open the whole file in the side panel", async ({ page }) => {

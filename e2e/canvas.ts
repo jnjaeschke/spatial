@@ -1,4 +1,13 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+export async function startReview(page: Page, repoDir: string, range: string): Promise<string> {
+  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(repoDir)}`);
+  const box = page.getByLabel("start");
+  await box.fill(`/review ${range}`);
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\?session=/);
+  return new URL(page.url()).searchParams.get("session")!;
+}
 
 export type Level = "patch" | "concept" | "code";
 const ORDER: Level[] = ["patch", "concept", "code"];

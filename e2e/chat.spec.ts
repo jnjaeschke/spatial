@@ -1,18 +1,12 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
 async function openNarrated(page: Page, request: APIRequestContext): Promise<string> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((s) => s.title === "fixture")!;
-  const title = `chat-${crypto.randomUUID()}`;
-  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.worktree, title } });
-  await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: title }).click();
-  await page.getByRole("button", { name: "Narrate" }).click();
-  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  return title;
+  return await startReview(page, fixture.worktree, "HEAD~1..HEAD");
 }
 
 test("ask about a change: draft, send, stub answer appears and persists", async ({ page, request }) => {
@@ -150,7 +144,7 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
 });
 
 test("selecting diff rows stores the selected line range", async ({ page, request }) => {
-  const title = await openNarrated(page, request);
+  const sessionId = await openNarrated(page, request);
   await setLevel(page, "code");
   const rows = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)');
   const first = await rows.nth(0).boundingBox();
@@ -168,7 +162,7 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
   await draft.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
   const state = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { id: string; title: string }[];
-  const session = state.find((s) => s.title === title)!;
+  const session = state.find((s) => s.id === sessionId)!;
   const snapshot = await (await request.get(`http://127.0.0.1:4178/api/sessions/${session.id}/state`)).json() as { artifacts: { type: string; data: { quote?: string; lines?: { start: number; end: number; path: string } } }[] };
   const thread = snapshot.artifacts.find((a) => a.type === "ChatThread")!;
   expect(thread.data.lines).toBeDefined();

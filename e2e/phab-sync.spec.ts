@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { setLevel, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 const control = "http://127.0.0.1:4179/control";
@@ -57,15 +57,7 @@ async function openNarratedWithTrailer(page: Page, request: APIRequestContext, r
   git(dir, "commit", "-m", "initial patch", "-m", `Differential Revision: https://phab.example.com/D${revision}`);
   const diff = git(dir, "diff", "main", "feature");
   await configure(request, revision, conduit(diff));
-  const title = `phab-${crypto.randomUUID()}`;
-  const response = await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: dir, title } });
-  expect(response.ok()).toBeTruthy();
-  await page.goto("http://127.0.0.1:4178/");
-  await page.getByRole("link", { name: title }).click();
-  await page.getByLabel("base").fill("main");
-  await page.getByLabel("head").fill("feature");
-  await page.getByRole("button", { name: "Narrate" }).click();
-  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await startReview(page, dir, "main..feature");
   if (codeLevel) await setLevel(page, "code");
   return { dir, diff };
 }

@@ -19,11 +19,10 @@ const put = <T>(path: string, body: unknown) =>
 export const api = {
   sessions: () => get<Session[]>("/api/sessions"),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
-  createSession: (repo: string, title: string) => post<Session>("/api/sessions", { repo, title }),
   workflows: () => get<WorkflowInfo[]>("/api/workflows"),
   start: (path: string, text: string, llm: LlmSelection) => post<Session>("/api/start", { path, text, llm }),
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
-  narrate: (id: string, body: { base?: string; head?: string; llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
+  narrate: (id: string, body: { llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
   runAction: (path: string) => {
     if (!path.startsWith("/api/sessions/")) return Promise.reject(new Error("Invalid action path"));
     return post<unknown>(path, {});

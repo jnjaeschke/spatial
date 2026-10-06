@@ -17,7 +17,7 @@ import { newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { workflowInfo } from "../workflows/registry.ts";
-import { startSession } from "../workflows/start.ts";
+import { runWorkflow, startSession } from "../workflows/start.ts";
 import { importRevision, ImportRevisionError } from "../runtime/import-revision.ts";
 
 class HttpError extends Error {
@@ -338,8 +338,14 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       const llm = body.llm as LlmSelection | undefined;
       let opts: Parameters<typeof narratePatch>[2];
       if (body.base === undefined && body.head === undefined) {
-        if (!latest) throw new HttpError(400, "Missing string field: base");
-        opts = { diffId: latest.id, llm };
+        if (latest) opts = { diffId: latest.id, llm };
+        else {
+          const start = rt.store.listArtifacts(id, "WorkflowStart").at(-1);
+          if (!start) throw new HttpError(400, "Missing string field: base");
+          runWorkflow(rt, id, start.id, llm).catch((e) => console.error(`workflow retry failed in session ${id}: ${(e as Error).message}`));
+          send(res, 202, {});
+          return;
+        }
       } else if (body.base === undefined) {
         throw new HttpError(400, "Missing string field: base");
       } else if (body.head === undefined) {

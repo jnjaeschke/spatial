@@ -40,7 +40,7 @@ export function parseReviewArgs(args: string): ParseResult<ReviewParams> {
 
 const review: Workflow<ReviewParams> = {
   id: "review",
-  description: "Review a local patch: narrate and review the changes between a base and a head git ref (for example main and a feature branch), or a Phabricator revision (D123, or its URL) whose stack is imported without checking it out. With no refs it reviews the uncommitted changes in the work tree, or the latest commit when there are none.",
+  description: "Review a local patch: analyze and review the changes between a base and a head git ref (for example main and a feature branch), or a Phabricator revision (D123, or its URL) whose stack is imported without checking it out. With no refs it reviews the uncommitted changes in the work tree, or the latest commit when there are none.",
   argHint: "[D-number | base..head]",
   params: reviewParams,
   parseArgs: parseReviewArgs,
