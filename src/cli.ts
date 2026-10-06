@@ -19,16 +19,29 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-const { positionals, values } = parseArgs({
-  allowPositionals: true,
-  options: {
-    backend: { type: "string" },
-    model: { type: "string" },
-    effort: { type: "string" },
-    db: { type: "string" },
-    port: { type: "string" },
-  },
-});
+function parseCli() {
+  try {
+    return parseArgs({
+      allowPositionals: true,
+      options: {
+        backend: { type: "string" },
+        model: { type: "string" },
+        effort: { type: "string" },
+        db: { type: "string" },
+        port: { type: "string" },
+        help: { type: "boolean", short: "h" },
+      },
+    });
+  } catch (e) {
+    fail(`${(e as Error).message}\n${USAGE}`);
+  }
+}
+
+const { positionals, values } = parseCli();
+if (values.help) {
+  console.log(USAGE);
+  process.exit(0);
+}
 
 function runtime() {
   const dbPath = values.db ?? defaultDbPath();
@@ -63,7 +76,7 @@ try {
       ? { backend, model: values.model ?? (backend === DEFAULT_LLM.backend ? DEFAULT_LLM.model : fail("--model is required with --backend codex")), effort: values.effort ?? DEFAULT_LLM.effort }
       : undefined;
 
-    const session = await createSession(rt.store, repo, range);
+    const session = await createSession(rt.store, repo, range, "review");
     rt.onEvent((e) => {
       if (e.type === "task.started" || e.type === "task.progress" || e.type === "task.failed") {
         console.error(`[${e.type}] ${JSON.stringify(e.payload)}`);
