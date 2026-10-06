@@ -47,7 +47,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean }) {
     },
   };
   const rt = new Runtime({ store, tasks: [resolveSpecRefs], llm: {} as LlmService, git: () => git, webspec, searchfox });
-  const session = store.createSession(repo, "t");
+  const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "t" });
   const change = (id: string, specUrls: string[]) => ({ id, title: id, explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls });
   const diff: DiffData = {
     baseSha: "B", headSha: "H", commits: [], files: [

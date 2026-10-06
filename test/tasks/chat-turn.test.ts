@@ -43,7 +43,7 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
   });
-  const session = store.createSession(opts.repo ?? "/repo", "t");
+  const session = store.createSession({ worktree: opts.repo ?? "/repo", repoDir: `${opts.repo ?? "/repo"}/.git`, title: "t" });
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
   const diffId = put("Diff", DIFF).id;
   const narrativeId = put<PatchNarrativeData>("PatchNarrative", {
@@ -97,7 +97,7 @@ test("chat system prompt includes repo instructions and skill index on every tur
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, instructions: "Follow repo rules.", skills: [{ name: "review-skill", description: "Review changes." }] }),
   });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   const narrativeId = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "verified", data: {
     diffId, summary: "s", changes: [{ id: "c1", title: "Add flag", explanation: "e", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }],

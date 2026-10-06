@@ -74,15 +74,21 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ### createSession()
 
-> **createSession**(`repo`, `title`): [`Session`](../../../shared/types/interfaces/Session.md)
+> **createSession**(`fields`): [`Session`](../../../shared/types/interfaces/Session.md)
 
 #### Parameters
 
-##### repo
+##### fields
+
+###### repoDir
 
 `string`
 
-##### title
+###### title
+
+`string`
+
+###### worktree
 
 `string`
 

@@ -1,16 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
+import { DatabaseSync } from "node:sqlite";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 function fresh() {
   const store = new Store(":memory:");
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { store, session };
 }
 
 test("sessions round-trip and list newest last", () => {
   const { store, session } = fresh();
-  const s2 = store.createSession("/repo2", "t2");
+  const s2 = store.createSession({ worktree: "/repo2", repoDir: "/repo2/.git", title: "t2" });
   assert.deepEqual(store.getSession(session.id), session);
   assert.deepEqual(store.listSessions().map((s) => s.id), [session.id, s2.id]);
 });
@@ -66,11 +70,18 @@ test("data persists across Store instances on a file", async () => {
   const { join } = await import("node:path");
   const path = join(mkdtempSync(join(tmpdir(), "store-")), "db.sqlite");
   const s1 = new Store(path);
-  const session = s1.createSession("/r", "t");
+  const session = s1.createSession({ worktree: "/r", repoDir: "/r/.git", title: "t" });
   s1.close();
   const s2 = new Store(path);
   assert.equal(s2.getSession(session.id).title, "t");
   s2.close();
+});
+
+test("old session schema is rejected", () => {
+  const dir = mkdtempSync(join(tmpdir(), "store-old-schema-"));
+  const path = join(dir, "db.sqlite");
+  new DatabaseSync(path).exec("CREATE TABLE sessions (id TEXT PRIMARY KEY, repo TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL)");
+  assert.throws(() => new Store(path), /outdated schema/);
 });
 
 test("listTasks and lastEventId", () => {

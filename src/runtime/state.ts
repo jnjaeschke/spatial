@@ -6,7 +6,7 @@ import { isGeckoRepo } from "./searchfox.ts";
 export async function buildSessionState(store: Store, searchfoxCapability: SearchfoxCapability, sessionId: Id): Promise<SessionState> {
   const session = store.getSession(sessionId);
   let searchfox: SessionState["searchfox"] = null;
-  if (isGeckoRepo(session.repo)) {
+  if (isGeckoRepo(session.worktree)) {
     try { const tip = await searchfoxCapability.tip(); searchfox = { repoBase: tip.repoBase, tipRev: tip.rev }; }
     catch (e) { console.error(`Searchfox unavailable: ${(e as Error).message}`); }
   }

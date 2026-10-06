@@ -45,7 +45,7 @@ async function main(args: string[]): Promise<void> {
   };
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
-  const server = createSessionServer(store, sessionId, store.getSession(sessionId).repo);
+  const server = createSessionServer(store, sessionId, store.getSession(sessionId).worktree);
   await server.connect(new StdioServerTransport());
 }
 

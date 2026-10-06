@@ -154,7 +154,7 @@ export class Runtime {
 
   /** Read-only git for server queries outside tasks. */
   gitFor(sessionId: Id): GitCapability {
-    return this.#git(this.#store.getSession(sessionId).repo);
+    return this.#git(this.#store.getSession(sessionId).worktree);
   }
 
   onEvent(listener: Listener): () => void {
@@ -185,9 +185,9 @@ export class Runtime {
     const ctx: TaskContext = {
       sessionId,
       taskId: task.id,
-      repo: session.repo,
+      repo: session.worktree,
       signal: controller.signal,
-      git: this.#git(session.repo),
+      git: this.#git(session.worktree),
       webspec: this.#webspec,
       searchfox: this.#searchfox,
       llm: {
@@ -233,7 +233,7 @@ export class Runtime {
 
     const done = (async () => {
       try {
-        const repoContext = this.#repoContext(session.repo);
+        const repoContext = this.#repoContext(session.worktree);
         ctx.repoMcp = repoContext.mcpServers;
         ctx.repoRequestableMcp = repoContext.requestableMcpServers;
         ctx.repoSkills = repoContext.skills;

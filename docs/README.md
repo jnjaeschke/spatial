@@ -33,6 +33,7 @@
 - [shared/post-plan](shared/post-plan/README.md)
 - [shared/postable-comments](shared/postable-comments/README.md)
 - [shared/reanchor](shared/reanchor/README.md)
+- [shared/repos](shared/repos/README.md)
 - [shared/types](shared/types/README.md)
 - [workflows/narrate-patch](workflows/narrate-patch/README.md)
 - [workflows/update-revision](workflows/update-revision/README.md)

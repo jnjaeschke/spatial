@@ -111,7 +111,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       const body = await readJson(req);
       const server = str(body.server, "server");
       requireArtifact(rt, session.id, threadId, "ChatThread", "thread");
-      if (!loadRepoContext(session.repo).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
+      if (!loadRepoContext(session.worktree).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
       const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server } satisfies McpServerData, threadId);
       send(res, 201, { artifactId: artifact.id });
     }],

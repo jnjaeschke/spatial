@@ -13,7 +13,7 @@ const narrativeData = (diffId: string, changes = [{ id: "c1", title: "change", e
 function setup() {
   const store = new Store(":memory:");
   const rt = new Runtime({ store, tasks: [carryFindings], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unexpected LLM call"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } }, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = <T,>(type: string, data: T, status: ArtifactStatus = "verified") => store.putArtifact({ sessionId: session.id, type, status, data, provenance: { taskId: "x" } });
   return { store, rt, session, put };
 }

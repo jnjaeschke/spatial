@@ -9,7 +9,7 @@ import type { SearchDoc } from "./render-ref.ts";
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY, repo TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL);
+  id TEXT PRIMARY KEY, worktree TEXT NOT NULL, repo_dir TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), kind TEXT NOT NULL,
   status TEXT NOT NULL, input TEXT NOT NULL, output TEXT, error TEXT,
@@ -34,6 +34,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
 `;
 
 type Row = Record<string, unknown>;
+const SESSION_COLUMNS = "id,worktree,repo_dir,title,created_at";
 const now = () => new Date().toISOString();
 
 /** Dumb persistence. Emits no events; the Runtime does that. */
@@ -45,6 +46,8 @@ export class Store {
     if (!opts.readOnly) {
       if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
       this.#db.exec(SCHEMA);
+      const columns = (this.#db.prepare("PRAGMA table_info(sessions)").all() as Row[]).map((r) => r.name).join(",");
+      if (columns !== SESSION_COLUMNS) throw new Error(`Database ${path} has an outdated schema (sessions are disposable): delete it and restart`);
     }
   }
 
@@ -52,9 +55,9 @@ export class Store {
     this.#db.close();
   }
 
-  createSession(repo: string, title: string): Session {
-    const s: Session = { id: randomUUID(), repo, title, createdAt: now() };
-    this.#db.prepare("INSERT INTO sessions VALUES (?, ?, ?, ?)").run(s.id, s.repo, s.title, s.createdAt);
+  createSession(fields: { worktree: string; repoDir: string; title: string }): Session {
+    const s: Session = { id: randomUUID(), ...fields, createdAt: now() };
+    this.#db.prepare("INSERT INTO sessions (id, worktree, repo_dir, title, created_at) VALUES (?, ?, ?, ?, ?)").run(s.id, s.worktree, s.repoDir, s.title, s.createdAt);
     return s;
   }
 
@@ -189,7 +192,7 @@ function toTask(r: Row): TaskRecord {
 }
 
 function toSession(r: Row): Session {
-  return { id: r.id as string, repo: r.repo as string, title: r.title as string, createdAt: r.created_at as string };
+  return { id: r.id as string, worktree: r.worktree as string, repoDir: r.repo_dir as string, title: r.title as string, createdAt: r.created_at as string };
 }
 
 function toArtifact<T>(r: Row): Artifact<T> {

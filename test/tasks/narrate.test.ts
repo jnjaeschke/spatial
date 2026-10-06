@@ -82,7 +82,7 @@ function setup(responses: unknown[]) {
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({ store, tasks: [narrate], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   return { store, rt, session, diffId, prompts, sel };
 }
@@ -124,7 +124,7 @@ test("narrate: passes session and repo MCP servers with read-only tools", async 
     repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       skills: [{ name: "narrate-skill", description: "Group changes." }], instructions: "Follow narration rules." }),
   });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   await rt.run(session.id, "narrate", { diffId });
   assert.equal(prompts[0].tools, "read-only");

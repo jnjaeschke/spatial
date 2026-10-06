@@ -4,7 +4,7 @@ import type { DiffData, SessionState } from "../../src/shared/types.ts";
 import { fileUrl, linkTitle, searchUrl, searchfoxLinks } from "../../src/web/searchfox-url.ts";
 
 const state = (searchfox: SessionState["searchfox"]): SessionState => ({
-  session: { id: "S", repo: "/r", title: "t", createdAt: "0" }, artifacts: [], links: [], tasks: [], lastEventId: 0, searchfox,
+  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0" }, artifacts: [], links: [], tasks: [], lastEventId: 0, searchfox,
 });
 const diff = (upstreamRev?: string) => ({ upstreamRev } as DiffData);
 

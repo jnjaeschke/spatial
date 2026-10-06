@@ -4,10 +4,10 @@ import { setLevel } from "./canvas.ts";
 test.describe.configure({ mode: "serial" });
 
 async function openNarrated(page: Page, request: APIRequestContext): Promise<void> {
-  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; repo: string }[];
+  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
   const title = `decisions-${crypto.randomUUID()}`;
-  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.repo, title } });
+  await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: fixture.worktree, title } });
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: title }).click();
   await page.getByRole("button", { name: "Narrate" }).click();

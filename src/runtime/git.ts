@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { promisify } from "node:util";
 import type { Commit, Session } from "../shared/types.ts";
 import type { Store } from "./store.ts";
@@ -82,13 +83,20 @@ export function makeGit(repo: string): GitCapability {
   };
 }
 
-/** Creates a session after validating that `repo` is inside a git work tree. */
-export async function createSession(store: Store, repo: string, title: string): Promise<Session> {
-  let toplevel: string;
+/** Worktree toplevel and repo identity of `path`. Throws `Not a git repository` outside a work tree (bare repos included). */
+export async function resolveRepo(path: string): Promise<{ worktree: string; repoDir: string }> {
+  let out: string;
   try {
-    toplevel = (await git(repo, ["rev-parse", "--show-toplevel"])).trim();
+    out = await git(path, ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"]);
   } catch {
-    throw new Error(`Not a git repository: ${repo}`);
+    throw new Error(`Not a git repository: ${path}`);
   }
-  return store.createSession(toplevel, title);
+  const [worktree, commonDir] = out.trim().split("\n");
+  if (!worktree || !commonDir) throw new Error(`Not a git repository: ${path}`);
+  return { worktree, repoDir: realpathSync(commonDir) };
+}
+
+/** Creates a session in the worktree containing `path`. */
+export async function createSession(store: Store, repo: string, title: string): Promise<Session> {
+  return store.createSession({ ...(await resolveRepo(repo)), title });
 }

@@ -7,7 +7,7 @@ import { RevisionWatcher } from "../../src/runtime/revision-watcher.ts";
 
 function setup() {
   const store = new Store(":memory:");
-  const session = store.createSession("/repo", "test");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   let currentSha = "H1";
   let resolves = 0;
   const runtime = new Runtime({
@@ -81,7 +81,7 @@ test("watch subscriptions are reference counted and running imports suppress not
 
 test("watchedSessions returns distinct ids until the last subscription is released", () => {
   const x = setup();
-  const other = x.store.createSession("/other", "other");
+  const other = x.store.createSession({ worktree: "/other", repoDir: "/other/.git", title: "other" });
   const releaseOne = x.watcher.watch(x.session.id);
   const releaseTwo = x.watcher.watch(x.session.id);
   const releaseOther = x.watcher.watch(other.id);
@@ -97,7 +97,7 @@ test("watchedSessions returns distinct ids until the last subscription is releas
 
 test("resolve errors are swallowed and logged once until the message changes", async () => {
   const store = new Store(":memory:");
-  const session = store.createSession("/repo", "test");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   const runtime = new Runtime({ store, tasks: [], llm: {} as never, webspec: {} as never, searchfox: {} as never,
     git: () => ({ resolve: async () => { throw new Error("missing ref"); } } as unknown as GitCapability) });
   const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: { baseSha: "B", headSha: "H1", commits: [], files: [] }, provenance: { taskId: "test" } });

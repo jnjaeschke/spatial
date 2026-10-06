@@ -40,7 +40,7 @@ const slow = defineTask<null, string>({
 function setup() {
   const store = new Store(":memory:");
   const rt = new Runtime({ store, tasks: [echo, boom, slow], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
   return { store, rt, session, events };
@@ -77,7 +77,7 @@ test("repo context errors fail the task and emit task.failed", async () => {
     store, tasks: [echo], llm: fakeLlm, git: () => fakeGit, webspec, searchfox,
     repoContext: () => { throw new Error("bad repo context"); },
   });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
   const { taskId, done } = rt.start(session.id, "echo", { v: "hi" });

@@ -27,7 +27,7 @@ test("FTS search scopes to session, filters kinds, and reports syntax errors", (
 
 test("Runtime backfills old artifacts once and search does not duplicate hits", () => {
   const store = new Store(":memory:");
-  const session = store.createSession("/repo", "session");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "session" });
   store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: {
     diffId: "D", summary: "Backfill marker searchable", changes: [],
   }, provenance });

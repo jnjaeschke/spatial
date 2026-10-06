@@ -2,11 +2,13 @@
 
 export type Id = string;
 
-/** The user's durable unit of work inside a repo. */
+/** The user's durable unit of work. Grouped by repo (`repoDir`); runs in one worktree of it. */
 export interface Session {
   id: Id;
-  /** Absolute path of the repo toplevel. */
-  repo: string;
+  /** Absolute toplevel of the git worktree the session runs in. */
+  worktree: string;
+  /** Repo identity: absolute, symlink-resolved `git rev-parse --git-common-dir`, shared by all worktrees of a repo. */
+  repoDir: string;
   title: string;
   createdAt: string;
 }

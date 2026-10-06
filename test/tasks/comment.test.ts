@@ -21,7 +21,7 @@ function setup(reply: unknown) {
   };
   const rt = new Runtime({ store, tasks: [comment], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const finding = store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed",
     data: { anchor: "diff#f0h0", quote: "mFlag = true", lines: { path: "dom/A.cpp", side: "new", start: 8, end: 8 },
       category: "correctness", severity: "high", title: "Flag never reset", body: "The flag remains set after teardown." } satisfies ReviewFindingData,

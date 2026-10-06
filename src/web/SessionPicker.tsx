@@ -14,7 +14,7 @@ export function SessionPicker() {
   useEffect(() => { api.sessions().then(setSessions, (e: Error) => setError(e.message)); }, []);
   return <div className="empty session-picker">
     <header><h2>Sessions</h2><TextSizeControl /><ThemeToggle /></header>
-    <ul className="session-list">{sessions?.map((s) => <li key={s.id}><a href={`?session=${s.id}`}>{s.title}</a> <code>{s.repo}</code></li>)}</ul>
+    <ul className="session-list">{sessions?.map((s) => <li key={s.id}><a href={`?session=${s.id}`}>{s.title}</a> <code>{s.worktree}</code></li>)}</ul>
     <form className="new-session" onSubmit={(e) => {
       e.preventDefault();
       api.createSession(repo, title || repo).then((s) => open(s.id), (err: Error) => setError(err.message));

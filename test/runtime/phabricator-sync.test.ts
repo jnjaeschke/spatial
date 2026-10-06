@@ -20,7 +20,7 @@ const inlineTx = (id: number, done: boolean) => ({
 
 function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[]; pages?: unknown[] } = {}) {
   const store = new Store(":memory:");
-  const session = store.createSession("/repo", "test");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   const body = opts.trailer === false ? "" : "Differential Revision: https://phab.example.com/D1";
   const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: {
     baseSha: "B", headSha: "H", commits: [{ sha: "H", subject: "change", body }], files: [],

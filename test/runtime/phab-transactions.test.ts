@@ -57,7 +57,7 @@ const remote = (patch: Partial<RemoteComment> = {}): RemoteComment => ({ phid: "
 
 test("storeRemoteComments is idempotent, revises edits and done toggles, and identifies our posts", () => {
   const store = new Store(":memory:");
-  const session = store.createSession("/repo", "test");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   const first = storeRemoteComments(store, session.id, 7, [remote()], new Map([["U", "alice"]]), { phid: "U", posted: [] });
   assert.equal(first.length, 1);
   assert.equal(first[0]?.data.done, false);

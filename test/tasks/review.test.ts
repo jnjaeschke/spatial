@@ -35,7 +35,7 @@ function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
     ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       instructions: repoPrompt ? "Review by repo rules." : null,
       skills: repoPrompt ? [{ name: "review-skill", description: "Review changes." }] : [] }) } : {}) });
-  const session = store.createSession("/repo", "t");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "x" } }).id;
   const narrativeId = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: {
     diffId, summary: "s", changes: [

@@ -6,7 +6,7 @@
 
 # Interface: Session
 
-The user's durable unit of work inside a repo.
+The user's durable unit of work. Grouped by repo (`repoDir`); runs in one worktree of it.
 
 ## Properties
 
@@ -22,14 +22,22 @@ The user's durable unit of work inside a repo.
 
 ***
 
-### repo
+### repoDir
 
-> **repo**: `string`
+> **repoDir**: `string`
 
-Absolute path of the repo toplevel.
+Repo identity: absolute, symlink-resolved `git rev-parse --git-common-dir`, shared by all worktrees of a repo.
 
 ***
 
 ### title
 
 > **title**: `string`
+
+***
+
+### worktree
+
+> **worktree**: `string`
+
+Absolute toplevel of the git worktree the session runs in.

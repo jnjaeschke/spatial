@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { makeGit, createSession } from "../../src/runtime/git.ts";
+import { makeGit, createSession, resolveRepo } from "../../src/runtime/git.ts";
 import { parseUnifiedDiff } from "../../src/runtime/diff-parse.ts";
 import { attribute } from "../../src/runtime/attribution.ts";
 import { findRewrites } from "../../src/runtime/rewrites.ts";
@@ -94,12 +94,28 @@ test("replay rebases a patch and reports conflicted paths", async () => {
   assert.deepEqual((await makeGit(conflict.dir).replay(oldBase, movedBase, conflictHead)).conflicts, ["a.txt"]);
 });
 
-test("createSession stores repo toplevel and rejects non-repos", async () => {
+// REQUIRES_REAL_GIT
+test("createSession stores worktree and repo identity and rejects non-repos", async () => {
   const r = makeRepo();
   r.commit({ "sub/x.txt": "x" }, "c");
   const store = new Store(":memory:");
   const s = await createSession(store, join(r.dir, "sub"), "t");
-  assert.equal(s.repo, realpathSync(r.dir));
+  assert.equal(s.worktree, realpathSync(r.dir));
+  assert.equal(s.repoDir, realpathSync(join(r.dir, ".git")));
   const notRepo = mkdtempSync(join(tmpdir(), "norepo-"));
   await assert.rejects(createSession(store, notRepo, "t"), /Not a git repository/);
+});
+
+// REQUIRES_REAL_GIT
+test("resolveRepo identifies linked worktrees and rejects bare repositories", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "x" }, "initial");
+  const wt = join(mkdtempSync(join(tmpdir(), "worktree-")), "checkout");
+  r.git("worktree", "add", "-q", wt, "-b", "wt");
+  const main = await resolveRepo(r.dir);
+  assert.deepEqual(await resolveRepo(wt), { worktree: realpathSync(wt), repoDir: main.repoDir });
+
+  const bare = join(mkdtempSync(join(tmpdir(), "bare-")), "repo.git");
+  r.git("clone", "--bare", r.dir, bare);
+  await assert.rejects(resolveRepo(bare), /Not a git repository/);
 });

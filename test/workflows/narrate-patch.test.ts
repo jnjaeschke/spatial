@@ -49,7 +49,7 @@ test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted
   assert.equal(rt.store.listTasks(session.id).at(-1)?.kind, "review");
   assert.ok(types.includes("llm.usage"));
   const call = JSON.parse(readFileSync(process.env.FAKE_LLM_LOG!, "utf8").trim().split("\n")[0]);
-  assert.equal(call.cwd, session.repo);
+  assert.equal(call.cwd, session.worktree);
 });
 
 test("narratePatch can narrate an existing Diff without importing another", async () => {
@@ -100,7 +100,7 @@ test("CLI reports bad usage and task failures on stderr with exit 1", () => {
       return { code: err.status, stderr: err.stderr };
     }
   };
-  const bad = run(["narrate", r.dir, "HEAD"]);
+  const bad = run(["narrate", r.dir, "HEAD", "--db", join(dir, "bad-usage.sqlite")]);
   assert.equal(bad.code, 1);
   assert.match(bad.stderr, /Range must be <base>\.\.<head>/);
   const fail = run(["narrate", r.dir, "HEAD..HEAD~1", "--db", join(dir, "x.sqlite")]);
