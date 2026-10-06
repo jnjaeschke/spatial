@@ -31,8 +31,8 @@ function inlineTx(id: number, path: string, line: number, body: string, options:
   return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: "PHID-USER-alice", objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: options.phid ?? `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: options.diffId, phid: `PHID-DIFF-${options.diffId}` }, path, line, length: 1, isNewFile: options.isNewFile ?? true, replyToCommentPHID: null, isDone: options.isDone ?? false, hasSuggestion: false, suggestionText: null } };
 }
 
-function commentTx(id: number, body: string) {
-  return { id, phid: `PHID-XACT-${id}`, type: "comment", authorPHID: "PHID-USER-alice", objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id, dateModified: id, removed: false, content: { raw: body } }], fields: {} };
+function commentTx(id: number, body: string, author = "alice") {
+  return { id, phid: `PHID-XACT-${id}`, type: "comment", authorPHID: `PHID-USER-${author}`, objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: `PHID-USER-${author}`, dateCreated: id, dateModified: id, removed: false, content: { raw: body } }], fields: {} };
 }
 
 async function configure(request: APIRequestContext, revision: number, value: object) {
@@ -175,4 +175,35 @@ test("remote inline whose line is gone after an amend is listed as outdated", as
   await summary.getByLabel("Expand").click();
   await expect(summary).toContainText("alice");
   await expect(summary).toContainText("Why THIRTY?");
+});
+
+test("comments render as Markdown; bot comments are collapsed to a preview; long comments are clamped", async ({ page, request }) => {
+  const ids = newRevision();
+  const longBody = Array.from({ length: 40 }, (_, i) => `Long comment line ${i + 1}`).join("\n\n");
+  const botBody = "The analysis task [lint](https://example.com/lint) failed.\n\n## Details\n\nMore details.";
+  await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [
+    commentTx(190, botBody, "reviewbot"), commentTx(191, "This is **important** feedback"), commentTx(192, longBody),
+  ] }));
+  const summary = page.getByTestId("summary");
+  const bot = summary.getByTestId("phab-comment").filter({ hasText: "@reviewbot" });
+  await expect(bot).toBeVisible({ timeout: 10_000 });
+  await expect(bot.locator(".phab-bot")).toHaveText("bot");
+  await expect(bot.locator(".phab-preview")).toHaveText("The analysis task lint failed.");
+  await expect(bot.locator("a")).toHaveCount(0);
+  await bot.getByLabel("Expand comment").click();
+  await expect(bot.locator("h2")).toHaveText("Details");
+  const link = bot.locator("a");
+  await expect(link).toHaveText("lint");
+  await expect(link).toHaveAttribute("target", "_blank");
+  const important = summary.getByTestId("phab-comment").filter({ hasText: "important" });
+  await expect(important.locator("strong").filter({ hasText: "important" })).toBeVisible();
+  await expect(important.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  const long = summary.getByTestId("phab-comment").filter({ hasText: "Long comment line 1" });
+  await expect(long.getByRole("button", { name: "Show more" })).toBeVisible();
+  await expect(long.locator(".phab-body")).toHaveClass(/clamped/);
+  await long.getByRole("button", { name: "Show more" }).click();
+  await expect(long.getByRole("button", { name: "Show less" })).toBeVisible();
+  await expect(long.locator(".phab-body")).not.toHaveClass(/clamped/);
+  await page.reload();
+  await expect(summary.getByTestId("phab-comment").filter({ hasText: "@reviewbot" }).locator("h2")).toHaveText("Details", { timeout: 10_000 });
 });

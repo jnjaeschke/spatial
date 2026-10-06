@@ -111,7 +111,7 @@ test("sessionOverview lists carried findings and marks outdated locations", () =
 });
 
 test("Phabricator comments render, search, and appear in session overview", () => {
-  const root = artifact("PC", "PhabComment", { revision: 1, phid: "PHID-XCMT-1", version: 2, author: "alice", body: "updated root", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, own: false, done: true, txId: 10, dateCreated: 10 });
+  const root = artifact("PC", "PhabComment", { revision: 1, phid: "PHID-XCMT-1", version: 2, author: "alice", bot: false, body: "updated root", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, own: false, done: true, txId: 10, dateCreated: 10 });
   const old = artifact("PC0", "PhabComment", { ...root.data, version: 1, body: "old root", done: false, txId: 8 });
   const reply = artifact("PCR", "PhabComment", { ...root.data, phid: "PHID-XCMT-2", version: 1, body: "reply", replyTo: "PHID-XCMT-1", done: false, txId: 11 });
   const state: SessionView = { artifacts: [diff, narrative, old, root, reply], links: [] };

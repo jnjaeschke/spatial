@@ -6,7 +6,7 @@
 
 # Interface: PhabCommentData
 
-A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact.
+A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact. `bot` is set when the username ends in "bot": Phabricator roles do not distinguish bots.
 
 ## Properties
 
@@ -19,6 +19,12 @@ A comment imported from Phabricator. Provenance is runtime verified; a newer ver
 ### body
 
 > **body**: `string`
+
+***
+
+### bot
+
+> **bot**: `boolean`
 
 ***
 

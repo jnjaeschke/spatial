@@ -82,3 +82,12 @@ test("storeRemoteComments is idempotent, revises edits and done toggles, and ide
   assert.equal(storeRemoteComments(store, session.id, 7, [remote({ phid: "fallback", authorPHID: "UNKNOWN" })], new Map(), { phid: "U", posted: [] })[0]?.data.author, "UNKNOWN");
   store.close();
 });
+
+test("storeRemoteComments marks bot authors by username", () => {
+  const store = new Store(":memory:");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
+  const authors = new Map([["B1", "reviewbot"], ["B2", "reviewhelper-bot"], ["B3", "ReviewBOT"], ["H", "abbott"], ["R", "robotics"]]);
+  const stored = storeRemoteComments(store, session.id, 7, ["B1", "B2", "B3", "H", "R", "UNKNOWN"].map((authorPHID) => remote({ phid: authorPHID, authorPHID })), authors, { phid: "U", posted: [] });
+  assert.deepEqual(stored.map((a) => a.data.bot), [true, true, true, false, false, false]);
+  store.close();
+});

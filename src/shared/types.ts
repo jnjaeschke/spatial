@@ -164,9 +164,9 @@ export interface PostedCommentData { comment: Id; revision: number; diff: number
 /** The Phabricator diff matching a local Diff while it was the session head, and the revision's newest diff. */
 export interface PhabSyncData { revision: number; matchingDiffId: number | null; latestDiffId: number | null; localDiff: Id }
 
-/** A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact. */
+/** A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact. `bot` is set when the username ends in "bot": Phabricator roles do not distinguish bots. */
 export interface PhabCommentData {
-  revision: number; phid: string; version: number; author: string; body: string; path?: string; line?: number; length?: number;
+  revision: number; phid: string; version: number; author: string; bot: boolean; body: string; path?: string; line?: number; length?: number;
   diffId?: number; isNewFile?: boolean; replyTo?: string; own: boolean; done: boolean; txId: number; dateCreated: number;
 }
 

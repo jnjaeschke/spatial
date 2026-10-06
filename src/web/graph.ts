@@ -47,6 +47,8 @@ export interface SummaryNodeData {
   sessionId: Id;
   sinceEpoch: number | null;
   phabGeneral: Artifact<PhabCommentData>[];
+  /** First artifact id of every comment listed here, by `phid`; keys the comment's collapse state. */
+  phabAnchors: Record<string, Id>;
   phabUnanchored: { diffId: number | null; oldSide: boolean; outdatedEpoch: number | null; comments: Artifact<PhabCommentData>[] }[];
 }
 
@@ -99,6 +101,7 @@ export interface PhabNodeData {
   done: boolean;
   fromEpoch: number | null;
   comments: Artifact<PhabCommentData>[];
+  phabAnchors: Record<string, Id>;
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
@@ -110,6 +113,12 @@ export interface GraphEdge { id: string; source: string; target: string }
 type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 /** The graph without collapsed quoted satellites (chat threads, findings): they live on as a highlight of their quote. */
+export const phabCommentCollapseId = (anchorId: Id) => `phab-comment:${anchorId}`;
+
+function phabAnchorsOf(artifacts: Artifact[], comments: Artifact<PhabCommentData>[]): Record<string, Id> {
+  return Object.fromEntries(comments.map((comment) => [comment.data.phid, phabAnchorId(artifacts, comment.data.phid)!]));
+}
+
 export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, collapsed: ReadonlySet<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const hidden = new Set(g.nodes.filter((n) => ((n.data.kind === "chat" && n.data.threadId !== null) || (n.data.kind === "finding" && n.data.decision !== "dismissed")) && n.data.quote && collapsed.has(n.id)).map((n) => n.id));
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
@@ -133,7 +142,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const nodes: GraphNode[] = [{
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, sessionId: narrative.sessionId,
-      sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabUnanchored: [] },
+      sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [] },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {
@@ -250,13 +259,14 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
   const phab = phabView(state.artifacts, latest.diff, latest.narrative.data);
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
+  summary.phabAnchors = phabAnchorsOf(state.artifacts, [...phab.general, ...phab.unanchored.flatMap((group) => group.comments)]);
   for (const remote of phab.anchored) {
     const node = resolve(remote.anchor);
     if (!node) continue;
     const thread = threads.find((item) => item.data.anchor === remote.anchorId);
     if (thread) { hostOf.set(thread.id, remote.anchorId); nodeIds.add(thread.id); }
     g.nodes.push({ id: remote.anchorId, anchors: [node], data: {
-      kind: "phab", ...remote, diffId: latest.diff.id,
+      kind: "phab", ...remote, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id,
       hunks: allHunks, thread: thread ? threadContent(state, thread) : null,
     } });
     g.edges.push({ id: `${remote.anchorId}->${node}`, source: remote.anchorId, target: node });
@@ -348,16 +358,20 @@ export function placeSatellites(main: Map<string, { x: number; y: number; width:
 
 const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text.length / charsPerLine));
 
+/** Bot comments start collapsed to one preview line; long comments are clamped to 12 lines. */
+const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30 + (comment.bot ? 1 : Math.min(lines(comment.body, charsPerLine), 12)) * 20;
+
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: 140 + Math.max(1, data.messages.length) * 120 };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
-  if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.comments.map((item) => item.data.body).join("\n"), 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
+  if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   if (data.kind === "chat") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];
   if (data.kind === "summary") {
-    return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 };
+    const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
+    return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight };
   }
   if (level === "patch") return { width, height: 60 + lines(data.change.title, 20) * 36 };
   const concept = 60 + (lines(data.change.explanation, 55) + lines(data.change.rationale, 55)) * 22 + data.files.length * 20;

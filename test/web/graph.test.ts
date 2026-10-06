@@ -215,7 +215,7 @@ test("sessionGraph adds spec satellites anchored to supported changes", () => {
 });
 
 test("sessionGraph hosts anchored Phabricator comments and their chat thread", () => {
-  const remote = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", body: "remote", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 } };
+  const remote = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, body: "remote", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 } };
   const sync = { id: "PS", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 7, latestDiffId: 7, localDiff: "D" } };
   const thread = { id: "T-PC", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "turn" }, data: { anchor: "PC" } };
   const msg = { id: "M-PC", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "turn" }, data: { role: "assistant" as const, text: "answer" } };
@@ -230,7 +230,7 @@ test("sessionGraph hosts anchored Phabricator comments and their chat thread", (
 
 test("sessionGraph exposes remote comments in summary data and carries root done state", () => {
   const withRevision = { ...diff, data: { ...diff.data, commits: [{ sha: "1", subject: "Bug 1", body: "Differential Revision: https://phab.example.com/D1" }] } };
-  const root = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", body: "inline", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: true, txId: 1, dateCreated: 1 } };
+  const root = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, body: "inline", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: true, txId: 1, dateCreated: 1 } };
   const general = { ...root, id: "PG", data: { ...root.data, phid: "PHID-XCMT-2", body: "general", path: undefined, line: undefined, diffId: undefined, isNewFile: undefined, done: false } };
   const outdated = { ...root, id: "PO", data: { ...root.data, phid: "PHID-XCMT-3", body: "outdated", path: "b.h", diffId: 9 } };
   const previousSync = { id: "PS1", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 9, latestDiffId: 9, localDiff: "D" } };

@@ -3,9 +3,9 @@ import {
   Background, Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
-import type { ModelsResponse, SessionState } from "../shared/types.ts";
+import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
+import { estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, phabCommentCollapseId, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
@@ -18,6 +18,8 @@ import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
+
+const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
 const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode };
 
@@ -62,9 +64,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     return g;
   }, [state, drafts]);
   const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => n.data.kind === "finding" && n.data.collapsedByDefault ? [n.id]
-    : n.data.kind === "phab" && n.data.done ? [n.id]
-      : n.data.kind === "summary" ? n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`)
-        : [])), [graph]);
+    : n.data.kind === "phab" ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
+      : n.data.kind === "summary" ? [
+        ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
+        ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
+      ] : [])), [graph]);
   const { collapsed, toggle, expandAll } = useCollapsed(state.session.id, defaults);
   const shown = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());

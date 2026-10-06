@@ -4,6 +4,7 @@ import type { SummaryNodeData, ZoomLevel } from "../graph.ts";
 import { InlineText } from "../InlineText.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { api } from "../api.ts";
+import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
@@ -36,7 +37,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}
         {data.level !== "patch" && data.phabGeneral.length > 0 && <section className="phab-summary">
           <h4>Phabricator comments</h4>
-          <ul>{data.phabGeneral.map((comment) => <li key={comment.id}>@{comment.data.author}: {comment.data.body} {comment.data.done && <span className="badge phab-done">Done</span>}</li>)}</ul>
+          <ul className="phab-comments">{data.phabGeneral.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} /></li>)}</ul>
         </section>}
         {data.level !== "patch" && data.phabUnanchored.map((group, index) => {
           const id = group.outdatedEpoch === null ? null : `phab-outdated:${group.outdatedEpoch}`;
@@ -46,7 +47,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
               : `Phabricator comments${group.diffId === null ? " (not matching local)" : ` (diff ${group.diffId}, not matching local)`}`;
           return <section className="phab-summary" key={`${group.diffId}:${group.oldSide}:${group.outdatedEpoch}:${index}`}>
             <h4>{title}{id !== null && collapse && <button aria-label={closedGroup ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(id)}>{closedGroup ? "▸" : "▾"}</button>}</h4>
-            {!closedGroup && <ul>{group.comments.map((comment) => <li key={comment.id}>{comment.data.path}:{comment.data.line} · @{comment.data.author}: {comment.data.body} {comment.data.done && <span className="badge phab-done">Done</span>}</li>)}</ul>}
+            {!closedGroup && <ul className="phab-comments">{group.comments.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} where={`${comment.data.path}:${comment.data.line}`} /></li>)}</ul>}
           </section>;
         })}
         {data.level !== "patch" && (data.drafts.length > 0 || data.skipped > 0) && <div className="post-drafts-row">

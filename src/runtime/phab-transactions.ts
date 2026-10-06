@@ -68,8 +68,9 @@ export function storeRemoteComments(store: Store, sessionId: Id, revision: numbe
     if (previous && (comment.version < previous.data.version || (comment.version === previous.data.version && previous.data.done === done))) continue;
     const isOwnAuthor = comment.authorPHID === own.phid;
     const isOwn = isOwnAuthor && own.posted.some((item) => item.body === comment.body && (comment.path === undefined || item.path === comment.path));
+    const author = authors.get(comment.authorPHID) ?? comment.authorPHID;
     const data: PhabCommentData = {
-      revision, phid: comment.phid, version: comment.version, author: authors.get(comment.authorPHID) ?? comment.authorPHID,
+      revision, phid: comment.phid, version: comment.version, author, bot: /bot$/i.test(author),
       body: comment.body, ...(comment.path !== undefined ? { path: comment.path } : {}), ...(comment.line !== undefined ? { line: comment.line } : {}),
       ...(comment.length !== undefined ? { length: comment.length } : {}), ...(comment.diffId !== undefined ? { diffId: comment.diffId } : {}),
       ...(comment.isNewFile !== undefined ? { isNewFile: comment.isNewFile } : {}), ...(comment.replyTo ? { replyTo: comment.replyTo } : {}),
