@@ -99,12 +99,16 @@ export function latestNarrative(state: SessionState): { narrative: Artifact<Patc
 }
 
 export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Artifact<DiffData>, artifacts: Artifact[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const previousNarrative = narrative.data.previous
+    ? artifacts.find((a) => a.id === narrative.data.previous && a.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined
+    : undefined;
+  if (narrative.data.previous && !previousNarrative) throw new Error(`Previous narrative ${narrative.data.previous} is missing or invalid`);
   const byHunk = new Map(diff.data.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, { file, hunk }] as const)));
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, revision: phabRevision(diff.data), pendingComments: 0, sessionId: narrative.sessionId,
-      sinceEpoch: narrative.data.previous ? (() => { const previous = artifacts.find((a) => a.id === narrative.data.previous && a.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined; return previous ? epochNumber(artifacts, previous.data.diffId) : null; })() : null },
+      sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null },
   }];
   const edges: GraphEdge[] = [];
   for (const change of narrative.data.changes) {

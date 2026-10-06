@@ -7,7 +7,7 @@ export interface PostableComment {
   lines?: ChatThreadData["lines"];
 }
 
-/** Returns each accepted finding's latest verified comment unless that comment was already posted. */
+/** Returns each accepted finding's latest verified comment at its current location, unless it was already posted or the finding is outdated or addressed. */
 export function postableComments(state: { artifacts: Artifact[]; links: Link[] }, narrativeId: string | null): PostableComment[] {
   if (narrativeId === null) return [];
   const linkedTo = (artifactId: string, targetId: string) => state.links.some((link) => link.from === artifactId && link.to === targetId && link.kind === "about");

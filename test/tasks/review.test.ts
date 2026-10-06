@@ -158,11 +158,11 @@ test("epoch two prompt includes carried prior states and only epoch two adds sec
     store.putLink({ sessionId: session.id, from: carry.id, to: id, kind: "about" });
   }
   await run(narrative2.id);
-  assert.match(calls[1].prompt.prompt, /# Prior findings/);
-  assert.match(calls[1].prompt.prompt, /F1 \[accepted\]/);
+  assert.match(calls[1].prompt.prompt, /# Prior findings\n\nF1 \[accepted\]/);
   assert.match(calls[1].prompt.prompt, /Please add a regression test\./);
   assert.match(calls[1].prompt.prompt, /posted to D2/);
   assert.match(calls[1].prompt.prompt, /outdated/);
+  assert.match(calls[1].prompt.prompt, /F2 \[dismissed\] Dismissed finding/);
   assert.match(calls[1].prompt.prompt, /# Change status[\s\S]*c1: modified/);
   assert.doesNotMatch(calls[0].prompt.prompt, /# Prior findings|# Change status/);
   assert.match(calls[1].prompt.system!, /dismissed finding must not come back/);

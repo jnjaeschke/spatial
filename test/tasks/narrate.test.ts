@@ -94,6 +94,7 @@ test("narrate: stores proposed PatchNarrative with provenance and derivedFrom li
   assert.equal(a.type, "PatchNarrative");
   assert.equal(a.status, "proposed");
   assert.deepEqual(a.data, { diffId, ...VALID });
+  assert.ok(a.data.changes.every((item) => (item as { status?: string }).status === undefined));
   assert.deepEqual(a.provenance.llm, sel);
   assert.deepEqual(store.listLinks(session.id).map((l) => [l.from, l.to, l.kind]), [[narrativeId, diffId, "derivedFrom"]]);
   assert.equal(prompts.length, 1);
@@ -102,6 +103,7 @@ test("narrate: stores proposed PatchNarrative with provenance and derivedFrom li
   assert.match(prompts[0].system!, /exactly one change/);
   assert.equal((prompts[0].schema as { type: string }).type, "object");
   assert.equal(prompts[0].prompt, renderDiffForPrompt(DIFF));
+  assert.doesNotMatch(prompts[0].prompt, /# Previous narrative|# Interdiff|\[unchanged\]|\[modified\]|\[new\]/);
 });
 
 test("narrate: passes session and repo MCP servers with read-only tools", async () => {
@@ -169,7 +171,7 @@ test("narrate: wrong artifact type is an error", async () => {
 });
 
 test("narrate update mode: renders prior narrative and interdiff, and computes statuses", async () => {
-  const { store, rt, session, prompts } = setup([{ ...VALID, changes: VALID.changes.map((item) => ({ ...item, status: "new" })) }]);
+  const { store, rt, session, prompts } = setup([{ ...VALID, changes: VALID.changes.map((item) => ({ ...item, status: "bogus" })) }]);
   const previousData = { ...DIFF, files: DIFF.files.filter((file) => file.path !== "test/t.html") };
   const previousDiff = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: previousData, provenance: { taskId: "x" } });
   const previousNarrative = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: previousDiff.id, summary: "Previous", changes: [change("c1", ["f0h0"])] }, provenance: { taskId: "x" } });

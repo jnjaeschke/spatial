@@ -6,7 +6,7 @@ Describe what changed since the previous revision, not the whole patch again. Gr
 
 Rules:
 
-- Every hunk id in the `# Hunks` section appears in exactly one change. Do not invent hunk ids.
+- Every hunk id in the hunks section appears in exactly one change. Do not invent hunk ids.
 - Change ids are `c1`, `c2`, ... in reading order.
 - Group hunks by purpose, not by file. Always split these categories into separate changes: introducing new state or types; propagating or plumbing existing state; changing behavior; API or exposure; tests; mechanical rename or refactor; build or config. Tests for a change belong in their own change, separate from the code they test. Never combine mechanical or structural edits with semantic changes. Within a category, group hunks only when they serve the same conceptual step. A hunk that spans several categories goes into the change of its dominant purpose. When unsure whether to split or merge, split.
 - `title`: short imperative phrase.

@@ -48,12 +48,32 @@ test("carryFindings reanchors visible findings and marks missing quotes outdated
   assert.deepEqual(carryArtifacts[0].data && (carryArtifacts[0].data as FindingCarryData).lines, { path: "a.cpp", side: "new", start: 8, end: 8 });
 
   const d3Data = diff("needle", 12);
+  d3Data.files[0].hunks.push({ id: "f0h1", header: "@@", oldStart: 2, oldLines: 1, newStart: 2, newLines: 1, lines: [{ kind: "add", text: "needle" }] });
   const d3 = put("Diff", d3Data);
   const n3 = put("PatchNarrative", narrativeData(d3.id));
   store.putLink({ sessionId: session.id, from: n3.id, to: d3.id, kind: "derivedFrom" });
   assert.deepEqual(await rt.run(session.id, "carryFindings", { narrativeId: n3.id }), { carried: 4, outdated: 1 });
   const epoch3 = store.listArtifacts(session.id, "FindingCarry").filter((item) => (item.data as FindingCarryData).toDiff === d3.id);
   assert.deepEqual(epoch3.map((item) => (item.data as FindingCarryData).hunkId), ["f0h0", null, "f0h0", "f0h0"]);
+  assert.deepEqual((epoch3[0].data as FindingCarryData).lines, { path: "a.cpp", side: "new", start: 12, end: 12 });
+});
+
+test("a finding without an epoch two carry is not carried into epoch three", async () => {
+  const { store, rt, session, put } = setup();
+  const d1 = put("Diff", diff("needle", 2));
+  const n1 = put("PatchNarrative", narrativeData(d1.id));
+  store.putLink({ sessionId: session.id, from: n1.id, to: d1.id, kind: "derivedFrom" });
+  const finding = put<ReviewFindingData>("ReviewFinding", { anchor: `${d1.id}#f0h0`, quote: "needle", lines: { path: "a.cpp", side: "new", start: 2, end: 2 }, category: "style", severity: "low", title: "f", body: "b" }, "proposed");
+  store.putLink({ sessionId: session.id, from: finding.id, to: n1.id, kind: "derivedFrom" });
+  store.putLink({ sessionId: session.id, from: finding.id, to: `${d1.id}#f0h0`, kind: "about" });
+  const d2 = put("Diff", diff("changed", 8));
+  const n2 = put("PatchNarrative", narrativeData(d2.id));
+  store.putLink({ sessionId: session.id, from: n2.id, to: d2.id, kind: "derivedFrom" });
+  const d3 = put("Diff", diff("needle", 12));
+  const n3 = put("PatchNarrative", narrativeData(d3.id));
+  store.putLink({ sessionId: session.id, from: n3.id, to: d3.id, kind: "derivedFrom" });
+  assert.deepEqual(await rt.run(session.id, "carryFindings", { narrativeId: n3.id }), { carried: 0, outdated: 0 });
+  assert.equal(store.listArtifacts(session.id, "FindingCarry").length, 0);
 });
 
 test("carryFindings returns zero for epoch one", async () => {

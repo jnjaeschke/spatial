@@ -38,7 +38,8 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
       const label = `F${i + 1}`;
       const hunkId = s.anchor?.startsWith(`${diff.id}#`) ? s.anchor.slice(diff.id.length + 1) : null;
       const location = s.outdated ? "outdated" : s.lines ? `${s.lines.path}:${s.lines.start}` : hunkId && diffHunks.has(hunkId)
-        ? `${diffHunks.get(hunkId)!.file.path}:${diffHunks.get(hunkId)!.hunk.newStart}` : "unknown";
+        ? `${diffHunks.get(hunkId)!.file.path}:${diffHunks.get(hunkId)!.hunk.newStart}` : null;
+      if (location === null) throw new Error(`Prior finding ${s.finding.id} has no current location`);
       const lines = [`${label} [${s.status}] ${s.finding.data.title}`, `location: ${location}`, `decision: ${s.decision ?? "none"}`, `category/severity: ${s.finding.data.category}/${s.finding.data.severity}`, `body: ${s.finding.data.body}`];
       if (s.decision === "accepted") {
         const related = view.links.filter((link) => link.kind === "about" && link.to === s.finding.id).map((link) => link.from);
@@ -53,8 +54,9 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
       return lines.join("\n");
     });
     const specIds = [...new Set(view.links.filter((l) => l.kind === "supports" && l.to.startsWith(`${narrativeId}#`)).map((l) => l.from))];
+    const changeStatuses = narrative.data.changes.filter((c) => c.status).map((c) => `- ${c.id}: ${c.status}`);
     const updateSections = narrative.data.previous || priors.length ? [
-      "# Change status", ...narrative.data.changes.filter((c) => c.status).map((c) => `- ${c.id}: ${c.status}`),
+      ...(changeStatuses.length ? ["# Change status", ...changeStatuses] : []),
       ...(priors.length ? ["# Prior findings\n\n" + priorText.join("\n\n")] : []),
     ] : [];
     const prompt = [
@@ -66,7 +68,6 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
     const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     if (!isReply(r.json)) throw new Error(`Review reply is not valid JSON: ${JSON.stringify(r.json)}`);
 
-    const hunks = diffHunks;
     const locate = (f: ReplyFinding): Pick<ReviewFindingData, "anchor" | "quote" | "lines"> | string => {
       const change = narrative.data.changes.find((c) => c.id === f.anchor);
       const inNarrative = narrative.data.changes.some((c) => c.hunkIds.includes(f.anchor));
@@ -77,7 +78,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
       if (/[\r\n]/.test(quote)) return "quote spans lines";
       const pattern = new RegExp(quote.split(/\s+/).map(escape).join("\\s+"));
       for (const hunkId of change ? change.hunkIds : [f.anchor]) {
-        const { file, hunk } = hunks.get(hunkId)!;
+        const { file, hunk } = diffHunks.get(hunkId)!;
         for (const row of numberLines(hunk)) {
           if (!pattern.test(row.text)) continue;
           const side = row.kind === "del" ? "old" : "new";

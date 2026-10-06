@@ -8,7 +8,7 @@
 
 > **postableComments**(`state`, `narrativeId`): [`PostableComment`](../interfaces/PostableComment.md)[]
 
-Returns each accepted finding's latest verified comment unless that comment was already posted.
+Returns each accepted finding's latest verified comment at its current location, unless it was already posted or the finding is outdated or addressed.
 
 ## Parameters
 
