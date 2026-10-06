@@ -1,11 +1,11 @@
-import type { Artifact, DiffData, Id, PatchNarrativeData, PhabCommentData } from "./types.ts";
+import type { Artifact, DiffData, Id, PatchNarrativeData, PhabCommentData, PhabSyncData } from "./types.ts";
 import { numberLines } from "./diff-lines.ts";
 import { epochNumber } from "./epochs.ts";
 import { latestPhabComments, phabAnchorId } from "./phab-comments.ts";
 import { reanchorFinding } from "./reanchor.ts";
 
-interface PhabSyncData { localDiff: Id; matchingDiffId: number | null }
-function latestPhabSync(artifacts: Artifact[], diffArtifactId: Id): Artifact<PhabSyncData> | null {
+/** Latest PhabSync recorded for a local Diff, or null. */
+export function latestPhabSync(artifacts: Artifact[], diffArtifactId: Id): Artifact<PhabSyncData> | null {
   return artifacts.filter((artifact) => artifact.type === "PhabSync" && (artifact.data as PhabSyncData).localDiff === diffArtifactId).at(-1) as Artifact<PhabSyncData> | undefined ?? null;
 }
 

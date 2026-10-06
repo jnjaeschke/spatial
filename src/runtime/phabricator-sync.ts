@@ -1,23 +1,16 @@
-import type { Artifact, DiffData, Id, NotifyPayload, PhabCommentData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
+import type { Artifact, Id, NotifyPayload, PhabCommentData, PhabSyncData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
 import { latestDiff } from "../shared/epochs.ts";
 import { phabRevision } from "../shared/phabricator.ts";
+import { latestPhabSync } from "../shared/phab-anchor.ts";
 import { checkDrift } from "./drift.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
 import { fetchTransactions, storeRemoteComments } from "./phab-transactions.ts";
-import { sessionView, searchDocs, type SearchDoc } from "./render-ref.ts";
+import { sessionView, searchDocs } from "./render-ref.ts";
 import type { Runtime } from "./tasks.ts";
 import type { RevisionWatcher } from "./revision-watcher.ts";
 
 type DiffInfo = { id: number; phid: string };
 type WhoAmI = { phid: string; userName: string };
-
-/** Matching Phabricator diff observed while this local Diff was the session head. */
-export interface PhabSyncData { revision: number; matchingDiffId: number | null; latestDiffId: number | null; localDiff: Id }
-
-/** Latest PhabSync recorded for a local Diff, or null. */
-export function latestPhabSync(artifacts: Artifact[], diffArtifactId: Id): Artifact<PhabSyncData> | null {
-  return artifacts.filter((artifact) => artifact.type === "PhabSync" && (artifact.data as PhabSyncData).localDiff === diffArtifactId).at(-1) as Artifact<PhabSyncData> | undefined ?? null;
-}
 
 /** Slow poll of the Phabricator revision of watched sessions. Imports comments, announces newer diffs. Never touches git or the checkout. */
 export class PhabricatorSyncer {
@@ -154,10 +147,7 @@ export class PhabricatorSyncer {
     for (const artifact of created) {
       this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
       for (const link of newLinks.filter((item) => item.from === artifact.id)) this.#rt.emit(sessionId, "runtime", "link.created", { linkId: link.id, from: link.from, to: link.to, kind: link.kind });
-      const docs = artifact.type === "PhabComment"
-        ? [{ ref: artifact.id, kind: "comment", body: `@${artifact.data.author} ${artifact.data.path ?? ""}\n${artifact.data.body}` }]
-        : searchDocs(view, artifact);
-      this.#rt.store.putSearchDocs(sessionId, artifact.id, docs as SearchDoc[]);
+      this.#rt.store.putSearchDocs(sessionId, artifact.id, searchDocs(view, artifact));
       const old = newLinks.find((item) => item.from === artifact.id && item.kind === "revises");
       if (old) this.#rt.store.putSearchDocs(sessionId, old.to, []);
     }

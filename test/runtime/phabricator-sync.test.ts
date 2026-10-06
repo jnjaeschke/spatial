@@ -4,7 +4,8 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
 import type { DiffData, RuntimeEvent } from "../../src/shared/types.ts";
 import type { ConduitClient } from "../../src/runtime/conduit.ts";
-import { latestPhabSync, PhabricatorSyncer } from "../../src/runtime/phabricator-sync.ts";
+import { PhabricatorSyncer } from "../../src/runtime/phabricator-sync.ts";
+import { latestPhabSync } from "../../src/shared/phab-anchor.ts";
 
 const local = "diff --git a/a.txt b/a.txt\n@@ -1 +1 @@\n-old\n+new\n";
 const remote = (id: number, text = local) => ({ id, phid: `PHID-DIFF-${id}`, text });
