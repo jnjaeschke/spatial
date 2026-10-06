@@ -218,6 +218,18 @@ test("guide Next from a far-away view keeps the zoom level and centers the step"
   expect(Math.abs(box.x + box.width / 2 - (pane.x + pane.width / 2))).toBeLessThan(5);
 });
 
+test("zooming out during a guide move still switches the zoom level", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "code");
+  await page.locator(".canvas").focus();
+  for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowDown");
+  await waitForCanvasSettled(page);
+  await page.getByRole("button", { name: "Next step" }).click();
+  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "zoom out" }).click();
+  await waitForCanvasSettled(page);
+  await expect(page.locator("[data-level]").first()).not.toHaveAttribute("data-level", "code");
+});
+
 test("zooming with the control buttons from the keyboard stops the automatic fit", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("change-c1")).toBeVisible();

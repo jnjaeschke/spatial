@@ -262,7 +262,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         el.classList.toggle("over-collapsed-quote", id !== null && collapsed.has(id));
       });
     };
-    const stopAutoFit = () => { autoFit.current = false; };
+    // User input interrupts a guide flight, whose promise then never resolves.
+    const stopAutoFit = () => { autoFit.current = false; flying.current = false; };
     const leave = () => {
       cancelAnimationFrame(frame);
       setHoveredQuote(null);
@@ -373,6 +374,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       if (!step) return;
       event.preventDefault();
       autoFit.current = false;
+      flying.current = false;
       const vp = rf.getViewport();
       void rf.setViewport({ ...vp, x: vp.x - step.x, y: vp.y - step.y });
     };
