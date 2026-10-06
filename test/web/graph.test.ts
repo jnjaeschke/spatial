@@ -166,10 +166,12 @@ test("estimateSize scales change and finding dimensions", () => {
 });
 
 test("fitMinZoom preserves code level only for enlarged text", () => {
-  assert.deepEqual(fitMinZoom(1), {});
-  assert.deepEqual(fitMinZoom(0.9), {});
-  assert.deepEqual(fitMinZoom(1.15), { minZoom: 0.9 });
-  assert.equal(zoomLevel(fitMinZoom(1.6).minZoom!, "code"), "code");
+  assert.deepEqual(fitMinZoom(1, "code"), {});
+  assert.deepEqual(fitMinZoom(0.9, "code"), {});
+  assert.deepEqual(fitMinZoom(1.15, "code"), { minZoom: 0.9 });
+  assert.deepEqual(fitMinZoom(1.6, "patch"), {});
+  assert.deepEqual(fitMinZoom(1.6, "concept"), {});
+  assert.equal(zoomLevel(fitMinZoom(1.6, "code").minZoom!, "code"), "code");
 });
 
 test("layout: dependents below dependencies, no overlaps, deterministic", () => {

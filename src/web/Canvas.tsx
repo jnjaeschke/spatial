@@ -161,7 +161,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       anchor.current = null;
       autoFit.current = false;
     } else if (autoFit.current) {
-      const fitFloor = fitMinZoom(textScale);
+      const fitFloor = fitMinZoom(textScale, levelRef.current);
       void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
     }
   }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale]);

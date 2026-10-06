@@ -327,8 +327,9 @@ export function estimateSize(data: GraphNodeData, level: ZoomLevel, textScale = 
   return { width: size.width * textScale, height: size.height * textScale };
 }
 
-export function fitMinZoom(textScale: number): { minZoom?: number } {
-  return textScale > 1 ? { minZoom: ZOOM_THRESHOLDS.codeToConcept } : {};
+/** With enlarged text a fit at code level scrolls instead of shrinking into concept level. */
+export function fitMinZoom(textScale: number, level: ZoomLevel): { minZoom?: number } {
+  return textScale > 1 && level === "code" ? { minZoom: ZOOM_THRESHOLDS.codeToConcept } : {};
 }
 
 export function layout(
