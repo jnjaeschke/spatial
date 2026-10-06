@@ -58,8 +58,22 @@ const arcrc = join(dir, "arcrc");
 writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
 process.env.SPATIAL_ARCRC_PATH = arcrc;
 type ConduitInline = { revisionID: number; diffID: number; filePath: string; isNewFile: number; lineNumber: number; lineLength: number; content: string };
-type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; inlines: ConduitInline[] };
+type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; inlines: ConduitInline[]; title?: string; base?: string; parents?: number[]; closed?: boolean };
 const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] }]]);
+const phidOf = (revision: number) => `PHID-DREV-${revision}`;
+const state = (revision: number) => {
+  const existing = conduitStates.get(revision);
+  if (existing) return existing;
+  const created: ConduitState = { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] };
+  conduitStates.set(revision, created);
+  return created;
+};
+const stackGraph = (revision: number, graph: Record<string, string[]> = {}) => {
+  const parents = state(revision).parents ?? [];
+  graph[phidOf(revision)] = parents.map(phidOf);
+  for (const parent of parents) stackGraph(parent, graph);
+  return graph;
+};
 let nextInlineId = 1;
 const defaultRawDiff = await makeGit(repo.dir).diff(base, head);
 const conduit = createServer(async (req, res) => {
@@ -67,11 +81,14 @@ const conduit = createServer(async (req, res) => {
   for await (const chunk of req) body += chunk;
   if (req.method === "POST" && req.url === "/control") {
     const update = JSON.parse(body || "{}");
-    const state = conduitStates.get(update.revision) ?? { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] };
-    if (update.diffs) state.diffs = update.diffs;
-    if (update.transactions) state.transactions = update.transactions;
-    if (update.rawDiffs) state.rawDiffs = update.rawDiffs;
-    conduitStates.set(update.revision, state);
+    const current = state(update.revision);
+    if (update.diffs) current.diffs = update.diffs;
+    if (update.transactions) current.transactions = update.transactions;
+    if (update.rawDiffs) current.rawDiffs = update.rawDiffs;
+    if (update.title !== undefined) current.title = update.title;
+    if (update.base !== undefined) current.base = update.base;
+    if (update.parents !== undefined) current.parents = update.parents;
+    if (update.closed !== undefined) current.closed = update.closed;
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true }));
     return;
   }
@@ -89,10 +106,15 @@ const conduit = createServer(async (req, res) => {
     return;
   }
   const revisionId = Number(params.constraints?.ids?.[0] ?? params.revisionID ?? params.objectIdentifier?.replace("PHID-DREV-", "") ?? params.constraints?.revisionPHIDs?.[0]?.replace("PHID-DREV-", "") ?? 1);
-  const conduitState = conduitStates.get(revisionId) ?? { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] };
-  conduitStates.set(revisionId, conduitState);
-  const result = method === "differential.revision.search" ? { data: [{ phid: `PHID-DREV-${revisionId}` }] }
-    : method === "differential.diff.search" ? { data: conduitState.diffs.map((id) => ({ id, phid: `PHID-DIFF-${id}`, fields: { revisionPHID: `PHID-DREV-${revisionId}` } })) }
+  const conduitState = state(revisionId);
+  const result = method === "differential.revision.search" ? (() => {
+    const ids: number[] = params.constraints?.ids ?? params.constraints?.phids?.map((phid: string) => Number(phid.replace("PHID-DREV-", ""))) ?? [1];
+    return { data: ids.map((id) => {
+      const revisionState = state(id);
+      return { id, phid: phidOf(id), fields: { title: revisionState.title ?? `Revision ${id}`, status: { value: revisionState.closed ? "published" : "needs-review", closed: revisionState.closed ?? false }, stackGraph: stackGraph(id) } };
+    }) };
+  })()
+    : method === "differential.diff.search" ? { data: conduitState.diffs.map((id) => ({ id, phid: `PHID-DIFF-${id}`, fields: { revisionPHID: phidOf(revisionId), dateCreated: 1_700_000_000, refs: conduitState.base ? [{ type: "base", identifier: conduitState.base }] : [] } })) }
       // `getrawdiff` names no revision; diff ids are unique across revisions, as on Phabricator.
       : method === "differential.getrawdiff" ? [...conduitStates.values()].find((state) => state.rawDiffs[params.diffID])?.rawDiffs[params.diffID] ?? (params.diffID === 1 ? defaultRawDiff : defaultRawDiff.replace("THIRTY", "THIRTY-X"))
           : method === "differential.createinline" ? (() => {
