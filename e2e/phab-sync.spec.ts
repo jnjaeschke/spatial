@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 const control = "http://127.0.0.1:4179/control";
@@ -65,6 +66,7 @@ async function openNarratedWithTrailer(page: Page, request: APIRequestContext, r
   await page.getByLabel("head").fill("feature");
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await setLevel(page, "code");
   return { dir, diff };
 }
 

@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,11 +12,7 @@ async function openNarrated(page: Page, request: APIRequestContext): Promise<voi
   await page.getByRole("link", { name: title }).click();
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "concept"; i++) {
-    const level = await page.getByTestId("change-c1").getAttribute("data-level");
-    await page.getByRole("button", { name: level === "code" ? "zoom out" : "zoom in" }).click();
-    await page.waitForTimeout(150);
-  }
+  await setLevel(page, "concept");
 }
 
 test("accept a finding, edit comment, post to Phabricator", async ({ page, request }) => {

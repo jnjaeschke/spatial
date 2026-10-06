@@ -1,15 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
-
-async function zoomUntil(page: Page, button: "zoom in" | "zoom out", level: string) {
-  for (let i = 0; i < 20; i++) {
-    if ((await page.getByTestId("change-c1").getAttribute("data-level")) === level) return;
-    await page.getByRole("button", { name: button }).click();
-    await page.waitForTimeout(150);
-  }
-  throw new Error(`never reached level ${level}`);
-}
 
 async function assertNoOverlap(page: Page) {
   await page.waitForTimeout(400);
@@ -27,17 +19,17 @@ test("semantic zoom swaps representations and relayouts without overlap", async 
   await page.goto(URL);
   await expect(page.getByTestId("change-c1")).toBeVisible();
 
-  await zoomUntil(page, "zoom out", "patch");
+  await setLevel(page, "patch");
   await expect(page.getByText("Introduce pending-commit state")).toBeVisible();
   await expect(page.getByText("Adds mPendingCommit")).toHaveCount(0);
   await assertNoOverlap(page);
 
-  await zoomUntil(page, "zoom in", "concept");
+  await setLevel(page, "concept");
   await expect(page.getByText("Adds mPendingCommit")).toBeVisible();
   await expect(page.getByTestId("hunk-f0h0")).toHaveCount(0);
   await assertNoOverlap(page);
 
-  await zoomUntil(page, "zoom in", "code");
+  await setLevel(page, "code");
   await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
   await expect(page.getByTestId("hunk-f1h0").getByText("mPendingCommit = aPending;")).toBeAttached();
   await assertNoOverlap(page);
@@ -45,7 +37,7 @@ test("semantic zoom swaps representations and relayouts without overlap", async 
 
 test("diff text is selectable without panning the canvas", async ({ page }) => {
   await page.goto(URL);
-  await zoomUntil(page, "zoom in", "code");
+  await setLevel(page, "code");
   const hunk = page.getByTestId("hunk-f1h0");
   await hunk.scrollIntoViewIfNeeded();
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
@@ -57,7 +49,7 @@ test("diff text is selectable without panning the canvas", async ({ page }) => {
 
 test("explanation text is selectable without panning", async ({ page }) => {
   await page.goto(URL);
-  await zoomUntil(page, "zoom out", "concept");
+  await setLevel(page, "concept");
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
   await page.getByTestId("change-c1").locator(".explanation").dblclick();
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
@@ -67,7 +59,7 @@ test("explanation text is selectable without panning", async ({ page }) => {
 
 test("spec text is selectable without panning", async ({ page }) => {
   await page.goto(URL);
-  await zoomUntil(page, "zoom out", "concept");
+  await setLevel(page, "concept");
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
   await page.getByTestId("spec-R").locator(".spec-text").dblclick();
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
@@ -80,7 +72,7 @@ const flowX =(page: Page, id: string) =>
 
 test("dragging a node by its title survives relayout until reset", async ({ page }) => {
   await page.goto(URL);
-  await zoomUntil(page, "zoom out", "concept");
+  await setLevel(page, "concept");
   const relX = async () => await flowX(page, "c2") - await flowX(page, "c1");
   const computed = await relX();
   const title = page.getByTestId("change-c2").locator(".title");
@@ -92,7 +84,7 @@ test("dragging a node by its title survives relayout until reset", async ({ page
   const offset = await relX() - computed;
   expect(offset).toBeGreaterThan(50);
 
-  await zoomUntil(page, "zoom in", "code");
+  await setLevel(page, "code");
   await page.waitForTimeout(400);
   const dragged = await relX();
   await page.getByRole("button", { name: "Reset layout" }).click();
@@ -112,7 +104,7 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
     const b = (await page.getByTestId(id).boundingBox())!;
     expect(specBox.x).toBeGreaterThan(b.x + b.width);
   }
-  await zoomUntil(page, "zoom in", "code");
+  await setLevel(page, "code");
   await expect(page.getByTestId("hunk-f1h0").locator("td.ln a").first())
     .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
   await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
@@ -198,11 +190,11 @@ test("minimap shows every node, also those culled from the viewport", async ({ p
   expect(maskFill).not.toBe("rgb(0, 0, 0)");
   const minimapBg = await minimap.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(minimapBg).toBe("rgb(255, 255, 255)");
-  await zoomUntil(page, "zoom out", "patch");
+  await setLevel(page, "patch");
   await page.waitForTimeout(400);
   const all = await page.locator(".react-flow__node").count();
   await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
-  await zoomUntil(page, "zoom in", "code");
+  await setLevel(page, "code");
   await expect.poll(() => page.locator(".react-flow__node").count()).toBeLessThan(all);
   await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
 });

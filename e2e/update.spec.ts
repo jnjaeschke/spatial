@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 
@@ -52,6 +53,7 @@ async function openNarrated(page: Page, request: APIRequestContext) {
   await page.getByLabel("head").fill("feature");
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await setLevel(page, "code");
   return { dir };
 }
 

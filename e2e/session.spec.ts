@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -8,6 +9,7 @@ test("pick session, narrate, see canvas and activity", async ({ page }) => {
   await expect(page.getByText("No narrative yet")).toBeVisible();
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await setLevel(page, "code");
   await expect(page.getByTestId("task-narrate")).toHaveAttribute("data-status", "succeeded");
   await expect(page.getByText("Edits a and adds c.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Narrate" })).toHaveCount(0);
@@ -16,10 +18,7 @@ test("pick session, narrate, see canvas and activity", async ({ page }) => {
 test("expand context around a hunk", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "code"; i++) {
-    await page.getByRole("button", { name: "zoom in" }).click();
-    await page.waitForTimeout(150);
-  }
+  await setLevel(page, "code");
   const hunk = page.getByTestId("hunk-f0h0");
   await expect(hunk.getByText("line 27", { exact: true })).toBeAttached();
   await expect(hunk.getByText("line 26", { exact: true })).toHaveCount(0);
@@ -65,10 +64,7 @@ test("failed narrate shows the error in the activity strip and keeps the canvas"
 test("open the whole file in the side panel", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "code"; i++) {
-    await page.getByRole("button", { name: "zoom in" }).click();
-    await page.waitForTimeout(150);
-  }
+  await setLevel(page, "code");
   await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt" }).click();
   const panel = page.getByTestId("file-panel");
   await expect(panel.getByText("line 1", { exact: true })).toBeAttached();
@@ -83,10 +79,7 @@ test("open the whole file in the side panel", async ({ page }) => {
 test("code span in an explanation opens the file at the matching line", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== "concept"; i++) {
-    await page.getByRole("button", { name: (await page.getByTestId("change-c1").getAttribute("data-level")) === "patch" ? "zoom in" : "zoom out" }).click();
-    await page.waitForTimeout(150);
-  }
+  await setLevel(page, "concept");
   await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
   const focus = page.getByTestId("file-panel").locator("tr.focus");
   await expect(focus).toHaveText(/THIRTY/);

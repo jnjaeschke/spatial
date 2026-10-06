@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 let revisionCount = 0;
@@ -63,12 +64,7 @@ async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>
   await page.getByLabel("head").fill("feature");
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  for (let i = 0; i < 20; i++) {
-    const current = await page.getByTestId("change-c1").getAttribute("data-level");
-    if (current === level) break;
-    await page.getByRole("button", { name: current === "code" ? "zoom out" : "zoom in" }).click();
-    await page.waitForTimeout(150);
-  }
+  await setLevel(page, level);
   await expect(page.getByTestId("change-c1")).toHaveAttribute("data-level", level);
 }
 

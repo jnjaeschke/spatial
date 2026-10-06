@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 test("chat can request a denylisted repo server and enable it for that thread", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; repo: string }[];
@@ -9,9 +10,7 @@ test("chat can request a denylisted repo server and enable it for that thread", 
   await page.getByRole("link", { name: title }).click();
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  for (let i = 0; i < 10 && (await page.getByTestId("change-c1").getAttribute("data-level")) === "patch"; i++) {
-    await page.getByRole("button", { name: "zoom in" }).click();
-  }
+  await setLevel(page, "concept");
   const finding = page.locator('[data-testid^="finding-"]').first();
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await finding.getByLabel("message").fill("ENABLE-DEVTOOLS-PLEASE");

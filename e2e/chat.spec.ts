@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { setLevel } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -14,18 +15,9 @@ async function openNarrated(page: Page, request: APIRequestContext): Promise<str
   return title;
 }
 
-async function zoomTo(page: Page, level: string) {
-  for (let i = 0; i < 20 && (await page.getByTestId("change-c1").getAttribute("data-level")) !== level; i++) {
-    const current = await page.getByTestId("change-c1").getAttribute("data-level");
-    const zoomOut = current === "code" || (current === "concept" && level === "patch");
-    await page.getByRole("button", { name: zoomOut ? "zoom out" : "zoom in" }).click();
-    await page.waitForTimeout(150);
-  }
-}
-
 test("ask about a change: draft, send, stub answer appears and persists", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
   await expect(chat).toBeVisible();
@@ -41,7 +33,7 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(userMessage).toBeVisible();
   await expect(userMessage.locator("p")).toHaveCount(0);
   await page.reload();
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible();
   await answer.locator("p").first().click({ clickCount: 3 });
@@ -50,7 +42,7 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
 
 test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   const input = draft.getByLabel("message");
@@ -67,7 +59,7 @@ test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", as
 
 test("saying an answer is wrong strikes it through", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
   await chat.getByLabel("message").fill("Why?");
@@ -80,14 +72,14 @@ test("saying an answer is wrong strikes it through", async ({ page, request }) =
   await expect(original.locator("del")).toHaveText("Stub answer.", { timeout: 10_000 });
   await expect(original).toContainText("Corrected stub answer.");
   await page.reload();
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   const persisted = page.locator(".msg.assistant").filter({ has: page.locator("del", { hasText: "Stub answer." }) });
   await expect(persisted).toContainText("Corrected stub answer.");
 });
 
 test("a failed first turn shows its error in the chat", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("FAIL-THIS-TURN");
@@ -97,7 +89,7 @@ test("a failed first turn shows its error in the chat", async ({ page, request }
 
 test("ask about a hunk anchors the chat to its change", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "code");
+  await setLevel(page, "code");
   await page.getByRole("button", { name: "Ask about f0h0" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
   await expect(chat).toBeVisible();
@@ -108,7 +100,7 @@ test("ask about a hunk anchors the chat to its change", async ({ page, request }
 
 test("selecting text in a chat opens a chat anchored to the original chat", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const original = page.locator('[data-testid^="chat-draft-"]');
   await original.getByLabel("message").fill("Start a chat");
@@ -131,7 +123,7 @@ test("selecting text in a chat opens a chat anchored to the original chat", asyn
 
 test("selecting text on a change opens a quoted chat; cross-card selection is ignored", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   const explanation = page.locator('[data-testid="change-c1"] .explanation');
   const explanationBox = (await explanation.boundingBox())!;
   await page.mouse.move(explanationBox.x + 3, explanationBox.y + explanationBox.height / 2);
@@ -159,7 +151,7 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
 
 test("selecting diff rows stores the selected line range", async ({ page, request }) => {
   const title = await openNarrated(page, request);
-  await zoomTo(page, "code");
+  await setLevel(page, "code");
   const rows = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)');
   const first = await rows.nth(0).boundingBox();
   const last = await rows.nth(1).boundingBox();
@@ -189,7 +181,7 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
 
 test("a quoted diff chat sits next to the quote and highlights it", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "code");
+  await setLevel(page, "code");
   const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();
   const code = row.locator("td.code");
   const selected = await code.innerText();
@@ -226,20 +218,20 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   await page.mouse.move(5, 5);
   await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(0);
 
-  await zoomTo(page, "concept");
-  await zoomTo(page, "code");
+  await setLevel(page, "concept");
+  await setLevel(page, "code");
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
 });
 
 test("collapse a change and expand it after reload", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   const change = page.getByTestId("change-c1");
   await change.getByRole("button", { name: "Collapse" }).click();
   await expect(change.locator(".explanation")).toBeHidden();
   await expect(change.getByRole("button", { name: "Expand" })).toBeVisible();
   await page.reload();
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
   const reloaded = page.getByTestId("change-c1");
   await expect(reloaded.locator(".explanation")).toBeHidden();
   await reloaded.getByRole("button", { name: "Expand" }).click();
@@ -248,7 +240,7 @@ test("collapse a change and expand it after reload", async ({ page, request }) =
 
 test("a collapsed quoted chat reopens from its highlight", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "code");
+  await setLevel(page, "code");
   const code = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand) td.code').last();
   await code.dblclick();
   const word = await page.evaluate(() => getSelection()!.toString().trim());
@@ -300,7 +292,7 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await expect(finding).toContainText("No test for c");
   await expect(finding.locator(".badge")).toHaveText("medium");
-  await zoomTo(page, "code");
+  await setLevel(page, "code");
   const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("finding-quote") ?? [])].map((r) => (r as Range).toString()))).toEqual(["c"]);
   await expect.poll(() => page.evaluate(() => {
@@ -355,7 +347,7 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
 
 test("a quoted chat aligns to its quote once its unrendered anchor comes into view", async ({ page, request }) => {
   await openNarrated(page, request);
-  await zoomTo(page, "code");
+  await setLevel(page, "code");
   const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();
   await row.locator("td.code").dblclick();
   await page.locator("button.ask-selection").click();
@@ -364,7 +356,7 @@ test("a quoted chat aligns to its quote once its unrendered anchor comes into vi
   await draft.getByRole("button", { name: "Send" }).click();
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible({ timeout: 10_000 });
-  await zoomTo(page, "concept");
+  await setLevel(page, "concept");
 
   const panY = async (dy: number) => {
     const grab = await page.evaluate((dy) => {
