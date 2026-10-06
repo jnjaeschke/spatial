@@ -382,7 +382,7 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ###### kinds?
 
-(`"spec"` \| `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"chat"` \| `"finding"`)[]
+(`"spec"` \| `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"chat"` \| `"finding"` \| `"comment"`)[]
 
 ###### limit?
 

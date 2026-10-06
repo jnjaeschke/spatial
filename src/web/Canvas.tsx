@@ -12,14 +12,15 @@ import { SpecNode } from "./nodes/SpecNode.tsx";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { ChatNode } from "./nodes/ChatNode.tsx";
 import { FindingNode } from "./nodes/FindingNode.tsx";
+import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 
-const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, finding: FindingNode };
+const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, finding: FindingNode, phab: PhabThreadNode };
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
-const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "#bbb", summary: "#888", spec: "#7aa7d6", chat: "#d9a24a", finding: "#e8743b" };
+const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "#bbb", summary: "#888", spec: "#7aa7d6", chat: "#d9a24a", finding: "#e8743b", phab: "#9b78bd" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -68,7 +69,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
     : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
-  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding").map((n) => [n.id, n.anchors ?? []])), [shown]);
+  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" || n.data.kind === "phab").map((n) => [n.id, n.anchors ?? []])), [shown]);
   const edges = useMemo<Edge[]>(() => shown.edges.map((e) => satelliteAnchors.has(e.source)
     ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
     : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
@@ -129,7 +130,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
-      style: { width: n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" ? SATELLITE_WIDTH : NODE_WIDTH[level] },
+      style: { width: n.data.kind === "spec" || n.data.kind === "chat" || n.data.kind === "finding" || n.data.kind === "phab" ? SATELLITE_WIDTH : NODE_WIDTH[level] },
       draggable: true,
       dragHandle: ".title",
     })));

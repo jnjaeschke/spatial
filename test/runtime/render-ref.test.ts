@@ -97,3 +97,17 @@ test("sessionOverview lists carried findings and marks outdated locations", () =
   const overview = sessionOverview(state);
   assert.match(overview, /- F \[high correctness\] Check parser \(location outdated\)/);
 });
+
+test("Phabricator comments render, search, and appear in session overview", () => {
+  const root = artifact("PC", "PhabComment", { revision: 1, phid: "PHID-XCMT-1", version: 2, author: "alice", body: "updated root", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, own: false, done: true, txId: 10, dateCreated: 10 });
+  const old = artifact("PC0", "PhabComment", { ...root.data, version: 1, body: "old root", done: false, txId: 8 });
+  const reply = artifact("PCR", "PhabComment", { ...root.data, phid: "PHID-XCMT-2", version: 1, body: "reply", replyTo: "PHID-XCMT-1", done: false, txId: 11 });
+  const state: SessionView = { artifacts: [diff, narrative, old, root, reply], links: [] };
+  const rendered = renderRef(state, "PC");
+  for (const expected of ["@alice", "D1", "a.txt:30 (new side", "Done: yes", "updated root", "Reply by @alice: reply"]) assert.ok(rendered.includes(expected), expected);
+  assert.match(renderRef(state, "PCR"), /updated root/);
+  assert.deepEqual(searchDocs(state, root), [{ ref: "PC", kind: "comment", body: "@alice a.txt\nupdated root" }]);
+  assert.deepEqual(searchDocs(state, old), []);
+  assert.match(sessionOverview(state), /# Remote comments[\s\S]*- PC @alice \(a.txt:30\), done : updated root/);
+  assert.ok(!sessionOverview({ artifacts: [diff, narrative], links: [] }).includes("# Remote comments"));
+});

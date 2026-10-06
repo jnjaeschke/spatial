@@ -151,6 +151,20 @@ test("sessionGraph adds spec satellites anchored to supported changes", () => {
   assert.equal(sessionGraph(state([diff])), null);
 });
 
+test("sessionGraph hosts anchored Phabricator comments and their chat thread", () => {
+  const remote = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", body: "remote", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 } };
+  const sync = { id: "PS", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 7, latestDiffId: 7, localDiff: "D" } };
+  const thread = { id: "T-PC", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "turn" }, data: { anchor: "PC" } };
+  const msg = { id: "M-PC", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "turn" }, data: { role: "assistant" as const, text: "answer" } };
+  const st = state([diff, narrative("N"), sync, remote, thread, msg]);
+  st.links = [{ id: "reply-pc", sessionId: "S", from: "M-PC", to: "T-PC", kind: "reply" }, { id: "phab-reply", sessionId: "S", from: "T-PC", to: "PC", kind: "about" }];
+  const g = sessionGraph(st)!;
+  const node = g.nodes.find((n) => n.id === "PC");
+  assert.equal(node?.data.kind, "phab");
+  if (node?.data.kind === "phab") assert.deepEqual({ anchors: node.anchors, fromEpoch: node.data.fromEpoch, threadId: node.data.thread?.threadId, message: node.data.thread?.messages[0]?.id }, { anchors: ["N#c1"], fromEpoch: null, threadId: "T-PC", message: "M-PC" });
+  assert.ok(!g.nodes.some((n) => n.id === "T-PC"));
+});
+
 test("sessionGraph exposes unenabled MCP requests per thread", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } };
   const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools" } };

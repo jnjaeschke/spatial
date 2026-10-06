@@ -1,19 +1,25 @@
-import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, Ref, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, PhabCommentData, Ref, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
 import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { latestDiff, narrativeOf } from "../shared/epochs.ts";
 import { findingStates } from "../shared/findings.ts";
+import { latestPhabComments, phabLatest, phabThread } from "../shared/phab-comments.ts";
 
 /** What rendering needs from one session; built from Store lists. */
 export interface SessionView { artifacts: Artifact[]; links: Link[] }
-export interface SearchDoc { ref: Ref; kind: "change" | "summary" | "hunk" | "commit" | "spec" | "chat" | "finding"; body: string }
+export interface SearchDoc { ref: Ref; kind: "change" | "summary" | "hunk" | "commit" | "spec" | "chat" | "finding" | "comment"; body: string }
 
 export function sessionView(store: Store, sessionId: Id): SessionView {
   return { artifacts: store.listArtifacts(sessionId), links: store.listLinks(sessionId) };
 }
 
 export function searchDocs(view: SessionView, artifact: Artifact): SearchDoc[] {
+  if (artifact.type === "PhabComment") {
+    if (phabLatest(view.artifacts, artifact.id)?.id !== artifact.id) return [];
+    const data = artifact.data as PhabCommentData;
+    return [{ ref: artifact.id, kind: "comment", body: `@${data.author} ${data.path ?? ""}\n${data.body}` }];
+  }
   if (artifact.type === "Diff") {
     const diff = artifact.data as DiffData;
     return [
@@ -52,6 +58,13 @@ export function renderRef(view: SessionView, ref: Ref): string {
   const id = parts[0], subId = parts[1];
   const artifact = view.artifacts.find((item) => item.id === id);
   if (!artifact || parts.length > 2) throw new Error("Unknown ref: " + ref);
+  if (artifact.type === "PhabComment" && subId === undefined) {
+    const comments = phabThread(view.artifacts, id);
+    if (!comments.length) throw new Error("Unknown ref: " + ref);
+    const root = comments[0]!.data;
+    const location = root.path ? `Location: ${root.path}:${root.line} (${root.isNewFile ? "new" : "old"} side, diff ${root.diffId})` : "Location: general comment";
+    return [`# Phabricator comment by @${root.author} on D${root.revision}`, location, `Done: ${root.done ? "yes" : "no"}`, root.body, ...comments.slice(1).map((item) => `Reply by @${item.data.author}: ${item.data.body}`)].join("\n\n");
+  }
   const linkedSpecs = (narrativeId: string, changeId: string) => view.artifacts.filter((item) => item.type === "SpecReference" && view.links.some((link) => link.from === item.id && link.to === narrativeId + "#" + changeId && link.kind === "supports"));
   if (artifact.type === "PatchNarrative") {
     const narrative = artifact.data as PatchNarrativeData;
@@ -120,5 +133,11 @@ export function sessionOverview(view: SessionView): string {
     const data = state.finding.data;
     return "- " + state.finding.id + " [" + data.severity + " " + data.category + "] " + data.title + " (" + (state.outdated ? "location outdated" : state.anchor) + ")";
   }).join("\n") || "None";
-  return ["# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings].join("\n\n");
+  const remoteComments = latestPhabComments(view.artifacts).filter((artifact) => !artifact.data.replyTo).map((artifact) => {
+    const data = artifact.data;
+    const location = data.path ? `${data.path}:${data.line}` : "general";
+    const body = data.body.split(/\r?\n/, 1)[0]!.slice(0, 80);
+    return `- ${artifact.id} @${data.author} (${location})${data.done ? ", done" : ""} : ${body}`;
+  });
+  return ["# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings, ...(remoteComments.length ? ["# Remote comments\n" + remoteComments.join("\n")] : [])].join("\n\n");
 }

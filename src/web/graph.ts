@@ -1,11 +1,13 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { phabRevision, type PhabRevision } from "../shared/phabricator.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { epochNumber, latestDiff, narrativeOf } from "../shared/epochs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
+import { phabView } from "../shared/phab-anchor.ts";
+import { phabAnchorId } from "../shared/phab-comments.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
@@ -80,7 +82,21 @@ export interface FindingNodeData extends ReviewFindingData {
   collapsedByDefault: boolean;
 }
 
-export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData;
+export interface PhabNodeData {
+  kind: "phab";
+  anchorId: Id;
+  path: string;
+  line: number;
+  side: "old" | "new";
+  done: boolean;
+  fromEpoch: number | null;
+  comments: Artifact<PhabCommentData>[];
+  diffId: string;
+  hunks: { file: DiffFile; hunk: Hunk }[];
+  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
+}
+
+export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData | PhabNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 
@@ -176,11 +192,11 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
   }
   const nodeIds = new Set(g.nodes.map((n) => n.id));
-  /** Thread id -> finding id, for threads shown inside their finding's box. */
-  const findingOf = new Map<string, string>();
+  /** Thread id -> host node id, for threads shown inside their finding or Phabricator box. */
+  const hostOf = new Map<string, string>();
   const resolve = (anchor: Ref) => {
     const id = anchorNodeId(anchor, latest.narrative.id, latest.narrative.data, latest.diff.id, nodeIds, state.links);
-    return id && (findingOf.get(id) ?? id);
+    return id && (hostOf.get(id) ?? id);
   };
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
@@ -199,13 +215,25 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
     return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(thread.id) };
   };
+  const phab = phabView(state.artifacts, latest.diff, latest.narrative.data);
+  for (const remote of phab.anchored) {
+    const node = resolve(remote.anchor);
+    if (!node) continue;
+    const thread = threads.find((item) => item.data.anchor === remote.anchorId);
+    if (thread) { hostOf.set(thread.id, remote.anchorId); nodeIds.add(thread.id); }
+    g.nodes.push({ id: remote.anchorId, anchors: [node], data: {
+      kind: "phab", ...remote, diffId: latest.diff.id,
+      hunks: allHunks, thread: thread ? threadContent(thread) : null,
+    } });
+    g.edges.push({ id: `${remote.anchorId}->${node}`, source: remote.anchorId, target: node });
+  }
   for (const findingState of findingStates(state, latest.narrative.id)) {
     const finding = findingState.finding;
     const node = resolve(findingState.anchor ?? latest.narrative.id);
     if (!node) continue;
     nodeIds.add(finding.id);
     const thread = threads.find((t) => t.data.anchor === finding.id);
-    if (thread) { findingOf.set(thread.id, finding.id); nodeIds.add(thread.id); }
+    if (thread) { hostOf.set(thread.id, finding.id); nodeIds.add(thread.id); }
     const related = state.links.filter((link) => link.kind === "about" && link.to === finding.id).map((link) => link.from);
     const comment = state.artifacts.filter((a) => a.type === "ReviewComment" && related.includes(a.id)).at(-1) as Artifact<ReviewCommentData> | undefined;
     const posted = comment && (state.artifacts.filter((a) => a.type === "PostedComment") as Artifact<PostedCommentData>[]).find((a) => a.data.comment === comment.id);
@@ -223,7 +251,7 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     g.edges.push({ id: `${finding.id}->${node}`, source: finding.id, target: node });
   }
   for (const thread of threads) {
-    if (findingOf.has(thread.id)) continue;
+    if (hostOf.has(thread.id)) continue;
     const node = resolve(thread.data.anchor);
     if (!node) continue;
     nodeIds.add(thread.id);
@@ -275,6 +303,7 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
+  if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.comments.map((item) => item.data.body).join("\n"), 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   if (data.kind === "chat") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];

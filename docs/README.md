@@ -24,6 +24,7 @@
 - [shared/change-status](shared/change-status/README.md)
 - [shared/epochs](shared/epochs/README.md)
 - [shared/findings](shared/findings/README.md)
+- [shared/phab-anchor](shared/phab-anchor/README.md)
 - [shared/phab-comments](shared/phab-comments/README.md)
 - [shared/phabricator](shared/phabricator/README.md)
 - [shared/postable-comments](shared/postable-comments/README.md)
