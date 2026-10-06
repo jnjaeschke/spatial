@@ -277,7 +277,7 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
   await expect(answer).toBeVisible();
 });
 
-test("a review finding sits next to its quote and opens a chat", async ({ page, request }) => {
+test("a review finding sits next to its quote and is a chat", async ({ page, request }) => {
   await openNarrated(page, request);
   const finding = page.locator('[data-testid^="finding-"]');
   await expect(finding).toBeVisible({ timeout: 15_000 });
@@ -320,16 +320,16 @@ test("a review finding sits next to its quote and opens a chat", async ({ page, 
   await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/);
   await page.mouse.click(point.x, point.y);
   await expect(finding).toBeVisible();
-  await finding.getByRole("button", { name: "Ask about finding" }).click();
-  const draft = page.locator('[data-testid^="chat-draft-"]');
-  await expect(draft).toBeVisible();
-  await draft.getByLabel("message").fill("Why?");
-  await draft.getByRole("button", { name: "Send" }).click();
-  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
-  await expect(answer).toBeVisible({ timeout: 10_000 });
-  const chatBox = (await page.locator(".chat-node").filter({ has: answer }).boundingBox())!;
-  const findingBox = (await finding.boundingBox())!;
-  expect(chatBox.x).toBeGreaterThan(findingBox.x + findingBox.width);
+  await expect(finding.getByRole("button", { name: "Ask about finding" })).toHaveCount(0);
+  await finding.getByLabel("message").fill("Why?");
+  await finding.getByRole("button", { name: "Send" }).click();
+  await expect(finding.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(finding.locator(".msg.user")).toHaveText("Why?");
+  await expect(page.locator(".chat-node")).toHaveCount(0);
+  await finding.getByLabel("message").fill("And?");
+  await finding.getByRole("button", { name: "Send" }).click();
+  await expect(finding.locator(".msg.assistant")).toHaveCount(2, { timeout: 10_000 });
+  await expect(page.locator(".chat-node")).toHaveCount(0);
 });
 
 test("a quoted chat aligns to its quote once its unrendered anchor comes into view", async ({ page, request }) => {

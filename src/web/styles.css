@@ -32,7 +32,7 @@ html, body, #root { margin: 0; height: 100%; }
 .diff-head { font-family: ui-monospace, monospace; font-size: 0.85em; background: #f0f0f0; padding: 4px 8px; }
 .spec-node { border-color: #2e8b57; background: #f2fbf5; }
 .chat-node { border-color: #b26b00; background: #fffaf2; }
-.chat-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.chat-node .messages, .finding-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
 .msg { padding: 6px 8px; border-radius: 6px; }
 .msg.user { white-space: pre-wrap; background: #eef3ff; align-self: flex-end; }
 .msg.assistant { background: #fff; border: 1px solid #eee; }
@@ -49,7 +49,7 @@ html, body, #root { margin: 0; height: 100%; }
 ::highlight(finding-quote-active) { background-color: rgb(255 140 0 / 0.55); }
 .msg.pending { color: #888; }
 .msg-llm { display: block; font-size: 0.7em; color: #999; margin-top: 2px; }
-.chat-node textarea { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; }
+.chat-node textarea, .finding-node textarea { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; }
 .ask { margin-left: 8px; font-size: 0.75em; }
 .spec-node .spec-text { white-space: pre-wrap; max-height: 360px; overflow: auto; font-family: Georgia, serif; }
 .badge { margin-left: 8px; font-size: 0.7em; padding: 1px 6px; border-radius: 8px; }

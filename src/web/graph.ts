@@ -55,6 +55,8 @@ export interface FindingNodeData extends ReviewFindingData {
   findingId: string;
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
+  /** The chat anchored at the finding, shown inside the finding box. */
+  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions"> & { threadId: string } | null;
 }
 
 export type GraphNodeData = ChangeNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | FindingNodeData;
@@ -147,27 +149,38 @@ export function sessionGraph(state: SessionState, drafts: Draft[] = []): { nodes
     for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
   }
   const nodeIds = new Set(g.nodes.map((n) => n.id));
-  const resolve = (anchor: Ref) => anchorNodeId(anchor, latest.narrative.id, latest.narrative.data, latest.diff.id, nodeIds, state.links);
+  /** Thread id -> finding id, for threads shown inside their finding's box. */
+  const findingOf = new Map<string, string>();
+  const resolve = (anchor: Ref) => {
+    const id = anchorNodeId(anchor, latest.narrative.id, latest.narrative.data, latest.diff.id, nodeIds, state.links);
+    return id && (findingOf.get(id) ?? id);
+  };
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
+  const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  const threadContent = (thread: Artifact<ChatThreadData>) => {
+    const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
+      .map((l) => state.artifacts.find((a) => a.id === l.from))
+      .filter((a): a is Artifact<ChatMessageData> => !!a);
+    const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
+    return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions };
+  };
   for (const artifact of state.artifacts) {
     if (artifact.type !== "ReviewFinding") continue;
     const finding = artifact as Artifact<ReviewFindingData>;
     const node = resolve(finding.data.anchor);
     if (!node) continue;
     nodeIds.add(finding.id);
-    g.nodes.push({ id: finding.id, anchors: [node], data: { kind: "finding", findingId: finding.id, ...finding.data, diffId: latest.diff.id, hunks: allHunks } });
+    const thread = threads.find((t) => t.data.anchor === finding.id);
+    if (thread) { findingOf.set(thread.id, finding.id); nodeIds.add(thread.id); }
+    g.nodes.push({ id: finding.id, anchors: [node], data: { kind: "finding", findingId: finding.id, ...finding.data, diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(thread) : null } });
     g.edges.push({ id: `${finding.id}->${node}`, source: finding.id, target: node });
   }
-  const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   for (const thread of threads) {
+    if (findingOf.has(thread.id)) continue;
     const node = resolve(thread.data.anchor);
     if (!node) continue;
     nodeIds.add(thread.id);
-    const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
-      .map((l) => state.artifacts.find((a) => a.id === l.from))
-      .filter((a): a is Artifact<ChatMessageData> => !!a);
-    const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId: latest.diff.id, hunks: allHunks, threadId: thread.id, draftId: null, taskId: thread.provenance.taskId ?? null, messages, revisions } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId: latest.diff.id, hunks: allHunks, ...threadContent(thread), draftId: null } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
@@ -214,7 +227,7 @@ const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
-  if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 };
+  if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
   if (data.kind === "chat") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
   const width = NODE_WIDTH[level];

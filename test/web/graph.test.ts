@@ -215,23 +215,37 @@ test("chat satellites can anchor to spec, another chat, and narrative summary", 
   assert.deepEqual(g.nodes.find((n) => n.id === "T4")?.anchors, ["N"]);
 });
 
-test("sessionGraph adds findings before chats and skips findings from older diffs", () => {
+test("sessionGraph adds findings and skips findings from older diffs", () => {
   const findingData: ReviewFindingData = { anchor: "D#f0h0", quote: "l0", lines: { path: "a.cpp", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Finding", body: "Body" };
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: findingData };
-  const chat = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { anchor: "F" } };
   const stale = { ...finding, id: "F-old", data: { ...findingData, anchor: "OLD#f0h0" } };
-  const g = sessionGraph(state([diff, narrative("N"), finding, chat, stale]))!;
+  const g = sessionGraph(state([diff, narrative("N"), finding, stale]))!;
   const node = g.nodes.find((n) => n.id === "F")!;
   assert.equal(node.data.kind, "finding");
   if (node.data.kind === "finding") assert.deepEqual({ quote: node.data.quote, lines: node.data.lines, severity: node.data.severity }, { quote: "l0", lines: findingData.lines, severity: "high" });
   assert.deepEqual(node.anchors, ["N#c1"]);
   assert.ok(g.edges.some((e) => e.source === "F" && e.target === "N#c1"));
-  assert.deepEqual(g.nodes.find((n) => n.id === "T")?.anchors, ["F"]);
   assert.ok(!g.nodes.some((n) => n.id === "F-old"));
 });
 
+test("a finding's thread lives in the finding node, and chats on its messages anchor to the finding", () => {
+  const findingData: ReviewFindingData = { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" };
+  const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: findingData };
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "5", provenance: { taskId: "turn" }, data: { anchor: "F" } };
+  const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "6", provenance: { taskId: "turn" }, data: { role: "assistant" as const, text: "answer" } };
+  const onMessage = { id: "T2", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "7", provenance: { taskId: "t2" }, data: { anchor: "M" } };
+  const st = state([diff, narrative("N"), finding, thread, msg, onMessage]);
+  st.links = [{ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" }];
+  const g = sessionGraph(st)!;
+  assert.ok(!g.nodes.some((n) => n.id === "T"));
+  const node = g.nodes.find((n) => n.id === "F")!.data;
+  assert.equal(node.kind, "finding");
+  if (node.kind === "finding") assert.deepEqual({ threadId: node.thread?.threadId, taskId: node.thread?.taskId, messages: node.thread?.messages.map((m) => m.id) }, { threadId: "T", taskId: "turn", messages: ["M"] });
+  assert.deepEqual(g.nodes.find((n) => n.id === "T2")?.anchors, ["F"]);
+});
+
 test("visibleGraph hides collapsed quoted findings, but keeps unquoted findings", () => {
-  const finding = (id: string, quote?: string): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body" } });
+  const finding = (id: string, quote?: string): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null } });
   const g = { nodes: [finding("quoted", "l0"), finding("plain")], edges: [{ id: "q", source: "quoted", target: "N#c1" }, { id: "p", source: "plain", target: "N#c1" }] };
   const visible = visibleGraph(g, new Set(["quoted", "plain"]));
   assert.deepEqual(visible.nodes.map((n) => n.id), ["plain"]);
@@ -239,7 +253,7 @@ test("visibleGraph hides collapsed quoted findings, but keeps unquoted findings"
 });
 
 test("estimateSize gives findings the satellite width", () => {
-  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body" };
+  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null };
   assert.deepEqual(estimateSize(data, "concept"), { width: SATELLITE_WIDTH, height: 110 + 20 });
 });
 
