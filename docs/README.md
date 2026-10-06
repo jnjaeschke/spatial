@@ -30,6 +30,7 @@
 - [shared/phab-anchor](shared/phab-anchor/README.md)
 - [shared/phab-comments](shared/phab-comments/README.md)
 - [shared/phabricator](shared/phabricator/README.md)
+- [shared/post-plan](shared/post-plan/README.md)
 - [shared/postable-comments](shared/postable-comments/README.md)
 - [shared/reanchor](shared/reanchor/README.md)
 - [shared/types](shared/types/README.md)

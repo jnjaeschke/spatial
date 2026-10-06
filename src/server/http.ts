@@ -6,11 +6,12 @@ import { createSession } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
 import { postableComments } from "../shared/postable-comments.ts";
+import { postPlan } from "../shared/post-plan.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "../workflows/narrate-patch.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
-import { phabRevision } from "../shared/phabricator.ts";
+import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
@@ -157,73 +158,76 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       const diffArtifact = latestDiff(artifacts);
       if (!diffArtifact) throw new HttpError(409, "Session has no imported diff");
       const diff = diffArtifact.data;
-      const rev = phabRevision(diff);
-      if (!rev) throw new HttpError(409, "The head commit has no Differential Revision trailer");
+      if (!diff.commits.some((commit) => commitRevision(commit) !== null)) {
+        throw new HttpError(409, "No commit of the stack has a Differential Revision trailer");
+      }
       const narrative = narrativeOf(artifacts, diffArtifact.id);
       if (!narrative) throw new HttpError(409, "The latest revision has no narrative");
-
-      let token: string;
-      try { token = readArcToken(rev.host); }
-      catch (e) { throw new HttpError(409, (e as Error).message); }
-
-      const conduit = new ConduitClient(process.env.SPATIAL_CONDUIT_BASE_URL ?? rev.host, token);
-      let revisionPHID: string;
-      let diffID: number;
-      let remote: string;
-      try {
-        const revisionResult = await conduit.call<{ data: { phid: string }[] }>("differential.revision.search", { constraints: { ids: [rev.id] } });
-        const revision = revisionResult.data[0];
-        if (!revision) throw new HttpError(502, `D${rev.id} not found`);
-        revisionPHID = revision.phid;
-        const diffResult = await conduit.call<{ data: { id: number }[] }>("differential.diff.search", { constraints: { revisionPHIDs: [revisionPHID] }, order: "newest", limit: 1 });
-        const latestDiff = diffResult.data[0];
-        if (!latestDiff) throw new HttpError(502, `No diffs found on D${rev.id}`);
-        diffID = latestDiff.id;
-        remote = await conduit.call<string>("differential.getrawdiff", { diffID });
-      } catch (e) {
-        if (e instanceof HttpError) throw e;
-        throw new HttpError(502, (e as Error).message);
-      }
-
-      const local = await rt.gitFor(session.id).diff(diff.baseSha, diff.headSha);
-      const drift = checkDrift(local, remote);
-      if (drift !== null) throw new HttpError(409, `Local patch differs from the latest diff on D${rev.id} (first difference in ${drift}); update the revision or the checkout first`);
-
       const candidates = postableComments({ artifacts, links: rt.store.listLinks(session.id) }, narrative.id);
-      const skipped: { finding: string; reason: string }[] = [];
-      let postedCount = 0;
-      for (const { finding, comment, lines } of candidates) {
-        if (!lines) {
-          skipped.push({ finding: finding.id, reason: "Finding has no line range" });
-          continue;
-        }
-        let result: { id: number };
+      const plan = postPlan(diff, candidates);
+      const loaded: { group: typeof plan.revisions[number]; conduit: ConduitClient; diffID: number }[] = [];
+      const fetchRevision = async (host: string, id: number) => {
+        let token: string;
+        try { token = readArcToken(host); }
+        catch (e) { throw new HttpError(409, (e as Error).message); }
+        const conduit = new ConduitClient(process.env.SPATIAL_CONDUIT_BASE_URL ?? host, token);
         try {
-          result = await conduit.call<{ id: number }>("differential.createinline", {
-            revisionID: rev.id,
-            diffID,
-            filePath: lines.path,
-            isNewFile: 1,
-            lineNumber: lines.start,
-            lineLength: lines.end - lines.start,
-            content: comment.data.body,
-          });
+          const revisionResult = await conduit.call<{ data: { phid: string }[] }>("differential.revision.search", { constraints: { ids: [id] } });
+          const revision = revisionResult.data[0];
+          if (!revision) throw new HttpError(502, `D${id} not found`);
+          const diffResult = await conduit.call<{ data: { id: number }[] }>("differential.diff.search", { constraints: { revisionPHIDs: [revision.phid] }, order: "newest", limit: 1 });
+          const latestDiff = diffResult.data[0];
+          if (!latestDiff) throw new HttpError(502, `No diffs found on D${id}`);
+          const remote = await conduit.call<string>("differential.getrawdiff", { diffID: latestDiff.id });
+          return { conduit, diffID: latestDiff.id, remote };
         } catch (e) {
+          if (e instanceof HttpError) throw e;
           throw new HttpError(502, (e as Error).message);
         }
-        const artifact = rt.store.putArtifact({
-          sessionId: session.id,
-          type: "PostedComment",
-          status: "verified",
-          data: { comment: comment.id, revision: rev.id, diff: diffID, inlineId: result.id } satisfies PostedCommentData,
-          provenance: { taskId: "runtime" },
-        });
-        const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: comment.id, kind: "about" });
-        rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
-        rt.emit(session.id, "runtime", "link.created", { linkId: link.id, from: artifact.id, to: comment.id, kind: "about" });
-        postedCount++;
+      };
+      for (const group of plan.revisions) {
+        const { host, id } = group.revision;
+        const { conduit, diffID, remote } = await fetchRevision(host, id);
+        loaded.push({ group, conduit, diffID });
+        const commit = diff.commits[group.commit]!;
+        const parentSha = diff.commits[group.commit - 1]?.sha ?? diff.baseSha;
+        const local = await rt.gitFor(session.id).diff(parentSha, commit.sha);
+        const drift = checkDrift(local, remote);
+        if (drift !== null) throw new HttpError(409, `Local patch differs from the latest diff on D${id} (first difference in ${drift}); update the revision or the checkout first`);
       }
-      send(res, 200, { posted: postedCount, skipped, revision: `D${rev.id}` });
+
+      const skipped = plan.skipped.map(({ finding, reason }) => ({ finding, reason }));
+      let postedCount = 0;
+      for (const { group, conduit, diffID } of loaded) {
+        for (const { finding, comment, target } of group.items) {
+          let result: { id: number };
+          try {
+            result = await conduit.call<{ id: number }>("differential.createinline", {
+              revisionID: group.revision.id,
+              diffID,
+              filePath: target.path,
+              isNewFile: target.side === "new" ? 1 : 0,
+              lineNumber: target.start,
+              lineLength: target.end - target.start,
+              content: comment.data.body,
+            });
+          } catch (e) {
+            throw new HttpError(502, (e as Error).message);
+          }
+          const artifact = rt.store.putArtifact({
+            sessionId: session.id,
+            type: "PostedComment",
+            status: "verified",
+            data: { comment: comment.id, revision: group.revision.id, diff: diffID, inlineId: result.id } satisfies PostedCommentData,
+            provenance: { taskId: "runtime" },
+          });
+          const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: comment.id, kind: "about" });
+          rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+          rt.emit(session.id, "runtime", "link.created", { linkId: link.id, from: artifact.id, to: comment.id, kind: "about" });
+          postedCount++;
+        }
+      }
+      send(res, 200, { posted: postedCount, skipped, revision: loaded.map(({ group }) => `D${group.revision.id}`).join(", ") });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ req, params, res }) => {
       const id = requireSession(rt, params[0]!).id;

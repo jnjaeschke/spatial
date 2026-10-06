@@ -12,4 +12,5 @@
 
 ## Functions
 
+- [commitRevision](functions/commitRevision.md)
 - [phabRevision](functions/phabRevision.md)

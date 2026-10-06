@@ -382,7 +382,7 @@ test("post-drafts reports a missing Differential Revision trailer", async () => 
   }, provenance: { taskId: "test" } });
   const response = await post(`/api/sessions/${session.id}/post-drafts`, {});
   assert.equal(response.status, 409);
-  assert.match((await response.json()).error, /no Differential Revision trailer/);
+  assert.match((await response.json()).error, /No commit of the stack has a Differential Revision trailer/);
 });
 
 test("post-drafts submits verified comments as Conduit drafts", async () => {
@@ -447,6 +447,8 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
     assert.deepEqual(posted[0]!.data, { comment: comment.id, revision: 1, diff: 7, inlineId: 9 });
     assert.deepEqual(posted[0]!.provenance, { taskId: "runtime" });
 
+    const nextComment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this too." }, provenance: { taskId: "user" } });
+    rt.store.putLink({ sessionId: session.id, from: nextComment.id, to: finding.id, kind: "about" });
     mode = "drift";
     const drifted = await post(`/api/sessions/${session.id}/post-drafts`, {});
     assert.equal(drifted.status, 409);

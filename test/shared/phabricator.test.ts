@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { phabRevision } from "../../src/shared/phabricator.ts";
-import type { DiffData } from "../../src/shared/types.ts";
+import { commitRevision, phabRevision } from "../../src/shared/phabricator.ts";
+import type { Commit, DiffData } from "../../src/shared/types.ts";
 
 function diff(bodies: string[]): DiffData {
   return {
@@ -25,4 +25,10 @@ test("phabRevision ignores a trailer in an earlier commit", () => {
 
 test("phabRevision returns null when no trailer is present", () => {
   assert.equal(phabRevision(diff(["head without a trailer"])), null);
+});
+
+test("commitRevision reads a commit trailer independently", () => {
+  const commit: Commit = { sha: "sha", subject: "subject", body: "change\n\nDifferential Revision: https://phab.example.com/D456" };
+  assert.deepEqual(commitRevision(commit), { host: "https://phab.example.com", id: 456 });
+  assert.equal(commitRevision({ ...commit, body: "no trailer" }), null);
 });
