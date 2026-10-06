@@ -355,6 +355,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         pannable
         zoomable
         nodeColor={(n) => MINIMAP_COLOR[n.type as keyof typeof nodeTypes]}
+        bgColor="#fff"
+        maskColor="rgba(240, 240, 240, 0.6)"
       />
       </div>
     </CollapseContext.Provider>

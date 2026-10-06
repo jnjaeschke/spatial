@@ -194,6 +194,10 @@ test("minimap shows every node, also those culled from the viewport", async ({ p
   expect(minimapBox.x).toBeGreaterThanOrEqual(paneBox.x + paneBox.width - 1);
   expect(Math.abs(minimapBox.y - paneBox.y)).toBeLessThanOrEqual(3);
   expect(Math.abs(minimapBox.height - paneBox.height)).toBeLessThanOrEqual(3);
+  const maskFill = await page.locator(".react-flow__minimap-mask").evaluate((el) => getComputedStyle(el).fill);
+  expect(maskFill).not.toBe("rgb(0, 0, 0)");
+  const minimapBg = await minimap.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(minimapBg).toBe("rgb(255, 255, 255)");
   await zoomUntil(page, "zoom out", "patch");
   await page.waitForTimeout(400);
   const all = await page.locator(".react-flow__node").count();
