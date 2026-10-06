@@ -13,6 +13,7 @@
 - [runtime/interdiff](runtime/interdiff/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
 - [runtime/phab-transactions](runtime/phab-transactions/README.md)
+- [runtime/phabricator-sync](runtime/phabricator-sync/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
 - [runtime/repo-context](runtime/repo-context/README.md)
 - [runtime/revision-watcher](runtime/revision-watcher/README.md)

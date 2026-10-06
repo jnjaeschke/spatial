@@ -81,3 +81,15 @@ Marks `sessionId` as watched (reference counted) until the returned function is 
 #### Returns
 
 () => `void`
+
+***
+
+### watchedSessions()
+
+> **watchedSessions**(): `string`[]
+
+Watched session ids, once each, in subscription order.
+
+#### Returns
+
+`string`[]

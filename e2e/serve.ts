@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRuntime } from "../src/runtime/create.ts";
 import { RevisionWatcher } from "../src/runtime/revision-watcher.ts";
+import { PhabricatorSyncer } from "../src/runtime/phabricator-sync.ts";
 import { createSession, makeGit } from "../src/runtime/git.ts";
 import { createHttpServer } from "../src/server/http.ts";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
@@ -62,7 +63,10 @@ const conduit = createServer(async (req, res) => {
   const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1" }] }
     : method === "differential.diff.search" ? { data: [{ id: 1 }] }
       : method === "differential.getrawdiff" ? await makeGit(repo.dir).diff(base, head)
-        : method === "differential.createinline" ? { id: 77 }
+          : method === "differential.createinline" ? { id: 77 }
+            : method === "transaction.search" ? { data: [], cursor: { limit: "50", after: null, before: null } }
+              : method === "user.whoami" ? { phid: "PHID-USER-me", userName: "me", realName: "Me" }
+                : method === "user.search" ? { data: [] }
           : null;
   res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
 });
@@ -73,4 +77,5 @@ const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
 await createSession(rt.store, repo.dir, "fixture");
 const watcher = new RevisionWatcher(rt, { intervalMs: 300 });
 watcher.start();
+new PhabricatorSyncer(rt, watcher, { intervalMs: 300 }).start();
 createHttpServer(rt, { staticDir: "dist/web", watcher }).listen(4178, "127.0.0.1", () => console.log("e2e runtime on 4178"));

@@ -8,6 +8,7 @@
 
 ## Functions
 
+- [latestByPhid](functions/latestByPhid.md)
 - [latestPhabComments](functions/latestPhabComments.md)
 - [phabAnchorId](functions/phabAnchorId.md)
 - [phabLatest](functions/phabLatest.md)

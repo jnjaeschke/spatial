@@ -33,6 +33,9 @@ export class RevisionWatcher {
     };
   }
 
+  /** Watched session ids, once each, in subscription order. */
+  watchedSessions(): Id[] { return [...this.#watchers.keys()]; }
+
   /** One polling pass; resolves when done. Never rejects. */
   async tick(): Promise<void> {
     if (this.#ticking) return;

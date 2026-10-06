@@ -79,6 +79,22 @@ test("watch subscriptions are reference counted and running imports suppress not
   x.store.close();
 });
 
+test("watchedSessions returns distinct ids until the last subscription is released", () => {
+  const x = setup();
+  const other = x.store.createSession("/other", "other");
+  const releaseOne = x.watcher.watch(x.session.id);
+  const releaseTwo = x.watcher.watch(x.session.id);
+  const releaseOther = x.watcher.watch(other.id);
+  assert.deepEqual(new Set(x.watcher.watchedSessions()), new Set([x.session.id, other.id]));
+  releaseOne();
+  assert.deepEqual(x.watcher.watchedSessions(), [x.session.id, other.id]);
+  releaseTwo();
+  assert.deepEqual(x.watcher.watchedSessions(), [other.id]);
+  releaseOther();
+  assert.deepEqual(x.watcher.watchedSessions(), []);
+  x.store.close();
+});
+
 test("resolve errors are swallowed and logged once until the message changes", async () => {
   const store = new Store(":memory:");
   const session = store.createSession("/repo", "test");
