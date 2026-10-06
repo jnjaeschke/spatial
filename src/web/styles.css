@@ -37,6 +37,17 @@
   --diff-focus: light-dark(#fff1a8, #4b3f0c);
   --code-bg: light-dark(#f0f1f5, #222938);
 
+  --syn-keyword: light-dark(#a626a4, #c792ea);
+  --syn-string: light-dark(#0b7a3b, #98d982);
+  --syn-comment: light-dark(#6a737d, #7c869a);
+  --syn-number: light-dark(#a35200, #f2a650);
+  --syn-type: light-dark(#0b6e99, #5ccfe6);
+  --syn-function: light-dark(#3d4fd6, #82aaff);
+  --syn-property: light-dark(#8a3b12, #ffb38a);
+  --syn-operator: light-dark(#4b5365, #a8b1c4);
+  --syn-meta: light-dark(#9a4fe0, #c08bff);
+  --syn-tag: light-dark(#c62a2f, #ff7d76);
+
   --quote-chat: light-dark(rgb(255 190 0 / 0.28), rgb(244 179 80 / 0.22));
   --quote-chat-active: light-dark(rgb(255 190 0 / 0.6), rgb(244 179 80 / 0.5));
   --quote-finding: light-dark(rgb(255 120 40 / 0.22), rgb(255 140 94 / 0.22));
@@ -367,6 +378,16 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
   background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow-3); cursor: pointer;
 }
 .ask-selection:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); }
+::highlight(syn-keyword) { color: var(--syn-keyword); }
+::highlight(syn-string) { color: var(--syn-string); }
+::highlight(syn-comment) { color: var(--syn-comment); font-style: italic; }
+::highlight(syn-number) { color: var(--syn-number); }
+::highlight(syn-type) { color: var(--syn-type); }
+::highlight(syn-function) { color: var(--syn-function); }
+::highlight(syn-property) { color: var(--syn-property); }
+::highlight(syn-operator) { color: var(--syn-operator); }
+::highlight(syn-meta) { color: var(--syn-meta); }
+::highlight(syn-tag) { color: var(--syn-tag); }
 ::highlight(chat-quote) { background-color: var(--quote-chat); }
 ::highlight(chat-quote-active) { background-color: var(--quote-chat-active); }
 ::highlight(finding-quote) { background-color: var(--quote-finding); }
