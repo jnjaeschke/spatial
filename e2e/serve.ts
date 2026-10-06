@@ -49,7 +49,10 @@ const conduit = createServer(async (req, res) => {
   for await (const chunk of req) body += chunk;
   const form = new URLSearchParams(body);
   const method = req.url!.slice("/api/".length);
-  JSON.parse(form.get("params") ?? "{}");
+  if (JSON.parse(form.get("params") ?? "{}").__conduit__?.token !== "test-token") {
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: "ERR-INVALID-SESSION", error_info: "Session key is not present.", result: null }));
+    return;
+  }
   const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1" }] }
     : method === "differential.diff.search" ? { data: [{ id: 1 }] }
       : method === "differential.getrawdiff" ? await makeGit(repo.dir).diff(base, head)

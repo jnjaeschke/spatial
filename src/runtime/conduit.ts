@@ -18,7 +18,8 @@ export class ConduitClient {
   }
 
   async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
-    const body = new URLSearchParams({ params: JSON.stringify(params), "api.token": this.#token });
+    // With JSON params, Phabricator ignores a separate `api.token` field and answers "Session key is not present".
+    const body = new URLSearchParams({ params: JSON.stringify({ ...params, __conduit__: { token: this.#token } }), output: "json" });
     const response = await this.#fetch(`${this.#host}/api/${method}`, { method: "POST", body });
     if (!response.ok) throw new Error(`Conduit HTTP ${response.status} for ${method}`);
 

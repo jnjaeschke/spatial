@@ -11,6 +11,18 @@ test("ConduitClient.call returns result on success", async () => {
   assert.deepEqual(await client.call("some.method", { x: 1 }), { id: 42 });
 });
 
+test("ConduitClient.call sends the token inside the params JSON", async () => {
+  let form: URLSearchParams | undefined;
+  const fake = async (_url: string | URL | Request, init?: RequestInit) => {
+    form = init?.body as URLSearchParams;
+    return new Response(JSON.stringify({ error_code: null, error_info: null, result: null }));
+  };
+  await new ConduitClient("https://phab.example.com", "tok", fake as typeof fetch).call("some.method", { x: 1 });
+  assert.deepEqual(JSON.parse(form!.get("params")!), { x: 1, __conduit__: { token: "tok" } });
+  assert.equal(form!.get("output"), "json");
+  assert.equal(form!.has("api.token"), false);
+});
+
 test("ConduitClient.call throws on Conduit error", async () => {
   const fake = async () => new Response(JSON.stringify({ error_code: "ERR", error_info: "Bad", result: null }));
   const client = new ConduitClient("https://phab.example.com", "tok", fake);
