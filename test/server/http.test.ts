@@ -15,6 +15,7 @@ import { createHttpServer } from "../../src/server/http.ts";
 import type { RevisionWatcher } from "../../src/runtime/revision-watcher.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, Session, SessionState } from "../../src/shared/types.ts";
+import { commitRevision } from "../../src/shared/phabricator.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
@@ -590,6 +591,61 @@ test("file context endpoint serves modified text at diff head and rejects unsupp
   assert.equal((await fetch(`${base}/api/sessions/${foreign.id}/diffs/${diffId}/file?path=a.txt`)).status, 404);
   const notDiff = rt.store.putArtifact({ sessionId: session.id, type: "Other", status: "verified", data: {}, provenance: { taskId: "task" } });
   assert.equal((await fetch(`${base}/api/sessions/${session.id}/diffs/${notDiff.id}/file?path=a.txt`)).status, 404);
+});
+
+test("import-revision materializes a remote patch and starts narration", async () => {
+  const target = makeRepo();
+  const baseSha = target.commit({ "a.txt": "1\n2\n" }, "base");
+  const scratch = makeRepo();
+  const scratchBase = scratch.commit({ "a.txt": "1\n2\n" }, "base");
+  const scratchHead = scratch.commit({ "a.txt": "1\nTWO\n", "c.txt": "c\n" }, "remote change");
+  const rawDiff = `${scratch.git("diff", scratchBase, scratchHead)}\n`;
+  const calls: string[] = [];
+  const conduitServer = createNetServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const method = req.url!.slice("/api/".length);
+    calls.push(method);
+    const params = JSON.parse(new URLSearchParams(body).get("params")!);
+    const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1", id: 1, fields: { title: "Remote change", status: { closed: false }, stackGraph: { "PHID-DREV-1": [] } } }] }
+      : method === "differential.diff.search" ? { data: [{ id: 7, fields: { dateCreated: 1791278237, refs: [{ type: "base", identifier: baseSha }] } }] }
+        : method === "differential.getrawdiff" ? rawDiff : null;
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
+  });
+  await new Promise<void>((resolve) => conduitServer.listen(0, "127.0.0.1", resolve));
+  const arcrc = join(mkdtempSync(join(tmpdir(), "spatial-arcrc-")), "arcrc");
+  writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
+  const oldArcrc = process.env.SPATIAL_ARCRC_PATH;
+  const oldConduit = process.env.SPATIAL_CONDUIT_BASE_URL;
+  process.env.SPATIAL_ARCRC_PATH = arcrc;
+  process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${(conduitServer.address() as AddressInfo).port}`;
+  const session = await (await post("/api/sessions", { repo: target.dir, title: "remote", workflow: "review" })).json() as Session;
+  const before = target.git("status", "--porcelain");
+  try {
+    const response = await post(`/api/sessions/${session.id}/import-revision`, { host: "https://phab.example.com", id: 1 });
+    assert.equal(response.status, 202);
+    const range = await response.json() as { base: string; head: string };
+    assert.equal(range.base, baseSha);
+    assert.notEqual(range.head, baseSha);
+    await waitFor(async () => (await (await fetch(`${base}/api/sessions/${session.id}/state`)).json() as SessionState).artifacts.find((item) => item.type === "PatchNarrative"));
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    const imported = state.artifacts.find((item) => item.type === "Diff")!;
+    assert.equal((imported.data as DiffData).baseSha, range.base);
+    assert.equal((imported.data as DiffData).headSha, range.head);
+    const data = imported.data as DiffData;
+    assert.equal(data.commits.length, 1);
+    assert.deepEqual(commitRevision(data.commits[0]!), { host: "https://phab.example.com", id: 1 });
+    assert.ok(calls.every((method) => ["differential.revision.search", "differential.diff.search", "differential.getrawdiff"].includes(method)));
+    assert.deepEqual(calls, ["differential.revision.search", "differential.diff.search", "differential.getrawdiff"]);
+    assert.equal(target.git("rev-parse", "HEAD"), baseSha);
+    assert.equal(target.git("status", "--porcelain"), before);
+  } finally {
+    if (oldArcrc === undefined) delete process.env.SPATIAL_ARCRC_PATH;
+    else process.env.SPATIAL_ARCRC_PATH = oldArcrc;
+    if (oldConduit === undefined) delete process.env.SPATIAL_CONDUIT_BASE_URL;
+    else process.env.SPATIAL_CONDUIT_BASE_URL = oldConduit;
+    await new Promise<void>((resolve) => conduitServer.close(() => resolve()));
+  }
 });
 
 test("unknown session and API routes return 404 JSON", async () => {

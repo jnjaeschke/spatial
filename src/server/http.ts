@@ -18,6 +18,7 @@ import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { startSession } from "../workflows/start.ts";
+import { importRevision, ImportRevisionError } from "../runtime/import-revision.ts";
 
 class HttpError extends Error {
   status: number;
@@ -94,6 +95,16 @@ function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unk
 }
 
 export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher } = {}): Server {
+  const requireNarratable = (id: string) => {
+    const artifacts = rt.store.listArtifacts(id);
+    const latest = latestDiff(artifacts);
+    if (latest && narrativeOf(artifacts, latest.id)) throw new HttpError(409, "Session already has a narrative");
+    if (rt.store.listTasks(id).some((task) => HEAVY_TASKS.has(task.kind) &&
+      (task.status === "pending" || task.status === "running"))) {
+      throw new HttpError(409, "Narration already running");
+    }
+    return latest;
+  };
   const routes: Route[] = [
     ["GET", /^\/api\/health$/, async (): Promise<HealthResponse> => ({ app: "spatial-ide", ui: opts.staticDir !== undefined })],
     ["GET", /^\/api\/workflows$/, async (): Promise<WorkflowInfo[]> => workflowInfo()],
@@ -312,13 +323,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
-      const artifacts = rt.store.listArtifacts(id);
-      const latest = latestDiff(artifacts);
-      if (latest && narrativeOf(artifacts, latest.id)) throw new HttpError(409, "Session already has a narrative");
-      if (rt.store.listTasks(id).some((task) => HEAVY_TASKS.has(task.kind) &&
-        (task.status === "pending" || task.status === "running"))) {
-        throw new HttpError(409, "Narration already running");
-      }
+      const latest = requireNarratable(id);
       const body = await readJson(req);
       const llm = body.llm as LlmSelection | undefined;
       let opts: Parameters<typeof narratePatch>[2];
@@ -336,6 +341,25 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
         console.error(`narrate failed in session ${id}: ${(e as Error).message}`),
       );
       send(res, 202, {});
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/import-revision$/, async ({ req, res, params }) => {
+      const id = requireSession(rt, params[0]!).id;
+      const body = await readJson(req);
+      const host = str(body.host, "host");
+      if (!Number.isInteger(body.id) || (body.id as number) < 1) throw new HttpError(400, "Missing integer field: id");
+      if (requireNarratable(id)) throw new HttpError(409, "Session already has an imported diff");
+      let range: { base: string; head: string };
+      try {
+        range = await importRevision(rt, id, { host, id: body.id as number });
+      } catch (e) {
+        if (!(e instanceof ImportRevisionError)) throw e;
+        throw new HttpError(e.kind === "remote" ? 502 : 409, e.message);
+      }
+      if (requireNarratable(id)) throw new HttpError(409, "Session already has an imported diff");
+      narratePatch(rt, id, { ...range, llm: body.llm as LlmSelection | undefined }).catch((e) =>
+        console.error(`remote review failed in session ${id}: ${(e as Error).message}`),
+      );
+      send(res, 202, range);
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/turns$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
