@@ -41,7 +41,7 @@ async function configure(request: APIRequestContext, revision: number, value: ob
 }
 
 /** Configures the fake Conduit before the session opens: the syncer caches raw diffs, as they never change on Phabricator. */
-async function openNarratedWithTrailer(page: Page, request: APIRequestContext, revision: number, conduit: (diff: string) => object) {
+async function openNarratedWithTrailer(page: Page, request: APIRequestContext, revision: number, conduit: (diff: string) => object, { codeLevel = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "spatial-phab-"));
   repoDirs.push(dir);
   git(dir, "init", "-b", "main");
@@ -66,7 +66,7 @@ async function openNarratedWithTrailer(page: Page, request: APIRequestContext, r
   await page.getByLabel("head").fill("feature");
   await page.getByRole("button", { name: "Narrate" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  await setLevel(page, "code");
+  if (codeLevel) await setLevel(page, "code");
   return { dir, diff };
 }
 
@@ -181,9 +181,10 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
   const ids = newRevision();
   const longBody = Array.from({ length: 40 }, (_, i) => `Long comment line ${i + 1}`).join("\n\n");
   const botBody = "The analysis task [lint](https://example.com/lint) failed.\n\n## Details\n\nMore details.";
+  // Zooming in while the arriving comments still refit the view lands on a viewport that culls the summary node.
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [
     commentTx(190, botBody, "reviewbot"), commentTx(191, "This is **important** feedback"), commentTx(192, longBody),
-  ] }));
+  ] }), { codeLevel: false });
   const summary = page.getByTestId("summary");
   const bot = summary.getByTestId("phab-comment").filter({ hasText: "@reviewbot" });
   await expect(bot).toBeVisible({ timeout: 10_000 });
