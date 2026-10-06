@@ -17,9 +17,10 @@ const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation:
 const CHAT_REPLY = { answer: "hi", questions: [], revisions: [], requestMcpServers: [] };
 const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
 const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.system?.includes("You review a code patch") || !!prompt.schema && "properties" in prompt.schema && "findings" in (prompt.schema as { properties: object }).properties;
+const commentFor = (prompt: { schema?: object }) => !!prompt.schema && "properties" in prompt.schema && "body" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { const chat = replyFor(prompt); const review = reviewFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [] } : comment ? { body: "Generated review comment." } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -35,6 +36,7 @@ after(() => server.close());
 
 const post = (path: string, body: unknown, headers: Record<string, string> = { "content-type": "application/json" }) =>
   fetch(base + path, { method: "POST", headers, body: JSON.stringify(body) });
+const put = (path: string, body: unknown) => fetch(base + path, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
 async function newSession(): Promise<Session> {
   const res = await post("/api/sessions", { repo: repo.dir, title: "t" });
@@ -224,6 +226,63 @@ test("enable MCP server is scoped to a chat thread and records user provenance",
   const blank = await post(path, { server: " " });
   assert.equal(blank.status, 400);
   assert.deepEqual(await blank.json(), { error: "Not an on-request MCP server:  " });
+});
+
+test("finding decisions trigger comments on accept and regeneration requires latest accept", async () => {
+  const session = await newSession();
+  const finding = rt.store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed",
+    data: { anchor: "diff#f0h0", category: "correctness", severity: "medium", title: "Finding", body: "Finding details." },
+    provenance: { taskId: "review" } });
+  const path = `/api/sessions/${session.id}/findings/${finding.id}/decide`;
+  assert.equal((await post(path, { decision: "other" })).status, 400);
+  assert.equal((await post(`/api/sessions/${session.id}/findings/missing/decide`, { decision: "accepted" })).status, 404);
+
+  const accepted = await post(path, { decision: "accepted" });
+  assert.equal(accepted.status, 201);
+  const acceptedId = (await accepted.json() as { artifactId: string }).artifactId;
+  assert.equal(rt.store.getArtifact(acceptedId).type, "FindingDecision");
+  assert.deepEqual(rt.store.getArtifact(acceptedId).provenance, { taskId: "user" });
+  assert.ok(rt.store.listLinks(session.id).some((link) => link.from === acceptedId && link.to === finding.id && link.kind === "about"));
+  await waitFor(async () => {
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return state.tasks.some((task) => task.kind === "comment" && task.status === "succeeded") ? true : undefined;
+  });
+  assert.equal(rt.store.listArtifacts(session.id, "ReviewComment").length, 1);
+
+  const dismissed = await post(path, { decision: "dismissed" });
+  assert.equal(dismissed.status, 201);
+  const decisions = rt.store.listArtifacts(session.id, "FindingDecision");
+  assert.equal(decisions.length, 2);
+  assert.equal((decisions.at(-1)!.data as { decision: string }).decision, "dismissed");
+  const regenerate = `/api/sessions/${session.id}/findings/${finding.id}/comment/regenerate`;
+  assert.equal((await post(regenerate, {})).status, 409);
+  assert.equal((await post(path, { decision: "accepted" })).status, 201);
+  assert.equal((await post(regenerate, {})).status, 202);
+  await waitFor(async () => {
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return state.tasks.filter((task) => task.kind === "comment").length === 3 && state.tasks.filter((task) => task.kind === "comment").every((task) => task.status === "succeeded") ? true : undefined;
+  });
+  assert.equal(rt.store.listArtifacts(session.id, "ReviewComment").length, 3);
+});
+
+test("editing a finding comment appends verified user artifacts", async () => {
+  const session = await newSession();
+  const finding = rt.store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed",
+    data: { anchor: "diff#f0h0", category: "correctness", severity: "medium", title: "Finding", body: "Finding details." },
+    provenance: { taskId: "review" } });
+  const path = `/api/sessions/${session.id}/findings/${finding.id}/comment`;
+  assert.equal((await put(path, { body: " \n " })).status, 400);
+  const first = await put(path, { body: "Use a strong ref." });
+  assert.equal(first.status, 201);
+  const second = await put(path, { body: "Use a strong reference." });
+  assert.equal(second.status, 201);
+  const artifacts = rt.store.listArtifacts(session.id, "ReviewComment");
+  assert.equal(artifacts.length, 2);
+  assert.equal(artifacts.at(-1)!.status, "verified");
+  assert.deepEqual(artifacts.at(-1)!.data, { finding: finding.id, body: "Use a strong reference." });
+  assert.deepEqual(artifacts.at(-1)!.provenance, { taskId: "user" });
+  assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifacts.at(-1)!.id && link.to === finding.id && link.kind === "about"));
+  assert.equal((await put(`/api/sessions/${session.id}/findings/missing/comment`, { body: "x" })).status, 404);
 });
 
 test("file context endpoint serves modified text at diff head and rejects unsupported files", async () => {

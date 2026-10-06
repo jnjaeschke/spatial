@@ -119,6 +119,15 @@ export interface ReviewFindingData {
   body: string;
 }
 
+/** Latest artifact of this type for a finding wins. Linked `about → findingId`. Provenance: user. */
+export interface FindingDecisionData { finding: Id; decision: "accepted" | "dismissed" }
+
+/** First version from the `comment` task; reviewer edits create a verified version. Linked `about → findingId`. */
+export interface ReviewCommentData { finding: Id; body: string }
+
+/** Receipt of a posted Phabricator inline. Linked `about → commentId`. Provenance: runtime. */
+export interface PostedCommentData { comment: Id; revision: number; diff: number; inlineId: number }
+
 /** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. */
 export interface ChatMessageData {
   role: "user" | "assistant";

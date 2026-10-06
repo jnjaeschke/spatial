@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
-import type { DiffData, LlmSelection, McpServerData, ModelsResponse } from "../shared/types.ts";
+import type { DiffData, FindingDecisionData, LlmSelection, McpServerData, ModelsResponse, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
 import { createSession } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
@@ -58,6 +58,28 @@ function requireSession(rt: Runtime, id: string) {
   }
 }
 
+function requireArtifact(rt: Runtime, sessionId: string, id: string, type: string, label: string) {
+  let artifact;
+  try { artifact = rt.store.getArtifact(id); }
+  catch { throw new HttpError(404, `Unknown ${label}: ${id}`); }
+  if (artifact.sessionId !== sessionId || artifact.type !== type) throw new HttpError(404, `Unknown ${label}: ${id}`);
+  return artifact;
+}
+
+function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unknown, about: string) {
+  const artifact = rt.store.putArtifact({
+    sessionId,
+    type,
+    status: "verified",
+    data,
+    provenance: { taskId: "user" },
+  });
+  const link = rt.store.putLink({ sessionId, from: artifact.id, to: about, kind: "about" });
+  rt.emit(sessionId, "user", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+  rt.emit(sessionId, "user", "link.created", { linkId: link.id, from: artifact.id, to: about, kind: "about" });
+  return artifact;
+}
+
 export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {}): Server {
   const routes: Route[] = [
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
@@ -78,22 +100,47 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const threadId = params[1]!;
       const body = await readJson(req);
       const server = str(body.server, "server");
-      let thread;
-      try { thread = rt.store.getArtifact(threadId); }
-      catch { throw new HttpError(404, `Unknown thread: ${threadId}`); }
-      if (thread.sessionId !== session.id || thread.type !== "ChatThread") throw new HttpError(404, `Unknown thread: ${threadId}`);
+      requireArtifact(rt, session.id, threadId, "ChatThread", "thread");
       if (!loadRepoContext(session.repo).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
-      const artifact = rt.store.putArtifact({
-        sessionId: session.id,
-        type: "McpServerEnabled",
-        status: "verified",
-        data: { server } satisfies McpServerData,
-        provenance: { taskId: "user" },
-      });
-      const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: threadId, kind: "about" });
-      rt.emit(session.id, "user", "artifact.created", { artifactId: artifact.id, type: artifact.type });
-      rt.emit(session.id, "user", "link.created", { linkId: link.id, from: artifact.id, to: threadId, kind: "about" });
+      const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server } satisfies McpServerData, threadId);
       send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/decide$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]);
+      const findingId = params[1]!;
+      const body = await readJson(req);
+      if (body.decision !== "accepted" && body.decision !== "dismissed") throw new HttpError(400, "Invalid decision");
+      requireArtifact(rt, session.id, findingId, "ReviewFinding", "finding");
+      const artifact = putUserArtifact(rt, session.id, "FindingDecision", { finding: findingId, decision: body.decision } satisfies FindingDecisionData, findingId);
+      if (body.decision === "accepted") {
+        const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
+        done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
+      }
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["PUT", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/comment$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]);
+      const findingId = params[1]!;
+      const body = await readJson(req);
+      const text = str(body.body, "body");
+      if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
+      requireArtifact(rt, session.id, findingId, "ReviewFinding", "finding");
+      const artifact = putUserArtifact(rt, session.id, "ReviewComment", { finding: findingId, body: text } satisfies ReviewCommentData, findingId);
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/comment\/regenerate$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]);
+      const findingId = params[1]!;
+      requireArtifact(rt, session.id, findingId, "ReviewFinding", "finding");
+      const links = rt.store.listLinks(session.id);
+      const decision = rt.store.listArtifacts(session.id, "FindingDecision").filter((artifact) =>
+        links.some((link) => link.from === artifact.id && link.to === findingId && link.kind === "about"),
+      ).at(-1);
+      if (!decision || (decision.data as FindingDecisionData).decision !== "accepted") throw new HttpError(409, "Finding is not accepted");
+      const body = await readJson(req);
+      const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
+      done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
+      send(res, 202, { taskId });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {
       const id = requireSession(rt, params[0]).id;
