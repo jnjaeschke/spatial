@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiffData, PatchNarrativeData, ReviewFindingData, SessionState } from "../../src/shared/types.ts";
-import { anchorNodeId, estimateSize, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, type GraphNode } from "../../src/web/graph.ts";
+import { anchorNodeId, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -153,6 +153,23 @@ test("estimateSize grows with level and hunk size", () => {
   const p = estimateSize(c2, "patch"), c = estimateSize(c2, "concept"), k = estimateSize(c2, "code");
   assert.ok(p.height < c.height && c.height < k.height);
   assert.ok(p.width < k.width);
+});
+
+test("estimateSize scales change and finding dimensions", () => {
+  const g = narrativeGraph(narrative("N"), diff, [diff]);
+  const c2 = g.nodes[2].data;
+  const base = estimateSize(c2, "code");
+  assert.deepEqual(estimateSize(c2, "code", 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
+  const finding = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
+  const findingBase = estimateSize(finding, "code");
+  assert.deepEqual(estimateSize(finding, "code", 1.5), { width: SATELLITE_WIDTH * 1.5, height: findingBase.height * 1.5 });
+});
+
+test("fitMinZoom preserves code level only for enlarged text", () => {
+  assert.deepEqual(fitMinZoom(1), {});
+  assert.deepEqual(fitMinZoom(0.9), {});
+  assert.deepEqual(fitMinZoom(1.15), { minZoom: 0.9 });
+  assert.equal(zoomLevel(fitMinZoom(1.6).minZoom!, "code"), "code");
 });
 
 test("layout: dependents below dependencies, no overlaps, deterministic", () => {

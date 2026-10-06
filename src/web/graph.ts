@@ -307,7 +307,7 @@ export function placeSatellites(main: Map<string, { x: number; y: number; width:
 const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text.length / charsPerLine));
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
-export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.comments.map((item) => item.data.body).join("\n"), 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
@@ -320,6 +320,15 @@ export function estimateSize(data: GraphNodeData, level: ZoomLevel): { width: nu
   const concept = 60 + (lines(data.change.explanation, 55) + lines(data.change.rationale, 55)) * 22 + data.files.length * 20;
   if (level === "concept") return { width, height: concept };
   return { width, height: concept + data.hunks.reduce((sum, h) => sum + 40 + h.hunk.lines.length * 18, 0) };
+}
+
+export function estimateSize(data: GraphNodeData, level: ZoomLevel, textScale = 1): { width: number; height: number } {
+  const size = baseSize(data, level);
+  return { width: size.width * textScale, height: size.height * textScale };
+}
+
+export function fitMinZoom(textScale: number): { minZoom?: number } {
+  return textScale > 1 ? { minZoom: ZOOM_THRESHOLDS.codeToConcept } : {};
 }
 
 export function layout(

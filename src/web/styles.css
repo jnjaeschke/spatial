@@ -243,9 +243,9 @@ button.collapse:hover:not(:disabled) { background: var(--surface-3); color: var(
 button.code-link:hover:not(:disabled) { background: color-mix(in oklab, var(--link) 16%, var(--code-bg)); }
 a.code-link { text-decoration: none; }
 a.code-link code { background: transparent; padding: 0; color: inherit; }
-.level-patch { font-size: 28px; }
-.level-concept { font-size: 16px; }
-.level-code { font-size: 13px; }
+.level-patch { font-size: calc(28px * var(--text-scale, 1)); }
+.level-concept { font-size: calc(16px * var(--text-scale, 1)); }
+.level-code { font-size: calc(13px * var(--text-scale, 1)); }
 .node .rationale b { color: var(--text-2); font-weight: 600; }
 .explanation { color: var(--text); }
 .rationale { color: var(--text-2); }
@@ -259,16 +259,16 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 }
 .summary-node > .title { color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.72em; }
 .summary-node.level-patch > .title { font-size: 0.6em; }
-.summary-node .since-epoch { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.summary-node .since-epoch { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-2); margin-top: 4px; }
 .summary-node .spec-status { font-size: 0.85em; color: var(--text-2); }
 .summary-node .post-drafts-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.summary-node .post-drafts { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; font-size: 12px; }
+.summary-node .post-drafts { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; font-size: calc(12px * var(--text-scale, 1)); }
 .summary-node .post-drafts:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); }
-.summary-node .post-result { color: var(--success); font-size: 12px; margin-left: 8px; }
-.summary-node .post-error { color: var(--danger); font-size: 12px; margin-left: 8px; }
+.summary-node .post-result { color: var(--success); font-size: calc(12px * var(--text-scale, 1)); margin-left: 8px; }
+.summary-node .post-error { color: var(--danger); font-size: calc(12px * var(--text-scale, 1)); margin-left: 8px; }
 .phab-summary { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
 .phab-summary h4 { margin: 0; font-size: 0.85em; font-weight: 650; color: var(--text-2); }
-.summary-node .post-skipped { color: var(--text-3); font-size: 12px; }
+.summary-node .post-skipped { color: var(--text-3); font-size: calc(12px * var(--text-scale, 1)); }
 .summary-node .files .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .phab-summary ul { margin: 4px 0; padding-left: 18px; }
 .phab-summary li { margin: 3px 0; overflow-wrap: anywhere; }
@@ -320,7 +320,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .phab-done { background: var(--badge-muted-bg); color: var(--badge-muted-fg); }
 .chat-node .messages, .finding-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .node .messages { margin-top: 6px; scrollbar-width: thin; }
-.chat-node .enable-mcp-request, .finding-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 0; }
+.chat-node .enable-mcp-request, .finding-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: calc(12px * var(--text-scale, 1)); padding: 4px 0; }
 .msg { padding: 6px 9px; border-radius: var(--radius-md); line-height: 1.4; }
 .msg.user {
   white-space: pre-wrap; align-self: flex-end; max-width: 88%; color: var(--text);
@@ -352,9 +352,9 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 @keyframes pulse { 50% { opacity: 0.45; } }
 .msg-llm { display: block; font-size: 0.7em; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }
 .node form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
-.node form .llm-picker select { font-size: 11.5px; padding: 2px 4px; color: var(--text-2); background: var(--surface-2); }
+.node form .llm-picker select { font-size: calc(11.5px * var(--text-scale, 1)); padding: 2px 4px; color: var(--text-2); background: var(--surface-2); }
 .node form button[type="submit"] { margin-left: auto; }
-.chat-node textarea, .finding-node textarea, .phab-node textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: 13px; background: var(--surface); }
+.chat-node textarea, .finding-node textarea, .phab-node textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
 .ask { margin-left: 8px; font-size: 0.75em; padding: 1px 8px; font-weight: 500; color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); background: var(--accent-soft); }
 button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 18%, var(--surface)); }
 
@@ -373,20 +373,20 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .status-addressed { color: var(--success); }
 .status-partially, .status-not_addressed { color: var(--warning); }
 .badge.outdated { color: var(--text-3); background: transparent; border: 1px dashed var(--border-strong); }
-.verdict-reason { font-size: 12px; color: var(--text-2); padding: 6px 10px; margin-top: 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.verdict-reason { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-2); padding: 6px 10px; margin-top: 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
 
 /* Findings */
 .finding-node.outdated { opacity: 0.75; }
 .finding-node .category { margin: 0 6px; color: var(--text-3); font-weight: 500; font-size: 0.9em; }
-.finding-node .accept, .finding-node .dismiss { border-radius: var(--radius-sm); padding: 1px 9px; cursor: pointer; font-size: 11.5px; font-weight: 600; margin-left: 6px; }
+.finding-node .accept, .finding-node .dismiss { border-radius: var(--radius-sm); padding: 1px 9px; cursor: pointer; font-size: calc(11.5px * var(--text-scale, 1)); font-weight: 600; margin-left: 6px; }
 .finding-node .accept { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--accent-fg); border: 1px solid transparent; }
 .finding-node .accept:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); border-color: transparent; }
 .finding-node .dismiss { background: transparent; color: var(--text-2); border: 1px solid var(--border-strong); }
 .finding-node.dismissed { opacity: 0.5; }
 .finding-node .comment-draft { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .finding-node .comment-draft > div:has(button) { display: flex; gap: 6px; }
-.finding-node .comment-draft textarea { width: 100%; min-height: 80px; resize: vertical; font-size: 12px; font-family: inherit; }
-.finding-node .comment-status { font-size: 12px; color: var(--text-3); }
+.finding-node .comment-draft textarea { width: 100%; min-height: 80px; resize: vertical; font-size: calc(12px * var(--text-scale, 1)); font-family: inherit; }
+.finding-node .comment-status { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-3); }
 
 /* Activity strip and toasts */
 .activity { display: flex; gap: 8px; align-items: center; padding: 4px 12px; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--surface) 90%, transparent); font-size: 12px; color: var(--text-2); overflow-x: auto; }
@@ -400,7 +400,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .running { color: var(--link); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); }
 .activity .running::before, .activity .pending::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .diff td.sign { white-space: nowrap; }
-.commit-tag { margin-left: 3px; font-size: 9px; color: var(--text-3); }
+.commit-tag { margin-left: 3px; font-size: calc(9px * var(--text-scale, 1)); color: var(--text-3); }
 .rewrite-flag { padding: 3px 8px; font: 11px var(--font-mono); color: var(--badge-warn-fg); background: var(--badge-warn-bg); border-top: 1px solid var(--border); }
 .toasts { position: fixed; right: 16px; bottom: 48px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
 .toast {
