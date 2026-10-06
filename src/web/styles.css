@@ -92,3 +92,7 @@ html, body, #root { margin: 0; height: 100%; }
 .activity .task { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 .activity .failed { color: #b00020; }
 .activity .running { color: #0b57d0; }
+.toasts { position: fixed; right: 16px; bottom: 48px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+.toast { background: #202124; color: #fff; padding: 10px 12px; border-radius: 6px; max-width: 360px; font-size: 13px; }
+.toast-actions { display: flex; gap: 6px; margin-top: 8px; }
+.toast button { border: 0; border-radius: 3px; padding: 2px 8px; background: #fff; color: #202124; cursor: pointer; font-size: 12px; }

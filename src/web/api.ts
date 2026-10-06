@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { ChatThreadData, LlmSelection, ModelsResponse, Progress, RuntimeEvent, Session, SessionState } from "../shared/types.ts";
+import type { ChatThreadData, LlmSelection, ModelsResponse, NotifyPayload, Progress, RuntimeEvent, Session, SessionState } from "../shared/types.ts";
+import { showDesktop } from "./notifications.ts";
 
 async function parse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -19,7 +20,11 @@ export const api = {
   sessions: () => get<Session[]>("/api/sessions"),
   createSession: (repo: string, title: string) => post<Session>("/api/sessions", { repo, title }),
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
-  narrate: (id: string, body: { base: string; head: string; llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
+  narrate: (id: string, body: { base?: string; head?: string; llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
+  runAction: (path: string) => {
+    if (!path.startsWith("/api/sessions/")) return Promise.reject(new Error("Invalid action path"));
+    return post<unknown>(path, {});
+  },
   models: () => get<ModelsResponse>("/api/llm/models"),
   turn: (sessionId: string, body: { threadId?: string; anchor?: string; text: string; llm: LlmSelection; quote?: string; lines?: ChatThreadData["lines"] }) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/turns`, body),
@@ -40,6 +45,7 @@ export function useSessionState(id: string) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
+  const [notices, setNotices] = useState<NotifyPayload[]>([]);
   useEffect(() => {
     let cancelled = false;
     let es: EventSource | undefined;
@@ -56,13 +62,20 @@ export function useSessionState(id: string) {
           setProgress((x) => ({ ...x, [p.taskId]: p.progress }));
           return;
         }
+        if (e.type === "notify") {
+          const notice = e.payload as NotifyPayload;
+          setNotices((current) => current.some((n) => n.id === notice.id) ? current : [...current, notice]);
+          showDesktop(notice);
+          return;
+        }
         clearTimeout(timer);
         timer = setTimeout(refetch, 100);
       });
     }, (e: Error) => setError(e.message));
     return () => { cancelled = true; es?.close(); clearTimeout(timer); };
   }, [id]);
-  return { state, error, progress };
+  const dismissNotice = (noticeId: string) => setNotices((current) => current.filter((n) => n.id !== noticeId));
+  return { state, error, progress, notices, dismissNotice };
 }
 
 export function useModels(): ModelsResponse | null {
