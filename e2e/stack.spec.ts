@@ -127,12 +127,14 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   const latest = rewritten.locator("tr.add").filter({ hasText: "THIRTY-TWO" });
   await expect(latest).toHaveAttribute("data-commit", "1");
   await expect(page.getByTestId("hunk-f0h0").locator("tr.del")).toHaveAttribute("data-commit", "0");
+  const latestColor = await latest.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
+  await page.getByRole("button", { name: "Next step" }).click();
+  await page.getByRole("button", { name: "Next step" }).click();
   const early = page.getByTestId("hunk-f1h0").locator("tr.add");
   await expect(early).toHaveAttribute("data-commit", "0");
   const diff = (await state(request, stack.sessionId)).artifacts.find((artifact) => artifact.type === "Diff")!.data;
   const firstSha = (diff.commits as { sha: string }[])[0]!.sha.slice(0, 7);
   await expect(early.locator("td.sign")).toHaveAttribute("title", new RegExp(firstSha));
-  const latestColor = await latest.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   const earlyColor = await early.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(latestColor).not.toBe(earlyColor);
 });

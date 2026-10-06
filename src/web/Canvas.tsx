@@ -19,6 +19,9 @@ import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
+import { GuideBar } from "./GuideBar.tsx";
+import { moveStep, startStep, stepNodeId } from "./guide.ts";
+import { api } from "./api.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
@@ -95,7 +98,37 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   // A new epoch is a new graph: fit it again even if the user moved the previous one.
   const rootId = graph.nodes[0]!.id;
   useEffect(() => { autoFit.current = true; }, [rootId]);
+  const steps = useMemo(() => graph.nodes.flatMap((n) => n.data.kind === "change" ? [n.data] : []), [graph]);
+  const start = startStep(steps.map((s) => s.reviewed));
+  const [guideStep, setGuideStep] = useState<number | null>(null);
+  useEffect(() => setGuideStep(null), [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const currentId = guideStep === null || !steps[guideStep] ? null : stepNodeId(steps[guideStep], level);
+  const currentRef = useRef<string | null>(currentId);
+  currentRef.current = currentId;
+  const focusNode = (id: string) => {
+    const node = rf.getNode(id);
+    if (!node) return;
+    const w = node.measured?.width ?? NODE_WIDTH[level] * textScale;
+    const h = node.measured?.height ?? 0;
+    const zoom = rf.getZoom();
+    const view = paneHeight / zoom;
+    autoFit.current = false;
+    void rf.setCenter(node.position.x + w / 2, h <= view ? node.position.y + h / 2 : node.position.y + view / 2 - 24 / zoom, { zoom, duration: 200 });
+  };
+  const moveGuide = (delta: 1 | -1) => {
+    if (!steps.length) return;
+    const next = moveStep(steps.length, guideStep, delta, start);
+    setGuideStep(next);
+    focusNode(stepNodeId(steps[next]!, level));
+  };
+  const toggleReviewed = () => {
+    if (guideStep === null || !chatActions) return;
+    const s = steps[guideStep]!;
+    void api.setReviewed(chatActions.sessionId, s.narrativeId, s.change.id, !s.reviewed).catch((error: Error) => console.error(error));
+  };
+  const guideRef = useRef({ move: moveGuide, toggleReviewed });
+  guideRef.current = { move: moveGuide, toggleReviewed };
   const laidOutKey = useRef("");
   const offsets = useRef(new Map<string, { dx: number; dy: number }>());
   const basePos = useRef(new Map<string, { x: number; y: number }>());
@@ -160,10 +193,15 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
       style: { width: (isSatellite(n.data) ? SATELLITE_WIDTH : NODE_WIDTH[level]) * textScale },
+      className: n.id === currentRef.current ? "guide-current" : undefined,
       draggable: true,
       dragHandle: ".title",
     })));
   }, [shown, level, textScale, setNodes, state.session.id]);
+
+  useEffect(() => {
+    setNodes((ns) => ns.map((n) => ({ ...n, className: n.id === currentId ? "guide-current" : undefined })));
+  }, [currentId, setNodes]);
 
   const sizeKey = nodes.map((n) => `${n.id}:${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`).join("|");
   useEffect(() => {
@@ -314,8 +352,19 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!el) return;
     const keydown = (event: KeyboardEvent) => {
       const step = ARROW_PAN[event.key];
-      if (!step || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+      if (event.key === "n" || event.key === "p") {
+        event.preventDefault();
+        guideRef.current.move(event.key === "n" ? 1 : -1);
+        return;
+      }
+      if (event.key === "r") {
+        event.preventDefault();
+        guideRef.current.toggleReviewed();
+        return;
+      }
+      if (!step) return;
       event.preventDefault();
       autoFit.current = false;
       const vp = rf.getViewport();
@@ -359,6 +408,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   return (
     <ChatActionsContext.Provider value={chatActions}>
     <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }}>
+    {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <CollapseContext.Provider value={{ collapsed, toggle }}>
       <div className="canvas-layout">
       <ReactFlow

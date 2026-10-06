@@ -20,7 +20,7 @@ test("semantic zoom swaps representations and relayouts without overlap", async 
   await expect(page.getByTestId("change-c1")).toBeVisible();
 
   await setLevel(page, "patch");
-  await expect(page.getByText("Introduce pending-commit state")).toBeVisible();
+  await expect(page.getByTestId("change-c1").getByText("Introduce pending-commit state")).toBeVisible();
   await expect(page.getByText("Adds mPendingCommit")).toHaveCount(0);
   await assertNoOverlap(page);
 
