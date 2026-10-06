@@ -6,7 +6,7 @@
 
 # Function: parseReviewArgs()
 
-> **parseReviewArgs**(`args`): [`ParseResult`](../type-aliases/ParseResult.md)\<[`ReviewArgs`](../type-aliases/ReviewArgs.md)\>
+> **parseReviewArgs**(`args`): [`ParseResult`](../type-aliases/ParseResult.md)\<\{ `base`: `string` \| `null`; `head`: `string` \| `null`; `revision`: `string` \| `null`; \}\>
 
 `D123`, `https://host/D123`, `<base>..<head>`, or nothing (the default range).
 
@@ -18,4 +18,4 @@
 
 ## Returns
 
-[`ParseResult`](../type-aliases/ParseResult.md)\<[`ReviewArgs`](../type-aliases/ReviewArgs.md)\>
+[`ParseResult`](../type-aliases/ParseResult.md)\<\{ `base`: `string` \| `null`; `head`: `string` \| `null`; `revision`: `string` \| `null`; \}\>

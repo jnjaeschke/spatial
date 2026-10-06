@@ -3,6 +3,7 @@ import type { Id, LlmSelection, WorkflowId, WorkflowInfo } from "../shared/types
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "./narrate-patch.ts";
 import { defaultReviewRange } from "./review-range.ts";
+import { parseRevisionRef } from "../shared/phabricator.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
@@ -20,33 +21,36 @@ export interface Workflow<P> extends WorkflowInfo {
 const reviewParams = z.strictObject({
   base: z.string().min(1).nullable().describe("Git ref the patch applies to; null together with head when the request names no refs"),
   head: z.string().min(1).nullable().describe("Git ref of the patch head; null together with base when the request names no refs"),
-}).refine((params) => (params.base === null) === (params.head === null), "base and head must both be given or both be null");
+  revision: z.string().nullable().describe("Phabricator revision named in the request, as D123 or its full URL; null when none is named"),
+}).refine((params) => {
+  if (params.revision !== null) return params.base === null && params.head === null && parseRevisionRef(params.revision) !== null;
+  return (params.base === null) === (params.head === null);
+}, "Give either a revision or both refs");
 export type ReviewParams = z.infer<typeof reviewParams>;
-export type ReviewArgs = ReviewParams | { revision: { host: string | null; id: number } };
 
 /** `D123`, `https://host/D123`, `<base>..<head>`, or nothing (the default range). */
-export function parseReviewArgs(args: string): ParseResult<ReviewArgs> {
+export function parseReviewArgs(args: string): ParseResult<ReviewParams> {
   const text = args.trim();
-  if (!text) return { ok: true, params: { base: null, head: null } };
-  const revision = /^(?:(https?:\/\/[^\s/]+)\/)?D(\d+)\/?$/.exec(text);
-  if (revision) return { ok: true, params: { revision: { host: revision[1] ?? null, id: Number(revision[2]) } } };
+  if (!text) return { ok: true, params: { base: null, head: null, revision: null } };
+  if (parseRevisionRef(text)) return { ok: true, params: { base: null, head: null, revision: text } };
   const range = /^(\S+?)\.\.(\S+)$/.exec(text);
-  if (range && !text.includes("...")) return { ok: true, params: { base: range[1]!, head: range[2]! } };
+  if (range && !text.includes("...")) return { ok: true, params: { base: range[1]!, head: range[2]!, revision: null } };
   return { ok: false, error: "Usage: /review [D-number | base..head]" };
 }
 
 const review: Workflow<ReviewParams> = {
   id: "review",
-  description: "Review a local patch: narrate and review the changes between a base and a head git ref (for example main and a feature branch). With no refs it reviews the uncommitted changes in the work tree, or the latest commit when there are none.",
+  description: "Review a local patch: narrate and review the changes between a base and a head git ref (for example main and a feature branch), or a Phabricator revision (D123, or its URL) whose stack is imported without checking it out. With no refs it reviews the uncommitted changes in the work tree, or the latest commit when there are none.",
   argHint: "[D-number | base..head]",
   params: reviewParams,
-  parseArgs(args) {
-    const parsed = parseReviewArgs(args);
-    if (!parsed.ok) return parsed;
-    if ("revision" in parsed.params) return { ok: false, error: `Reviewing D${parsed.params.revision.id} without a local checkout is not available yet; check it out and use /review <base>..<head>` };
-    return { ok: true, params: parsed.params };
-  },
+  parseArgs: parseReviewArgs,
   async start(rt, sessionId, { params, llm }) {
+    if (params.revision !== null) {
+      const { host, id } = parseRevisionRef(params.revision)!;
+      const range = await rt.run<{ base: string; head: string }>(sessionId, "importRevision", { host, id });
+      await narratePatch(rt, sessionId, { ...range, llm });
+      return;
+    }
     const range = params.base !== null && params.head !== null
       ? { base: params.base, head: params.head }
       : await defaultReviewRange(rt, sessionId);

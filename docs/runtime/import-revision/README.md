@@ -13,3 +13,4 @@
 ## Functions
 
 - [importRevision](functions/importRevision.md)
+- [importRevisionInto](functions/importRevisionInto.md)

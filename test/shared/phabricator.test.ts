@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { commitRevision, parsePhabRevisionUrl, phabRevision } from "../../src/shared/phabricator.ts";
+import { commitRevision, parsePhabRevisionUrl, parseRevisionRef, phabRevision } from "../../src/shared/phabricator.ts";
 import type { Commit, DiffData } from "../../src/shared/types.ts";
 
 function diff(bodies: string[]): DiffData {
@@ -39,5 +39,14 @@ test("parsePhabRevisionUrl accepts revision URLs and rejects other paths", () =>
   }
   for (const text of ["D123", "https://phab.example.com/D123/extra", "https://phab.example.com/D", "https://phab.example.com/differential/D1"]) {
     assert.equal(parsePhabRevisionUrl(text), null);
+  }
+});
+
+test("parseRevisionRef accepts ids and URLs but rejects invalid revisions", () => {
+  assert.deepEqual(parseRevisionRef("D5"), { host: null, id: 5 });
+  assert.deepEqual(parseRevisionRef(" https://phab.example.com/D5/ "), { host: "https://phab.example.com", id: 5 });
+  assert.deepEqual(parseRevisionRef("http://h:8080/D7"), { host: "http://h:8080", id: 7 });
+  for (const text of ["D0", "D12x", "d5", "5", "https://phab.example.com/D5/extra", "ftp://h/D5", ""]) {
+    assert.equal(parseRevisionRef(text), null, text);
   }
 });

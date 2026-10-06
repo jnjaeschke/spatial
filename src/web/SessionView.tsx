@@ -44,7 +44,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const epoch = diff ? epochNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
-  const busy = state.tasks.some((t) => (t.kind === "importDiff" || t.kind === "narrate") && (t.status === "running" || t.status === "pending"));
+  const busy = state.tasks.some((t) => (t.kind === "importDiff" || t.kind === "importRevision" || t.kind === "narrate") && (t.status === "running" || t.status === "pending"));
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
   const body = state.session.workflow === null
     ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>

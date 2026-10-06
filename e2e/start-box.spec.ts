@@ -62,7 +62,7 @@ test("bad commands show an inline error and create nothing", async ({ page, requ
   const error = page.getByTestId("start-error");
   for (const [input, message] of [
     ["/nope x", "Unknown command /nope"],
-    ["/review D292469", "not available yet"],
+    ["/review D5x", "Usage: /review"],
     ["/chat", "Usage: /chat"],
   ]) {
     await box.fill(input);

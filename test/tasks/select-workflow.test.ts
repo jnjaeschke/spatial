@@ -48,21 +48,27 @@ test("selector stores a validated workflow start and sends workflow schemas", as
 });
 
 test("selector validates review params", async () => {
-  const { store, rt, session } = setup({ workflow: "review", params: { base: "main", head: "f" }, title: "Review" });
+  const { store, rt, session } = setup({ workflow: "review", params: { base: "main", head: "f", revision: null }, title: "Review" });
   const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "Review f" });
-  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: "main", head: "f" });
+  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: "main", head: "f", revision: null });
 });
 
 test("selector accepts a default review range", async () => {
-  const { store, rt, session } = setup({ workflow: "review", params: { base: null, head: null }, title: "Review" });
+  const { store, rt, session } = setup({ workflow: "review", params: { base: null, head: null, revision: null }, title: "Review" });
   const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "Review this" });
-  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: null, head: null });
+  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: null, head: null, revision: null });
+});
+
+test("selector accepts a revision", async () => {
+  const { store, rt, session } = setup({ workflow: "review", params: { base: null, head: null, revision: "D123" }, title: "Review" });
+  const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "review D123" });
+  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: null, head: null, revision: "D123" });
 });
 
 for (const [label, json, prompt, error] of [
   ["unknown workflow", { workflow: "deploy", params: {}, title: "x" }, "x", /unknown workflow/],
   ["invalid review params", { workflow: "review", params: { base: "main" }, title: "x" }, "x", /invalid params for review/],
-  ["half default review params", { workflow: "review", params: { base: "main", head: null }, title: "x" }, "x", /invalid params for review/],
+  ["half default review params", { workflow: "review", params: { base: "main", head: null, revision: null }, title: "x" }, "x", /invalid params for review/],
   ["invalid chat params", { workflow: "chat", params: { x: 1 }, title: "x" }, "x", /invalid params for chat/],
   ["blank title", { workflow: "chat", params: {}, title: "  " }, "x", /no title/],
   ["empty prompt", { workflow: "chat", params: {}, title: "x" }, "  ", /Request is empty/],

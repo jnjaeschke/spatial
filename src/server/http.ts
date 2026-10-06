@@ -33,7 +33,7 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".json": "application/json", ".png": "image/png", ".woff2": "font/woff2",
 };
 const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1"]);
-const HEAVY_TASKS = new Set(["importDiff", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
+const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();
 
 type Ctx = { req: IncomingMessage; res: ServerResponse; params: string[]; url: URL };

@@ -21,6 +21,7 @@
 - [runtime/phabricator-sync](runtime/phabricator-sync/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
 - [runtime/repo-context](runtime/repo-context/README.md)
+- [runtime/revision-host](runtime/revision-host/README.md)
 - [runtime/revision-watcher](runtime/revision-watcher/README.md)
 - [runtime/rewrites](runtime/rewrites/README.md)
 - [runtime/state](runtime/state/README.md)

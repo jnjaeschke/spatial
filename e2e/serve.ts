@@ -34,7 +34,7 @@ const chatOut = join(dir, "chat.json");
 const chatAnswer = "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```";
 writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [] }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const selectReviewOut = join(dir, "select-review.json");
-writeFileSync(selectReviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "review", params: { base: null, head: null }, title: "Review via selector" }, session_id: "stub-select-review", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(selectReviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "review", params: { base: null, head: null, revision: null }, title: "Review via selector" }, session_id: "stub-select-review", usage: { input_tokens: 1, output_tokens: 1 } }));
 const selectChatOut = join(dir, "select-chat.json");
 writeFileSync(selectChatOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "chat", params: {}, title: "Chat via selector" }, session_id: "stub-select-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const mcpRequestOut = join(dir, "mcp-request.json");

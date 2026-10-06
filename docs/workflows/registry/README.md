@@ -14,7 +14,6 @@
 ## Type Aliases
 
 - [ParseResult](type-aliases/ParseResult.md)
-- [ReviewArgs](type-aliases/ReviewArgs.md)
 - [ReviewParams](type-aliases/ReviewParams.md)
 
 ## Variables

@@ -1,4 +1,5 @@
 import type { Id } from "../shared/types.ts";
+import type { GitCapability } from "./tasks.ts";
 import type { PhabRevision } from "../shared/phabricator.ts";
 import type { Runtime } from "./tasks.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
@@ -40,7 +41,16 @@ export async function importRevision(
   opts: { conduit?: Conduit } = {},
 ): Promise<{ base: string; head: string }> {
   const session = rt.store.getSession(sessionId);
-  const repo = session.worktree;
+  return importRevisionInto(session.worktree, rt.gitFor(sessionId), rev, opts);
+}
+
+/** `importRevision` for a repo and its read-only git capability; the session-free core also used by the `importRevision` task. */
+export async function importRevisionInto(
+  repo: string,
+  git: Pick<GitCapability, "resolve">,
+  rev: PhabRevision,
+  opts: { conduit?: Conduit } = {},
+): Promise<{ base: string; head: string }> {
   const host = rev.host.replace(/\/+$/, "");
   const conduit = readOnly(opts.conduit ?? defaultConduit(host));
   let stack: StackEntry[];
@@ -55,7 +65,7 @@ export async function importRevision(
   const root = stack[0]!;
   let base: string;
   try {
-    base = await rt.gitFor(sessionId).resolve(root.diff.base);
+    base = await git.resolve(root.diff.base);
   } catch {
     throw new ImportRevisionError(
       `Base commit ${root.diff.base} of D${root.revision.id} (diff ${root.diff.id}) is not in ${repo}. Fetch it (for example "git fetch <remote> ${root.diff.base}") and try again; spatial never fetches on its own.`,

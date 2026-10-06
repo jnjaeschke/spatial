@@ -14,4 +14,5 @@
 
 - [commitRevision](functions/commitRevision.md)
 - [parsePhabRevisionUrl](functions/parsePhabRevisionUrl.md)
+- [parseRevisionRef](functions/parseRevisionRef.md)
 - [phabRevision](functions/phabRevision.md)
