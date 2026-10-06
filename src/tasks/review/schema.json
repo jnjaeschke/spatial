@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["findings"],
+  "required": ["findings", "verdicts"],
   "properties": {
     "findings": {
       "type": "array",
@@ -16,6 +16,19 @@
           "severity": { "enum": ["high", "medium", "low"] },
           "title": { "type": "string" },
           "body": { "type": "string" }
+        }
+      }
+    },
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding", "verdict", "reason"],
+        "properties": {
+          "finding": { "type": "string" },
+          "verdict": { "enum": ["addressed", "partially", "not_addressed"] },
+          "reason": { "type": "string" }
         }
       }
     }

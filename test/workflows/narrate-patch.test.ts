@@ -29,7 +29,7 @@ function fixture() {
   const out = join(dir, "claude-out.json");
   writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: narrative, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));
   const reviewOut = join(dir, "findings.json");
-  writeFileSync(reviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { findings: [] }, session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
+  writeFileSync(reviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { findings: [], verdicts: [] }, session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
   process.env.FAKE_LLM_ROUTES = JSON.stringify({ '"findings"': reviewOut });
   process.env.FAKE_LLM_STDOUT = out;
   process.env.FAKE_LLM_LOG = join(dir, "log.jsonl");

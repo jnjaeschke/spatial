@@ -22,7 +22,7 @@ const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.syste
 const commentFor = (prompt: { schema?: object }) => !!prompt.schema && "properties" in prompt.schema && "body" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [] } : comment ? { body: "Generated review comment." } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -180,7 +180,7 @@ test("narrate rejects a second request while narration is running", async () => 
       if (prompt.schema) { started(); await gate; }
       const chat = replyFor(prompt);
       const review = reviewFor(prompt);
-      return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
+      return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
   const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
