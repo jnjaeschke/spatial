@@ -7,6 +7,7 @@
 ## Modules
 
 - [mcp/session-server](mcp/session-server/README.md)
+- [runtime/conduit](runtime/conduit/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
@@ -15,5 +16,6 @@
 - [runtime/store](runtime/store/README.md)
 - [runtime/tasks](runtime/tasks/README.md)
 - [server/http](server/http/README.md)
+- [shared/phabricator](shared/phabricator/README.md)
 - [shared/types](shared/types/README.md)
 - [workflows/narrate-patch](workflows/narrate-patch/README.md)
