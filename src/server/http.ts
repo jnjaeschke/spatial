@@ -13,6 +13,7 @@ import { loadRepoContext } from "../runtime/repo-context.ts";
 import { phabRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
+import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 
 class HttpError extends Error {
   status: number;
@@ -87,7 +88,7 @@ function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unk
   return artifact;
 }
 
-export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {}): Server {
+export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher } = {}): Server {
   const routes: Route[] = [
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
     ["POST", /^\/api\/sessions$/, async ({ req, res }) => {
@@ -268,11 +269,12 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string } = {})
       const after = Number(headerId ?? url.searchParams.get("after") ?? 0);
       if (!Number.isSafeInteger(after) || after < 0) throw new HttpError(400, "Invalid event id");
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const unwatch = opts.watcher?.watch(id);
       const write = (e: { id: number }) => res.write(`id: ${e.id}\nevent: runtime\ndata: ${JSON.stringify(e)}\n\n`);
       for (const e of rt.store.listEvents(id, after)) write(e);
       const off = rt.onEvent((e) => { if (e.sessionId === id) write(e); });
       const ping = setInterval(() => res.write(": ping\n\n"), 15_000);
-      res.on("close", () => { off(); clearInterval(ping); });
+      res.on("close", () => { off(); clearInterval(ping); unwatch?.(); });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;

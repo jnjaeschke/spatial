@@ -20,6 +20,10 @@
 
 `string`
 
+#### watcher?
+
+[`RevisionWatcher`](../../../runtime/revision-watcher/classes/RevisionWatcher.md)
+
 ## Returns
 
 `Server`

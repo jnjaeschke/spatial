@@ -10,6 +10,7 @@ import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../..
 import { makeGit } from "../../src/runtime/git.ts";
 import { tasks } from "../../src/tasks/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
+import type { RevisionWatcher } from "../../src/runtime/revision-watcher.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, Session, SessionState } from "../../src/shared/types.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
@@ -492,6 +493,26 @@ test("SSE replays events after after and honors Last-Event-ID", async () => {
   assert.ok(all.length >= 4);
   const tail = await read({ "last-event-id": String(all[1]) });
   assert.equal(tail[0], all[2]);
+});
+
+test("SSE subscriptions watch the session until the connection closes", async () => {
+  const calls: string[] = [];
+  const released: string[] = [];
+  const watcher = { watch(id: string) { calls.push(id); return () => released.push(id); } } as unknown as RevisionWatcher;
+  const watchServer = createHttpServer(rt, { watcher });
+  await new Promise<void>((resolve) => watchServer.listen(0, "127.0.0.1", resolve));
+  const session = await newSession();
+  const controller = new AbortController();
+  try {
+    const response = await fetch(`http://127.0.0.1:${(watchServer.address() as AddressInfo).port}/api/sessions/${session.id}/events`, { signal: controller.signal });
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls, [session.id]);
+    controller.abort();
+    await waitFor(async () => released.includes(session.id) ? true : undefined);
+  } finally {
+    controller.abort();
+    await new Promise<void>((resolve) => watchServer.close(() => resolve()));
+  }
 });
 
 test("models endpoint returns default and per-backend results", async () => {

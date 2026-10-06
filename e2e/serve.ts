@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRuntime } from "../src/runtime/create.ts";
+import { RevisionWatcher } from "../src/runtime/revision-watcher.ts";
 import { createSession, makeGit } from "../src/runtime/git.ts";
 import { createHttpServer } from "../src/server/http.ts";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
@@ -61,4 +62,6 @@ process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${(conduit.address() as
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
 await createSession(rt.store, repo.dir, "fixture");
-createHttpServer(rt, { staticDir: "dist/web" }).listen(4178, "127.0.0.1", () => console.log("e2e runtime on 4178"));
+const watcher = new RevisionWatcher(rt, { intervalMs: 300 });
+watcher.start();
+createHttpServer(rt, { staticDir: "dist/web", watcher }).listen(4178, "127.0.0.1", () => console.log("e2e runtime on 4178"));
