@@ -10,6 +10,9 @@ import { checkDrift } from "../../src/runtime/drift.ts";
 import { importRevision, ImportRevisionError } from "../../src/runtime/import-revision.ts";
 import { READ_ONLY_METHODS, type Conduit } from "../../src/runtime/phab-revision.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
+import { importDiff } from "../../src/tasks/import-diff/task.ts";
+import { hunkCommit } from "../../src/shared/review-path.ts";
+import type { DiffData } from "../../src/shared/types.ts";
 
 const host = "https://phab.example.com";
 const identity = { name: "T", email: "t@t" };
@@ -89,6 +92,19 @@ test("imports a stacked revision as local commits without changing checkout stat
   assert.deepEqual(snapshot(x.a), before);
   assert.ok(x.calls.every((method) => READ_ONLY_METHODS.has(method)));
   assert.ok(!x.calls.includes("differential.createinline"));
+  const diffRuntime = new Runtime({ store: x.store, tasks: [importDiff], llm: {} as never, git: makeGit, webspec: {} as never, searchfox: {} as never });
+  const { diffId } = await diffRuntime.run<{ diffId: string }>(x.session.id, "importDiff", { base, head });
+  const diff = x.store.getArtifact<DiffData>(diffId).data;
+  assert.deepEqual(diff.commits.map(commitRevision), [{ host, id: 1 }, { host, id: 2 }]);
+  const aFile = diff.files.find((file) => file.path === "a.txt")!;
+  const aLines = aFile.hunks.flatMap((hunk) => hunk.lines.filter((line) => line.kind === "add"));
+  assert.deepEqual(aLines.map((line) => [line.text, line.commit]), [["TWO", 0], ["THREE", 1]]);
+  const bFile = diff.files.find((file) => file.path === "b.txt")!;
+  assert.equal(hunkCommit(diff, bFile.hunks[0]!), 1);
+  assert.ok(aFile.hunks.every((hunk) => {
+    const owners = new Set(hunk.lines.filter((line) => line.kind !== "ctx").map((line) => line.commit));
+    return owners.size <= 1;
+  }));
   const refsBefore = x.a.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/spatial");
   assert.deepEqual(await importRevision(x.rt, x.session.id, rev, { conduit: x.conduit }), { base, head });
   assert.equal(x.a.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/spatial"), refsBefore);

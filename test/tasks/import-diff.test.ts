@@ -6,6 +6,7 @@ import { makeGit, createSession } from "../../src/runtime/git.ts";
 import { importDiff } from "../../src/tasks/import-diff/task.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData } from "../../src/shared/types.ts";
+import { hunkCommit } from "../../src/shared/review-path.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const noLlm = {
@@ -38,6 +39,19 @@ test("imports a range as a verified Diff artifact", async () => {
   assert.deepEqual(a.data.files.map((f) => [f.path, f.status, f.hunks.map((h) => h.id)]), [["a.txt", "modified", ["f0h0"]], ["c.txt", "added", ["f1h0"]]]);
   // The first commit's replacement and the second commit's added file retain stack ownership.
   assert.deepEqual(a.data.files.map((f) => f.hunks.flatMap((h) => h.lines.filter((l) => l.kind === "add").map((l) => [l.text, l.commit]))), [[["TWO", 0]], [["c", 1]]]);
+});
+
+// REQUIRES_REAL_GIT
+test("splits squashed hunks when changed lines belong to different commits", async () => {
+  const { r, store, rt, session } = await setup();
+  r.commit({ "a.txt": "1\n2\n3\n4\n5\n" }, "base");
+  r.commit({ "a.txt": "ONE\n2\n3\n4\n5\n" }, "first");
+  r.commit({ "a.txt": "ONE\n2\n3\n4\nFIVE\n" }, "second");
+  const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~2", head: "HEAD" });
+  const file = store.getArtifact<DiffData>(diffId).data.files[0]!;
+  assert.deepEqual(file.hunks.map((hunk) => [hunk.id, hunkCommit(store.getArtifact<DiffData>(diffId).data, hunk), hunk.oldStart, hunk.oldLines, hunk.newStart, hunk.newLines]), [
+    ["f0h0", 0, 1, 4, 1, 4], ["f0h1", 1, 5, 1, 5, 1],
+  ]);
 });
 
 // REQUIRES_REAL_GIT

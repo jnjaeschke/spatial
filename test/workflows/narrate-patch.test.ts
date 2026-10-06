@@ -77,8 +77,8 @@ test("narratePatch carries findings after update narration and before resolving 
     summary: "Adds `c.txt`, then updates `a.txt` again.",
     commitIntents: ["Adds `c.txt`.", "Updates `a.txt` again."],
     changes: [
-      { ...narrative.changes[1], dependsOn: [] },
-      { ...narrative.changes[0], dependsOn: ["c2"] },
+      { ...narrative.changes[1], hunkIds: ["f0h0", "f1h0"], dependsOn: [] },
+      { ...narrative.changes[0], hunkIds: ["f0h1"], dependsOn: ["c2"] },
     ],
   };
   writeFileSync(join(dir, "claude-out.json"), JSON.stringify({ type: "result", is_error: false, result: "", structured_output: stackNarrative, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));

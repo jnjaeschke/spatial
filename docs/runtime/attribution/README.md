@@ -9,3 +9,4 @@
 ## Functions
 
 - [attribute](functions/attribute.md)
+- [splitByCommit](functions/splitByCommit.md)

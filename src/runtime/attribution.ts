@@ -1,5 +1,44 @@
-import type { Commit, DiffFile } from "../shared/types.ts";
+import type { Commit, DiffFile, DiffLine, Hunk } from "../shared/types.ts";
 import type { GitCapability } from "./tasks.ts";
+
+/** For stacks: splits every squashed hunk where the owning commit of its changed lines changes, so each hunk holds changed lines of one commit, then renumbers hunk ids per file (`f<file>h<n>`). Line order and numbering are kept, so the whole-file rows (`fileRows`) are unchanged. Context lines stay with the run before them; leading context stays with the first run; unattributed changed lines join the current run. A hunk with one run is kept as is. No-op for single-commit diffs. */
+export function splitByCommit(files: DiffFile[], commitCount: number): void {
+  if (commitCount < 2) return;
+  files.forEach((file, fileIndex) => {
+    const out: Hunk[] = [];
+    for (const hunk of file.hunks) {
+      const runs: { lines: DiffLine[]; old: number; new: number }[] = [];
+      let oldPos = hunk.oldLines === 0 ? hunk.oldStart + 1 : hunk.oldStart;
+      let newPos = hunk.newLines === 0 ? hunk.newStart + 1 : hunk.newStart;
+      let owner: number | undefined;
+      let run = { lines: [] as DiffLine[], old: oldPos, new: newPos };
+      for (const line of hunk.lines) {
+        if (line.kind !== "ctx" && line.commit !== undefined) {
+          if (owner !== undefined && line.commit !== owner) {
+            runs.push(run);
+            run = { lines: [], old: oldPos, new: newPos };
+          }
+          owner = line.commit;
+        }
+        run.lines.push(line);
+        if (line.kind !== "add") oldPos++;
+        if (line.kind !== "del") newPos++;
+      }
+      runs.push(run);
+      if (runs.length === 1) { out.push(hunk); continue; }
+      const section = hunk.header.replace(/^@@ [^@]* @@/, "");
+      for (const item of runs) {
+        const oldLines = item.lines.filter((line) => line.kind !== "add").length;
+        const newLines = item.lines.filter((line) => line.kind !== "del").length;
+        const oldStart = oldLines === 0 ? item.old - 1 : item.old;
+        const newStart = newLines === 0 ? item.new - 1 : item.new;
+        out.push({ id: "", header: `@@ -${oldStart},${oldLines} +${newStart},${newLines} @@${section}`, oldStart, oldLines, newStart, newLines, lines: item.lines });
+      }
+    }
+    out.forEach((hunk, index) => { hunk.id = `f${fileIndex}h${index}`; });
+    file.hunks = out;
+  });
+}
 
 /** Sets commit attribution on changed lines in place. Single-commit diffs need no blame. */
 export async function attribute(git: GitCapability, baseSha: string, headSha: string, commits: Commit[], files: DiffFile[]): Promise<void> {

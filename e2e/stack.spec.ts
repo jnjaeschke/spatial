@@ -114,17 +114,19 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  await narrate(page, stack, "code");
+  await narrate(page, stack, "concept");
   const summary = page.getByTestId("summary");
   await expect(summary.locator("li .swatch")).toHaveCount(2);
   await expect(summary).toContainText("C1");
   await expect(summary).toContainText("First stack change");
   await expect(summary).toContainText("C2");
   await expect(summary).toContainText("Rewrite line");
-  const rewritten = page.getByTestId("hunk-f0h0");
+  await setLevel(page, "code");
+  const rewritten = page.getByTestId("hunk-f0h1");
   await expect(rewritten.getByTestId("rewrite-flag")).toHaveText("C2 rewrites 1 line added in C1");
   const latest = rewritten.locator("tr.add").filter({ hasText: "THIRTY-TWO" });
   await expect(latest).toHaveAttribute("data-commit", "1");
+  await expect(page.getByTestId("hunk-f0h0").locator("tr.del")).toHaveAttribute("data-commit", "0");
   const early = page.getByTestId("hunk-f1h0").locator("tr.add");
   await expect(early).toHaveAttribute("data-commit", "0");
   const diff = (await state(request, stack.sessionId)).artifacts.find((artifact) => artifact.type === "Diff")!.data;

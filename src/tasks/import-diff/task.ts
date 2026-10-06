@@ -2,7 +2,7 @@ import type { DiffData } from "../../shared/types.ts";
 import { parseUnifiedDiff } from "../../runtime/diff-parse.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { isGeckoRepo } from "../../runtime/searchfox.ts";
-import { attribute } from "../../runtime/attribution.ts";
+import { attribute, splitByCommit } from "../../runtime/attribution.ts";
 import { findRewrites } from "../../runtime/rewrites.ts";
 
 export const importDiff = defineTask<{ base: string; head: string }, { diffId: string }>({
@@ -17,6 +17,7 @@ export const importDiff = defineTask<{ base: string; head: string }, { diffId: s
     if (files.length === 0) throw new Error(`Empty diff between ${base} and ${head}`);
     const commits = await ctx.git.log(baseSha, headSha);
     await attribute(ctx.git, baseSha, headSha, commits, files);
+    splitByCommit(files, commits.length);
     await findRewrites(ctx.git, baseSha, commits, files);
     const data: DiffData = { baseSha, headSha, commits, files };
     if (isGeckoRepo(ctx.repo)) {
