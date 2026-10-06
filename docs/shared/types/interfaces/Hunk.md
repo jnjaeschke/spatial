@@ -49,3 +49,9 @@
 ### oldStart
 
 > **oldStart**: `number`
+
+***
+
+### rewrites?
+
+> `optional` **rewrites?**: [`Rewrite`](Rewrite.md)[]

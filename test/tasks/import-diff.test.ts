@@ -41,6 +41,17 @@ test("imports a range as a verified Diff artifact", async () => {
 });
 
 // REQUIRES_REAL_GIT
+test("imported hunks report when a later commit rewrites an earlier addition", async () => {
+  const { r, store, rt, session } = await setup();
+  r.commit({ "a.txt": "one\ntwo\n" }, "base");
+  r.commit({ "a.txt": "one\nintroduced\ntwo\n" }, "first");
+  r.commit({ "a.txt": "one\nrewritten\ntwo\n" }, "second");
+  const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~2", head: "HEAD" });
+  const file = store.getArtifact<DiffData>(diffId).data.files[0]!;
+  assert.deepEqual(file.hunks[0]!.rewrites, [{ by: 1, of: 0, lines: 1 }]);
+});
+
+// REQUIRES_REAL_GIT
 test("single-commit import stores no line attribution", async () => {
   const { r, store, rt, session } = await setup();
   r.commit({ "a.txt": "1\n2\n" }, "base");

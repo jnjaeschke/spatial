@@ -222,7 +222,11 @@ export interface Hunk {
   newStart: number;
   newLines: number;
   lines: DiffLine[];
+  rewrites?: Rewrite[];
 }
+
+/** A later stack commit deleted lines introduced by an earlier stack commit. */
+export interface Rewrite { by: number; of: number; lines: number }
 
 export type FileStatus = "added" | "deleted" | "modified" | "renamed";
 

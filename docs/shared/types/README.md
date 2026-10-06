@@ -36,6 +36,7 @@
 - [ReviewCommentData](interfaces/ReviewCommentData.md)
 - [ReviewFindingData](interfaces/ReviewFindingData.md)
 - [RevisionData](interfaces/RevisionData.md)
+- [Rewrite](interfaces/Rewrite.md)
 - [RuntimeEvent](interfaces/RuntimeEvent.md)
 - [SemanticChange](interfaces/SemanticChange.md)
 - [Session](interfaces/Session.md)
