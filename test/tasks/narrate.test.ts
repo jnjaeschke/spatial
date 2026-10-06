@@ -167,3 +167,33 @@ test("narrate: wrong artifact type is an error", async () => {
   const other = store.putArtifact({ sessionId: session.id, type: "Other", status: "verified", data: {}, provenance: { taskId: "x" } }).id;
   await assert.rejects(rt.run(session.id, "narrate", { diffId: other }), /is not a Diff/);
 });
+
+test("narrate update mode: renders prior narrative and interdiff, and computes statuses", async () => {
+  const { store, rt, session, prompts } = setup([{ ...VALID, changes: VALID.changes.map((item) => ({ ...item, status: "new" })) }]);
+  const previousData = { ...DIFF, files: DIFF.files.filter((file) => file.path !== "test/t.html") };
+  const previousDiff = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: previousData, provenance: { taskId: "x" } });
+  const previousNarrative = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: previousDiff.id, summary: "Previous", changes: [change("c1", ["f0h0"])] }, provenance: { taskId: "x" } });
+  const nextDiff = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } });
+  const interdiff = store.putArtifact({ sessionId: session.id, type: "Interdiff", status: "verified", data: {
+    fromDiff: previousDiff.id, toDiff: nextDiff.id, conflicts: [], files: [{ path: "dom/A.cpp", status: "modified", binary: false, hunks: [
+      { id: "f0h0", header: "@@ -1 +1 @@", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "del", text: "old" }, { kind: "add", text: "new" }] },
+    ] }, { path: "test/t.html", status: "added", binary: false, hunks: [
+      { id: "f1h0", header: "@@ -0,0 +1 @@", oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, lines: [{ kind: "add", text: "<p>" }] },
+    ] }],
+  }, provenance: { taskId: "x" } });
+  const { narrativeId } = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId: nextDiff.id, update: { previousNarrativeId: previousNarrative.id, interdiffId: interdiff.id } });
+  const narrative = store.getArtifact<PatchNarrativeData>(narrativeId);
+  assert.equal(narrative.data.previous, previousNarrative.id);
+  assert.deepEqual(narrative.data.changes.map((item) => item.status), ["modified", "new"]);
+  for (const section of ["# Previous narrative", "# Interdiff", "I-f0h0", "[modified]", "[unchanged]", "[new]"]) assert.ok(prompts[0].prompt.includes(section), section);
+  assert.ok(prompts[0].system?.includes("Describe what changed since the previous revision"));
+});
+
+test("narrate update mode rejects an interdiff that does not connect", async () => {
+  const { store, rt, session } = setup([VALID]);
+  const other = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } });
+  const previousNarrative = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: other.id, summary: "Previous", changes: [] }, provenance: { taskId: "x" } });
+  const nextDiff = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } });
+  const interdiff = store.putArtifact({ sessionId: session.id, type: "Interdiff", status: "verified", data: { fromDiff: other.id, toDiff: other.id, conflicts: [], files: [] }, provenance: { taskId: "x" } });
+  await assert.rejects(rt.run(session.id, "narrate", { diffId: nextDiff.id, update: { previousNarrativeId: previousNarrative.id, interdiffId: interdiff.id } }), /does not connect/);
+});
