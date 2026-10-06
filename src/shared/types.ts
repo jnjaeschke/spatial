@@ -137,6 +137,12 @@ export interface ReviewCommentData { finding: Id; body: string }
 /** Receipt of a posted Phabricator inline. Linked `about → commentId`. Provenance: runtime. */
 export interface PostedCommentData { comment: Id; revision: number; diff: number; inlineId: number }
 
+/** A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact. */
+export interface PhabCommentData {
+  revision: number; phid: string; version: number; author: string; body: string; path?: string; line?: number; length?: number;
+  diffId?: number; isNewFile?: boolean; replyTo?: string; own: boolean; done: boolean; txId: number; dateCreated: number;
+}
+
 /** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. */
 export interface ChatMessageData {
   role: "user" | "assistant";

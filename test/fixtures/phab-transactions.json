@@ -1,0 +1,216 @@
+{
+ "result": {
+  "data": [
+   {
+    "id": 11494041,
+    "phid": "PHID-XACT-DREV-b1",
+    "type": "inline",
+    "authorPHID": "PHID-USER-c2",
+    "objectPHID": "PHID-DREV-a0",
+    "dateCreated": 1791221914,
+    "dateModified": 1791221914,
+    "groupID": "group3",
+    "comments": [
+     {
+      "id": 1757624,
+      "phid": "PHID-XCMT-d3",
+      "version": 1,
+      "authorPHID": "PHID-USER-c2",
+      "dateCreated": 1791216788,
+      "dateModified": 1791221914,
+      "removed": false,
+      "content": {
+       "raw": "comment text"
+      }
+     }
+    ],
+    "fields": {
+     "diff": {
+      "id": 1389348,
+      "phid": "PHID-DIFF-e4"
+     },
+     "path": "path/to/file.cpp",
+     "line": 265,
+     "length": 1,
+     "isNewFile": true,
+     "replyToCommentPHID": null,
+     "isDone": false,
+     "hasSuggestion": false,
+     "suggestionText": ""
+    }
+   },
+   {
+    "id": 11425537,
+    "phid": "PHID-XACT-DREV-g6",
+    "type": "inline",
+    "authorPHID": "PHID-USER-c2",
+    "objectPHID": "PHID-DREV-f5",
+    "dateCreated": 1790249332,
+    "dateModified": 1790249332,
+    "groupID": "group7",
+    "comments": [
+     {
+      "id": 1750102,
+      "phid": "PHID-XCMT-h7",
+      "version": 1,
+      "authorPHID": "PHID-USER-c2",
+      "dateCreated": 1790249069,
+      "dateModified": 1790352561,
+      "removed": false,
+      "content": {
+       "raw": "comment text"
+      }
+     }
+    ],
+    "fields": {
+     "diff": {
+      "id": 1384946,
+      "phid": "PHID-DIFF-i8"
+     },
+     "path": "path/to/file.cpp",
+     "line": 131,
+     "length": 1,
+     "isNewFile": false,
+     "replyToCommentPHID": null,
+     "isDone": true,
+     "hasSuggestion": false,
+     "suggestionText": ""
+    }
+   },
+   {
+    "id": 11502472,
+    "phid": "PHID-XACT-DREV-j9",
+    "type": "inline",
+    "authorPHID": "PHID-USER-k10",
+    "objectPHID": "PHID-DREV-a0",
+    "dateCreated": 1791278420,
+    "dateModified": 1791278420,
+    "groupID": "group11",
+    "comments": [
+     {
+      "id": 1750308,
+      "phid": "PHID-XCMT-l11",
+      "version": 1,
+      "authorPHID": "PHID-USER-k10",
+      "dateCreated": 1790258614,
+      "dateModified": 1791278420,
+      "removed": false,
+      "content": {
+       "raw": "comment text"
+      }
+     }
+    ],
+    "fields": {
+     "diff": {
+      "id": 1291718,
+      "phid": "PHID-DIFF-m12"
+     },
+     "path": "path/to/file.cpp",
+     "line": 51,
+     "length": 1,
+     "isNewFile": true,
+     "replyToCommentPHID": "PHID-XCMT-n13",
+     "isDone": true,
+     "hasSuggestion": false,
+     "suggestionText": ""
+    }
+   },
+   {
+    "id": 11494045,
+    "phid": "PHID-XACT-DREV-o14",
+    "type": "inline",
+    "authorPHID": "PHID-USER-c2",
+    "objectPHID": "PHID-DREV-a0",
+    "dateCreated": 1791221914,
+    "dateModified": 1791221914,
+    "groupID": "group15",
+    "comments": [
+     {
+      "id": 1757754,
+      "phid": "PHID-XCMT-p15",
+      "version": 1,
+      "authorPHID": "PHID-USER-c2",
+      "dateCreated": 1791221165,
+      "dateModified": 1791278367,
+      "removed": false,
+      "content": {
+       "raw": "comment text"
+      }
+     }
+    ],
+    "fields": {
+     "diff": {
+      "id": 1389348,
+      "phid": "PHID-DIFF-e4"
+     },
+     "path": "path/to/file.cpp",
+     "line": 603,
+     "length": 5,
+     "isNewFile": true,
+     "replyToCommentPHID": null,
+     "isDone": true,
+     "hasSuggestion": true,
+     "suggestionText": "suggestion"
+    }
+   },
+   {
+    "id": 11494036,
+    "phid": "PHID-XACT-DREV-a16",
+    "type": "comment",
+    "authorPHID": "PHID-USER-c2",
+    "objectPHID": "PHID-DREV-a0",
+    "dateCreated": 1791221914,
+    "dateModified": 1791221914,
+    "groupID": "group17",
+    "comments": [
+     {
+      "id": 1757771,
+      "phid": "PHID-XCMT-b17",
+      "version": 1,
+      "authorPHID": "PHID-USER-c2",
+      "dateCreated": 1791221914,
+      "dateModified": 1791221914,
+      "removed": false,
+      "content": {
+       "raw": "comment text"
+      }
+     }
+    ],
+    "fields": {}
+   },
+   {
+    "id": 11502451,
+    "phid": "PHID-XACT-DREV-c18",
+    "type": "update",
+    "authorPHID": "PHID-USER-k10",
+    "objectPHID": "PHID-DREV-a0",
+    "dateCreated": 1791278239,
+    "dateModified": 1791278239,
+    "groupID": "group19",
+    "comments": [],
+    "fields": {
+     "old": "PHID-DIFF-e4",
+     "new": "PHID-DIFF-d19",
+     "commitPHIDs": []
+    }
+   },
+   {
+    "id": 11502453,
+    "phid": "PHID-XACT-DREV-e20",
+    "type": "request-review",
+    "authorPHID": "PHID-USER-k10",
+    "objectPHID": "PHID-DREV-a0",
+    "dateCreated": 1791278239,
+    "dateModified": 1791278239,
+    "groupID": "group21",
+    "comments": [],
+    "fields": {}
+   }
+  ],
+  "cursor": {
+   "limit": "50",
+   "after": "11502453",
+   "before": null
+  }
+ }
+}

@@ -28,6 +28,7 @@
 - [ModelsResponse](interfaces/ModelsResponse.md)
 - [NotifyPayload](interfaces/NotifyPayload.md)
 - [PatchNarrativeData](interfaces/PatchNarrativeData.md)
+- [PhabCommentData](interfaces/PhabCommentData.md)
 - [PostedCommentData](interfaces/PostedCommentData.md)
 - [Provenance](interfaces/Provenance.md)
 - [ResolvedSpec](interfaces/ResolvedSpec.md)
