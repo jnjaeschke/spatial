@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { revealNode, setLevel, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 let revisionCount = 0;
@@ -114,13 +114,16 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(summary).toContainText("First stack change");
   await expect(summary).toContainText("C2");
   await expect(summary).toContainText("Rewrite line");
+  await revealNode(page, "change-c1");
   await setLevel(page, "code");
   const rewritten = page.getByTestId("hunk-f0h1");
+  await revealNode(page, rewritten);
   await expect(rewritten.getByTestId("rewrite-flag")).toHaveText("C2 rewrites 1 line added in C1");
   const latest = rewritten.locator("tr.add").filter({ hasText: "THIRTY-TWO" });
   await expect(latest).toHaveAttribute("data-commit", "1");
   const latestColor = await latest.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   await expect(page.getByTestId("change-c3").locator(".title > .commit-tag")).toHaveText("C2");
+  await revealNode(page, "change-c1");
   await page.getByTestId("guide").getByRole("button", { name: "Next step" }).click();
   await expect(page.locator(".react-flow__node.guide-current").getByTestId("change-c1")).toBeVisible();
   await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt", exact: true }).click();

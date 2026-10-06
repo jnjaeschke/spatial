@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { revealNode, setLevel, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -287,6 +287,8 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
   await expect(finding.locator(".badge")).toHaveText("medium");
   await setLevel(page, "code");
   const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
+  await revealNode(page, row);
+  await revealNode(page, finding);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("finding-quote") ?? [])].map((r) => (r as Range).toString()))).toEqual(["c"]);
   await expect.poll(() => page.evaluate(() => {
     const range = [...CSS.highlights.get("finding-quote")!][0] as Range;
@@ -297,6 +299,7 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
     return box && rowBox ? Math.abs(box.y - rowBox.y) : Infinity;
   }).toBeLessThan(40);
 
+  await revealNode(page, finding.getByRole("button", { name: "Collapse" }));
   await finding.getByRole("button", { name: "Collapse" }).click();
   await expect(finding).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => CSS.highlights.get("finding-quote")?.size ?? 0)).toBe(1);

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { revealNode, setLevel, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -22,11 +22,11 @@ test("accept a finding, edit comment, post to Phabricator", async ({ page, reque
   const summary = page.getByTestId("summary");
   await expect(summary.getByText(/Post.*draft/)).toHaveCount(0);
   await finding.getByLabel("Comment").fill("Edited comment text.");
+  await revealNode(page, finding.getByRole("button", { name: "Save" }));
   await finding.getByRole("button", { name: "Save" }).click();
   const post = summary.getByText(/Post.*draft.*D1/);
   await expect(post).toBeVisible({ timeout: 5_000 });
-  await page.mouse.move(400, 780);
-  await page.mouse.wheel(0, 500);
+  await revealNode(page, post);
   await post.click();
   await expect(summary.getByText(/Posted 1 draft to D1/)).toBeVisible({ timeout: 10_000 });
   await expect(finding.getByText("Posted to D1")).toBeVisible();

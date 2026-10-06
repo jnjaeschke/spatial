@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { revealNode, setLevel, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 const control = "http://127.0.0.1:4179/control";
@@ -41,7 +41,7 @@ async function configure(request: APIRequestContext, revision: number, value: ob
 }
 
 /** Configures the fake Conduit before the session opens: the syncer caches raw diffs, as they never change on Phabricator. */
-async function openNarratedWithTrailer(page: Page, request: APIRequestContext, revision: number, conduit: (diff: string) => object, { codeLevel = true } = {}) {
+async function openNarratedWithTrailer(page: Page, request: APIRequestContext, revision: number, conduit: (diff: string) => object) {
   const dir = mkdtempSync(join(tmpdir(), "spatial-phab-"));
   repoDirs.push(dir);
   git(dir, "init", "-b", "main");
@@ -58,7 +58,8 @@ async function openNarratedWithTrailer(page: Page, request: APIRequestContext, r
   const diff = git(dir, "diff", "main", "feature");
   await configure(request, revision, conduit(diff));
   await startReview(page, dir, "main..feature");
-  if (codeLevel) await setLevel(page, "code");
+  await setLevel(page, "code");
+  await revealNode(page, "summary");
   return { dir, diff };
 }
 
@@ -125,6 +126,7 @@ test("ask about a remote comment: chat inside the thread node", async ({ page, r
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(160, "a.txt", 30, "Why is this needed?", { diffId: ids.d1 })] }));
   const thread = page.getByTestId("phab-thread");
   await expect(thread).toBeVisible({ timeout: 10_000 });
+  await revealNode(page, thread.getByRole("button", { name: "Send" }));
   await thread.getByLabel("message").fill("Explain this comment");
   await thread.getByRole("button", { name: "Send" }).click();
   await expect(thread).toContainText("Stub answer.", { timeout: 15_000 });
@@ -173,10 +175,9 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
   const ids = newRevision();
   const longBody = Array.from({ length: 40 }, (_, i) => `Long comment line ${i + 1}`).join("\n\n");
   const botBody = "The analysis task [lint](https://example.com/lint) failed.\n\n## Details\n\nMore details.";
-  // Zooming in while the arriving comments still refit the view lands on a viewport that culls the summary node.
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [
     commentTx(190, botBody, "reviewbot"), commentTx(191, "This is **important** feedback"), commentTx(192, longBody),
-  ] }), { codeLevel: false });
+  ] }));
   const summary = page.getByTestId("summary");
   const bot = summary.getByTestId("phab-comment").filter({ hasText: "@reviewbot" });
   await expect(bot).toBeVisible({ timeout: 10_000 });
@@ -194,6 +195,7 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
   const long = summary.getByTestId("phab-comment").filter({ hasText: "Long comment line 1" });
   await expect(long.getByRole("button", { name: "Show more" })).toBeVisible();
   await expect(long.locator(".phab-body")).toHaveClass(/clamped/);
+  await revealNode(page, long.getByRole("button", { name: "Show more" }));
   await long.getByRole("button", { name: "Show more" }).click();
   await expect(long.getByRole("button", { name: "Show less" })).toBeVisible();
   await expect(long.locator(".phab-body")).not.toHaveClass(/clamped/);

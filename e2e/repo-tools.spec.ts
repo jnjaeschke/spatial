@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { revealNode, setLevel, startReview } from "./canvas.ts";
 
 test("chat can request a denylisted repo server and enable it for that thread", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -14,8 +14,7 @@ test("chat can request a denylisted repo server and enable it for that thread", 
 
   const enable = finding.getByRole("button", { name: "Enable" });
   await expect(enable).toBeVisible({ timeout: 10_000 });
-  await page.mouse.move(400, 780);
-  await page.mouse.wheel(0, 500);
+  await revealNode(page, enable);
   await enable.click();
   await expect(enable).not.toBeVisible({ timeout: 5_000 });
 });

@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
+import { revealNode, setLevel } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 
@@ -44,8 +45,11 @@ test("/review with uncommitted changes reviews them and leaves the repo untouche
   await box.press("Enter");
   await expect(page).toHaveURL(/\?session=/);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  await setLevel(page, "code");
+  await revealNode(page, "summary");
   await expect(page.getByTestId("summary")).toContainText("Edits a and adds c.");
   await expect(page.getByTestId("hunk-f0h0")).toContainText("THIRTY");
+  await revealNode(page, "hunk-f1h0");
   await expect(page.getByTestId("hunk-f1h0")).toContainText("c");
   await expect(page.getByTestId("task-review")).toHaveAttribute("data-status", "succeeded", { timeout: 15_000 });
   await expect(page.getByTestId("toasts")).not.toContainText("New revision available");
