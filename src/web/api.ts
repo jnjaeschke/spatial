@@ -35,6 +35,8 @@ export const api = {
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
   decide: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/decide`, { decision, llm }),
+  setReviewed: (sessionId: string, narrativeId: string, changeId: string, reviewed: boolean) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/narratives/${narrativeId}/changes/${changeId}/reviewed`, { reviewed }),
   saveComment: (sessionId: string, findingId: string, body: string) =>
     put<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),
   regenerateComment: (sessionId: string, findingId: string, llm?: LlmSelection) =>

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { DiffData, Hunk, SemanticChange } from "../../src/shared/types.ts";
-import { changeCommit, hunkCommit } from "../../src/shared/review-path.ts";
+import type { Artifact, DiffData, Hunk, SemanticChange } from "../../src/shared/types.ts";
+import { changeCommit, hunkCommit, reviewedChanges } from "../../src/shared/review-path.ts";
 
 const diff: DiffData = {
   baseSha: "b", headSha: "h",
@@ -26,4 +26,16 @@ test("changeCommit uses its first hunk and falls back for empty changes", () => 
   const change = (hunkIds: string[]): SemanticChange => ({ id: "c", title: "", explanation: "", rationale: "", hunkIds, dependsOn: [], specUrls: [] });
   assert.equal(changeCommit(data, change(["owned"])), 1);
   assert.equal(changeCommit(data, change([])), 2);
+});
+
+test("reviewedChanges returns the latest reviewed marks for one narrative", () => {
+  const mark = (id: string, narrative: string, change: string, reviewed: boolean): Artifact => ({
+    id, sessionId: "S", type: "ChangeReview", status: "verified", createdAt: id,
+    provenance: { taskId: "user" }, data: { narrative, change, reviewed },
+  });
+  assert.deepEqual(reviewedChanges([], "N"), new Set());
+  assert.deepEqual(reviewedChanges([
+    mark("1", "N", "c1", true), mark("2", "N", "c2", true), mark("3", "N", "c1", false),
+    mark("4", "other", "c3", true),
+  ], "N"), new Set(["c2"]));
 });

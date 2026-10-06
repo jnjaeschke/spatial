@@ -300,3 +300,6 @@ export interface PatchNarrativeData {
   /** Previous epoch's narrative; present when this narrative describes what changed since it. */
   previous?: Id;
 }
+
+/** A reviewer's mark on a change of a narrative; the latest per (narrative, change) wins. Linked `about → <narrative>#<change>`. Provenance: user. */
+export interface ChangeReviewData { narrative: Id; change: string; reviewed: boolean }

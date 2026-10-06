@@ -70,6 +70,24 @@ test("sessions: create, list, validation", async () => {
   assert.equal((await post("/api/sessions", { title: "t" })).status, 400);
 });
 
+test("reviewed marks validate narrative and change, then create a user artifact", async () => {
+  const session = await newSession();
+  const narrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed",
+    data: { diffId: "D", summary: "s", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls: [] }] }, provenance: { taskId: "test" } });
+  const route = `/api/sessions/${session.id}/narratives/${narrative.id}/changes`;
+  assert.equal((await post(`${route}/c1/reviewed`, { reviewed: "yes" })).status, 400);
+  assert.equal((await post(`/api/sessions/${session.id}/narratives/missing/changes/c1/reviewed`, { reviewed: true })).status, 404);
+  assert.equal((await post(`${route}/c9/reviewed`, { reviewed: true })).status, 404);
+  const response = await post(`${route}/c1/reviewed`, { reviewed: true });
+  assert.equal(response.status, 201);
+  const { artifactId } = await response.json();
+  const artifact = rt.store.getArtifact(artifactId);
+  assert.equal(artifact.type, "ChangeReview");
+  assert.deepEqual(artifact.data, { narrative: narrative.id, change: "c1", reviewed: true });
+  assert.deepEqual(artifact.provenance, { taskId: "user" });
+  assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifact.id && link.to === `${narrative.id}#c1` && link.kind === "about"));
+});
+
 test("workflow start routes support slash commands, selection, and validation", async () => {
   const infos = await (await fetch(`${base}/api/workflows`)).json();
   assert.deepEqual(infos.map((info: { id: string }) => info.id), ["review", "chat"]);

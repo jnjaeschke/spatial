@@ -1,4 +1,4 @@
-import type { DiffData, Hunk, SemanticChange } from "./types.ts";
+import type { Artifact, ChangeReviewData, DiffData, Hunk, Id, SemanticChange } from "./types.ts";
 
 /** Commit (index into `diff.commits`) that owns a hunk: the commit of its first attributed changed line. A hunk without attributed lines belongs to the last commit, as unattributed new-side lines do when posting (`postTarget`). 0 for single-commit diffs. */
 export function hunkCommit(diff: DiffData, hunk: Hunk): number {
@@ -10,4 +10,15 @@ export function changeCommit(diff: DiffData, change: SemanticChange): number {
   const first = change.hunkIds[0];
   const hunk = first === undefined ? undefined : diff.files.flatMap((file) => file.hunks).find((item) => item.id === first);
   return hunk ? hunkCommit(diff, hunk) : diff.commits.length - 1;
+}
+
+/** Ids of the changes of `narrativeId` whose latest `ChangeReview` says reviewed. */
+export function reviewedChanges(artifacts: Artifact[], narrativeId: Id): Set<string> {
+  const latest = new Map<string, boolean>();
+  for (const artifact of artifacts) {
+    if (artifact.type !== "ChangeReview") continue;
+    const data = artifact.data as ChangeReviewData;
+    if (data.narrative === narrativeId) latest.set(data.change, data.reviewed);
+  }
+  return new Set([...latest].filter(([, reviewed]) => reviewed).map(([change]) => change));
 }

@@ -8,7 +8,7 @@ import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
-import { changeCommit } from "../shared/review-path.ts";
+import { changeCommit, reviewedChanges } from "../shared/review-path.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
@@ -36,6 +36,7 @@ export interface ChangeNodeData {
   files: string[];
   /** Owning stack commit; null for single-commit diffs. */
   commit: number | null;
+  reviewed: boolean;
 }
 
 export interface CommitNodeData {
@@ -46,6 +47,7 @@ export interface CommitNodeData {
   intent: string | null;
   changeCount: number;
   findingCount: number;
+  reviewedCount: number;
 }
 
 export interface SummaryNodeData {
@@ -168,11 +170,13 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   }];
   const edges: GraphEdge[] = [];
   const stack = diff.data.commits.length > 1;
+  const reviewed = reviewedChanges(artifacts, narrative.id);
   if (stack) {
     diff.data.commits.forEach((commit, index) => {
       const cardId = commitNodeId(narrative.id, index);
       nodes.push({ id: cardId, data: { kind: "commit", narrativeId: narrative.id, index, commit, intent: narrative.data.commitIntents?.[index] ?? null,
-        changeCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index).length, findingCount: 0 } });
+        changeCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index).length,
+        reviewedCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index && reviewed.has(change.id)).length, findingCount: 0 } });
       edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
     });
   }
@@ -181,7 +185,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     const commit = stack ? changeCommit(diff.data, change) : null;
     nodes.push({
       id: ref(change.id),
-      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit },
+      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id) },
     });
     const sources = change.dependsOn.length ? change.dependsOn.map(ref) : [commit === null ? narrative.id : commitNodeId(narrative.id, commit)];
     for (const s of sources) edges.push({ id: `${s}->${ref(change.id)}`, source: s, target: ref(change.id) });

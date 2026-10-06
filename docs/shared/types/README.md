@@ -9,6 +9,7 @@
 ## Interfaces
 
 - [Artifact](interfaces/Artifact.md)
+- [ChangeReviewData](interfaces/ChangeReviewData.md)
 - [ChatMessageData](interfaces/ChatMessageData.md)
 - [ChatThreadData](interfaces/ChatThreadData.md)
 - [Commit](interfaces/Commit.md)

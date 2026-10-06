@@ -188,6 +188,18 @@ test("narrativeGraph creates ordered commit cards and assigns changes to lanes",
   assert.ok(single.nodes.filter((n) => n.data.kind === "change").every((n) => n.data.kind === "change" && n.data.commit === null));
 });
 
+test("narrativeGraph adds reviewed state and per-commit reviewed counts", () => {
+  const mark = (id: string, change: string, reviewed: boolean): Artifact => ({
+    id, sessionId: "S", type: "ChangeReview", status: "verified", createdAt: id,
+    provenance: { taskId: "user" }, data: { narrative: "NS", change, reviewed },
+  });
+  const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff, mark("r1", "c1", true), mark("r2", "c2", true), mark("r3", "c2", false)]);
+  const changes = graph.nodes.filter((node) => node.data.kind === "change");
+  const cards = graph.nodes.filter((node) => node.data.kind === "commit");
+  assert.deepEqual(changes.map((node) => node.data.kind === "change" && [node.data.change.id, node.data.reviewed]), [["c1", true], ["c2", false], ["c3", false]]);
+  assert.deepEqual(cards.map((node) => node.data.kind === "commit" && node.data.reviewedCount), [1, 0]);
+});
+
 test("levelGraph collapses stack changes at patch zoom only", () => {
   const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   assert.deepEqual(levelGraph(g, "patch").nodes.map((n) => n.id), ["NS", "NS#commit-0", "NS#commit-1"]);
@@ -689,7 +701,7 @@ test("visibleGraph hides only collapsed quoted threads and their edges", () => {
     node("quoted", { kind: "chat", anchor: "N#c1", quote: "quote", diffId: "D", hunks: [], threadId: "quoted", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("plain", { kind: "chat", anchor: "N#c1", diffId: "D", hunks: [], threadId: "plain", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("draft", { kind: "chat", anchor: "N#c1", quote: "draft quote", diffId: "D", hunks: [], threadId: null, draftId: "draft", taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
-    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [], commit: null }),
+    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [], commit: null, reviewed: false }),
   ];
   const edges = [
     { id: "quoted-edge", source: "quoted", target: "N#c1" },

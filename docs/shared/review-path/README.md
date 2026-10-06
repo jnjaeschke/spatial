@@ -10,3 +10,4 @@
 
 - [changeCommit](functions/changeCommit.md)
 - [hunkCommit](functions/hunkCommit.md)
+- [reviewedChanges](functions/reviewedChanges.md)

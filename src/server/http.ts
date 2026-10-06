@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
+import type { Artifact, ChangeReviewData, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, PatchNarrativeData, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
@@ -160,6 +160,16 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
         const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
         done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
       }
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/narratives\/([^/]+)\/changes\/([^/]+)\/reviewed$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const narrative = requireArtifact(rt, session.id, params[1]!, "PatchNarrative", "narrative") as Artifact<PatchNarrativeData>;
+      const change = params[2]!;
+      if (!narrative.data.changes.some((item) => item.id === change)) throw new HttpError(404, `Unknown change: ${change}`);
+      const body = await readJson(req);
+      if (typeof body.reviewed !== "boolean") throw new HttpError(400, "Invalid reviewed");
+      const artifact = putUserArtifact(rt, session.id, "ChangeReview", { narrative: narrative.id, change, reviewed: body.reviewed } satisfies ChangeReviewData, `${narrative.id}#${change}`);
       send(res, 201, { artifactId: artifact.id });
     }],
     ["PUT", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/comment$/, async ({ req, res, params }) => {

@@ -13,7 +13,7 @@ export function CommitNode({ data }: NodeProps<CommitFlowNode>) {
       <div className="title"><span className="swatch" style={{ background: swatch }} />C{data.index + 1} <InlineText text={data.commit.subject} /></div>
       <div className="body nodrag nopan">
         {data.intent && <p className="intent"><InlineText text={data.intent} /></p>}
-        <p className="counts" data-testid="commit-counts">{data.changeCount} change{data.changeCount === 1 ? "" : "s"} · {data.findingCount} finding{data.findingCount === 1 ? "" : "s"}</p>
+        <p className="counts" data-testid="commit-counts">{data.changeCount} change{data.changeCount === 1 ? "" : "s"} · {data.reviewedCount}/{data.changeCount} reviewed · {data.findingCount} finding{data.findingCount === 1 ? "" : "s"}</p>
       </div>
       <Handle type="source" position={Position.Bottom} />
     </div>

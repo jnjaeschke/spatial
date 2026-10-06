@@ -261,6 +261,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .react-flow__node.selected > .node { border-color: color-mix(in oklab, var(--kind) 60%, var(--border)); }
 .node .title { font-weight: 650; letter-spacing: -0.005em; cursor: grab; line-height: 1.3; }
 .node .title button { box-shadow: none; }
+.node .title .reviewed { float: right; margin-left: 8px; font-size: 0.75em; font-weight: 500; color: var(--text-2); cursor: pointer; }
 .collapse { margin-left: 8px; padding: 0 4px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 0.8em; color: var(--text-3); cursor: pointer; box-shadow: none; }
 button.collapse:hover:not(:disabled) { background: var(--surface-3); color: var(--text); border-color: transparent; }
 .over-collapsed-quote .react-flow__node, .over-collapsed-quote .react-flow__node * { cursor: pointer; }
