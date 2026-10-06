@@ -3,8 +3,9 @@ import "@xyflow/react/dist/style.css";
 import "./styles.css";
 import { App } from "./App.tsx";
 import { applyTheme } from "./theme.ts";
-import { applyTextScale } from "./text-scale.ts";
+import { applyTextScale, installTextScaleShortcuts } from "./text-scale.ts";
 
 applyTheme();
 applyTextScale();
+installTextScaleShortcuts();
 createRoot(document.getElementById("root")!).render(<App />);

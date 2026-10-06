@@ -40,3 +40,21 @@ function subscribe(onChange: () => void): () => void {
 export function useTextScale(): number {
   return useSyncExternalStore(subscribe, textScale);
 }
+
+/** Maps modified text-size keys to an action; Alt disqualifies the shortcut. */
+export function textScaleShortcut(event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey">): "in" | "out" | "reset" | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+  if (event.key === "=" || event.key === "+") return "in";
+  if (event.key === "-" || event.key === "_") return "out";
+  return event.key === "0" ? "reset" : null;
+}
+
+/** Installs the global text-size keyboard shortcuts. Call once at startup. */
+export function installTextScaleShortcuts(): void {
+  window.addEventListener("keydown", (event) => {
+    const action = textScaleShortcut(event);
+    if (!action) return;
+    event.preventDefault();
+    setTextScale(action === "reset" ? DEFAULT_TEXT_SCALE : stepTextScale(textScale(), action === "in" ? 1 : -1));
+  });
+}

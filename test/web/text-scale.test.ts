@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseTextScale, stepTextScale } from "../../src/web/text-scale.ts";
+import { parseTextScale, stepTextScale, textScaleShortcut } from "../../src/web/text-scale.ts";
 
 test("parseTextScale accepts only supported values", () => {
   assert.equal(parseTextScale(null), 1);
@@ -16,4 +16,17 @@ test("stepTextScale moves through supported values and clamps", () => {
   assert.equal(stepTextScale(1.6, 1), 1.6);
   assert.equal(stepTextScale(1.3, 1), 1.45);
   assert.equal(stepTextScale(7, -1), 0.9);
+});
+
+test("textScaleShortcut maps modified size keys and ignores other keys", () => {
+  const shortcut = (key: string, ctrlKey = false, metaKey = false, altKey = false) =>
+    textScaleShortcut({ key, ctrlKey, metaKey, altKey });
+  assert.equal(shortcut("=", true), "in");
+  assert.equal(shortcut("+", false, true), "in");
+  assert.equal(shortcut("-", true), "out");
+  assert.equal(shortcut("_", true), "out");
+  assert.equal(shortcut("0", false, true), "reset");
+  for (const key of ["=", "+", "-", "_", "0"]) assert.equal(shortcut(key), null);
+  assert.equal(shortcut("=", true, false, true), null);
+  assert.equal(shortcut("a", true), null);
 });
