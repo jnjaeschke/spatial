@@ -77,7 +77,7 @@ async function reviewAndPost(page: Page, revision: number) {
 }
 
 async function state(request: APIRequestContext, sessionId: string) {
-  return await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json() as { artifacts: { type: string; data: Record<string, unknown> }[] };
+  return await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json() as { artifacts: { type: string; data: Record<string, unknown>; provenance: { taskId: string } }[] };
 }
 
 async function inlines(request: APIRequestContext, revision: number) {
@@ -119,8 +119,15 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(rewritten.getByTestId("rewrite-flag")).toHaveText("C2 rewrites 1 line added in C1");
   const latest = rewritten.locator("tr.add").filter({ hasText: "THIRTY-TWO" });
   await expect(latest).toHaveAttribute("data-commit", "1");
-  await expect(page.getByTestId("hunk-f0h0").locator("tr.del")).toHaveAttribute("data-commit", "0");
   const latestColor = await latest.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
+  await expect(page.getByTestId("change-c3").locator(".title > .commit-tag")).toHaveText("C2");
+  await page.getByTestId("guide").getByRole("button", { name: "Next step" }).click();
+  await expect(page.locator(".react-flow__node.guide-current").getByTestId("change-c1")).toBeVisible();
+  await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt", exact: true }).click();
+  const panel = page.getByTestId("file-panel");
+  await expect(panel.locator('tr[data-commit="0"]')).toHaveCount(1);
+  await expect(panel.locator('tr[data-commit="1"]')).toHaveCount(1);
+  await expect(page.getByTestId("hunk-f0h0").locator("tr.del")).toHaveAttribute("data-commit", "0");
   await page.getByRole("button", { name: "Next step" }).click();
   await page.getByRole("button", { name: "Next step" }).click();
   const early = page.getByTestId("hunk-f1h0").locator("tr.add");
@@ -130,6 +137,54 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(early.locator("td.sign")).toHaveAttribute("title", new RegExp(firstSha));
   const earlyColor = await early.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(latestColor).not.toBe(earlyColor);
+});
+
+test("commits are lanes; the guide walks the reading path and records reviews", async ({ page, request }) => {
+  const ids = newStackIds(2);
+  const stack = await buildStack(request, [
+    { revision: ids[0]!.revision, subject: "First stack change", apply: (dir) => changeLine(dir, "THIRTY") },
+    { revision: ids[1]!.revision, subject: "Add c", apply: (dir) => writeFileSync(join(dir, "c.txt"), "c\n") },
+  ]);
+  const sessionId = await narrate(page, stack, "concept");
+  const lane0 = page.getByTestId("commit-0"), lane1 = page.getByTestId("commit-1");
+  const guide = page.getByTestId("guide");
+  const current = page.locator(".react-flow__node.guide-current");
+  await expect(guide).toContainText("Start here");
+  await expect(guide).toContainText("Edit a");
+  await guide.getByRole("button", { name: "Next step" }).click();
+  await expect(current.getByTestId("change-c1")).toBeVisible();
+  await expect(page.getByTestId("change-c1")).toBeInViewport();
+  await page.locator(".canvas").focus();
+  await page.keyboard.press("n");
+  await expect(current.getByTestId("change-c2")).toBeVisible();
+  await expect(guide).toContainText("Step 2/2");
+  await expect(page.getByTestId("change-c2")).toBeInViewport();
+  await expect(page.getByTestId("change-c2").locator(".commit-tag")).toHaveText("C2");
+  await guide.getByRole("button", { name: "Previous step" }).click();
+  await expect(current.getByTestId("change-c1")).toBeVisible();
+  await expect(page.getByTestId("change-c1").locator(".commit-tag")).toHaveText("C1");
+
+  await guide.getByRole("button", { name: "Toggle reviewed" }).click();
+  await expect(guide.getByTestId("guide-progress")).toHaveText("1/2 reviewed");
+  await expect(page.getByLabel("Reviewed c1")).toBeChecked();
+  const reviews = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "ChangeReview");
+  expect(reviews.map((artifact) => [artifact.data.change, artifact.data.reviewed, artifact.provenance.taskId])).toEqual([["c1", true, "user"]]);
+
+  await page.reload();
+  await expect(guide).toContainText("Start here", { timeout: 15_000 });
+  await expect(guide).toContainText("Add c");
+  await expect(guide.getByTestId("guide-progress")).toHaveText("1/2 reviewed");
+  await setLevel(page, "patch", "commit-0");
+  await expect(page.getByTestId("change-c1")).toHaveCount(0);
+  await expect(lane0).toContainText("C1");
+  await expect(lane0).toContainText("First stack change");
+  await expect(lane0).toContainText("Replaces line 30 with THIRTY");
+  await expect(lane0.getByTestId("commit-counts")).toContainText("1/1 reviewed");
+  await expect(lane1).toContainText("Add c");
+  await expect(lane1.getByTestId("commit-counts")).toContainText("0/1 reviewed");
+  expect((await lane0.boundingBox())!.x).toBeLessThan((await lane1.boundingBox())!.x);
+  await guide.getByRole("button", { name: "Next step" }).click();
+  await expect(current.getByTestId("commit-1")).toBeVisible();
 });
 
 test("posts a C1 line to C1", async ({ page, request }) => {

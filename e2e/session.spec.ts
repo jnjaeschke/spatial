@@ -13,6 +13,21 @@ test("the fixture session shows the finished analysis", async ({ page }) => {
   await expect(page.getByTestId("analysis")).toHaveCount(0);
 });
 
+test("a single-commit review has the guide and reviewed marks", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  const guide = page.getByTestId("guide");
+  await expect(guide).toContainText("Start here", { timeout: 15_000 });
+  await expect(guide).toContainText("Edit a");
+  await expect(page.getByTestId("change-c1").locator(".commit-tag")).toHaveCount(0);
+  await guide.getByRole("button", { name: "Next step" }).click();
+  await guide.getByRole("button", { name: "Toggle reviewed" }).click();
+  await expect(guide.getByTestId("guide-progress")).toHaveText("1/2 reviewed");
+  await expect(page.getByLabel("Reviewed c1")).toBeChecked();
+  await guide.getByRole("button", { name: "Toggle reviewed" }).click();
+  await expect(guide.getByTestId("guide-progress")).toHaveText("0/2 reviewed");
+});
+
 test("expand context around a hunk", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
