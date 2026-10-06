@@ -174,3 +174,15 @@ test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {
   await page.keyboard.up("Control");
   await expect.poll(async () => (await viewport()).zoom).toBeGreaterThan(before.zoom);
 });
+
+test("minimap shows every node, also those culled from the viewport", async ({ page }) => {
+  await page.goto(URL);
+  await expect(page.getByTestId("change-c1")).toBeVisible();
+  await zoomUntil(page, "zoom out", "patch");
+  await page.waitForTimeout(400);
+  const all = await page.locator(".react-flow__node").count();
+  await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
+  await zoomUntil(page, "zoom in", "code");
+  await expect.poll(() => page.locator(".react-flow__node").count()).toBeLessThan(all);
+  await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
+});

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Background, Controls, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
+  Background, Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
@@ -19,6 +19,7 @@ const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, ch
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
+const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "#bbb", summary: "#888", spec: "#7aa7d6", chat: "#d9a24a", finding: "#e8743b" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -343,6 +344,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       >
         <Background />
         <Controls showInteractive={false} />
+        <MiniMap pannable zoomable nodeColor={(n) => MINIMAP_COLOR[n.type as keyof typeof nodeTypes]} />
         <Panel position="top-right"><button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
     </CollapseContext.Provider>
