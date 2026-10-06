@@ -15,4 +15,7 @@
 - [LlmRunResult](interfaces/LlmRunResult.md)
 - [LlmService](interfaces/LlmService.md)
 - [LlmUsage](interfaces/LlmUsage.md)
-- [McpServerSpec](interfaces/McpServerSpec.md)
+
+## Type Aliases
+
+- [McpServerSpec](type-aliases/McpServerSpec.md)

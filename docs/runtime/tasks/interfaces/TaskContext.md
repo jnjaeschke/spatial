@@ -172,7 +172,7 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ### sessionMcp
 
-> **sessionMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/interfaces/McpServerSpec.md)\>
+> **sessionMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
 
 ***
 

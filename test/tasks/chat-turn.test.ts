@@ -39,7 +39,7 @@ function setup(opts: { failWith?: string; hang?: boolean; replies?: ({ answer: s
   const rt = new Runtime({
     store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
-    sessionMcp: (sessionId) => ({ spatial: { command: "node", args: ["server.ts", "--session", sessionId] } }),
+    sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
   });
   const session = store.createSession("/repo", "t");
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
@@ -182,7 +182,7 @@ test("chat passes session MCP tools on first and resumed turns and includes sele
   const first = await turn({ anchor: `${narrativeId}#c1`, text: "Why?", quote: "selected words", lines: { start: 2, end: 4, path: "dom/A.cpp", side: "new" }, llm: SONNET });
   assert.ok(calls[0].prompt.prompt.includes("selected words"));
   assert.ok(calls[0].prompt.prompt.includes("lines 2–4 of dom/A.cpp, new side"));
-  const expectedServers = { spatial: { command: "node", args: ["server.ts", "--session", session.id] } };
+  const expectedServers = { spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", session.id] } };
   assert.deepEqual(calls[0].prompt.mcpServers, expectedServers);
   await turn({ threadId: first.threadId, text: "Again", llm: SONNET });
   assert.deepEqual(calls[1].prompt.mcpServers, calls[0].prompt.mcpServers);

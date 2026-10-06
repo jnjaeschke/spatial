@@ -13,7 +13,9 @@ export interface LlmPrompt {
   mcpServers?: Record<string, McpServerSpec>;
 }
 
-export interface McpServerSpec { command: string; args: string[] }
+export type McpServerSpec =
+  | { type: "stdio"; command: string; args: string[]; env?: Record<string, string> }
+  | { type: "http"; url: string };
 
 export interface LlmRequest extends LlmPrompt {
   model: string;

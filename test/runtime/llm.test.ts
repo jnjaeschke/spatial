@@ -157,7 +157,7 @@ test("claude: resume and read-only chat tools", async () => {
 
 test("claude: configures MCP tools for new and resumed requests", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
-  const mcpServers = { spatial: { command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
+  const mcpServers = { spatial: { type: "stdio" as const, command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
   for (const resumeProviderSession of [undefined, "sess-0"]) {
     await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only", mcpServers, resumeProviderSession }));
     const a: string[] = calls().at(-1)!.argv;
@@ -166,6 +166,14 @@ test("claude: configures MCP tools for new and resumed requests", async () => {
     assert.ok(a.includes("--strict-mcp-config"));
     assert.equal(flag("--allowedTools"), "Bash(searchfox-cli:*) mcp__spatial__*");
   }
+});
+
+test("claude: includes http MCP server URL in config", async () => {
+  stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
+  await new ClaudeBackend({ bin: STUB }).run(req({ mcpServers: { moz: { type: "http", url: "https://example.test/mcp" } } }));
+  const a: string[] = calls()[0].argv;
+  const config = JSON.parse(a[a.indexOf("--mcp-config") + 1]);
+  assert.deepEqual(config.mcpServers.moz, { type: "http", url: "https://example.test/mcp" });
 });
 
 test("claude: tools none has no allowedTools and no resume by default", async () => {
@@ -191,9 +199,9 @@ test("codex: resume uses `exec resume`, sandbox via -c, prompt from stdin", asyn
   assert.equal(call.cwd, dir);
 });
 
-test("codex: configures MCP servers for exec and exec resume", async () => {
+test("codex: configures stdio MCP servers for exec and exec resume", async () => {
   stdout(codexOut("answer"));
-  const mcpServers = { spatial: { command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
+  const mcpServers = { spatial: { type: "stdio" as const, command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
   for (const resumeProviderSession of [undefined, "th-0"]) {
     await new CodexBackend({ bin: STUB }).run(req({ mcpServers, resumeProviderSession }));
     const a: string[] = calls().at(-1)!.argv;
@@ -201,6 +209,27 @@ test("codex: configures MCP servers for exec and exec resume", async () => {
     assert.ok(a.includes('mcp_servers.spatial.command="node"'));
     assert.ok(a.includes(`mcp_servers.spatial.args=${JSON.stringify(mcpServers.spatial.args)}`));
   }
+});
+
+test("codex: configures http MCP server URL", async () => {
+  stdout(codexOut("answer"));
+  await new CodexBackend({ bin: STUB }).run(req({ mcpServers: { moz: { type: "http", url: "https://example.test/mcp" } } }));
+  const a: string[] = calls()[0].argv;
+  assert.ok(a.includes(`mcp_servers.moz.url=${JSON.stringify("https://example.test/mcp")}`));
+});
+
+test("codex: configures stdio MCP env", async () => {
+  stdout(codexOut("answer"));
+  await new CodexBackend({ bin: STUB }).run(req({ mcpServers: { local: {
+    type: "stdio",
+    command: "cmd",
+    args: ["a"],
+    env: { TOKEN: "secret-value" },
+  } } }));
+  const a: string[] = calls()[0].argv;
+  assert.ok(a.includes(`mcp_servers.local.command=${JSON.stringify("cmd")}`));
+  assert.ok(a.includes(`mcp_servers.local.args=${JSON.stringify(["a"])}`));
+  assert.ok(a.includes(`mcp_servers.local.env.TOKEN=${JSON.stringify("secret-value")}`));
 });
 
 test("manager: default vs explicit selection, unknown backend", async () => {

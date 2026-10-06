@@ -38,7 +38,7 @@
 
 ### sessionMcp?
 
-> `optional` **sessionMcp?**: (`sessionId`) => `Record`\<`string`, [`McpServerSpec`](../../llm/types/interfaces/McpServerSpec.md)\>
+> `optional` **sessionMcp?**: (`sessionId`) => `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
 
 #### Parameters
 
@@ -48,7 +48,7 @@
 
 #### Returns
 
-`Record`\<`string`, [`McpServerSpec`](../../llm/types/interfaces/McpServerSpec.md)\>
+`Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
 
 ***
 

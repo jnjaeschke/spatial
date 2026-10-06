@@ -39,8 +39,17 @@ export class CodexBackend implements LlmBackend {
       ? ["exec", "resume", ...common, "-c", 'sandbox_mode="read-only"']
       : ["exec", ...common, "--sandbox", "read-only", ...(req.cwd ? ["-C", req.cwd] : [])];
     for (const [name, server] of Object.entries(req.mcpServers ?? {})) {
-      args.push("-c", `mcp_servers.${name}.command=${JSON.stringify(server.command)}`);
-      args.push("-c", `mcp_servers.${name}.args=${JSON.stringify(server.args)}`);
+      if (server.type === "http") {
+        args.push("-c", `mcp_servers.${name}.url=${JSON.stringify(server.url)}`);
+      } else {
+        args.push("-c", `mcp_servers.${name}.command=${JSON.stringify(server.command)}`);
+        args.push("-c", `mcp_servers.${name}.args=${JSON.stringify(server.args)}`);
+        if (server.env) {
+          for (const [key, value] of Object.entries(server.env)) {
+            args.push("-c", `mcp_servers.${name}.env.${key}=${JSON.stringify(value)}`);
+          }
+        }
+      }
     }
     let tmp: string | undefined;
     if (req.schema) {
@@ -59,6 +68,7 @@ export class CodexBackend implements LlmBackend {
     }
   }
 }
+
 
 function parseCodexOutput(stdout: string, stderr: string, code: number, structured: boolean): LlmResult {
   let threadId: string | undefined;

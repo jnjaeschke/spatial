@@ -35,6 +35,7 @@ export function createRuntime(opts: {
     store: new Store(opts.dbPath), tasks, llm, git: makeGit,
     webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: {
+      type: "stdio",
       command: process.execPath,
       args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", opts.dbPath, "--session", sessionId],
     } }),

@@ -32,7 +32,7 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ### mcpServers?
 
-> `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](McpServerSpec.md)\>
+> `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](../type-aliases/McpServerSpec.md)\>
 
 #### Inherited from
 
