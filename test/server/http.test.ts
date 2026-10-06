@@ -130,12 +130,20 @@ test("update imports a moved feature ref as a new epoch and detects no-op update
   assert.equal((await post(`/api/sessions/${session.id}/update`, {})).status, 202);
   const state = await waitFor(async () => {
     const current: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return current.tasks.some((task) => task.kind === "interdiff" && task.status === "succeeded") ? current : undefined;
+    return current.artifacts.filter((artifact) => artifact.type === "Diff").length === 2
+      && current.tasks.filter((task) => task.kind === "review" && task.status === "succeeded").length === 2
+      ? current : undefined;
   });
   assert.equal(state.artifacts.filter((artifact) => artifact.type === "Diff").length, 2);
   const updatedDiff = state.artifacts.filter((artifact) => artifact.type === "Diff").at(-1)!;
   const interdiffArtifact = state.artifacts.find((artifact) => artifact.type === "Interdiff")!;
   assert.equal((interdiffArtifact.data as { toDiff: string }).toDiff, updatedDiff.id);
+  assert.deepEqual(state.tasks.slice(-6).map((task) => [task.kind, task.status]), [
+    ["importDiff", "succeeded"], ["interdiff", "succeeded"], ["narrate", "succeeded"],
+    ["carryFindings", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"],
+  ]);
+  assert.equal((state.artifacts.find((artifact) => artifact.type === "PatchNarrative" && (artifact.data as { diffId: string }).diffId === updatedDiff.id)!.data as { previous?: string }).previous,
+    state.artifacts.find((artifact) => artifact.type === "PatchNarrative" && (artifact.data as { diffId: string }).diffId !== updatedDiff.id)!.id);
   assert.ok(rt.store.listLinks(session.id).some((link) => link.from === interdiffArtifact.id && link.to === updatedDiff.id && link.kind === "about"));
   const again = await post(`/api/sessions/${session.id}/update`, {});
   assert.equal(again.status, 409);
@@ -148,14 +156,14 @@ test("update imports a moved feature ref as a new epoch and detects no-op update
   assert.equal((await post(`/api/sessions/${session.id}/update`, {})).status, 202);
   const thirdState = await waitFor(async () => {
     const current: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return current.artifacts.filter((artifact) => artifact.type === "Diff").length === 3 && current.tasks.filter((task) => task.kind === "interdiff" && task.status === "succeeded").length === 2 ? current : undefined;
+    return current.artifacts.filter((artifact) => artifact.type === "Diff").length === 3 && current.tasks.filter((task) => task.kind === "review" && task.status === "succeeded").length === 3 ? current : undefined;
   });
   const thirdDiff = thirdState.artifacts.filter((artifact) => artifact.type === "Diff").at(-1)!;
   assert.equal((thirdDiff.data as DiffData).baseSha, originalBase);
   assert.notEqual((thirdDiff.data as DiffData).baseSha, movedBase);
 
   testRepo.commit({ "a.txt": "fourth\n", "b.txt": "base\n" }, "feature while task pending");
-  rt.store.createTask({ sessionId: session.id, kind: "review", input: {} });
+  rt.store.createTask({ sessionId: session.id, kind: "carryFindings", input: {} });
   const busy = await post(`/api/sessions/${session.id}/update`, {});
   assert.equal(busy.status, 409);
   assert.deepEqual(await busy.json(), { error: "A task is already running" });

@@ -77,6 +77,9 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   // Until the user touches the canvas, every measured layout refits the view, so nodes that arrive later (findings) show up.
   const autoFit = useRef(true);
   levelRef.current = level;
+  // A new epoch is a new graph: fit it again even if the user moved the previous one.
+  const narrativeId = graph.nodes[0]!.id;
+  useEffect(() => { autoFit.current = true; }, [narrativeId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const laidOutKey = useRef("");
   const offsets = useRef(new Map<string, { dx: number; dy: number }>());

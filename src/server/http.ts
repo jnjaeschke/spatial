@@ -28,7 +28,8 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".json": "application/json", ".png": "image/png", ".woff2": "font/woff2",
 };
 const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1"]);
-const HEAVY_TASKS = new Set(["importDiff", "narrate", "resolveSpecRefs", "review", "interdiff"]);
+const HEAVY_TASKS = new Set(["importDiff", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
+const runningUpdates = new Set<string>();
 
 type Ctx = { req: IncomingMessage; res: ServerResponse; params: string[]; url: URL };
 type Route = [method: string, pattern: RegExp, handler: (c: Ctx) => Promise<unknown>];
@@ -224,8 +225,10 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       }
       send(res, 200, { posted: postedCount, skipped, revision: `D${rev.id}` });
     }],
-    ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ params, res }) => {
+    ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ req, params, res }) => {
       const id = requireSession(rt, params[0]!).id;
+      const body = await readJson(req);
+      const llm = body.llm as LlmSelection | undefined;
       const artifacts = rt.store.listArtifacts(id);
       const tasks = rt.store.listTasks(id);
       const prev = latestDiff(artifacts);
@@ -239,7 +242,12 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       try { head = await rt.gitFor(id).resolve(refs.head); }
       catch (e) { throw new HttpError(409, (e as Error).message); }
       if (head === prev.data.headSha) throw new HttpError(409, "No new revision");
-      updateRevision(rt, id).catch((e) => console.error(`update failed in session ${id}: ${(e as Error).message}`));
+      // Checked after the last await: the chain has gaps between tasks that the HEAVY_TASKS check does not see.
+      if (runningUpdates.has(id)) throw new HttpError(409, "An update is already running");
+      runningUpdates.add(id);
+      updateRevision(rt, id, llm)
+        .catch((e) => console.error(`update failed in session ${id}: ${(e as Error).message}`))
+        .finally(() => runningUpdates.delete(id));
       send(res, 202, {});
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/diffs\/([^/]+)\/file$/, async ({ params, url }) => {

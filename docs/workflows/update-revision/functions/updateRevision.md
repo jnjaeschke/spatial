@@ -6,9 +6,9 @@
 
 # Function: updateRevision()
 
-> **updateRevision**(`rt`, `sessionId`): `Promise`\<\{ `diffId`: `string`; `interdiffId`: `string`; \}\>
+> **updateRevision**(`rt`, `sessionId`, `llm?`): `Promise`\<\{ `diffId`: `string`; `interdiffId`: `string`; `narrativeId`: `string`; \}\>
 
-Imports the session's head ref onto its merge base with the base ref, then the interdiff against the previous Diff. Never narrates.
+Imports the session's head ref onto its merge base with the base ref, computes the interdiff against the previous Diff, then narrates and reviews it. Runs LLM tasks; call only on an explicit user request.
 
 ## Parameters
 
@@ -20,6 +20,10 @@ Imports the session's head ref onto its merge base with the base ref, then the i
 
 `string`
 
+### llm?
+
+[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+
 ## Returns
 
-`Promise`\<\{ `diffId`: `string`; `interdiffId`: `string`; \}\>
+`Promise`\<\{ `diffId`: `string`; `interdiffId`: `string`; `narrativeId`: `string`; \}\>

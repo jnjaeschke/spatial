@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
@@ -18,6 +18,16 @@ function writeLines(dir: string, values: string[]) {
   writeFileSync(join(dir, "a.txt"), `${values.join("\n")}\n`);
 }
 
+function amend(dir: string) {
+  git(dir, "checkout", "feature");
+  const lines = readFileSync(join(dir, "a.txt"), "utf8").trimEnd().split("\n");
+  lines[29] = "30-edited";
+  writeLines(dir, lines);
+  writeFileSync(join(dir, "d.txt"), "d\n");
+  git(dir, "add", "-A");
+  git(dir, "commit", "--amend", "--no-edit");
+}
+
 async function openNarrated(page: Page, request: APIRequestContext) {
   const dir = mkdtempSync(join(tmpdir(), "spatial-update-"));
   repoDirs.push(dir);
@@ -29,7 +39,7 @@ async function openNarrated(page: Page, request: APIRequestContext) {
   const featureLines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
   featureLines[29] = "THIRTY";
   writeLines(dir, featureLines);
-  writeFileSync(join(dir, "c.txt"), "c\n");
+  writeFileSync(join(dir, "c.txt"), "c\nROUTE-UPDATE-REVIEW\n");
   git(dir, "add", "-A");
   git(dir, "commit", "-m", "initial patch");
 
@@ -50,8 +60,7 @@ async function updateAndOpenInterdiff(page: Page) {
   await expect(toast).toBeVisible({ timeout: 10_000 });
   await toast.getByRole("button", { name: "Update" }).click();
   await expect(page.getByTestId("epoch")).toHaveText("Epoch 2");
-  await expect(page.getByText(/has no narrative yet/)).toBeVisible();
-  await expect(page.getByTestId("change-c1")).toHaveCount(0);
+  await expect(page.getByTestId("change-c3")).toBeVisible({ timeout: 30_000 });
   await expect(toast).toHaveCount(0);
   await page.getByRole("button", { name: "Interdiff" }).click();
   return page.getByTestId("interdiff-panel");
@@ -59,18 +68,12 @@ async function updateAndOpenInterdiff(page: Page) {
 
 test("author amends: toast, update, epoch 2, interdiff shows only the author's change", async ({ page, request }) => {
   const { dir } = await openNarrated(page, request);
-  const lines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
-  lines[29] = "THIRTY";
-  lines[39] = "FORTY";
-  git(dir, "checkout", "feature");
-  writeLines(dir, lines);
-  git(dir, "add", "-A");
-  git(dir, "commit", "--amend", "--no-edit");
+  amend(dir);
 
   const panel = await updateAndOpenInterdiff(page);
-  await expect(panel.locator("tr.add")).toHaveCount(1);
-  await expect(panel.locator("tr.add")).toContainText("FORTY");
-  await expect(panel).not.toContainText("THIRTY");
+  await expect(panel.locator("tr.add").filter({ hasText: "30-edited" })).toHaveCount(1);
+  await expect(panel).toContainText("d.txt");
+  await expect(panel.locator("tr.del").filter({ hasText: "THIRTY" })).toHaveCount(1);
   await expect(panel).not.toContainText("c.txt");
 });
 
@@ -86,19 +89,41 @@ test("author rebases onto a moved base: interdiff excludes the base's own change
   git(dir, "checkout", "feature");
   git(dir, "rebase", "main");
 
-  const featureLines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
-  featureLines[4] = "FIVE";
-  featureLines[29] = "THIRTY";
-  featureLines[39] = "FORTY";
-  writeLines(dir, featureLines);
-  git(dir, "add", "a.txt");
-  git(dir, "commit", "-a", "--amend", "--no-edit");
+  amend(dir);
 
   const panel = await updateAndOpenInterdiff(page);
-  await expect(panel.locator("tr.add")).toHaveCount(1);
-  await expect(panel.locator("tr.add")).toContainText("FORTY");
+  await expect(panel.locator("tr.add").filter({ hasText: "30-edited" })).toHaveCount(1);
   await expect(panel).not.toContainText("FIVE");
   await expect(panel).not.toContainText("other.txt");
-  await expect(panel).not.toContainText("THIRTY");
+  await expect(panel.locator("tr.del").filter({ hasText: "THIRTY" })).toHaveCount(1);
   await expect(panel.locator(".interdiff-conflicts")).toHaveCount(0);
+});
+
+test("second round: statuses, carried findings, verdict", async ({ page, request }) => {
+  const { dir } = await openNarrated(page, request);
+  const magic = page.locator(".finding-node").filter({ hasText: "Magic number" });
+  const untested = page.locator(".finding-node").filter({ hasText: "Untested c" });
+  await expect(magic).toBeVisible({ timeout: 15_000 });
+  await expect(untested).toBeVisible();
+  await untested.getByLabel("Accept finding").click();
+  amend(dir);
+  await page.getByTestId(/^toast-revision:/).getByRole("button", { name: "Update" }).click();
+  await expect(page.getByTestId("epoch")).toHaveText("Epoch 2");
+  await expect(page.getByTestId("change-c3")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("summary").getByTestId("since-epoch")).toHaveText("Changes since epoch 1");
+  await expect(page.getByTestId("change-c1").getByTestId("change-status")).toHaveText("modified");
+  await expect(page.getByTestId("change-c2").getByTestId("change-status")).toHaveText("unchanged");
+  await expect(page.getByTestId("change-c3").getByTestId("change-status")).toHaveText("new");
+  await expect(magic.getByTestId("finding-outdated")).toBeVisible();
+  await expect(magic.getByTestId("finding-epoch")).toHaveText("epoch 1");
+  await expect(magic.getByLabel("Expand")).toBeVisible();
+  await expect(magic.locator(".finding-body")).toHaveCount(0);
+  await expect(untested.getByTestId("finding-status")).toHaveText("addressed", { timeout: 30_000 });
+  await expect(untested.getByTestId("finding-verdict")).toHaveText("Test coverage for c.txt was added.");
+  await expect(untested.getByLabel("Expand")).toBeVisible();
+  await untested.getByLabel("Expand").click();
+  await expect(untested.getByLabel("Collapse")).toBeVisible();
+  await expect(untested.getByLabel("Comment")).toBeVisible();
+  await page.reload();
+  await expect(untested.getByLabel("Collapse")).toBeVisible();
 });

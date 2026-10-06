@@ -63,6 +63,20 @@ test("narratePatch can narrate an existing Diff without importing another", asyn
   assert.equal(rt.store.listArtifacts(session.id, "Diff").length, before);
 });
 
+test("narratePatch carries findings after update narration and before resolving specs", async () => {
+  const { dir, r } = fixture();
+  const rt = createRuntime({ dbPath: join(dir, "epoch2.sqlite"), claudeBin: STUB });
+  const session = await createSession(rt.store, r.dir, "t");
+  const { diffId: firstDiff } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
+  const firstNarrative = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId: firstDiff });
+  r.commit({ "a.txt": "1\nTWO-EDITED\n3\n", "c.txt": "c\n" }, "second revision");
+  const { diffId: secondDiff } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~2", head: "HEAD" });
+  await rt.run(session.id, "interdiff", { fromDiffId: firstDiff, toDiffId: secondDiff });
+  const result = await narratePatch(rt, session.id, { diffId: secondDiff });
+  assert.equal(rt.store.getArtifact<PatchNarrativeData>(result.narrativeId).data.previous, firstNarrative.narrativeId);
+  assert.deepEqual(rt.store.listTasks(session.id).slice(-4).map((task) => task.kind), ["narrate", "carryFindings", "resolveSpecRefs", "review"]);
+});
+
 test("CLI narrate prints the narrative JSON", () => {
   const { dir, r, narrative } = fixture();
   const stdout = execFileSync(process.execPath, [CLI, "narrate", r.dir, "HEAD~1..HEAD", "--db", join(dir, "cli.sqlite")], {
