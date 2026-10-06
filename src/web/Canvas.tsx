@@ -15,12 +15,13 @@ import { FindingNode } from "./nodes/FindingNode.tsx";
 import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
+import { useResolvedTheme } from "./theme.ts";
 
 const nodeTypes = { change: ChangeNode, summary: SummaryNode, spec: SpecNode, chat: ChatNode, finding: FindingNode, phab: PhabThreadNode };
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
-const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "#bbb", summary: "#888", spec: "#7aa7d6", chat: "#d9a24a", finding: "#e8743b", phab: "#9b78bd" };
+const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", chat: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -35,6 +36,7 @@ export function Canvas(props: Props) {
 
 function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {} }: Props) {
   const paneHeight = useStore((s) => s.height);
+  const colorMode = useResolvedTheme();
   const searchfox = useMemo(() => {
     const latest = latestNarrative(state);
     return latest ? searchfoxLinks(state, latest.diff.data) : null;
@@ -351,6 +353,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         disableKeyboardA11y
         minZoom={0.1}
         maxZoom={2}
+        colorMode={colorMode}
       >
         <Background />
         <Controls showInteractive={false} />
@@ -363,8 +366,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         pannable
         zoomable
         nodeColor={(n) => MINIMAP_COLOR[n.type as keyof typeof nodeTypes]}
-        bgColor="#fff"
-        maskColor="rgba(240, 240, 240, 0.6)"
+        bgColor="var(--minimap-bg)"
+        maskColor="var(--minimap-mask)"
       />
       </div>
     </CollapseContext.Provider>

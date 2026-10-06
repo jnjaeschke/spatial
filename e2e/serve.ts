@@ -10,6 +10,8 @@ import { createSession, makeGit } from "../src/runtime/git.ts";
 import { createHttpServer } from "../src/server/http.ts";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
 
+const PORT = Number(process.env.E2E_PORT ?? 4178);
+const CONDUIT_PORT = Number(process.env.E2E_CONDUIT_PORT ?? 4179);
 const STUB = fileURLToPath(new URL("../test/stubs/fake-llm.mjs", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "e2e-"));
 const repo = makeRepo();
@@ -108,12 +110,12 @@ const conduit = createServer(async (req, res) => {
           : null;
   res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
 });
-await new Promise<void>((resolve) => conduit.listen(4179, "127.0.0.1", resolve));
-process.env.SPATIAL_CONDUIT_BASE_URL = "http://127.0.0.1:4179";
+await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", resolve));
+process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
 await createSession(rt.store, repo.dir, "fixture");
 const watcher = new RevisionWatcher(rt, { intervalMs: 300 });
 watcher.start();
 new PhabricatorSyncer(rt, watcher, { intervalMs: 300 }).start();
-createHttpServer(rt, { staticDir: "dist/web", watcher }).listen(4178, "127.0.0.1", () => console.log("e2e runtime on 4178"));
+createHttpServer(rt, { staticDir: "dist/web", watcher }).listen(PORT, "127.0.0.1", () => console.log(`e2e runtime on ${PORT}`));

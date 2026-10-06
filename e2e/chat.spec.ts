@@ -48,6 +48,23 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
+test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await zoomTo(page, "concept");
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  const input = draft.getByLabel("message");
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  await input.fill("ab");
+  await input.press("ArrowLeft");
+  await input.press("Control+Enter");
+  await expect(input).toHaveValue("a\nb");
+  await input.press("Enter");
+  await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(".chat-node .msg.user")).toHaveText(/^a\nb$/);
+});
+
 test("saying an answer is wrong strikes it through", async ({ page, request }) => {
   await openNarrated(page, request);
   await zoomTo(page, "concept");
@@ -315,9 +332,13 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
     await page.mouse.move(grab.x + dx, grab.y, { steps: 8 });
     await page.mouse.up();
   }
-  const point = await quoteCenter();
-  await page.mouse.move(point.x, point.y);
-  await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/);
+  // Measured nodes can still shift the layout after the pan, so re-measure until the hover lands.
+  let point = await quoteCenter();
+  await expect(async () => {
+    point = await quoteCenter();
+    await page.mouse.move(point.x, point.y);
+    await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/, { timeout: 500 });
+  }).toPass();
   await page.mouse.click(point.x, point.y);
   await expect(finding).toBeVisible();
   await expect(finding.getByRole("button", { name: "Ask about finding" })).toHaveCount(0);

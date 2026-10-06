@@ -14,6 +14,7 @@ import { AskOnSelect } from "./AskOnSelect.tsx";
 import { RevisionView } from "./RevisionView.tsx";
 import { InterdiffPanel } from "./InterdiffPanel.tsx";
 import { StackContext } from "./stack-context.ts";
+import { ThemeToggle } from "./ThemeToggle.tsx";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
@@ -43,10 +44,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
   const busy = state.tasks.some((t) => (t.kind === "importDiff" || t.kind === "narrate") && (t.status === "running" || t.status === "pending"));
   return <div className="app">
-    <div className="topbar"><a href="/">Sessions</a><b>{state.session.title}</b><code>{state.session.repo}</code>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} reuse={diff !== null} />}<label><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href="/">Sessions</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.repo}</code>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} reuse={diff !== null} />}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
-    }} /> Desktop notifications</label></div>
+    }} /> Desktop notifications</label><ThemeToggle /></div>
     <AskContext.Provider value={askContext}><FileViewContext.Provider value={(file) => { setOpenFile(file); setAside("file"); }}>
       <StackContext.Provider value={stack}><div className="session-body">
         {n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} /> : <p className="empty">No narrative yet. Pick a range and press Narrate.</p>}

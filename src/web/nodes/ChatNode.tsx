@@ -47,6 +47,7 @@ export function Conversation(data: ConversationProps) {
   const last = turns.at(-1);
   const busy = last?.status === "running" || last?.status === "pending";
   const failed = last?.status === "failed" ? last : undefined;
+  const canSend = !busy && text.trim() !== "";
   return <>
       <div className="messages body nodrag nopan nowheel">
         {data.lead}
@@ -79,9 +80,19 @@ export function Conversation(data: ConversationProps) {
           if (data.draftId) actions.onSent(data.draftId, taskId);
         }, (err: Error) => setError(err.message));
       }}>
-        <textarea aria-label="message" value={text} onChange={(e) => setText(e.target.value)} rows={2} />
+        <textarea aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
+          if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
+          e.preventDefault();
+          if (e.ctrlKey) {
+            const el = e.currentTarget;
+            el.setRangeText("\n", el.selectionStart, el.selectionEnd, "end");
+            setText(el.value);
+          } else if (canSend) {
+            e.currentTarget.form!.requestSubmit();
+          }
+        }} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
-        <button type="submit" disabled={busy || !text.trim()}>Send</button>
+        <button type="submit" disabled={!canSend}>Send</button>
         {error && <span className="failed">{error}</span>}
       </form>}
   </>;

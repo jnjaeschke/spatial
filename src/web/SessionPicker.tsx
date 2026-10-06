@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "../shared/types.ts";
 import { api } from "./api.ts";
+import { ThemeToggle } from "./ThemeToggle.tsx";
 
 const open = (id: string) => { location.search = `?session=${encodeURIComponent(id)}`; };
 
@@ -10,10 +11,10 @@ export function SessionPicker() {
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { api.sessions().then(setSessions, (e: Error) => setError(e.message)); }, []);
-  return <div className="empty">
-    <h2>Sessions</h2>
-    <ul>{sessions?.map((s) => <li key={s.id}><a href={`?session=${s.id}`}>{s.title}</a> <code>{s.repo}</code></li>)}</ul>
-    <form onSubmit={(e) => {
+  return <div className="empty session-picker">
+    <header><h2>Sessions</h2><ThemeToggle /></header>
+    <ul className="session-list">{sessions?.map((s) => <li key={s.id}><a href={`?session=${s.id}`}>{s.title}</a> <code>{s.repo}</code></li>)}</ul>
+    <form className="new-session" onSubmit={(e) => {
       e.preventDefault();
       api.createSession(repo, title || repo).then((s) => open(s.id), (err: Error) => setError(err.message));
     }}>
