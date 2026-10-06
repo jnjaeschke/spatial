@@ -12,7 +12,7 @@ export function InterdiffPanel({ interdiff, epoch, onClose }: { interdiff: Artif
         <h3>{file.path}</h3>
         {file.hunks.map((hunk) => {
           const rows = numberLines(hunk).map((row) => ({ ...row, hunkId: hunk.id }));
-          return <div className="diff" key={hunk.id}><table><tbody><DiffRows rows={rows} hunkId={hunk.id} diffId={interdiff.id} path={file.path} /></tbody></table></div>;
+          return <div className="diff" key={hunk.id}><table><tbody><DiffRows rows={rows} hunkId={hunk.id} path={file.path} /></tbody></table></div>;
         })}
       </section>)}
     </div>

@@ -15,12 +15,13 @@ export const FileViewContext = createContext<((file: OpenFile) => void) | null>(
 const SIGN = { ctx: " ", add: "+", del: "-" } as const;
 
 /** `oldHref` links old-side line numbers (e.g. to Searchfox). */
-export function DiffRows({ rows, hunkId, diffId, path, oldHref }: { rows: Row[]; hunkId?: string; diffId: string; path: string; oldHref?: (line: number) => string }) {
+/** Rows without a `diffId` carry no `data-anchor`, so selecting them offers no Ask. */
+export function DiffRows({ rows, hunkId, diffId, path, oldHref }: { rows: Row[]; hunkId?: string; diffId?: string; path: string; oldHref?: (line: number) => string }) {
   return <>{rows.map((row, i) => {
     const inHunk = hunkId !== undefined && row.hunkId !== undefined;
     const target = hunkId !== undefined && row.hunkId === hunkId;
     const classes = [row.kind, inHunk && "in-hunk", target && "target"].filter(Boolean).join(" ");
-    return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId} data-anchor={`${diffId}#${row.hunkId ?? hunkId}`} data-path={path} data-old={row.old} data-new={row.new}>
+    return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId} data-anchor={diffId && `${diffId}#${row.hunkId ?? hunkId}`} data-path={path} data-old={row.old} data-new={row.new}>
       <td className="ln">{oldHref && row.old !== undefined ? <a href={oldHref(row.old)} target="_blank" rel="noreferrer">{row.old}</a> : row.old ?? ""}</td><td className="ln">{row.new ?? ""}</td><td className="sign">{SIGN[row.kind]}</td><td className="code">{row.text}</td>
     </tr>;
   })}</>;
