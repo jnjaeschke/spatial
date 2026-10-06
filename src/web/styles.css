@@ -217,6 +217,13 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .session-list a { font-weight: 600; text-decoration: none; color: var(--text); }
 .session-list a:hover { color: var(--accent); }
 .session-list code { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+.session-list time { color: var(--text-3); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.repo-group { margin: 20px 0; }
+.repo-group h3 { margin: 0 0 6px; font-size: 18px; }
+.repo-group > code, .repo-paths { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+.repo-group .session-list { margin-top: 10px; }
+.repo-paths { margin: 0 0 16px; }
+.start-screen > header > a { margin-left: auto; margin-right: 16px; }
 .new-session { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .new-session input { flex: 1 1 200px; min-width: 0; }
 

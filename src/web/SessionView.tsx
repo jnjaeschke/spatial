@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Ref } from "../shared/types.ts";
+import { repoName } from "../shared/repos.ts";
 import { useSessionState, useModels } from "./api.ts";
 import { ActivityStrip } from "./ActivityStrip.tsx";
 import { Canvas } from "./Canvas.tsx";
@@ -45,7 +46,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
   const busy = state.tasks.some((t) => (t.kind === "importDiff" || t.kind === "narrate") && (t.status === "running" || t.status === "pending"));
   return <div className="app">
-    <div className="topbar"><a className="back" href="/">Sessions</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} reuse={diff !== null} />}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}{!n && <NarrateForm sessionId={sessionId} models={models} busy={busy} reuse={diff !== null} />}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
