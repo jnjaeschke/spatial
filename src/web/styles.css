@@ -18,6 +18,10 @@ html, body, #root { margin: 0; height: 100%; }
 .file-panel tr.focus { background: #fff3b0; }
 .file-panel-error { padding: 8px 12px; color: #b00020; }
 .empty { padding: 32px; color: #666; }
+.epoch { font-size: 12px; color: #666; border: 1px solid #ccc; border-radius: 10px; padding: 0 8px; }
+.revision-view { overflow: auto; padding: 12px; min-height: 0; }
+.revision-files { padding-bottom: 12px; }
+.interdiff-conflicts { margin: 8px 12px; color: #b06000; font-size: 12px; }
 .node { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 12px 14px; box-sizing: border-box; }
 .node .title { font-weight: 600; cursor: grab; }
 .collapse { margin-left: 8px; padding: 0 3px; border: 0; background: transparent; font: inherit; font-size: 0.8em; cursor: pointer; }
