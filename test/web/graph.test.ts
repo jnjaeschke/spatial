@@ -23,8 +23,28 @@ const state = (artifacts: Artifact[]): SessionState => ({
   session: { id: "S", repo: "/r", title: "t", createdAt: "0" }, artifacts, links: [], tasks: [], lastEventId: 0, searchfox: null,
 });
 
-test("zoomLevel thresholds", () => {
-  assert.deepEqual([0.2, 0.44, 0.45, 0.89, 0.9, 1.5].map(zoomLevel), ["patch", "patch", "concept", "concept", "code", "code"]);
+test("zoomLevel switches up at the entry thresholds", () => {
+  assert.equal(zoomLevel(0.6, "patch"), "concept");
+  assert.equal(zoomLevel(1.2, "concept"), "code");
+});
+
+test("zoomLevel switches down below the exit thresholds", () => {
+  assert.equal(zoomLevel(0.9, "code"), "code");
+  assert.equal(zoomLevel(0.899, "code"), "concept");
+  assert.equal(zoomLevel(0.45, "concept"), "concept");
+  assert.equal(zoomLevel(0.449, "concept"), "patch");
+});
+
+test("zoomLevel stays in the hysteresis band", () => {
+  assert.equal(zoomLevel(0.5, "patch"), "patch");
+  assert.equal(zoomLevel(0.5, "concept"), "concept");
+  assert.equal(zoomLevel(1, "concept"), "concept");
+  assert.equal(zoomLevel(1, "code"), "code");
+});
+
+test("zoomLevel handles jumps across multiple levels", () => {
+  assert.equal(zoomLevel(1.5, "patch"), "code");
+  assert.equal(zoomLevel(0.3, "code"), "patch");
 });
 
 test("latestNarrative picks the newest narrative and its diff", () => {

@@ -361,7 +361,7 @@ test("a quoted chat aligns to its quote once its unrendered anchor comes into vi
   };
   for (let i = 0; i < 20 && await page.getByTestId("change-c1").count(); i++) await panY(-600);
   const scale = async () => Number(/scale\(([\d.]+)\)/.exec((await page.locator(".react-flow__viewport").getAttribute("style"))!)![1]);
-  for (let i = 0; i < 10 && await scale() < 0.9; i++) {
+  for (let i = 0; i < 10 && await scale() < 1.2; i++) {
     await page.getByRole("button", { name: "zoom in" }).click();
     await page.waitForTimeout(150);
   }

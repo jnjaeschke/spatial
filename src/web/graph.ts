@@ -7,12 +7,16 @@ import type { Draft } from "./chat-context.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
-export function zoomLevel(zoom: number): ZoomLevel {
-  return zoom < 0.45 ? "patch" : zoom < 0.9 ? "concept" : "code";
+const ZOOM_THRESHOLDS = { patchToConcept: 0.6, conceptToCode: 1.2, codeToConcept: 0.9, conceptToPatch: 0.45 };
+
+export function zoomLevel(zoom: number, current: ZoomLevel): ZoomLevel {
+  if (current === "patch") return zoom >= ZOOM_THRESHOLDS.conceptToCode ? "code" : zoom >= ZOOM_THRESHOLDS.patchToConcept ? "concept" : "patch";
+  if (current === "concept") return zoom >= ZOOM_THRESHOLDS.conceptToCode ? "code" : zoom < ZOOM_THRESHOLDS.conceptToPatch ? "patch" : "concept";
+  return zoom < ZOOM_THRESHOLDS.conceptToPatch ? "patch" : zoom < ZOOM_THRESHOLDS.codeToConcept ? "concept" : "code";
 }
 
 /** Highest zoom that still shows each level. Fitting the view stays below it, so a fit never switches to a level with wider nodes. */
-export const LEVEL_MAX_ZOOM: Record<ZoomLevel, number> = { patch: 0.449, concept: 0.899, code: 2 };
+export const LEVEL_MAX_ZOOM: Record<ZoomLevel, number> = { patch: 0.59, concept: 1.19, code: 2 };
 
 export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
 /** Width of spec and chat satellites at every zoom level. */

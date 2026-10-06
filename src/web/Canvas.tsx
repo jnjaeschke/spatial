@@ -306,7 +306,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   }, [rf]);
 
   const onMove = useCallback((_: unknown, vp: Viewport) => {
-    const next = zoomLevel(vp.zoom);
+    const next = zoomLevel(vp.zoom, levelRef.current);
     if (next !== levelRef.current) {
       if (!autoFit.current) anchor.current = nodeNearestCenter();
       setLevel(next);
