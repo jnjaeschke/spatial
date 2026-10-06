@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Background, Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow,
+  Background, Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type Node, type Viewport,
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
@@ -33,6 +33,7 @@ export function Canvas(props: Props) {
 }
 
 function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {} }: Props) {
+  const paneHeight = useStore((s) => s.height);
   const searchfox = useMemo(() => {
     const latest = latestNarrative(state);
     return latest ? searchfoxLinks(state, latest.diff.data) : null;
@@ -324,6 +325,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     <ChatActionsContext.Provider value={chatActions}>
     <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }}>
     <CollapseContext.Provider value={{ collapsed, toggle }}>
+      <div className="canvas-layout">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -344,9 +346,17 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       >
         <Background />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable nodeColor={(n) => MINIMAP_COLOR[n.type as keyof typeof nodeTypes]} />
         <Panel position="top-right"><button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
+      <MiniMap
+        position="top-right"
+        className="canvas-minimap"
+        style={{ position: "relative", width: 140, height: paneHeight, margin: 0, flexShrink: 0 }}
+        pannable
+        zoomable
+        nodeColor={(n) => MINIMAP_COLOR[n.type as keyof typeof nodeTypes]}
+      />
+      </div>
     </CollapseContext.Provider>
     </div></SearchfoxContext.Provider>
     </ChatActionsContext.Provider>

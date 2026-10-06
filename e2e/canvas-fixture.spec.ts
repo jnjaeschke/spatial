@@ -178,6 +178,22 @@ test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {
 test("minimap shows every node, also those culled from the viewport", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("change-c1")).toBeVisible();
+  const minimap = page.locator(".react-flow__minimap");
+  const pane = page.locator(".react-flow__pane");
+  await expect(minimap).toBeVisible();
+  const minimapBox = (await minimap.boundingBox())!;
+  const paneBox = (await pane.boundingBox())!;
+  const svg = minimap.locator("svg");
+  const viewBox = await svg.getAttribute("viewBox");
+  expect(viewBox).not.toBeNull();
+  const viewBoxValues = viewBox!.split(/[\s,]+/).map(Number);
+  expect(viewBoxValues).toHaveLength(4);
+  expect(viewBoxValues.every(Number.isFinite)).toBe(true);
+  const svgBox = (await svg.boundingBox())!;
+  expect(Math.abs(svgBox.height - paneBox.height)).toBeLessThanOrEqual(3);
+  expect(minimapBox.x).toBeGreaterThanOrEqual(paneBox.x + paneBox.width - 1);
+  expect(Math.abs(minimapBox.y - paneBox.y)).toBeLessThanOrEqual(3);
+  expect(Math.abs(minimapBox.height - paneBox.height)).toBeLessThanOrEqual(3);
   await zoomUntil(page, "zoom out", "patch");
   await page.waitForTimeout(400);
   const all = await page.locator(".react-flow__node").count();
