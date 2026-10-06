@@ -9,7 +9,7 @@ const open = (id: string) => { location.search = `?session=${encodeURIComponent(
 
 /** Session links with their worktree, in the given order. */
 export function SessionList({ sessions }: { sessions: Session[] }) {
-  return <ul className="session-list">{sessions.map((s) => <li key={s.id}><a href={`?session=${encodeURIComponent(s.id)}`}>{s.title}</a> <code>{s.worktree}</code> <time dateTime={s.createdAt}>{new Date(s.createdAt).toLocaleString()}</time></li>)}</ul>;
+  return <ul className="session-list">{sessions.map((s) => <li key={s.id}><a href={`?session=${encodeURIComponent(s.id)}`}>{s.title}</a> <span className="badge">{s.workflow ?? "starting"}</span> <code>{s.worktree}</code> <time dateTime={s.createdAt}>{new Date(s.createdAt).toLocaleString()}</time></li>)}</ul>;
 }
 
 export function SessionPicker() {

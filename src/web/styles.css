@@ -226,6 +226,14 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .start-screen > header > a { margin-left: auto; margin-right: 16px; }
 .new-session { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .new-session input { flex: 1 1 200px; min-width: 0; }
+.start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
+.start-input { position: relative; width: 100%; }
+.start-box textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }
+.command-popup { position: absolute; z-index: 5; top: calc(100% - 3px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-3); }
+.command-popup li { display: flex; gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; }
+.command-popup li[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+.command-popup code { color: var(--text-2); }
+.command-popup span { color: var(--text-3); font-size: 12px; }
 
 /* Node cards */
 .node {

@@ -46,12 +46,12 @@ test("start screen lists the repo's sessions newest first and creates a review s
   const titles = await items.allTextContents();
   expect(titles.findIndex((text) => text.includes("Session B"))).toBeLessThan(titles.findIndex((text) => text.includes("Session A")));
 
-  await page.getByLabel("title").fill("New review");
-  await page.getByRole("button", { name: "New review session" }).click();
+  await page.getByLabel("start").fill("/chat Hello");
+  await page.getByLabel("start").press("Enter");
   await expect(page).toHaveURL(/\?session=/);
-  await expect(page.getByRole("button", { name: "Narrate" })).toBeVisible();
+  await expect(page.getByTestId("conversation")).toBeVisible();
   await page.getByRole("link", { name: basename(dir) }).click();
-  await expect(page.getByTestId("start-screen").getByRole("link", { name: "New review", exact: true })).toBeVisible();
+  await expect(page.getByTestId("start-screen").getByRole("link", { name: /Hello/ })).toBeVisible();
 });
 
 test("sessions of another worktree appear under the same repo", async ({ page }) => {

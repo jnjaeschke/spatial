@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ChatThreadData, LlmSelection, ModelsResponse, NotifyPayload, Progress, RepoInfo, RuntimeEvent, Session, SessionState } from "../shared/types.ts";
+import type { ChatThreadData, LlmSelection, ModelsResponse, NotifyPayload, Progress, RepoInfo, RuntimeEvent, Session, SessionState, WorkflowInfo } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 
 async function parse<T>(res: Response): Promise<T> {
@@ -20,6 +20,8 @@ export const api = {
   sessions: () => get<Session[]>("/api/sessions"),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
   createSession: (repo: string, title: string) => post<Session>("/api/sessions", { repo, title }),
+  workflows: () => get<WorkflowInfo[]>("/api/workflows"),
+  start: (path: string, text: string, llm: LlmSelection) => post<Session>("/api/start", { path, text, llm }),
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
   narrate: (id: string, body: { base?: string; head?: string; llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
   runAction: (path: string) => {
