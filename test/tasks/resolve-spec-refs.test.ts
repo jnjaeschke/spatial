@@ -10,15 +10,16 @@ import type { DiffData, PatchNarrativeData, SpecReferenceData } from "../../src/
 import { resolveSpecRefs } from "../../src/tasks/resolve-spec-refs/task.ts";
 
 const CANON = "https://html.spec.whatwg.org/#navigate";
-const webspec: WebspecCapability = {
+const webspecFor = (failing?: string): WebspecCapability => ({
   effect: "read-only",
   async resolve(url) {
+    if (url === failing) throw new Error("webspec-index exited with code 1: parse worker panicked");
     if (url.endsWith("#navigate")) return { found: true, spec: { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: CANON, content: "To navigate" } };
     return { found: false, reason: `URL not recognized: ${url}` };
   },
-};
+});
 
-function setup(opts: { gecko: boolean; searchfoxFails?: boolean }) {
+function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: string }) {
   const repo = mkdtempSync(join(tmpdir(), "repo-"));
   if (opts.gecko) { writeFileSync(join(repo, "mach"), ""); writeFileSync(join(repo, "moz.build"), ""); }
   const searchfoxCalls: string[] = [];
@@ -46,7 +47,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean }) {
       ].join("\n");
     },
   };
-  const rt = new Runtime({ store, tasks: [resolveSpecRefs], llm: {} as LlmService, git: () => git, webspec, searchfox });
+  const rt = new Runtime({ store, tasks: [resolveSpecRefs], llm: {} as LlmService, git: () => git, webspec: webspecFor(opts.webspecFails), searchfox });
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "t" });
   const change = (id: string, specUrls: string[]) => ({ id, title: id, explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls });
   const diff: DiffData = {
@@ -116,6 +117,17 @@ test("searchfox failure is recorded, task still succeeds", async () => {
   const nav = specRefIds.map((id) => store.getArtifact<SpecReferenceData>(id)).find((r) => r.data.resolved)!;
   assert.equal(nav.data.geckoRefsError, "searchfox-cli failed: offline");
   assert.deepEqual(nav.data.geckoRefs, []);
+});
+
+test("a failing spec lookup becomes an unresolved reference, the other URLs still resolve", async () => {
+  const mdn = "https://developer.mozilla.org/en-US/docs/Web/API/Navigation";
+  const { store, rt, session, narrativeId } = setup({ gecko: false, webspecFails: mdn });
+  const { specRefIds } = await rt.run<{ specRefIds: string[] }>(session.id, "resolveSpecRefs", { narrativeId });
+  const refs = specRefIds.map((id) => store.getArtifact<SpecReferenceData>(id));
+  assert.ok(refs.some((r) => r.data.resolved?.url === CANON));
+  const failed = refs.find((r) => r.data.url === mdn)!;
+  assert.equal(failed.status, "proposed");
+  assert.match(failed.data.reason!, /parse worker panicked/);
 });
 
 test("non-Gecko repo never calls searchfox", async () => {

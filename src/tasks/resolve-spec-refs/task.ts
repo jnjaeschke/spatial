@@ -43,7 +43,11 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
     for (const [url, citation] of citations) {
       const changeIds = [...citation.changeIds];
       ctx.progress({ kind: "determinate", done: i++, total: citations.size, message: url });
-      const result = await ctx.webspec.resolve(url, ctx.signal);
+      // One failing lookup (e.g. webspec-index crashing on one spec) must not drop every other reference.
+      const result = await ctx.webspec.resolve(url, ctx.signal).catch((error: Error) => {
+        if (ctx.signal.aborted) throw error;
+        return { found: false as const, reason: error.message };
+      });
       // Code comments link Bugzilla, MDN, GitHub etc.; only the LLM's unresolved proposals are worth an unverified card.
       if (!result.found && !citation.llm) continue;
       const origin = citation.code ? "code" : "llm";
