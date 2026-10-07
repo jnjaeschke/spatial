@@ -348,6 +348,6 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   const restore = await request.post(control, { data: { revision: ids[0]!.revision, diffs: [ids[0]!.diff], rawDiffs: { [ids[0]!.diff]: stack.rawDiffs[0] } } });
   expect(restore.ok()).toBeTruthy();
   await post.click();
-  await expect(summary.locator(".post-result")).toContainText(`D${ids[0]!.revision}`);
+  await expect(finding).toContainText(`Posted to D${ids[0]!.revision}`);
   await expect.poll(async () => inlines(request, ids[0]!.revision)).toHaveLength(1);
 });
