@@ -9,6 +9,7 @@ export interface RemoteComment {
   diffId?: number; isNewFile?: boolean; isDone?: boolean; replyTo?: string; quote?: string; txId: number; dateCreated: number;
 }
 
+/** Text of `line` of `path` in a parsed raw diff: new side (`add`/`ctx` rows) or old side (`del` rows only). */
 export function quoteLine(files: DiffFile[], path: string, line: number, isNewFile: boolean): string | undefined {
   const file = files.find((item) => item.path === path || item.oldPath === path);
   if (!file) return undefined;

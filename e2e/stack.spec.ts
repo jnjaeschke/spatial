@@ -84,6 +84,10 @@ async function inlines(request: APIRequestContext, revision: number) {
   return await (await request.get(`${control}/inlines?revision=${revision}`)).json() as { revisionID: number; diffID: number; filePath: string }[];
 }
 
+function inlineTx(id: number, revision: number, diffId: number, path: string, line: number, body: string) {
+  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: "PHID-USER-alice", objectPHID: `PHID-DREV-${revision}`, dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: diffId, phid: `PHID-DIFF-${diffId}` }, path, line, length: 1, isNewFile: true, replyToCommentPHID: null, isDone: false, hasSuggestion: false, suggestionText: null } };
+}
+
 function changeLine(dir: string, value: string) {
   const lines = readFileSync(join(dir, "a.txt"), "utf8").trimEnd().split("\n");
   lines[29] = value;
@@ -139,6 +143,24 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(early.locator("td.sign")).toHaveAttribute("title", new RegExp(firstSha));
   const earlyColor = await early.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(latestColor).not.toBe(earlyColor);
+});
+
+test("a comment on the first stack revision anchors to its commit line", async ({ page, request }) => {
+  const ids = newStackIds(2);
+  const stack = await buildStack(request, [
+    { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
+    { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
+  ]);
+  const response = await request.post(control, { data: { revision: ids[0]!.revision, transactions: [inlineTx(7000 + revisionCount, ids[0]!.revision, ids[0]!.diff, "c.txt", 1, "Why c?")] } });
+  expect(response.ok()).toBeTruthy();
+
+  const sessionId = await narrate(page, stack, "code");
+  await expect.poll(async () => (await state(request, sessionId)).artifacts.some((artifact) => artifact.type === "PhabComment"), { timeout: 10_000 }).toBe(true);
+  const thread = page.getByTestId("phab-thread").filter({ hasText: "Why c?" });
+  await revealNode(page, thread);
+  await expect(thread).toContainText("c.txt:1");
+  await revealNode(page, "summary");
+  await expect(page.getByTestId("summary")).not.toContainText("Phabricator comments");
 });
 
 test("commits are lanes; the guide walks the reading path and records reviews", async ({ page, request }) => {

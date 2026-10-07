@@ -8,7 +8,7 @@
 
 > **latestPhabSync**(`artifacts`, `diffArtifactId`, `revision`): [`Artifact`](../../types/interfaces/Artifact.md)\<[`PhabSyncData`](../../types/interfaces/PhabSyncData.md)\> \| `null`
 
-Latest PhabSync recorded for a local Diff, or null.
+Latest PhabSync recorded for a local Diff and one revision, or null.
 
 ## Parameters
 

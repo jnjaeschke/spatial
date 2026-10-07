@@ -5,7 +5,7 @@ import { latestPhabComments, phabAnchorId } from "./phab-comments.ts";
 import { reanchorFinding } from "./reanchor.ts";
 import { phabRevision } from "./phabricator.ts";
 
-/** Latest PhabSync recorded for a local Diff, or null. */
+/** Latest PhabSync recorded for a local Diff and one revision, or null. */
 export function latestPhabSync(artifacts: Artifact[], diffArtifactId: Id, revision: number): Artifact<PhabSyncData> | null {
   return artifacts.filter((artifact) => artifact.type === "PhabSync" && (artifact.data as PhabSyncData).localDiff === diffArtifactId && (artifact.data as PhabSyncData).revision === revision).at(-1) as Artifact<PhabSyncData> | undefined ?? null;
 }
@@ -29,12 +29,11 @@ export interface PhabView {
 
 /** Resolve remote comments against the latest local narrative and prior local epochs. */
 export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrative: PatchNarrativeData): PhabView {
-  const revision = phabRevision(diff.data)?.id;
-  const sync = revision === undefined ? null : latestPhabSync(artifacts, diff.id, revision);
+  const headRevision = phabRevision(diff.data)?.id;
+  const sync = headRevision === undefined ? null : latestPhabSync(artifacts, diff.id, headRevision);
   const matchingDiffId = sync?.data.matchingDiffId ?? null;
   const diffs = artifacts.filter((artifact): artifact is Artifact<DiffData> => artifact.type === "Diff");
   const currentEpoch = epochNumber(artifacts, diff.id);
-  const headRevision = phabRevision(diff.data)?.id;
   const listed = new Set(narrative.changes.flatMap((change) => change.hunkIds));
   const currentRows = rowsByFile(diff.data);
   const latest = latestPhabComments(artifacts);
