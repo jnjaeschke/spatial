@@ -68,6 +68,35 @@ test("defaultReviewRange uses latest commit when clean or tree-equivalent dirty"
   } finally { store.close(); }
 });
 
+test("defaultReviewRange covers the feature branch since main", async () => {
+  const r = makeRepo();
+  const forkPoint = r.commit({ "a.txt": "base\n" }, "base");
+  r.git("checkout", "-q", "-b", "feature");
+  r.commit({ "a.txt": "one\n" }, "one");
+  r.commit({ "a.txt": "two\n" }, "two");
+  r.commit({ "a.txt": "three\n" }, "three");
+  const before = state(r);
+  const { store, session, rt } = runtimeFor(r.dir);
+  try {
+    const range = await defaultReviewRange(session.worktree, rt.gitFor(session.id));
+    assert.deepEqual(range, { base: forkPoint, head: "HEAD" });
+    assert.deepEqual((await rt.gitFor(session.id).log(range.base, range.head)).map(({ subject }) => subject), ["one", "two", "three"]);
+    assert.deepEqual(state(r), before);
+  } finally { store.close(); }
+});
+
+test("defaultReviewRange finds a master-only repository's fork point", async () => {
+  const r = makeRepo();
+  const forkPoint = r.commit({ "a.txt": "base\n" }, "base");
+  r.git("branch", "-m", "main", "master");
+  r.git("checkout", "-q", "-b", "feature");
+  r.commit({ "a.txt": "feature\n" }, "feature");
+  const { store, session, rt } = runtimeFor(r.dir);
+  try {
+    assert.deepEqual(await defaultReviewRange(session.worktree, rt.gitFor(session.id)), { base: forkPoint, head: "HEAD" });
+  } finally { store.close(); }
+});
+
 test("repeated dirty snapshots have the same tree", async () => {
   const r = makeRepo();
   const dir = r.dir;
