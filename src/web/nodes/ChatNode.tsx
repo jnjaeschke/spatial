@@ -8,11 +8,14 @@ import type { ChatNodeData, ZoomLevel } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
+import { ClosedContext } from "../closed.ts";
+import { ReopenChats } from "../ReopenChats.tsx";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
-export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
+export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   const collapse = useContext(CollapseContext);
+  const closer = useContext(ClosedContext);
   const id = data.threadId ?? data.draftId!;
   const closed = data.threadId !== null && (collapse?.collapsed.has(data.threadId) ?? false);
 
@@ -22,10 +25,11 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   return (
     <div className={`node chat-node level-${data.level}`} data-testid={`chat-${id}`}>
       <Handle type="source" position={Position.Left} />
-      <div className="title">Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}</div>
+      <div className="title">Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}{data.threadId && closer && <button aria-label="Close" className="close nodrag" onClick={() => closer.close(data.threadId!)}>✕</button>}</div>
       {!closed && <>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <Conversation {...data} />
+      <ReopenChats hostId={nodeId} />
       </>}
     </div>
   );
@@ -37,6 +41,7 @@ type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diff
 export function Conversation(data: ConversationProps) {
   const actions = useContext(ChatActionsContext);
   const collapse = useContext(CollapseContext);
+  const closer = useContext(ClosedContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
   const [text, setText] = useState("");
@@ -64,7 +69,7 @@ export function Conversation(data: ConversationProps) {
             {m.data.role === "assistant" && m.data.questions?.length ? <ul className="chat-questions">{m.data.questions.map((question, i) => <li key={i}>{question}</li>)}</ul> : null}
             {m.data.role === "assistant" && m.data.revisionErrors?.length ? <p className="revision-errors">{m.data.revisionErrors.map((revisionError, i) => <span key={i}>{i > 0 ? " " : ""}Could not apply revision: {revisionError}</span>)}</p> : null}
             {m.data.role === "assistant" && m.data.diagramError && <p className="revision-errors">Diagram dropped: {m.data.diagramError}</p>}
-            {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <button key={diagramId} type="button" aria-label="Show diagram" className="show-diagram nodrag" onClick={() => collapse?.reveal(diagramId, `diagram:${diagramId}`)}>Show diagram</button>)}
+            {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <button key={diagramId} type="button" aria-label="Show diagram" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</button>)}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>
         ))}

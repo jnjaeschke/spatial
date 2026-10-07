@@ -2,6 +2,7 @@ import { useContext, useMemo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DiagramNodeData, ZoomLevel } from "../graph.ts";
 import { CollapseContext } from "../collapse.ts";
+import { ClosedContext } from "../closed.ts";
 
 export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData & { level: ZoomLevel }, "diagram">;
 
@@ -12,6 +13,7 @@ const HEAD_H = 56;
 export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
   const { diagram } = data;
   const collapse = useContext(CollapseContext);
+  const closer = useContext(ClosedContext);
   const collapseId = `diagram:${diagram.id}`;
   const closed = collapse?.collapsed.has(collapseId) ?? true;
   const [showBefore, setShowBefore] = useState(false);
@@ -29,7 +31,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
   }, [steps]);
   return <div className={`node diagram-node level-${data.level}`} data-testid={`diagram-${diagram.id}`}>
     <Handle type="target" position={Position.Top} />
-    <div className="title">Sequence — {diagram.data.title}<span className="diagram-counts">{steps.length} steps · {unverified} unverified</span>{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(collapseId)}>{closed ? "▸" : "▾"}</button>}</div>
+    <div className="title">Sequence — {diagram.data.title}<span className="diagram-counts">{steps.length} steps · {unverified} unverified</span>{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(collapseId)}>{closed ? "▸" : "▾"}</button>}{closer && <button aria-label="Close" className="close nodrag" onClick={() => closer.close(diagram.id)}>✕</button>}</div>
     <div className="diagram-summary">{diagram.data.summary}</div>
     {diagram.data.before && <button className="diagram-toggle nodrag" aria-pressed={showBefore} onClick={() => setShowBefore(!showBefore)}>Show flow {showBefore ? "after" : "before"} this commit</button>}
     {!closed && <div className="diagram-content nodrag nopan">

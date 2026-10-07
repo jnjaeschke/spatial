@@ -4,10 +4,11 @@ import type { CommitNodeData, ZoomLevel } from "../graph.ts";
 import { commitColors } from "../commit-colors.ts";
 import { InlineText } from "../InlineText.tsx";
 import { AskContext } from "../chat-context.ts";
+import { ReopenChats } from "../ReopenChats.tsx";
 
 export type CommitFlowNode = Node<CommitNodeData & { level: ZoomLevel } & Record<string, unknown>, "commit">;
 
-export function CommitNode({ data }: NodeProps<CommitFlowNode>) {
+export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
   const ask = useContext(AskContext);
   const { swatch } = commitColors(data.index);
   return (
@@ -17,6 +18,7 @@ export function CommitNode({ data }: NodeProps<CommitFlowNode>) {
       <div className="body nodrag nopan">
         {data.intent && <p className="intent"><InlineText text={data.intent} /></p>}
         <p className="counts" data-testid="commit-counts">{data.changeCount} change{data.changeCount === 1 ? "" : "s"} · {data.reviewedCount}/{data.changeCount} reviewed · {data.findingCount} finding{data.findingCount === 1 ? "" : "s"}</p>
+        <ReopenChats hostId={id} />
       </div>
       <Handle type="source" position={Position.Bottom} />
     </div>

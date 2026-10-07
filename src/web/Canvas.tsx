@@ -6,7 +6,7 @@ import {
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
+import { closeGraph, diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
@@ -20,6 +20,7 @@ import { ConversationNode } from "./nodes/ConversationNode.tsx";
 import { DiagramNode } from "./nodes/DiagramNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
+import { ClosedContext, useClosed } from "./closed.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
 import { GuideBar } from "./GuideBar.tsx";
@@ -89,11 +90,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const knownDiagrams = useRef<Set<string> | null>(null);
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
     [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
-  const graph = useMemo(() => {
+  const { closed: closedIds, close, reopen } = useClosed(state.session.id);
+  const { graph, closedOn } = useMemo(() => {
     const g = sessionGraph(state, drafts, freePositions);
     if (!g) throw new Error("Canvas needs a session graph");
-    return g;
-  }, [state, drafts, freePositions]);
+    return closeGraph(g, closedIds);
+  }, [state, drafts, freePositions, closedIds]);
+  const closedValue = useMemo(() => ({ close, reopen, closedOn }), [close, reopen, closedOn]);
   useLayoutEffect(() => {
     const next = new Set(drafts.map((draft) => draft.id));
     const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
@@ -599,6 +602,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     <ChatActionsContext.Provider value={chatActions}>
     <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
+    <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal, stepTarget: (diagram, step) => diagramStepTarget(graph.nodes, diagram, step), revealStep }}>
       <ResizeContext.Provider value={{ level, textScale, setWidth }}>
       <div className="canvas-layout">
@@ -646,6 +650,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       </div>
       </ResizeContext.Provider>
     </CollapseContext.Provider>
+    </ClosedContext.Provider>
     </div></SearchfoxContext.Provider>
     </ChatActionsContext.Provider>
   );

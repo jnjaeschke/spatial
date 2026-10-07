@@ -5,6 +5,8 @@ import { DiffView } from "../DiffView.tsx";
 import { InlineText } from "../InlineText.tsx";
 import { AskContext } from "../chat-context.ts";
 import { CollapseContext } from "../collapse.ts";
+import { ClosedContext } from "../closed.ts";
+import { ReopenChats } from "../ReopenChats.tsx";
 import { commitColors } from "../commit-colors.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
@@ -13,11 +15,12 @@ import { numberLines } from "../../shared/diff-lines.ts";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 
-export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
+export function ChangeNode({ id: nodeId, data }: NodeProps<ChangeFlowNode>) {
   const { change, level, files, hunks, sessionId, diffId } = data;
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);
   const collapse = useContext(CollapseContext);
+  const closer = useContext(ClosedContext);
   const [error, setError] = useState<string | null>(null);
   const closed = collapse?.collapsed.has(`${data.narrativeId}#${change.id}`) ?? false;
   const inlineThreads = data.threads.filter((thread) => thread.lines && hunks.some(({ file, hunk }) => {
@@ -29,7 +32,7 @@ export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
     const threadClosed = thread.threadId !== null && (collapse?.collapsed.has(thread.threadId) ?? false);
     const lastMessage = thread.messages.at(-1)?.data.text ?? "";
     return <div className="node chat-node hosted-chat" data-testid={`chat-${id}`} data-thread-boundary>
-      <div className="title">Chat · {thread.messages.length}{thread.threadId && collapse && <button aria-label={threadClosed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(thread.threadId!)}>{threadClosed ? "▸" : "▾"}</button>}</div>
+      <div className="title">Chat · {thread.messages.length}{thread.threadId && collapse && <button aria-label={threadClosed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(thread.threadId!)}>{threadClosed ? "▸" : "▾"}</button>}{thread.threadId && closer && <button aria-label="Close" className="close nodrag" onClick={() => closer.close(thread.threadId!)}>✕</button>}</div>
       {threadClosed ? <div className="thread-stub">{lastMessage.slice(0, 100)}</div> : <>{thread.quote && <blockquote className="chat-quote">{thread.quote.length > 300 ? `${thread.quote.slice(0, 300)}…` : thread.quote}</blockquote>}<Conversation {...thread} /></>}
     </div>;
   };
@@ -52,6 +55,7 @@ export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
         )}
         {level === "code" && hunks.map(({ file, hunk }) => <DiffView key={hunk.id} sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} threads={inlineThreads} renderThread={renderThread} />)}
         {level !== "patch" && data.threads.filter((thread) => level === "concept" || !inlineThreads.includes(thread)).map((thread) => <div key={thread.threadId ?? thread.draftId}>{renderThread(thread)}</div>)}
+        {level !== "patch" && <ReopenChats hostId={nodeId} />}
       </div>}
       <Handle type="source" position={Position.Bottom} />
     </div>

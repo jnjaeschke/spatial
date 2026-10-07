@@ -5,6 +5,7 @@ import { InlineText } from "../InlineText.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { api } from "../api.ts";
 import { PhabComment } from "../PhabComment.tsx";
+import { ReopenChats } from "../ReopenChats.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
@@ -72,6 +73,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
           </ul>
         )}
+        <ReopenChats hostId={data.narrativeId} />
       </div>}
       <Handle type="source" position={Position.Bottom} />
     </div>

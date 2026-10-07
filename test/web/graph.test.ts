@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { anchorNodeId, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, diagramStepTarget, type GraphNode } from "../../src/web/graph.ts";
+import { anchorNodeId, closeGraph, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, diagramStepTarget, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -618,6 +618,23 @@ test("sessionGraph skips a chat anchored to a message of a hidden chat", () => {
   st.links = [{ id: "reply", sessionId: "S", from: "M1", to: "T1", kind: "reply" }];
   const g = sessionGraph(st)!;
   assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T2"));
+});
+
+test("closeGraph drops closed chats, their replies and diagrams, and lists closed chats per host", () => {
+  const onChange = { id: "T1", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
+  const onSummary = { id: "T2", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { anchor: "N" } };
+  const message = { id: "M2", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "6", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "answer" } };
+  const reply = { id: "T3", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "7", provenance: { taskId: "t" }, data: { anchor: "M2" } };
+  const st = state([diff, narrative("N"), onChange, onSummary, message, reply]);
+  st.links = [{ id: "reply", sessionId: "S", from: "M2", to: "T2", kind: "reply" }];
+  const { graph, closedOn } = closeGraph(sessionGraph(st)!, new Set(["T1", "T2"]));
+  const change = graph.nodes.find((node) => node.id === "N#c1")!.data;
+  assert.deepEqual(change.kind === "change" ? change.threads : null, []);
+  assert.ok(!graph.nodes.some((node) => node.id === "T2" || node.id === "T3"));
+  assert.ok(!graph.edges.some((edge) => edge.source === "T2" || edge.source === "T3"));
+  assert.deepEqual(Object.fromEntries(closedOn), { "N#c1": ["T1"], N: ["T2"] });
+  const diagrams = closeGraph(sessionGraph(state([stackDiff, stackNarrative, diagram("D-1", "2")]))!, new Set(["D-1"])).graph;
+  assert.ok(!diagrams.nodes.some((node) => node.data.kind === "diagram"));
 });
 
 test("sessionGraph attaches revisions to hosted thread messages", () => {

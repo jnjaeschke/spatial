@@ -274,6 +274,11 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   expect(revealedBox.y + revealedBox.height).toBeLessThanOrEqual(paneBox.y + paneBox.height);
   expect(Math.abs(revealedBox.x + revealedBox.width / 2 - (paneBox.x + paneBox.width / 2))).toBeLessThan(2);
   expect(Math.abs(revealedBox.y + revealedBox.height / 2 - (paneBox.y + paneBox.height / 2))).toBeLessThan(2);
+  await diagram.getByRole("button", { name: "Close" }).click();
+  await expect(diagram).toHaveCount(0);
+  await revealNode(page, showDiagram);
+  await showDiagram.click();
+  await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
 });
 
 test("posts a C1 line to C1", async ({ page, request }) => {

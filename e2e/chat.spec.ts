@@ -34,6 +34,28 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
+test("a closed chat stays closed after reload and reopens from its change", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await setLevel(page, "concept");
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await draft.getByLabel("message").fill("Why this change?");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  const chat = page.locator(".chat-node").filter({ has: answer });
+  await chat.getByRole("button", { name: "Close" }).click();
+  await expect(answer).toHaveCount(0);
+  await page.reload();
+  await setLevel(page, "concept");
+  const reopen = page.getByTestId("change-c1").getByRole("button", { name: "Reopen 1 closed chat" });
+  await expect(reopen).toBeVisible();
+  await expect(answer).toHaveCount(0);
+  await reopen.click();
+  await expect(answer).toBeVisible();
+  await expect(reopen).toHaveCount(0);
+});
+
 test("double-clicking empty canvas opens a persistent chat at that spot", async ({ page, request }) => {
   await openNarrated(page, request);
   const paneBox = (await page.locator(".react-flow__pane").boundingBox())!;

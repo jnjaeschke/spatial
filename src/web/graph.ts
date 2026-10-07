@@ -170,6 +170,29 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
 }
 
+/** The graph without closed chats and diagrams, and per host node the closed chats it can reopen. Nodes anchored only on closed nodes close with them. */
+export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Graph; closedOn: Map<string, string[]> } {
+  const closedOn = new Map<string, string[]>();
+  const addClosed = (host: string, id: string) => closedOn.set(host, [...(closedOn.get(host) ?? []), id]);
+  const gone = new Set<string>();
+  for (const n of g.nodes) {
+    if (!closed.has(n.id)) continue;
+    if (n.data.kind === "diagram") gone.add(n.id);
+    if (n.data.kind === "chat" && n.data.threadId !== null) { gone.add(n.id); addClosed(n.anchors![0]!, n.id); }
+  }
+  for (let grew = gone.size > 0; grew;) {
+    grew = false;
+    for (const n of g.nodes) if (!gone.has(n.id) && n.anchors?.length && n.anchors.every((a) => gone.has(a))) { gone.add(n.id); grew = true; }
+  }
+  const isClosed = (thread: HostedThread) => thread.threadId !== null && closed.has(thread.threadId);
+  const nodes = g.nodes.filter((n) => !gone.has(n.id)).map((n) => {
+    if (n.data.kind !== "change" || !n.data.threads.some(isClosed)) return n;
+    for (const thread of n.data.threads) if (isClosed(thread)) addClosed(n.id, thread.threadId!);
+    return { ...n, data: { ...n.data, threads: n.data.threads.filter((thread) => !isClosed(thread)) } };
+  });
+  return { graph: { nodes, edges: g.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target)) }, closedOn };
+}
+
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
 export const isSatellite = (node: GraphNode) => node.data.kind === "spec" || node.data.kind === "note" || (node.data.kind === "chat" && !node.position) || node.data.kind === "finding" || node.data.kind === "phab" || (node.data.kind === "conversation" && !!node.anchors?.length);
 
