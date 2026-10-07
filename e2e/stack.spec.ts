@@ -239,6 +239,18 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await expect(diagram).toContainText("3 steps · 1 unverified");
   await expect(diagram.locator('.sequence-step[data-verified="true"]')).toHaveCount(2);
   await expect(diagram.locator('.sequence-step[data-verified="false"]')).toHaveCount(1);
+  await expect(diagram.locator('.sequence-step[data-status="changed"]')).toHaveCount(1);
+  await expect(diagram.locator('.sequence-step[data-status="new"]')).toHaveCount(1);
+  await expect(diagram.locator('.sequence-step[data-status="existing"]')).toHaveCount(1);
+  const toggle = diagram.locator(".diagram-toggle");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(diagram.locator(".sequence-step")).toHaveCount(1);
+  await expect(diagram.locator('.sequence-step[data-status="removed"]')).toHaveCount(1);
+  await diagram.getByRole("button", { name: "Show flow after this commit" }).click();
+  await expect(diagram.locator(".sequence-step")).toHaveCount(3);
+  const content = diagram.locator(".diagram-content");
+  expect(await content.evaluate((element) => element.scrollWidth)).toBe(await content.evaluate((element) => element.clientWidth));
   await diagram.getByRole("button", { name: "Collapse" }).click();
   await expect(diagram.locator(".sequence-step")).toHaveCount(0);
   const showDiagram = answer.getByRole("button", { name: "Show diagram" });

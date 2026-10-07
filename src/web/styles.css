@@ -311,39 +311,39 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .commit-node { --kind: var(--kind-summary); border-top-width: 4px; }
 .diagram-node { --kind: var(--kind-diagram); }
 .diagram-node .title { display: flex; align-items: baseline; gap: 8px; }
-.diagram-mode, .diagram-counts { color: var(--text-2); font-size: 0.78em; font-weight: 500; }
+.diagram-counts { color: var(--text-2); font-size: 0.78em; font-weight: 500; }
 .diagram-counts { margin-left: auto; }
 .diagram-summary { color: var(--text-2); margin-top: 5px; }
 .diagram-toggle { margin-top: 8px; }
 .diagram-content { overflow: auto; margin-top: 10px; border-top: 1px solid var(--border); }
-.sequence-diagram { position: relative; }
+.sequence-diagram { position: relative; margin: 0 auto; }
 .sequence-lane { position: absolute; top: 0; bottom: 0; text-align: center; }
 .sequence-lane strong, .sequence-lane small { display: block; }
-.sequence-lane small { color: var(--text-2); }
-.sequence-lane i { position: absolute; top: 48px; bottom: 0; left: 50%; border-left: 1px dashed var(--border-strong); }
-.sequence-step { position: absolute; height: 56px; text-align: center; }
-.sequence-badge { position: absolute; left: 4px; top: 4px; border-radius: 50%; padding: 2px 7px; background: var(--text-2); color: var(--surface); }
+.sequence-lane small { color: var(--text-2); font-size: 0.8em; }
+.sequence-lane i { position: absolute; top: 44px; bottom: 0; left: 50%; border-left: 1px dashed var(--border-strong); }
+.sequence-phase { position: absolute; left: 0; right: 0; padding-top: 3px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 0.75em; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.sequence-step { position: absolute; height: 0; color: var(--text-2); }
+.sequence-step[data-status="new"] { color: var(--success); }
+.sequence-step[data-status="changed"] { color: var(--warning); }
+.sequence-step[data-status="removed"] { color: var(--danger); }
+.sequence-arrow { position: absolute; left: 0; right: 0; top: 0; border-top: 2px solid currentColor; }
+.sequence-arrow::after { content: ""; position: absolute; top: -7px; border: 6px solid transparent; }
+.sequence-step.right .sequence-arrow::after { right: -2px; border-left: 10px solid currentColor; border-right: 0; }
+.sequence-step.left .sequence-arrow::after { left: -2px; border-right: 10px solid currentColor; border-left: 0; }
+.sequence-step.self .sequence-arrow { top: -16px; right: auto; width: 26px; height: 16px; border: 2px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; }
+.sequence-step.self .sequence-arrow::after { left: -4px; top: 9px; border-right: 10px solid currentColor; border-left: 0; }
+.sequence-label { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 320px; text-align: center; color: var(--text); font-size: 0.85em; line-height: 1.35; }
+.sequence-step.self .sequence-label { left: 34px; bottom: -6px; transform: none; max-width: 200px; text-align: left; }
+.sequence-step.self.last .sequence-label { left: auto; right: 36px; text-align: right; }
+.sequence-step:hover .sequence-label { background: color-mix(in oklab, var(--warning) 14%, var(--surface)); border-radius: var(--radius-sm); }
+.sequence-badge { display: inline-block; min-width: 18px; height: 18px; margin-right: 4px; border-radius: 9px; background: var(--text-2); color: var(--surface); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
 .sequence-step[data-status="new"] .sequence-badge { background: var(--success); }
 .sequence-step[data-status="changed"] .sequence-badge { background: var(--warning); }
 .sequence-step[data-status="removed"] .sequence-badge { background: var(--danger); }
-.sequence-call, .sequence-what, .sequence-guard { display: block; }
-.sequence-call { font-family: var(--font-mono); }
-.sequence-what { color: var(--text-2); font-size: 0.85em; }
-.sequence-guard { color: var(--warning); font-size: 0.8em; }
-.sequence-arrow { position: absolute; top: 54px; font-size: 20px; }
-.sequence-phase { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border-strong); color: var(--text-2); font-size: 0.8em; }
-.sequence-warning { position: absolute; right: 4px; top: 4px; color: var(--warning); }
-.diagram-edge path { fill: none; stroke: var(--text-2); stroke-width: 1.5; }
-.diagram-edge marker path { fill: var(--text-2); stroke: none; }
-.diagram-edge text { fill: var(--text-2); font: 11px var(--font-sans); text-anchor: middle; }
-.diagram-entity rect { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1.5; }
-.diagram-entity.status-added rect { stroke: var(--success); }
-.diagram-entity.status-modified rect { stroke: var(--warning); }
-.diagram-entity.status-removed rect { stroke: var(--danger); }
-.diagram-entity.status-context rect { stroke: var(--border-strong); }
-.diagram-entity text { fill: var(--text); text-anchor: middle; pointer-events: none; }
-.diagram-entity .diagram-label { font-size: 12px; font-weight: 650; }
-.diagram-entity .diagram-kind { fill: var(--text-2); font: 10px var(--font-mono); }
+.sequence-guard, .sequence-what, .sequence-when { display: block; }
+.sequence-guard { color: var(--warning); font: 600 0.85em var(--font-mono); }
+.sequence-when { color: var(--text-2); }
+.sequence-warning { margin-left: 4px; color: var(--warning); }
 .commit-node .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .commit-node .counts { color: var(--text-2); }
 .commit-tag { display: inline-block; margin-right: 7px; color: var(--text-2); font-size: 0.72em; font-weight: 700; }

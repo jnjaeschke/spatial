@@ -295,6 +295,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
   for (const artifact of state.artifacts) {
     if (artifact.type !== "Diagram") continue;
     const diagram = artifact as Artifact<DiagramData>;
+    if (diagram.data.kind !== "sequence") continue;
     if (latest.diff.data.commits.some((commit) => commit.sha === diagram.data.commit)) diagramsByCommit.set(diagram.data.commit, diagram);
   }
   for (const commit of latest.diff.data.commits) {
@@ -474,7 +475,7 @@ const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "note") return { width: SATELLITE_WIDTH, height: 100 + lines(data.body, 60) * 22 };
-  if (data.kind === "diagram") return { width: Math.max(NODE_WIDTH[level], data.diagram.data.lanes.length * 170), height: 150 + data.diagram.data.steps.length * 92 };
+  if (data.kind === "diagram") return { width: Math.max(NODE_WIDTH[level], data.diagram.data.lanes.length * 170), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
   if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
@@ -570,6 +571,7 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
   const maxDiagramHeight = Math.max(0, ...nodes.filter((n) => n.data.kind === "diagram").map((n) => n.height));
   const lanes = [...new Set(nodes.flatMap((n) => n.data.kind === "commit" ? [n.data.index] : []))].sort((a, b) => a - b);
   let x = 0;
+  let diagramRight = -Infinity;
   for (const lane of lanes) {
     const diagram = nodes.find((n) => n.data.kind === "diagram" && laneOf.get(n.id) === lane);
     const main = nodes.filter((n) => !isSatellite(n) && n.data.kind !== "summary" && n.data.kind !== "diagram" && laneOf.get(n.id) === lane);
@@ -584,7 +586,9 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
     const rects = new Map(main.map((n) => [n.id, { x: local.get(n.id)!.x - minX + x, y: local.get(n.id)!.y - minY + laneTop, width: n.width, height: n.height }] as const));
     if (diagram) {
       const cardRect = rects.get(card.id)!;
-      out.set(diagram.id, { x: cardRect.x, y: top });
+      const diagramX = Math.max(cardRect.x, diagramRight + LANE_GAP);
+      out.set(diagram.id, { x: diagramX, y: top });
+      diagramRight = diagramX + diagram.width;
     }
     const laneSats = satellites.filter((s) => laneOf.get(s.id) === lane).map((s) => sized(s, (s.anchors ?? []).filter((a) => laneOf.get(a) === lane)));
     const placed = placeSatellites(rects, laneSats);

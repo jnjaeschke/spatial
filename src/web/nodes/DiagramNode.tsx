@@ -7,6 +7,7 @@ export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData & {
 
 const LANE_W = 170;
 const ROW_H = 92;
+const HEAD_H = 56;
 
 export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
   const { diagram } = data;
@@ -17,7 +18,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
   const steps = showBefore ? diagram.data.before ?? diagram.data.steps : diagram.data.steps;
   const unverified = steps.filter((step) => !step.verified).length;
   const width = Math.max(360, diagram.data.lanes.length * LANE_W);
-  const height = 100 + steps.length * ROW_H;
+  const height = HEAD_H + 16 + steps.length * ROW_H;
   const groups = useMemo(() => {
     let phase: string | null | undefined;
     return steps.map((step, index) => {
@@ -37,15 +38,21 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
         {groups.map(({ step, index, startsPhase }) => {
           const from = diagram.data.lanes.findIndex((lane) => lane.id === step.from);
           const to = diagram.data.lanes.findIndex((lane) => lane.id === step.to);
-          const y = 68 + index * ROW_H;
+          const rowTop = HEAD_H + index * ROW_H;
           const x1 = from * LANE_W + LANE_W / 2, x2 = to * LANE_W + LANE_W / 2;
-          return <div className="sequence-row" key={`${step.cite.path}:${step.cite.line}:${index}`}>
-            {startsPhase && step.phase && <div className="sequence-phase" style={{ top: y - 20 }}>{step.phase}</div>}
-            <div className="sequence-step" data-status={step.status} data-verified={String(step.verified)} style={{ top: y, left: Math.min(x1, x2), width: Math.max(LANE_W, Math.abs(x2 - x1)) }} title={step.verified ? `${step.cite.path}:${step.cite.line}` : `citation not found near ${step.cite.path}:${step.cite.line}`}>
-              <span className="sequence-badge">{index + 1}</span>{step.guard && <span className="sequence-guard">[{step.guard}]</span>}
-              <span className="sequence-call">{step.call}</span><span className="sequence-what">{step.what}{step.when ? ` · ${step.when}` : ""}</span>
-              <span className="sequence-arrow" style={{ left: x1 <= x2 ? 0 : undefined, right: x1 > x2 ? 0 : undefined }}>{from === to ? "↻" : x1 <= x2 ? "→" : "←"}</span>
-              {!step.verified && <span className="sequence-warning" title={`citation not found near ${step.cite.path}:${step.cite.line}`}>⚠</span>}
+          const direction = from !== to ? x1 < x2 ? "right" : "left" : from === diagram.data.lanes.length - 1 ? "self last" : "self";
+          const cite = `${step.cite.path}:${step.cite.line}`;
+          return <div className="sequence-row" key={`${cite}:${index}`}>
+            {startsPhase && step.phase && <div className="sequence-phase" style={{ top: rowTop }}>{step.phase}</div>}
+            <div className={`sequence-step ${direction}`} data-status={step.status} data-verified={String(step.verified)} style={{ top: rowTop + ROW_H - 14, left: Math.min(x1, x2), width: from === to ? 30 : Math.abs(x2 - x1) }} title={step.verified ? cite : `citation not found near ${cite}`}>
+              <div className="sequence-label">
+                {step.guard && <span className="sequence-guard">[{step.guard}]</span>}
+                <span className="sequence-badge">{index + 1}</span><code className="sequence-call">{step.call}</code>
+                {!step.verified && <span className="sequence-warning">⚠</span>}
+                <span className="sequence-what">{step.what}</span>
+                {step.when && <span className="sequence-when">{step.when}</span>}
+              </div>
+              <span className="sequence-arrow" />
             </div>
           </div>;
         })}

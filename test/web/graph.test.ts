@@ -312,18 +312,20 @@ test("estimateSize grows with level and hunk size", () => {
 
 const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
   id, sessionId: "S", type: "Diagram", status: "proposed", createdAt: id, provenance: { taskId: "t" },
-  data: { kind: "sequence", commit, commitIndex: 1, title, summary: "A sequence summary.", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "run", call: "run()", what: "Runs", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.ts", line: 1 }, verified: true, text: "run()" }], before: null },
+  data: { kind: "sequence", commit, commitIndex: Number(commit) - 1, title, summary: "A sequence summary.", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "run", call: "run()", what: "Runs", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.ts", line: 1 }, verified: true, text: "run()" }], before: null },
 });
 
 test("sessionGraph adds only the latest diagram for each commit in the current diff", () => {
   const old = diagram("D-old", "2"), latest = diagram("D-latest", "2");
-  const st = state([stackDiff, stackNarrative, old, diagram("D-other", "missing"), latest]);
+  const legacy = { ...diagram("D-legacy", "2"), data: { ...diagram("D-legacy", "2").data, kind: "flow" } } as unknown as Artifact<DiagramData>;
+  const st = state([stackDiff, stackNarrative, old, legacy, diagram("D-other", "missing"), latest]);
   const graph = sessionGraph(st)!;
   const diagrams = graph.nodes.filter((node) => node.data.kind === "diagram");
   assert.equal(diagrams.length, 1);
   assert.equal(diagrams[0]!.id, "D-latest");
   assert.equal(diagrams[0]!.data.kind === "diagram" ? diagrams[0]!.data.diagram.id : "", "D-latest");
   assert.deepEqual(levelGraph(graph, "patch").nodes.filter((node) => node.data.kind === "diagram"), []);
+  assert.equal(sessionGraph(state([stackDiff, stackNarrative, legacy]))!.nodes.some((node) => node.data.kind === "diagram"), false);
 });
 
 test("sessionGraph links each assistant message to its current diagrams", () => {
@@ -357,6 +359,26 @@ test("stackLayout puts a diagram above its lane and shifts aligned cards down", 
   const diagramBox = box("diagram-2"), card2 = box("NS#commit-1"), card1 = box("NS#commit-0");
   assert.ok(diagramBox.p.y + diagramBox.h + 24 <= card2.p.y);
   assert.equal(card1.p.y, card2.p.y);
+});
+
+test("stackLayout shifts wide diagrams right so they do not overlap", () => {
+  const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  for (const d of [diagram("diagram-1", "1"), diagram("diagram-2", "2")]) {
+    const wide = { ...d, data: { ...d.data, lanes: Array.from({ length: 8 }, (_, i) => ({ id: `l${i}`, label: `Lane ${i}`, note: null })) } };
+    graph.nodes.push({ id: wide.id, data: { kind: "diagram", diagram: wide } });
+  }
+  const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data, "concept") }));
+  const pos = stackLayout(sized, graph.edges);
+  const first = sized.find((node) => node.id === "diagram-1")!, second = sized.find((node) => node.id === "diagram-2")!;
+  assert.ok(pos.get("diagram-1")!.x + first.width <= pos.get("diagram-2")!.x);
+});
+
+test("diagram estimates grow with lanes and steps", () => {
+  const base = diagram("D", "1");
+  const data = { kind: "diagram" as const, diagram: base };
+  const larger = { ...base, data: { ...base.data, lanes: Array.from({ length: 3 }, (_, i) => ({ id: `${i}`, label: `${i}`, note: null })), steps: Array.from({ length: 4 }, (_, i) => ({ ...base.data.steps[0]!, phase: i < 2 ? "one" : "two" })) } };
+  assert.ok(estimateSize({ ...data, diagram: larger }, "concept").width > estimateSize(data, "concept").width);
+  assert.ok(estimateSize({ ...data, diagram: larger }, "concept").height > estimateSize(data, "concept").height);
 });
 
 test("single-commit layout ranks diagram after summary and before changes", () => {

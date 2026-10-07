@@ -294,7 +294,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
     measureQuoteDy();
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.type !== "diagram" && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
