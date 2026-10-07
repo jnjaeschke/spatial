@@ -159,14 +159,16 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
       const result: RecentRepo[] = [];
+      const resolved = new Map<string, ReturnType<typeof resolveRepo>>();
       for (const group of groupByRepo(rt.store.listSessions())) {
         const byWorktree = new Map<string, RecentRepo>();
         for (const session of group.sessions) {
           let worktree: string;
           try {
-            const resolved = await resolveRepo(session.worktree);
-            if (resolved.repoDir !== group.repoDir) continue;
-            worktree = resolved.worktree;
+            if (!resolved.has(session.worktree)) resolved.set(session.worktree, resolveRepo(session.worktree));
+            const repo = await resolved.get(session.worktree)!;
+            if (repo.repoDir !== group.repoDir) continue;
+            worktree = repo.worktree;
           } catch {
             continue; // A stale worktree; the repository's other checkouts may still be live.
           }

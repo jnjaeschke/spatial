@@ -107,6 +107,7 @@ test("folder picker navigates to a repository", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("button", { name: "Open folder…" }).click();
   const dialog = page.getByRole("dialog", { name: "Open folder" });
+  await expect(dialog.getByRole("navigation", { name: "Folder breadcrumbs" })).toBeVisible();
   await dialog.getByLabel("Path").fill(realpathSync(parent));
   await dialog.getByRole("button", { name: "Go" }).click();
   await dialog.getByRole("button", { name: /picked-repo/ }).click();
@@ -116,6 +117,7 @@ test("folder picker navigates to a repository", async ({ page }) => {
   git(dir, "worktree", "add", "-q", join(parent, "picked-checkout"), "-b", "checkout");
   await createSession(page, join(parent, "picked-checkout"), "Checkout session");
   await page.getByRole("button", { name: "Open folder…" }).click();
+  await expect(dialog.getByRole("navigation", { name: "Folder breadcrumbs" })).toBeVisible();
   await dialog.getByLabel("Path").fill(realpathSync(parent));
   await dialog.getByRole("button", { name: "Go" }).click();
   await dialog.getByRole("button", { name: /picked-checkout/ }).click();
