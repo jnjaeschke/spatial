@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Artifact, DiffData } from "../shared/types.ts";
 import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
@@ -19,7 +19,7 @@ const SIGN = { ctx: " ", add: "+", del: "-" } as const;
 
 /** `oldHref` links old-side line numbers (e.g. to Searchfox). */
 /** Rows without a `diffId` carry no `data-anchor`, so selecting them offers no Ask. */
-export function DiffRows({ rows, hunkId, diffId, path, oldHref }: { rows: Row[]; hunkId?: string; diffId?: string; path: string; oldHref?: (line: number) => string }) {
+export function DiffRows({ rows, hunkId, diffId, path, oldHref, afterRow }: { rows: Row[]; hunkId?: string; diffId?: string; path: string; oldHref?: (line: number) => string; afterRow?: (row: Row, index: number) => ReactNode }) {
   const commits = useContext(StackContext);
   const cells = useRef<(HTMLTableCellElement | null)[]>([]);
   const painter = useRef<RowPainter>(null);
@@ -34,9 +34,9 @@ export function DiffRows({ rows, hunkId, diffId, path, oldHref }: { rows: Row[];
     const classes = [row.kind, inHunk && "in-hunk", target && "target"].filter(Boolean).join(" ");
     const commit = row.commit === undefined ? undefined : commits?.[row.commit];
     const rowColor = commit ? commitColors(row.commit!).row : undefined;
-    return <tr key={`${row.hunkId ?? "context"}-${i}`} className={classes} data-hunk={row.hunkId} data-anchor={diffId && `${diffId}#${row.hunkId ?? hunkId}`} data-path={path} data-old={row.old} data-new={row.new} data-commit={commit ? row.commit : undefined}>
+    return <Fragment key={`${row.hunkId ?? "context"}-${i}`}><tr className={classes} data-hunk={row.hunkId} data-anchor={diffId && `${diffId}#${row.hunkId ?? hunkId}`} data-path={path} data-old={row.old} data-new={row.new} data-commit={commit ? row.commit : undefined}>
       <td className="ln" style={rowColor ? { background: rowColor } : undefined}>{oldHref && row.old !== undefined ? <a href={oldHref(row.old)} target="_blank" rel="noreferrer">{row.old}</a> : row.old ?? ""}</td><td className="ln" style={rowColor ? { background: rowColor } : undefined}>{row.new ?? ""}</td><td className="sign" style={rowColor ? { background: rowColor } : undefined} title={commit ? commitLabel(row.commit!, commit) : undefined}>{SIGN[row.kind]}{commit && <span className="commit-tag">C{row.commit! + 1}</span>}</td><td className="code" ref={(cell) => { cells.current[i] = cell; }}>{row.text}</td>
-    </tr>;
+    </tr>{afterRow?.(row, i)}</Fragment>;
   })}</>;
 }
 

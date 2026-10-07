@@ -339,6 +339,8 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .change-node { --kind: var(--kind-change); }
 .spec-node { --kind: var(--kind-spec); }
 .chat-node { --kind: var(--kind-chat); }
+.hosted-chat { margin: 8px 0; font-family: var(--font-sans); white-space: normal; word-break: normal; }
+.thread-stub { padding: 4px 8px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .note-node { --kind: var(--kind-note); }
 .note-draft { margin-left: 8px; padding: 2px 6px; border-radius: 999px; background: color-mix(in oklab, var(--kind-note) 18%, transparent); font-size: 0.75em; }
 .finding-node { --kind: var(--kind-finding); }
@@ -473,6 +475,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .running { color: var(--link); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); }
 .activity .running::before, .activity .pending::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .diff td.sign { white-space: nowrap; }
+.diff tr.thread-row > td { padding: 0; white-space: normal; word-break: normal; font-family: var(--font-sans); }
 .commit-tag { margin-left: 3px; font-size: calc(9px * var(--text-scale, 1)); color: var(--text-3); }
 .rewrite-flag { padding: 3px 8px; font: 11px var(--font-mono); color: var(--badge-warn-fg); background: var(--badge-warn-bg); border-top: 1px solid var(--border); }
 .toasts { position: fixed; right: 16px; bottom: 48px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }

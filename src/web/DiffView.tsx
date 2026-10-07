@@ -5,11 +5,13 @@ import { loadFileLines } from "./file-lines.ts";
 import { DiffRows, FileViewContext } from "./FilePanel.tsx";
 import { AskContext } from "./chat-context.ts";
 import { fileUrl, linkTitle, SearchfoxContext } from "./searchfox-url.ts";
+import type { HostedThread } from "./graph.ts";
+import type { ReactNode } from "react";
 
 const STEP = 20;
 
 /** Read-only hunk. `nodrag nopan` lets users select text instead of moving the canvas. */
-export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk }) {
+export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk; threads?: HostedThread[]; renderThread?: (thread: HostedThread) => ReactNode }) {
   const [above, setAbove] = useState(0);
   const [below, setBelow] = useState(0);
   const [lines, setLines] = useState<string[] | null>(null);
@@ -41,6 +43,15 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
     start = Math.max(0, start - above);
   }
   const expanded = lines !== null && above + below > 0;
+  const insertAt = new Map<HostedThread, number>();
+  for (const thread of threads ?? []) {
+    const line = thread.lines;
+    const targetHunk = thread.anchor.split("#").at(-1);
+    const index = line && line.path === file.path && targetHunk === hunk.id
+      ? rows.findIndex((row) => (!expanded || row.hunkId === hunk.id) && line.end === (line.side === "new" ? row.new : row.old)) : -1;
+    if (index >= 0) insertAt.set(thread, index);
+  }
+  const afterRow = (_row: Row, index: number) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}</>;
   const canShowAbove = canExpand && (expanded ? start > 0 : hunk.newStart > 1);
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
@@ -49,7 +60,7 @@ export function DiffView({ sessionId, diffId, file, hunk }: { sessionId: string;
       {hunk.rewrites?.map(({ by, of, lines }) => <div className="rewrite-flag" data-testid="rewrite-flag" key={`${by}-${of}`}>C{by + 1} rewrites {lines} line{lines === 1 ? "" : "s"} added in C{of + 1}</div>)}
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} />
+        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} afterRow={threads?.length ? afterRow : undefined} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

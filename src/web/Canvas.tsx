@@ -86,13 +86,6 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const focusDraft = useRef<string | null>(null);
   const knownDrafts = useRef(new Set<string>());
   const knownDiagrams = useRef<Set<string> | null>(null);
-  useEffect(() => {
-    const next = new Set(drafts.map((draft) => draft.id));
-    const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
-    knownDrafts.current = next;
-    // A double-clicked draft opens where the user is looking; centering it would move it from under the pointer.
-    if (added && !added.aside) anchor.current = added.id;
-  }, [drafts]);
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
     [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
   const graph = useMemo(() => {
@@ -100,6 +93,15 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!g) throw new Error("Canvas needs a session graph");
     return g;
   }, [state, drafts, freePositions]);
+  useLayoutEffect(() => {
+    const next = new Set(drafts.map((draft) => draft.id));
+    const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
+    knownDrafts.current = next;
+    if (!added) return;
+    const host = graph.nodes.find((node) => node.data.kind === "change" && node.data.threads.some((thread) => thread.draftId === added.id));
+    focusDraft.current = added.id;
+    anchor.current = host?.id ?? (added.aside ? null : added.id);
+  }, [drafts, graph]);
   const storedView = useRef(readViewState(state.session.id));
   useEffect(() => {
     for (const draft of drafts) {
@@ -129,12 +131,19 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (added && shown.nodes.some((n) => n.id === added)) anchor.current = added;
   }, [graphDiagramIds, shown]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
-  const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: (ChatNodeData | FindingNodeData) & { quote: string } } => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote), [graph]);
+  const quoted = useMemo(() => {
+    const entries: { id: string; anchors: string[]; data: { kind: "chat" | "finding"; anchor: string; quote: string; lines?: ChatNodeData["lines"] } }[] = [];
+    for (const node of graph.nodes) {
+      if ((node.data.kind === "chat" || node.data.kind === "finding") && node.data.quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: { kind: node.data.kind, anchor: node.data.anchor, quote: node.data.quote, lines: node.data.lines } });
+      if (node.data.kind === "change") for (const thread of node.data.threads) if (thread.quote) entries.push({ id: thread.threadId ?? thread.draftId!, anchors: [node.id], data: { kind: "chat", anchor: thread.anchor, quote: thread.quote, lines: thread.lines } });
+    }
+    return entries;
+  }, [graph]);
   const [hoveredChat, setHoveredChat] = useState<string | null>(null);
   const [focusedChat, setFocusedChat] = useState<string | null>(null);
   const [hoveredQuote, setHoveredQuote] = useState<string | null>(null);
   // Open quoted boxes only: a box removed by collapsing gets no pointerout or focusout.
-  const quotedBoxIds = useMemo(() => new Set(shown.nodes.filter((n) => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote).map((n) => n.id)), [shown]);
+  const quotedBoxIds = useMemo(() => new Set(quoted.filter((item) => item.data.kind === "finding" || !collapsed.has(item.id)).filter((item) => shown.nodes.some((node) => node.id === item.anchors[0])).map((item) => item.id)), [quoted, shown, collapsed]);
   const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
     : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
@@ -209,6 +218,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const measureQuoteDy = () => {
     let changed = false;
     for (const n of quoted) {
+      if (n.data.kind !== "finding") continue;
       const range = rangeOf(n);
       const anchorEl = container.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(n.anchors![0]!)}"]`);
       if (!range || !anchorEl) continue;
@@ -287,9 +297,18 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
-    if (draftToFocus && nodes.some((n) => n.id === draftToFocus)) {
+    if (draftToFocus && (nodes.some((n) => n.id === draftToFocus) || graph.nodes.some((node) => node.data.kind === "change" && node.data.threads.some((thread) => thread.draftId === draftToFocus)))) {
       focusDraft.current = null;
-      requestAnimationFrame(() => container.current?.querySelector<HTMLTextAreaElement>(`.react-flow__node[data-id="${draftToFocus}"] textarea`)?.focus());
+      requestAnimationFrame(() => {
+        const box = container.current?.querySelector<HTMLElement>(`[data-testid="chat-${CSS.escape(draftToFocus)}"]`);
+        const textarea = box?.querySelector<HTMLTextAreaElement>("textarea");
+        if (box && graph.nodes.some((node) => node.data.kind === "change" && node.data.threads.some((thread) => thread.draftId === draftToFocus))) {
+          const rect = box.getBoundingClientRect();
+          const point = rf.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+          void rf.setCenter(point.x, point.y, { zoom: rf.getZoom() });
+        }
+        textarea?.focus({ preventScroll: true });
+      });
     }
     const pending = anchorOnResize.current && nodes.find((n) => n.id === anchorOnResize.current!.id);
     if (pending && pending.measured!.height !== anchorOnResize.current!.height) {
@@ -313,7 +332,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
       }
     }
-  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, level]);
+  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, level, graph]);
 
   useEffect(() => {
     if (autoFit.current) return;
@@ -358,8 +377,12 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       if (!getSelection()?.isCollapsed) return;
       const id = quoteAt(event.clientX, event.clientY);
       if (!id || !collapsed.has(id)) return;
-      anchor.current = id;
-      toggle(id);
+      const host = graph.nodes.find((node) => node.data.kind === "change" && node.data.threads.some((thread) => (thread.threadId ?? thread.draftId) === id));
+      if (host) reveal(host.id, id);
+      else {
+        anchor.current = id;
+        toggle(id);
+      }
     };
     const move = (event: PointerEvent) => {
       const id = quoteAt(event.clientX, event.clientY);
@@ -397,7 +420,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!el) return;
     const chatAt = (target: EventTarget | null) => {
       if (!(target instanceof Element)) return null;
-      const id = target.closest(".react-flow__node")?.getAttribute("data-id") ?? null;
+      const id = target.closest<HTMLElement>("[data-testid^='chat-']")?.dataset.testid?.slice(5) ?? target.closest(".react-flow__node")?.getAttribute("data-id") ?? null;
       return id && quotedBoxIds.has(id) ? id : null;
     };
     const over = (event: PointerEvent) => setHoveredChat(chatAt(event.target));

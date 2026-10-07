@@ -13,6 +13,12 @@ export function anchorOfSelection(sel: Selection): SelectionResult | null {
   if (!quote) return null;
   const start = element(sel.anchorNode)?.closest<HTMLElement>("[data-anchor]");
   const end = element(sel.focusNode)?.closest<HTMLElement>("[data-anchor]");
+  if ([sel.anchorNode, sel.focusNode].some((node) => {
+    const selected = element(node);
+    const boundary = selected?.closest("[data-thread-boundary]");
+    const anchor = selected?.closest("[data-anchor]");
+    return boundary && (!anchor || !boundary.contains(anchor));
+  })) return null;
   if (!start || !end) return null;
   const anchor = start.dataset.anchor;
   if (!anchor || anchor !== end.dataset.anchor) return null;

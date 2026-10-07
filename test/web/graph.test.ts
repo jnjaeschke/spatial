@@ -307,6 +307,7 @@ test("estimateSize grows with level and hunk size", () => {
   const p = estimateSize(c2, "patch"), c = estimateSize(c2, "concept"), k = estimateSize(c2, "code");
   assert.ok(p.height < c.height && c.height < k.height);
   assert.ok(p.width < k.width);
+  if (c2.kind === "change") assert.ok(estimateSize({ ...c2, threads: [{ threadId: "T", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [], anchor: "N#c2", diffId: "D", hunks: [] }] }, "concept").height > c.height);
 });
 
 const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
@@ -460,20 +461,20 @@ test("sessionGraph exposes unenabled MCP requests per thread", () => {
   const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools" } };
   const st = state([diff, narrative("N"), thread, request]);
   st.links = [{ id: "about", sessionId: "S", from: "REQ", to: "T", kind: "about" }];
-  const chat = sessionGraph(st)!.nodes.find((node) => node.id === "T")!.data;
-  assert.equal(chat.kind, "chat");
-  if (chat.kind === "chat") assert.deepEqual(chat.mcpRequests, ["firefox-devtools"]);
+  const hosted = sessionGraph(st)!.nodes.find((node) => node.id === "N#c1")!.data;
+  assert.equal(hosted.kind, "change");
+  if (hosted.kind === "change") assert.deepEqual(hosted.threads[0].mcpRequests, ["firefox-devtools"]);
 
   const enabled = { id: "EN", sessionId: "S", type: "McpServerEnabled", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { server: "firefox-devtools" } };
   st.artifacts.push(enabled);
   st.links.push({ id: "enabled-about", sessionId: "S", from: "EN", to: "T", kind: "about" });
-  const afterEnable = sessionGraph(st)!.nodes.find((node) => node.id === "T")!.data;
-  if (afterEnable.kind === "chat") assert.deepEqual(afterEnable.mcpRequests, []);
+  const afterEnable = sessionGraph(st)!.nodes.find((node) => node.id === "N#c1")!.data;
+  if (afterEnable.kind === "change") assert.deepEqual(afterEnable.threads[0].mcpRequests, []);
 
   st.artifacts.push({ ...thread, id: "T2", data: { anchor: "N#c2" } }, { ...request, id: "REQ2", data: { server: "firefox-devtools" } });
   st.links.push({ id: "about2", sessionId: "S", from: "REQ2", to: "T2", kind: "about" });
-  const otherThread = sessionGraph(st)!.nodes.find((node) => node.id === "T2")!.data;
-  if (otherThread.kind === "chat") assert.deepEqual(otherThread.mcpRequests, ["firefox-devtools"]);
+  const otherThread = sessionGraph(st)!.nodes.find((node) => node.id === "N#c2")!.data;
+  if (otherThread.kind === "change") assert.deepEqual(otherThread.threads[0].mcpRequests, ["firefox-devtools"]);
 });
 
 test("sessionGraph ignores spec refs of older narratives", () => {
@@ -568,7 +569,7 @@ test("sessionGraph skips a chat anchored to a message of a hidden chat", () => {
   assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T2"));
 });
 
-test("sessionGraph attaches revisions to their target chat message", () => {
+test("sessionGraph attaches revisions to hosted thread messages", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
   const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "Stub answer." } };
   const revision = { id: "REV", sessionId: "S", type: "Revision", status: "proposed" as const, createdAt: "6", provenance: { taskId: "t" }, data: { quote: "Stub answer.", correction: "Corrected stub answer." } };
@@ -577,25 +578,31 @@ test("sessionGraph attaches revisions to their target chat message", () => {
     { id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" },
     { id: "revises", sessionId: "S", from: "REV", to: "M", kind: "revises" },
   ];
-  const chat = sessionGraph(st)!.nodes.find((node) => node.id === "T")!.data;
-  assert.equal(chat.kind, "chat");
-  if (chat.kind === "chat") assert.deepEqual(chat.revisions.M, [revision.data]);
+  const change = sessionGraph(st)!.nodes.find((node) => node.id === "N#c1")!.data;
+  assert.equal(change.kind, "change");
+  if (change.kind === "change") assert.deepEqual(change.threads[0].revisions.M, [revision.data]);
 });
 
-test("sessionGraph adds chat satellites for threads and drafts", () => {
-  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
+test("sessionGraph hosts change threads and drafts in their change cards", () => {
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", quote: "l1", lines: { path: "a.cpp", side: "new" as const, start: 1, end: 1 } } };
   const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "user", text: "q" } };
   const st = state([diff, narrative("N"), thread, msg]);
   st.links = [{ id: "l", sessionId: "S", from: "M", to: "T", kind: "reply" }];
   const g = sessionGraph(st, [{ id: "draft-1", anchor: "N#c3" }])!;
-  const chat = g.nodes.find((x) => x.id === "T")!;
-  assert.deepEqual(chat.anchors, ["N#c1"]);
-  assert.equal(chat.data.kind === "chat" && chat.data.messages.length, 1);
-  const draft = g.nodes.find((x) => x.id === "draft-1")!;
-  assert.deepEqual(draft.anchors, ["N#c3"]);
+  const change = g.nodes.find((x) => x.id === "N#c1")!;
+  assert.equal(change.data.kind, "change");
+  if (change.data.kind === "change") {
+    assert.deepEqual(change.data.threads.map(({ threadId }) => threadId), ["T"]);
+    assert.equal(change.data.threads[0].messages.length, 1);
+    assert.deepEqual(change.data.threads[0].lines, thread.data.lines);
+  }
+  assert.ok(!g.nodes.some((x) => x.id === "T" || x.id === "draft-1"));
+  const draftHost = g.nodes.find((x) => x.id === "N#c3")!;
+  assert.equal(draftHost.data.kind, "change");
+  if (draftHost.data.kind === "change") assert.deepEqual(draftHost.data.threads.map(({ draftId }) => draftId), ["draft-1"]);
 });
 
-test("chat satellites can anchor to spec, another chat, and narrative summary", () => {
+test("change chats are hosted while other chats can anchor to specs, chat messages, and summary", () => {
   const spec = { id: "R", sessionId: "S", type: "SpecReference", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" }, data: { url: "u", resolved: null, geckoRefs: [] } };
   const first = { id: "T1", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } };
   const message = { id: "M1", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "answer" } };
@@ -609,7 +616,9 @@ test("chat satellites can anchor to spec, another chat, and narrative summary", 
   ];
   const g = sessionGraph(st)!;
   assert.deepEqual(g.nodes.find((n) => n.id === "T2")?.anchors, ["R"]);
-  assert.deepEqual(g.nodes.find((n) => n.id === "T3")?.anchors, ["T1"]);
+  assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T3"));
+  const change = g.nodes.find((n) => n.id === "N#c1")!.data;
+  if (change.kind === "change") assert.deepEqual(change.threads.map((thread) => thread.threadId), ["T1", "T3"]);
   assert.deepEqual(g.nodes.find((n) => n.id === "T4")?.anchors, ["N"]);
 });
 
@@ -816,7 +825,7 @@ test("visibleGraph hides only collapsed quoted threads and their edges", () => {
     node("quoted", { kind: "chat", anchor: "N#c1", quote: "quote", diffId: "D", hunks: [], threadId: "quoted", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("plain", { kind: "chat", anchor: "N#c1", diffId: "D", hunks: [], threadId: "plain", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
     node("draft", { kind: "chat", anchor: "N#c1", quote: "draft quote", diffId: "D", hunks: [], threadId: null, draftId: "draft", taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
-    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [], commit: null, reviewed: false }),
+    node("N#c1", { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), hunks: [], files: [], commit: null, reviewed: false, threads: [] }),
   ];
   const edges = [
     { id: "quoted-edge", source: "quoted", target: "N#c1" },

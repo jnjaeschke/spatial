@@ -159,7 +159,8 @@ test("ask about a hunk anchors the chat to its change", async ({ page, request }
   await expect(chat).toBeVisible();
   const chatBox = (await chat.boundingBox())!;
   const c1 = (await page.getByTestId("change-c1").boundingBox())!;
-  expect(chatBox.x).toBeGreaterThan(c1.x + c1.width);
+  expect(chatBox.x).toBeGreaterThanOrEqual(c1.x);
+  expect(chatBox.x + chatBox.width).toBeLessThanOrEqual(c1.x + c1.width);
 });
 
 test("selecting text in a chat opens a chat anchored to the original chat", async ({ page, request }) => {
@@ -180,9 +181,7 @@ test("selecting text in a chat opens a chat anchored to the original chat", asyn
   await page.locator("button.ask-selection").click();
   const nested = page.locator('[data-testid^="chat-draft-"]').filter({ has: page.getByLabel("message") });
   await expect(nested).toHaveCount(1);
-  const nestedBox = (await nested.boundingBox())!;
-  const originalBox = (await page.locator(".chat-node").first().boundingBox())!;
-  expect(nestedBox.x).toBeGreaterThan(originalBox.x + originalBox.width);
+  await expect(page.getByTestId("change-c1").locator(".hosted-chat")).toHaveCount(2);
 });
 
 test("selecting text on a change opens a quoted chat; cross-card selection is ignored", async ({ page, request }) => {
@@ -198,6 +197,8 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
   await page.locator("button.ask-selection").click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await expect(draft.locator("blockquote.chat-quote")).toContainText("Replaces");
+  await expect(draft.getByLabel("message")).toBeFocused();
+  await expect(page.locator('[data-testid="change-c1"] .hosted-chat')).toContainText("Chat");
   await draft.getByLabel("message").fill("What does this mean?");
   await draft.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
@@ -246,7 +247,7 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
 test("a quoted diff chat sits next to the quote and highlights it", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "code");
-  const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();
+  const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
   const code = row.locator("td.code");
   const selected = await code.innerText();
   await code.dblclick();
@@ -256,24 +257,26 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   await ask.click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await expect(draft).toBeVisible();
+  await expect(draft.getByLabel("message")).toBeFocused();
+  await expect(page.getByTestId("change-c1").locator(".hosted-chat")).toHaveCount(1);
   expect(selected).toContain(word);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])]
     .map((r) => `${r.startContainer.parentElement?.closest("td")?.className}:${(r as Range).toString()}`))).toContain(`code:${word}`);
   await expect.poll(async () => {
-    const chatBox = await draft.boundingBox();
+    const threadBox = await page.locator(".thread-row").boundingBox();
     const rowBox = await row.boundingBox();
-    return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
-  }).toBeLessThan(40);
+    return threadBox && rowBox ? Math.abs(threadBox.y - (rowBox.y + rowBox.height)) : Infinity;
+  }).toBeLessThan(6);
   await draft.getByLabel("message").fill("Why?");
   await draft.getByRole("button", { name: "Send" }).click();
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible({ timeout: 10_000 });
   const thread = page.locator(".chat-node").filter({ has: answer });
   await expect.poll(async () => {
-    const chatBox = await thread.boundingBox();
+    const threadBox = await page.locator(".thread-row").boundingBox();
     const rowBox = await row.boundingBox();
-    return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
-  }).toBeLessThan(40);
+    return threadBox && rowBox ? Math.abs(threadBox.y - (rowBox.y + rowBox.height)) : Infinity;
+  }).toBeLessThan(6);
 
   await thread.getByLabel("message").focus();
   await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(1);
@@ -411,10 +414,10 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
   await expect(page.locator(".chat-node")).toHaveCount(0);
 });
 
-test("a quoted chat aligns to its quote once its anchor comes into view", async ({ page, request }) => {
+test("a chat on code lines renders directly after its last quoted row", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "code");
-  const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();
+  const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
   await row.locator("td.code").dblclick();
   await page.locator("button.ask-selection").click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
@@ -422,39 +425,12 @@ test("a quoted chat aligns to its quote once its anchor comes into view", async 
   await draft.getByRole("button", { name: "Send" }).click();
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible({ timeout: 10_000 });
-  await setLevel(page, "concept");
-
-  const panY = async (dy: number) => {
-    const grab = await page.evaluate((dy) => {
-      for (let y = dy < 0 ? innerHeight - 20 : 20; y > 0 && y < innerHeight; y += dy < 0 ? -20 : 20) {
-        for (let x = 20; x < innerWidth; x += 40) {
-          if (document.elementFromPoint(x, y)?.classList.contains("react-flow__pane")) return { x, y };
-        }
-      }
-      throw new Error("no empty pane");
-    }, dy);
-    await page.mouse.move(grab.x, grab.y);
-    await page.mouse.down();
-    await page.mouse.move(grab.x, grab.y + dy, { steps: 8 });
-    await page.mouse.up();
-  };
-  for (let i = 0; i < 20 && await page.getByTestId("change-c1").count(); i++) await panY(-600);
-  const scale = async () => Number(/scale\(([\d.]+)\)/.exec((await page.locator(".react-flow__viewport").getAttribute("style"))!)![1]);
-  for (let i = 0; i < 10 && await scale() < 1.2; i++) {
-    await page.getByRole("button", { name: "zoom in" }).click();
-    await page.waitForTimeout(150);
-  }
-  await page.waitForTimeout(500);
-  for (let i = 0; i < 40; i++) {
-    const box = await row.count() ? await row.boundingBox() : null;
-    if (box && box.y > 100 && box.y < 700) break;
-    await panY(box && box.y >= 700 ? -300 : 300);
-  }
-  await expect(row).toBeInViewport();
   const thread = page.locator(".chat-node").filter({ has: answer });
   await expect.poll(async () => {
-    const chatBox = await thread.boundingBox();
+    const threadBox = await page.locator(".thread-row").boundingBox();
     const rowBox = await row.boundingBox();
-    return chatBox && rowBox ? Math.abs(chatBox.y - rowBox.y) : Infinity;
-  }).toBeLessThan(40);
+    return threadBox && rowBox ? Math.abs(threadBox.y - (rowBox.y + rowBox.height)) : Infinity;
+  }).toBeLessThan(6);
+  await setLevel(page, "patch");
+  await expect(page.getByTestId("change-c1").locator(".title")).toContainText("💬 1");
 });

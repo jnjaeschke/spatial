@@ -38,6 +38,7 @@ export interface ChangeNodeData {
   /** Owning stack commit; null for single-commit diffs. */
   commit: number | null;
   reviewed: boolean;
+  threads: HostedThread[];
 }
 
 export interface CommitNodeData {
@@ -89,6 +90,7 @@ export interface ChatNodeData {
   /** Current review diagrams created by each assistant message. */
   diagramsByMessage?: Record<Id, Id[]>;
 }
+export type HostedThread = Omit<ChatNodeData, "kind" | "aside"> & { anchor: Ref; quote?: string; lines?: ChatThreadData["lines"]; draftId: string | null };
 export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> {
   kind: "conversation";
   title: string;
@@ -201,7 +203,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     const commit = stack ? changeCommit(diff.data, change) : null;
     nodes.push({
       id: ref(change.id),
-      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id) },
+      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id), threads: [] },
     });
     const sources = change.dependsOn.length ? change.dependsOn.map(ref) : [commit === null ? narrative.id : commitNodeId(narrative.id, commit)];
     for (const s of sources) edges.push({ id: `${s}->${ref(change.id)}`, source: s, target: ref(change.id) });
@@ -251,20 +253,35 @@ function threadContent(state: SessionState, thread: Artifact<ChatThreadData>, di
   return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(state, thread.id), ...(diagramsByMessage ? { diagramsByMessage } : {}) };
 }
 
-/** Adds chat nodes for threads not in `hostOf` and drafts, each attached to `resolve(anchor)`; unresolvable ones are skipped. */
-function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: ReadonlyMap<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"], diagramsByMessage?: Record<Id, Id[]>): void {
+/** Hosts change-anchored threads on their change and adds nodes for the remaining chats; unresolvable anchors are skipped. */
+function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: Map<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"], diagramsByMessage?: Record<Id, Id[]>): void {
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   for (const thread of threads) {
     if (hostOf.has(thread.id)) continue;
     const node = resolve(thread.data.anchor);
     if (!node) continue;
+    const change = g.nodes.find((item) => item.id === node && item.data.kind === "change");
+    if (change?.data.kind === "change") {
+      change.data.threads.push({ ...threadContent(state, thread, diagramsByMessage), anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, diffId, hunks, draftId: null });
+      hostOf.set(thread.id, change.id);
+      nodeIds.add(thread.id);
+      continue;
+    }
     nodeIds.add(thread.id);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, aside: thread.data.aside, diffId, hunks, ...threadContent(state, thread, diagramsByMessage), draftId: null } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, aside: thread.data.aside, diffId, hunks, ...threadContent(state, thread, diagramsByMessage), draftId: null } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
+    if (draft.taskId && threads.some((thread) => thread.provenance.taskId === draft.taskId)) continue;
     const node = resolve(draft.anchor);
     if (!node) continue;
+    const change = g.nodes.find((item) => item.id === node && item.data.kind === "change");
+    if (change?.data.kind === "change") {
+      change.data.threads.push({ threadId: null, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [], anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId, hunks, draftId: draft.id });
+      hostOf.set(draft.id, change.id);
+      nodeIds.add(draft.id);
+      continue;
+    }
     g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, aside: draft.aside, diffId, hunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
@@ -471,8 +488,9 @@ function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; heigh
   }
   if (level === "patch") return { width, height: 60 + lines(data.change.title, 20) * 36 };
   const concept = 60 + (lines(data.change.explanation, 55) + lines(data.change.rationale, 55)) * 22 + data.files.length * 20;
-  if (level === "concept") return { width, height: concept };
-  return { width, height: concept + data.hunks.reduce((sum, h) => sum + 40 + h.hunk.lines.length * 18, 0) };
+  const threadHeight = data.threads.reduce((sum, thread) => sum + 80 + thread.messages.length * 80, 0);
+  if (level === "concept") return { width, height: concept + threadHeight };
+  return { width, height: concept + data.hunks.reduce((sum, h) => sum + 40 + h.hunk.lines.length * 18, 0) + threadHeight };
 }
 
 export function estimateSize(data: GraphNodeData, level: ZoomLevel, textScale = 1): { width: number; height: number } {

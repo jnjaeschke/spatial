@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { anchorOfSelection } from "../../src/web/selection.ts";
 
 function endpoint(anchor: string, row?: { path: string; old?: string; new?: string }) {
-  const rowElement = row ? { dataset: { anchor, ...row }, closest: (selector: string) => selector === "tr[data-anchor]" ? rowElement : rowElement } : null;
-  const anchorElement = { dataset: { anchor }, closest: () => anchorElement };
+  const rowElement = row ? { dataset: { anchor, ...row }, closest: (selector: string) => selector === "tr[data-anchor]" || selector === "[data-anchor]" ? rowElement : null, contains: (other: unknown) => other === rowElement } : null;
+  const anchorElement = { dataset: { anchor }, closest: (selector: string) => selector === "[data-anchor]" ? anchorElement : null };
   const node = { nodeType: 3, parentElement: rowElement ?? anchorElement };
   return { node, anchorElement, rowElement };
 }

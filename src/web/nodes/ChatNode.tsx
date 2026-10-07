@@ -47,7 +47,7 @@ export function Conversation(data: ConversationProps) {
     if (t.kind !== "chatTurn") return false;
     const input = t.input as { threadId?: string; anchor?: string; aside?: boolean };
     return t.id === data.taskId || (data.threadId !== null && input.threadId === data.threadId) ||
-      (data.draftId === null && input.anchor === data.anchor && !input.aside);
+      (data.threadId === null && data.draftId === null && input.anchor === data.anchor && !input.aside);
   });
   const last = turns.at(-1);
   const busy = last?.status === "running" || last?.status === "pending";

@@ -8,7 +8,7 @@ import type { ChatThreadData, Ref } from "../shared/types.ts";
  */
 export function quoteRange(root: ParentNode, anchor: Ref, quote: string, lines?: ChatThreadData["lines"]): Range | null {
   const selector = `[data-anchor="${CSS.escape(anchor)}"]`;
-  let scopes = [...root.querySelectorAll<HTMLElement>(selector)].filter((el) => !el.parentElement?.closest(selector));
+  let scopes = [...root.querySelectorAll<HTMLElement>(selector)].filter((el) => !el.parentElement?.closest(selector) && !el.closest("[data-thread-boundary]"));
   if (lines) {
     const rows = scopes.filter((el) => el.tagName === "TR" && el.dataset.path === lines.path);
     const line = (tr: HTMLElement) => Number(lines.side === "new" ? tr.dataset.new : tr.dataset.old);
@@ -22,7 +22,7 @@ export function quoteRange(root: ParentNode, anchor: Ref, quote: string, lines?:
   const at: { node: Text; offset: number }[] = [];
   for (const scope of scopes) {
     const walker = scope.ownerDocument.createTreeWalker(scope, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, (node) =>
-      node instanceof Element && getComputedStyle(node).userSelect === "none" ? NodeFilter.FILTER_REJECT
+      node instanceof Element && (getComputedStyle(node).userSelect === "none" || (node !== scope && node.hasAttribute("data-thread-boundary"))) ? NodeFilter.FILTER_REJECT
         : node instanceof Text ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP);
     for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
       for (let i = 0; i < node.data.length; i++) {
