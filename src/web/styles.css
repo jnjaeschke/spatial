@@ -337,7 +337,6 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .sequence-label { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 320px; text-align: center; color: var(--text); font-size: 0.85em; line-height: 1.35; }
 .sequence-step.self .sequence-label { left: 34px; bottom: -6px; transform: none; max-width: 200px; text-align: left; }
 .sequence-step.self.last .sequence-label { left: auto; right: 36px; text-align: right; }
-.sequence-step:hover .sequence-label { background: color-mix(in oklab, var(--warning) 14%, var(--surface)); border-radius: var(--radius-sm); }
 .sequence-badge { display: inline-block; min-width: 18px; height: 18px; margin-right: 4px; border-radius: 9px; background: var(--text-2); color: var(--surface); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
 .sequence-step[data-status="new"] .sequence-badge { background: var(--success); }
 .sequence-step[data-status="changed"] .sequence-badge { background: var(--warning); }
