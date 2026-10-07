@@ -29,6 +29,7 @@
   --kind-chat: light-dark(#d98100, #f4b350);
   --kind-finding: light-dark(#e2541c, #ff8c5e);
   --kind-phab: light-dark(#8d5ce6, #b998fa);
+  --kind-diagram: light-dark(#16809a, #55c8df);
 
   --diff-add: light-dark(#e6ffec, #0f2e1d);
   --diff-del: light-dark(#ffebe9, #3a1619);
@@ -286,6 +287,24 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
     var(--surface);
 }
 .commit-node { --kind: var(--kind-summary); border-top-width: 4px; }
+.diagram-node { --kind: var(--kind-diagram); }
+.diagram-node .title { display: flex; align-items: baseline; gap: 8px; }
+.diagram-mode, .diagram-counts { color: var(--text-2); font-size: 0.78em; font-weight: 500; }
+.diagram-counts { margin-left: auto; }
+.diagram-content { overflow: auto; margin-top: 10px; border-top: 1px solid var(--border); }
+.diagram-content svg { display: block; overflow: visible; }
+.diagram-edge path { fill: none; stroke: var(--text-2); stroke-width: 1.5; }
+.diagram-edge marker path { fill: var(--text-2); stroke: none; }
+.diagram-edge text { fill: var(--text-2); font: 11px var(--font-sans); text-anchor: middle; }
+.diagram-entity rect { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1.5; }
+.diagram-entity.status-added rect { stroke: var(--success); }
+.diagram-entity.status-modified rect { stroke: var(--warning); }
+.diagram-entity.status-removed rect { stroke: var(--danger); }
+.diagram-entity.status-context rect { stroke: var(--border-strong); }
+.diagram-entity[data-verified="false"] rect { stroke: var(--text-3); }
+.diagram-entity text { fill: var(--text); text-anchor: middle; pointer-events: none; }
+.diagram-entity .diagram-label { font-size: 12px; font-weight: 650; }
+.diagram-entity .diagram-kind { fill: var(--text-2); font: 10px var(--font-mono); }
 .commit-node .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .commit-node .counts { color: var(--text-2); }
 .commit-tag { display: inline-block; margin-right: 7px; color: var(--text-2); font-size: 0.72em; font-weight: 700; }

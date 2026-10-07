@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { anchorNodeId, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, type GraphNode } from "../../src/web/graph.ts";
+import type { Artifact, DiagramData, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
+import { anchorNodeId, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -258,6 +258,45 @@ test("estimateSize grows with level and hunk size", () => {
   const p = estimateSize(c2, "patch"), c = estimateSize(c2, "concept"), k = estimateSize(c2, "code");
   assert.ok(p.height < c.height && c.height < k.height);
   assert.ok(p.width < k.width);
+});
+
+const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
+  id, sessionId: "S", type: "Diagram", status: "proposed", createdAt: id, provenance: { taskId: "t" },
+  data: { commit, commitIndex: 1, mode: "map", title, nodes: [], edges: [] },
+});
+
+test("sessionGraph adds only the latest diagram for each commit in the current diff", () => {
+  const old = diagram("D-old", "2"), latest = diagram("D-latest", "2");
+  const st = state([stackDiff, stackNarrative, old, diagram("D-other", "missing"), latest]);
+  const graph = sessionGraph(st)!;
+  const diagrams = graph.nodes.filter((node) => node.data.kind === "diagram");
+  assert.equal(diagrams.length, 1);
+  assert.equal(diagrams[0]!.id, "D-latest");
+  assert.equal(diagrams[0]!.data.kind === "diagram" ? diagrams[0]!.data.diagram.id : "", "D-latest");
+  assert.deepEqual(levelGraph(graph, "patch").nodes.filter((node) => node.data.kind === "diagram"), []);
+});
+
+test("stackLayout puts a diagram above its lane and shifts aligned cards down", () => {
+  const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  const d = diagram("diagram-2", "2");
+  graph.nodes.push({ id: d.id, data: { kind: "diagram", diagram: d } });
+  const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data, "concept") }));
+  const pos = stackLayout(sized, graph.edges);
+  const box = (id: string) => ({ p: pos.get(id)!, h: sized.find((node) => node.id === id)!.height });
+  const diagramBox = box("diagram-2"), card2 = box("NS#commit-1"), card1 = box("NS#commit-0");
+  assert.ok(diagramBox.p.y + diagramBox.h + 24 <= card2.p.y);
+  assert.equal(card1.p.y, card2.p.y);
+});
+
+test("single-commit layout ranks diagram after summary and before changes", () => {
+  const d = diagram("diagram-1", "1");
+  const graph = narrativeGraph(narrative("N"), diff, [diff]);
+  const nodes = [...graph.nodes, { id: d.id, data: { kind: "diagram" as const, diagram: d } }];
+  const changes = graph.nodes.filter((node) => node.data.kind === "change" && graph.edges.every((edge) => edge.target !== node.id));
+  const layoutEdges = diagramLayoutEdges(nodes, graph.edges);
+  const positions = layout(nodes.map((node) => ({ id: node.id, ...estimateSize(node.data, "concept") })), layoutEdges);
+  assert.ok(positions.get("N")!.y < positions.get(d.id)!.y);
+  assert.ok(changes.every((node) => positions.get(d.id)!.y < positions.get(node.id)!.y));
 });
 
 test("estimateSize scales change and finding dimensions", () => {

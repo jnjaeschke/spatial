@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
@@ -68,6 +68,7 @@ export interface SummaryNodeData {
 }
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
+export interface DiagramNodeData { kind: "diagram"; diagram: Artifact<DiagramData> }
 export interface ChatNodeData {
   kind: "chat";
   anchor: Ref;
@@ -122,7 +123,7 @@ export interface PhabNodeData {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
 }
 
-export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
+export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
@@ -258,6 +259,17 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts);
+  const diagramsByCommit = new Map<string, Artifact<DiagramData>>();
+  for (const artifact of state.artifacts) {
+    if (artifact.type !== "Diagram") continue;
+    const diagram = artifact as Artifact<DiagramData>;
+    if (latest.diff.data.commits.some((commit) => commit.sha === diagram.data.commit)) diagramsByCommit.set(diagram.data.commit, diagram);
+  }
+  for (const commit of latest.diff.data.commits) {
+    const diagram = diagramsByCommit.get(commit.sha);
+    if (!diagram) continue;
+    g.nodes.push({ id: diagram.id, data: { kind: "diagram", diagram } });
+  }
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
   const plan = postPlan(latest.diff.data, postableComments(state, latest.narrative.id));
   summary.drafts = plan.revisions.map((r) => ({ commit: r.commit, revision: r.revision.id, count: r.items.length }));
@@ -408,6 +420,7 @@ const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+  if (data.kind === "diagram") return { width: NODE_WIDTH[level], height: 70 + Math.ceil(data.diagram.data.nodes.length / 4) * 76 };
   if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: 140 + Math.max(1, data.messages.length) * 120 };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
@@ -458,6 +471,20 @@ export function layout(
   return out;
 }
 
+/** Adds ordering edges for a single-commit diagram without changing the displayed graph edges. */
+export function diagramLayoutEdges(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] {
+  const diagram = nodes.find((node) => node.data.kind === "diagram");
+  const summary = nodes.find((node) => node.data.kind === "summary");
+  if (!diagram || !summary) return edges;
+  const predecessors = new Set(edges.map((edge) => edge.target));
+  return [
+    ...edges,
+    { id: `layout:${summary.id}->${diagram.id}`, source: summary.id, target: diagram.id },
+    ...nodes.filter((node) => node.data.kind === "change" && !predecessors.has(node.id))
+      .map((node) => ({ id: `layout:${diagram.id}->${node.id}`, source: diagram.id, target: node.id })),
+  ];
+}
+
 const LANE_GAP = 120;
 const LANE_TOP_GAP = 72;
 type Placed = { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[]; dy?: number };
@@ -469,6 +496,7 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
   for (const n of nodes) {
     if (n.data.kind === "commit") laneOf.set(n.id, n.data.index);
     if (n.data.kind === "change") laneOf.set(n.id, n.data.commit!);
+    if (n.data.kind === "diagram") laneOf.set(n.id, n.data.diagram.data.commitIndex);
   }
   const satellites = nodes.filter((n) => isSatellite(n.data));
   for (let changed = true; changed;) {
@@ -484,10 +512,12 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
   const rootSats = satellites.filter((s) => !laneOf.has(s.id)).map((s) => sized(s, (s.anchors ?? []).filter((a) => !laneOf.has(a))));
   const rootPlaced = placeSatellites(new Map([[root.id, { x: 0, y: 0, width: root.width, height: root.height }]]), rootSats);
   const top = Math.max(root.height, ...rootSats.filter((s) => rootPlaced.has(s.id)).map((s) => rootPlaced.get(s.id)!.y + s.height)) + LANE_TOP_GAP;
+  const maxDiagramHeight = Math.max(0, ...nodes.filter((n) => n.data.kind === "diagram").map((n) => n.height));
   const lanes = [...new Set(nodes.flatMap((n) => n.data.kind === "commit" ? [n.data.index] : []))].sort((a, b) => a - b);
   let x = 0;
   for (const lane of lanes) {
-    const main = nodes.filter((n) => !isSatellite(n.data) && n.data.kind !== "summary" && laneOf.get(n.id) === lane);
+    const diagram = nodes.find((n) => n.data.kind === "diagram" && laneOf.get(n.id) === lane);
+    const main = nodes.filter((n) => !isSatellite(n.data) && n.data.kind !== "summary" && n.data.kind !== "diagram" && laneOf.get(n.id) === lane);
     const card = main.find((n) => n.data.kind === "commit")!;
     const ids = new Set(main.map((n) => n.id));
     const inLane = edges.filter((e) => ids.has(e.source) && ids.has(e.target));
@@ -495,7 +525,12 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
     const local = layout(main, [...inLane, ...main.filter((n) => n !== card && !reached.has(n.id)).map((n) => ({ source: card.id, target: n.id }))]);
     const minX = Math.min(...main.map((n) => local.get(n.id)!.x));
     const minY = Math.min(...main.map((n) => local.get(n.id)!.y));
-    const rects = new Map(main.map((n) => [n.id, { x: local.get(n.id)!.x - minX + x, y: local.get(n.id)!.y - minY + top, width: n.width, height: n.height }] as const));
+    const laneTop = top + (maxDiagramHeight ? maxDiagramHeight + LANE_TOP_GAP : 0);
+    const rects = new Map(main.map((n) => [n.id, { x: local.get(n.id)!.x - minX + x, y: local.get(n.id)!.y - minY + laneTop, width: n.width, height: n.height }] as const));
+    if (diagram) {
+      const cardRect = rects.get(card.id)!;
+      out.set(diagram.id, { x: cardRect.x, y: top });
+    }
     const laneSats = satellites.filter((s) => laneOf.get(s.id) === lane).map((s) => sized(s, (s.anchors ?? []).filter((a) => laneOf.get(a) === lane)));
     const placed = placeSatellites(rects, laneSats);
     let right = -Infinity;
