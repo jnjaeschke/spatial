@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
-import type { Artifact, DiffData, Id, LineRange, Link, LlmSelection, PatchNarrativeData, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../shared/types.ts";
+import type { Artifact, DiffData, Id, LineRange, Link, LlmSelection, PatchNarrativeData, ReviewFindingData, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
+import { findingStates } from "../../shared/findings.ts";
+import { checkStepComment, commentBlock, misplacedStepComment, stepComments } from "../resolve-spec-refs/step-check.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
@@ -24,8 +26,8 @@ export function mappableSpecs(state: { artifacts: Artifact[]; links: Link[] }, n
     parseSteps((a as Artifact<SpecReferenceData>).data.resolved!.content).length > 0).map((a) => a.id);
 }
 
-/** Maps the steps of one spec section onto the hunks of the changes it supports (one LLM call, no tools); see `SpecStepMapData`. */
-export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmSelection }, { mapId: Id }>({
+/** Maps the steps of one spec section onto the hunks of the changes it supports (one LLM call, no tools; see `SpecStepMapData`), then reports Step comments on code the map gives to another step as proposed `ReviewFinding`s. `stepCheckErrors` lists files whose analysis failed. */
+export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmSelection }, { mapId: Id; findingIds: Id[]; stepCheckErrors: string[] }>({
   kind: "mapSpecSteps",
   async run(ctx, { narrativeId, specId, llm }) {
     const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
@@ -94,6 +96,51 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
     const map = ctx.artifacts.put<SpecStepMapData>("SpecStepMap", "proposed", { spec: specId, narrative: narrativeId, links, unmapped, dropped }, reply.selection);
     ctx.links.put(map.id, specId, "derivedFrom");
     ctx.links.put(map.id, narrativeId, "about");
-    return { mapId: map.id };
+    const findingIds: Id[] = [], stepCheckErrors: string[] = [];
+    const mappedByFile = new Map<string, Map<number, string>>();
+    for (const file of diff.data.files) {
+      if (file.status === "deleted") continue;
+      const hunkByLine = new Map<number, string>();
+      for (const hunk of file.hunks) {
+        if (!hunkIds.has(hunk.id)) continue;
+        for (const row of numberLines(hunk)) if (row.kind === "add") hunkByLine.set(row.new!, hunk.id);
+      }
+      if (hunkByLine.size) mappedByFile.set(file.path, hunkByLine);
+    }
+    const carried = new Set(findingStates(ctx.artifacts.view(), narrativeId).filter((state) => !state.outdated).map((state) => `${state.finding.data.title}\n${state.quote}`));
+    const resolvedByUrl = new Map<string, Awaited<ReturnType<typeof ctx.webspec.resolve>>>();
+    const resolve = async (url: string) => {
+      if (!resolvedByUrl.has(url)) {
+        try { resolvedByUrl.set(url, await ctx.webspec.resolve(url, ctx.signal)); }
+        catch (error) { if (ctx.signal.aborted) throw error; resolvedByUrl.set(url, { found: false, reason: (error as Error).message }); }
+      }
+      return resolvedByUrl.get(url)!;
+    };
+    const current = spec.data.resolved;
+    const specName = `${current.spec}#${current.anchor}`;
+    for (const [path, hunkByLine] of mappedByFile) {
+      const text = await ctx.git.show(diff.data.headSha, path);
+      let checks;
+      try { checks = await stepComments(ctx.webspec, path, text, hunkByLine.keys(), ctx.signal); }
+      catch (error) { if (ctx.signal.aborted) throw error; stepCheckErrors.push(`${path}: ${(error as Error).message}`); continue; }
+      const lines = text.split("\n"), commentLines = new Set(checks.map((check) => check.line));
+      for (const check of checks) {
+        const hunkId = hunkByLine.get(check.line);
+        if (!hunkId) continue;
+        const citesThis = check.url === spec.data.url || check.url === current.url || await resolve(check.url).then((result) => result.found && result.spec.url === current.url);
+        if (!citesThis || checkStepComment(check, specName, steps)) continue;
+        const block = commentBlock(lines, check.line, commentLines);
+        const covering = links.filter((link) => link.ranges.some((range) => range.path === path && range.side === "new" && block.some((line) => line >= range.start && line <= range.end)));
+        const problem = misplacedStepComment(check, specName, steps, covering);
+        const quote = lines[check.line - 1]!.trim();
+        if (!problem || carried.has(`${problem.title}\n${quote}`)) continue;
+        const anchor = `${diff.id}#${hunkId}`;
+        const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "proposed", { anchor, quote, lines: { path, side: "new", start: check.line, end: check.line }, category: "spec", ...problem }, reply.selection);
+        ctx.links.put(finding.id, narrativeId, "derivedFrom");
+        ctx.links.put(finding.id, anchor, "about");
+        findingIds.push(finding.id);
+      }
+    }
+    return { mapId: map.id, findingIds, stepCheckErrors };
   },
 });

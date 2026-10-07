@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseSteps } from "../../src/shared/spec-text.ts";
 import type { StepCommentCheck } from "../../src/runtime/tasks.ts";
-import { checkStepComment } from "../../src/tasks/resolve-spec-refs/step-check.ts";
+import type { StepLink } from "../../src/shared/types.ts";
+import { checkStepComment, commentBlock, misplacedStepComment } from "../../src/tasks/resolve-spec-refs/step-check.ts";
 
 const URL = "https://dom.spec.whatwg.org/#concept-node-insert";
 const steps = parseSteps([
@@ -46,4 +47,27 @@ test("a step the algorithm does not have is a low finding", () => {
 test("a finding on a spec snapshot URL says that the current spec was compared", () => {
   const snapshot = "https://dom.spec.whatwg.org/commit-snapshots/abc/#concept-node-insert";
   assert.match(check("7", "Something entirely unrelated here.", "not_found", snapshot)!.body, /links a spec snapshot; the check compared the current spec/);
+});
+
+const lines = ["  // Step 1. Fire navigate.", "  if (pending) {", "    Defer();", "}", "", "  Continue();", "  // Step 2. Commit."];
+const mappedCheck: StepCommentCheck = { line: 1, step: "1", text: "Fire navigate.", result: "exact", url: "https://html.spec.whatwg.org/#navigate" };
+const mappedSteps = [
+  { number: "1", depth: 0, text: "Fire navigate." },
+  { number: "2", depth: 0, text: "Commit." },
+  { number: "2.1", depth: 1, text: "Defer." },
+];
+const link = (step: string): StepLink => ({ step, kind: "implements", ranges: [{ path: "N.cpp", side: "new", start: 2, end: 3 }], note: "" });
+
+test("commentBlock stops at blank lines, another Step comment, dedents and 20 lines", () => {
+  assert.deepEqual(commentBlock(lines, 1, new Set()), [1, 2, 3]);
+  assert.deepEqual(commentBlock(["// Step 1. Go.", "  Do();", "  // Step 2. Stop.", "  Stop();"], 1, new Set([3])), [1, 2]);
+  assert.deepEqual(commentBlock(["// Step 1. Go.", ...Array.from({ length: 25 }, (_, i) => `  Line ${i + 1}.`)], 1, new Set()), Array.from({ length: 20 }, (_, i) => i + 1));
+});
+
+test("misplacedStepComment only flags blocks linked exclusively to unrelated steps", () => {
+  assert.equal(misplacedStepComment(mappedCheck, "HTML#navigate", mappedSteps, []), null);
+  assert.equal(misplacedStepComment(mappedCheck, "HTML#navigate", mappedSteps, [link("1")]), null);
+  assert.equal(misplacedStepComment(mappedCheck, "HTML#navigate", mappedSteps, [link("1.1")]), null);
+  assert.equal(misplacedStepComment({ ...mappedCheck, step: "2.1" }, "HTML#navigate", mappedSteps, [link("2")]), null);
+  assert.equal(misplacedStepComment(mappedCheck, "HTML#navigate", mappedSteps, [link("2")])?.title, "Step 1 comment sits on code mapped to step 2 of HTML#navigate");
 });

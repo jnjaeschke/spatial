@@ -1,4 +1,3 @@
-import { basename } from "node:path";
 import type { DiffData, PatchNarrativeData, ResolvedSpec, ReviewFindingData, SpecReferenceData } from "../../shared/types.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
@@ -6,10 +5,7 @@ import { isGeckoRepo } from "../../runtime/searchfox.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { defineTask, type StepCommentCheck } from "../../runtime/tasks.ts";
 import { specUrlsNear } from "./cited.ts";
-import { checkStepComment } from "./step-check.ts";
-
-/** A line that may be a Step comment (`// Step 3.`, `// 3.1 ...`); files without one on an added line skip `webspec-index analyze`. */
-const STEP_LIKE = /^\s*(?:\/\/+|\/?\*+|#)\s*(?:step\s+)?\d+(?:\.\d+)*[.:)]?(?:\s|$)/i;
+import { checkStepComment, stepComments } from "./step-check.ts";
 
 /** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports Step comments on added lines that webspec-index finds do not match their algorithm as `ReviewFinding`s (no LLM). `stepCheckErrors` lists files whose check failed. */
 export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[]; stepCheckErrors: string[] }>({
@@ -33,7 +29,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       for (const changeId of changeIds) citation.changeIds.add(changeId);
     };
 
-    const stepComments: { check: StepCommentCheck; path: string; hunkId: string; quote: string }[] = [];
+    const stepCommentRecords: { check: StepCommentCheck; path: string; hunkId: string; quote: string }[] = [];
     const stepCheckErrors: string[] = [];
     for (const file of diffArtifact.data.files) {
       if (file.status === "deleted" || file.hunks.length === 0) continue;
@@ -46,11 +42,11 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
         for (const url of specUrlsNear(lines, hunk)) addCitation(url, changeIds, "code");
         for (const row of numberLines(hunk)) if (row.kind === "add") addedIn.set(row.new!, hunk.id);
       }
-      if (![...addedIn.keys()].some((line) => STEP_LIKE.test(lines[line - 1] ?? ""))) continue;
+      if (addedIn.size === 0) continue;
       try {
-        for (const check of await ctx.webspec.analyze(basename(file.path), text, ctx.signal)) {
+        for (const check of await stepComments(ctx.webspec, file.path, text, addedIn.keys(), ctx.signal)) {
           const hunkId = addedIn.get(check.line);
-          if (hunkId) stepComments.push({ check, path: file.path, hunkId, quote: lines[check.line - 1]!.trim() });
+          if (hunkId) stepCommentRecords.push({ check, path: file.path, hunkId, quote: lines[check.line - 1]!.trim() });
         }
       } catch (error) {
         if (ctx.signal.aborted) throw error;
@@ -108,7 +104,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
     // A re-run for a new epoch finds the same comments again; their carried findings already cover them.
     const carried = new Set(findingStates(ctx.artifacts.view(), narrativeId).filter((s) => !s.outdated).map((s) => `${s.finding.data.title}\n${s.quote}`));
     const findingIds: string[] = [];
-    for (const { check, path, hunkId, quote } of stepComments) {
+    for (const { check, path, hunkId, quote } of stepCommentRecords) {
       if (check.result === "exact" || check.result === "fuzzy") continue;
       if (!resolvedByUrl.has(check.url)) {
         const result = await ctx.webspec.resolve(check.url, ctx.signal).catch((error: Error) => {

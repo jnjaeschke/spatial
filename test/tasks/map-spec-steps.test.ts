@@ -2,14 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { DiffData, LlmSelection, PatchNarrativeData, SpecReferenceData, SpecStepMapData } from "../../src/shared/types.ts";
+import type { DiffData, LlmSelection, PatchNarrativeData, ReviewFindingData, SpecReferenceData, SpecStepMapData } from "../../src/shared/types.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import { mappableSpecs, mapSpecSteps } from "../../src/tasks/map-spec-steps/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const STEPS = "To navigate:\n\n1. Fire *navigate*.\n2. If the commit is pending:\n\n    1. Defer the event.\n3. Fire navigatesuccess.";
 
-function setup(reply: unknown) {
+function setup(reply: unknown, opts: { head?: string; checks?: { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }[]; analyzeFails?: boolean; otherSpec?: boolean; hunk?: DiffData["files"][number]["hunks"][number] } = {}) {
   const store = new Store(":memory:");
   const calls: LlmPrompt[] = [];
   const llm: LlmService = {
@@ -17,11 +17,17 @@ function setup(reply: unknown) {
     async run(_selection, prompt) { calls.push(prompt); return { text: "", json: reply, providerSessionId: "p", selection }; },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [mapSpecSteps], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const git = { async show() { return opts.head ?? ""; } } as unknown as GitCapability;
+  const webspec = {
+    effect: "read-only" as const,
+    async analyze() { if (opts.analyzeFails) throw new Error("analysis failed"); return opts.checks ?? []; },
+    async resolve(url: string) { return { found: true as const, spec: { spec: opts.otherSpec ? "OTHER" : "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: opts.otherSpec ? "https://example.com/#other" : url, content: STEPS } }; },
+  } as WebspecCapability;
+  const rt = new Runtime({ store, tasks: [mapSpecSteps], llm, git: () => git, webspec, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = <T>(type: string, data: T, status: "verified" | "proposed" = "verified") => store.putArtifact({ sessionId: session.id, type, status, data, provenance: { taskId: "x" } });
   const diff = put<DiffData>("Diff", { baseSha: "B", headSha: "H", commits: [], files: [
-    { path: "N.cpp", status: "modified", binary: false, hunks: [
+    { path: "N.cpp", status: "modified", binary: false, hunks: opts.hunk ? [opts.hunk] : [
       { id: "f0h0", header: "@@ -10,3 +10,4 @@", oldStart: 10, oldLines: 3, newStart: 10, newLines: 4, lines: [
         { kind: "ctx", text: "void Navigate() {" }, { kind: "del", text: "  Old();" }, { kind: "add", text: "  FireNavigate();" }, { kind: "add", text: "  if (mPending) Defer();" }, { kind: "ctx", text: "}" },
       ] },
@@ -86,4 +92,34 @@ test("links are trimmed to the hunks' lines; unknown steps and lineless links ar
 test("an invalid reply fails the task", async () => {
   const { rt, session, narrativeId, specId } = setup({ links: [{ step: 1 }] });
   await assert.rejects(rt.run(session.id, "mapSpecSteps", { narrativeId, specId }), /not valid JSON/);
+});
+
+test("mapped Step comments on unrelated code become proposed LLM findings once", async () => {
+  const head = Array.from({ length: 9 }, () => "").concat(["void Navigate() {", "  // Step 1. Fire navigate.", "  if (mPending) Defer();", "}"]).join("\n");
+  const { rt, store, session, narrativeId, specId } = setup({ links: [{ step: "2.1", kind: "implements", ranges: [{ path: "N.cpp", side: "new", start: 12, end: 12 }], note: "Defers the event." }], unmapped: [] }, {
+    head, checks: [{ line: 11, step: "1", text: "Fire navigate.", result: "exact", url: "https://html.spec.whatwg.org/#navigate" }], hunk: { id: "f0h0", header: "", oldStart: 10, oldLines: 4, newStart: 10, newLines: 4, lines: [
+      { kind: "add", text: "void Navigate() {" }, { kind: "add", text: "  // Step 1. Fire navigate." }, { kind: "add", text: "  if (mPending) Defer();" }, { kind: "add", text: "}" },
+    ] },
+  });
+  const first = await rt.run<{ findingIds: string[]; stepCheckErrors: string[] }>(session.id, "mapSpecSteps", { narrativeId, specId });
+  assert.deepEqual(first.stepCheckErrors, []);
+  const finding = store.getArtifact<ReviewFindingData>(first.findingIds[0]!);
+  assert.equal(finding.status, "proposed");
+  assert.deepEqual(finding.provenance.llm, selection);
+  assert.equal(finding.data.title, "Step 1 comment sits on code mapped to step 2.1 of HTML#navigate");
+  const again = await rt.run<{ findingIds: string[] }>(session.id, "mapSpecSteps", { narrativeId, specId });
+  assert.deepEqual(again.findingIds, []);
+});
+
+test("map checks ignore comments resolving to another spec and report analysis failures", async () => {
+  const head = Array.from({ length: 9 }, () => "").concat(["void Navigate() {", "  // Step 1. Fire navigate.", "  if (mPending) Defer();", "}"]).join("\n");
+  const reply = { links: [{ step: "2.1", kind: "implements", ranges: [{ path: "N.cpp", side: "new", start: 12, end: 12 }], note: "Defers." }], unmapped: [] };
+  const opts = { head, checks: [{ line: 11, step: "1", text: "Fire navigate.", result: "exact" as const, url: "https://example.com/#other" }], otherSpec: true };
+  const ignored = setup(reply, opts);
+  const ignoredOut = await ignored.rt.run<{ mapId: string; findingIds: string[] }>(ignored.session.id, "mapSpecSteps", { narrativeId: ignored.narrativeId, specId: ignored.specId });
+  assert.deepEqual(ignoredOut.findingIds, []);
+  const failing = setup(reply, { head, analyzeFails: true });
+  const failedOut = await failing.rt.run<{ mapId: string; stepCheckErrors: string[] }>(failing.session.id, "mapSpecSteps", { narrativeId: failing.narrativeId, specId: failing.specId });
+  assert.deepEqual(failedOut.stepCheckErrors, ["N.cpp: analysis failed"]);
+  assert.equal(failing.store.getArtifact(failedOut.mapId).type, "SpecStepMap");
 });

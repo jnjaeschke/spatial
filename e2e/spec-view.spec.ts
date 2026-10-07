@@ -37,6 +37,7 @@ test("a cited spec opens beside its code, colored by the step map; Step comments
   await spec.getByRole("button", { name: "Steps" }).click();
   const view = page.getByTestId("spec-view");
   await expect(view.getByTestId("spec-map-status")).toHaveText("2 of 2 steps mapped · 1 deviates · 2 added lines unexplained", { timeout: 15_000 });
+  await expect(page.getByText("Step 1 comment sits on code mapped to step 2 of HTML#navigate")).toBeAttached();
   await expect(view.getByTestId("step-1")).toHaveClass(/status-implements/);
   await expect(view.getByTestId("step-2")).toHaveClass(/status-deviates/);
   await expect(view.locator('tr[data-new="5"]')).toHaveClass(/map-none/);
