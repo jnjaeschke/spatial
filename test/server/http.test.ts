@@ -14,7 +14,7 @@ import { tasks } from "../../src/tasks/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { RevisionWatcher } from "../../src/runtime/revision-watcher.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { DiffData, Session, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
+import type { DiffData, RecentRepo, Session, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
 import { commitRevision } from "../../src/shared/phabricator.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
@@ -224,7 +224,7 @@ test("repo route resolves paths and lists sessions across worktrees", async () =
   assert.equal(session.worktree, realpathSync(wt));
 });
 
-test("recent repos groups sessions and chooses the newest live worktree", async () => {
+test("recent repos lists each live checkout with its own sessions, newest first", async () => {
   const recentRepo = makeRepo();
   const otherRepo = makeRepo();
   const other = await post("/api/sessions", { repo: otherRepo.dir, title: "other" });
@@ -238,19 +238,20 @@ test("recent repos groups sessions and chooses the newest live worktree", async 
   recentRepo.git("worktree", "add", "-q", worktree, "-b", "recent-repo-worktree");
   const worktreeSession = await post("/api/sessions", { repo: worktree, title: "worktree" });
   assert.equal(worktreeSession.status, 201);
-  const stale = rt.store.createSession({ worktree: "/missing-worktree", repoDir: realpathSync(recentRepo.dir) + "/.git", title: "stale" });
+  rt.store.createSession({ worktree: "/missing-worktree", repoDir: realpathSync(recentRepo.dir) + "/.git", title: "stale" });
   rt.store.createSession({ worktree: "/deleted-repository", repoDir: "/deleted-repository/.git", title: "deleted" });
 
   const response = await fetch(`${base}/api/repos`);
   assert.equal(response.status, 200);
   const repos = await response.json();
-  const group = repos.find((item: { repoDir: string }) => item.repoDir === realpathSync(recentRepo.dir) + "/.git");
-  assert.deepEqual({ name: group.name, worktree: group.worktree, sessions: group.sessions, lastActive: group.lastActive }, {
-    name: basename(realpathSync(recentRepo.dir)), worktree: realpathSync(worktree), sessions: 4, lastActive: stale.createdAt,
-  });
-  assert.ok(group.lastActive >= second.createdAt && group.lastActive >= first.createdAt);
+  const checkouts = repos.filter((item: { repoDir: string }) => item.repoDir === realpathSync(recentRepo.dir) + "/.git");
+  assert.deepEqual(checkouts.map((item: RecentRepo) => ({ name: item.name, worktree: item.worktree, sessions: item.sessions })), [
+    { name: basename(realpathSync(recentRepo.dir)), worktree: realpathSync(worktree), sessions: 1 },
+    { name: basename(realpathSync(recentRepo.dir)), worktree: realpathSync(recentRepo.dir), sessions: 2 },
+  ]);
+  assert.equal(checkouts[1].lastActive, second.createdAt);
   assert.ok(!repos.some((item: { repoDir: string }) => item.repoDir === "/deleted-repository/.git"));
-  assert.ok(repos.findIndex((item: { repoDir: string }) => item.repoDir === group.repoDir) < repos.findIndex((item: { repoDir: string }) => item.repoDir === realpathSync(otherRepo.dir) + "/.git"));
+  assert.ok(repos.findIndex((item: RecentRepo) => item.worktree === realpathSync(worktree)) < repos.findIndex((item: { repoDir: string }) => item.repoDir === realpathSync(otherRepo.dir) + "/.git"));
 });
 
 test("repo route requires an absolute path inside a worktree", async () => {

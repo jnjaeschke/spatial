@@ -160,14 +160,21 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
       const result: RecentRepo[] = [];
       for (const group of groupByRepo(rt.store.listSessions())) {
-        let worktree: string | undefined;
+        const byWorktree = new Map<string, RecentRepo>();
         for (const session of group.sessions) {
+          let worktree: string;
           try {
             const resolved = await resolveRepo(session.worktree);
-            if (resolved.repoDir === group.repoDir) { worktree = resolved.worktree; break; }
-          } catch { /* Stale worktrees are skipped; an older live worktree may still represent this repo. */ }
+            if (resolved.repoDir !== group.repoDir) continue;
+            worktree = resolved.worktree;
+          } catch {
+            continue; // A stale worktree; the repository's other checkouts may still be live.
+          }
+          const known = byWorktree.get(worktree);
+          if (known) known.sessions++;
+          else byWorktree.set(worktree, { repoDir: group.repoDir, name: group.name, worktree, sessions: 1, lastActive: session.createdAt });
         }
-        if (worktree) result.push({ repoDir: group.repoDir, name: group.name, worktree, sessions: group.sessions.length, lastActive: group.sessions[0]!.createdAt });
+        result.push(...byWorktree.values());
       }
       return result;
     }],

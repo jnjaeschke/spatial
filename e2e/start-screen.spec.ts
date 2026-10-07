@@ -113,4 +113,13 @@ test("folder picker navigates to a repository", async ({ page }) => {
   await dialog.getByRole("button", { name: "Open", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(realpathSync(dir))}`));
   await expect(page.getByTestId("start-screen").getByRole("link", { name: "Picked session" })).toBeVisible();
+  git(dir, "worktree", "add", "-q", join(parent, "picked-checkout"), "-b", "checkout");
+  await createSession(page, join(parent, "picked-checkout"), "Checkout session");
+  await page.getByRole("button", { name: "Open folder…" }).click();
+  await dialog.getByLabel("Path").fill(realpathSync(parent));
+  await dialog.getByRole("button", { name: "Go" }).click();
+  await dialog.getByRole("button", { name: /picked-checkout/ }).click();
+  await dialog.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText("picked-repo · picked-checkout");
+  await expect(page.getByRole("navigation", { name: "Recent repositories" }).locator('[aria-current="page"]')).toContainText(realpathSync(join(parent, "picked-checkout")));
 });
