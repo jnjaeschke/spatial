@@ -143,7 +143,17 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
 }
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
-export const isSatellite = (data: GraphNodeData) => data.kind === "spec" || data.kind === "chat" || data.kind === "finding" || data.kind === "phab";
+export const isSatellite = (node: GraphNode) => node.data.kind === "spec" || node.data.kind === "chat" || node.data.kind === "finding" || node.data.kind === "phab" || (node.data.kind === "conversation" && !!node.anchors?.length);
+
+const latestStart = (state: SessionState) => state.artifacts.findLast((a) => a.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
+const rootThread = (state: SessionState, startId: string) => (state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[]).find((t) => t.data.anchor === startId && !t.data.aside);
+
+function conversationNode(state: SessionState, start: Artifact<WorkflowStartData>, root: Artifact<ChatThreadData> | undefined, anchors?: string[]): GraphNode {
+  return { id: start.id, ...(anchors ? { anchors } : {}), data: {
+    kind: "conversation", title: state.session.title, prompt: start.data.prompt || `/${start.data.workflow}`, anchor: start.id, diffId: "", hunks: [], draftId: null,
+    ...(root ? threadContent(state, root) : { threadId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
+  } };
+}
 
 export function levelGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, level: ZoomLevel): { nodes: GraphNode[]; edges: GraphEdge[] } {
   if (level !== "patch" || !g.nodes.some((n) => n.data.kind === "commit")) return g;
@@ -312,6 +322,15 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
   };
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  const start = latestStart(state);
+  const root = start ? rootThread(state, start.id) : undefined;
+  if (start) {
+    const summaryId = latest.narrative.id;
+    g.nodes.push(conversationNode(state, start, root, [summaryId]));
+    g.edges.push({ id: `${start.id}->${summaryId}`, source: start.id, target: summaryId });
+    nodeIds.add(start.id);
+    if (root) { nodeIds.add(root.id); hostOf.set(root.id, start.id); }
+  }
   const phab = phabView(state.artifacts, latest.diff, latest.narrative.data);
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
@@ -363,14 +382,10 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
 }
 
 function conversationGraph(state: SessionState, drafts: Draft[]): Graph | null {
-  const start = state.artifacts.find((a) => a.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
+  const start = latestStart(state);
   if (!start) return null;
-  const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
-  const root = threads.find((t) => t.data.anchor === start.id);
-  const g: Graph = { nodes: [{ id: start.id, data: {
-    kind: "conversation", title: state.session.title, prompt: start.data.prompt, anchor: start.id, diffId: "", hunks: [], draftId: null,
-    ...(root ? threadContent(state, root) : { threadId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
-  } }], edges: [] };
+  const root = rootThread(state, start.id);
+  const g: Graph = { nodes: [conversationNode(state, start, root)], edges: [] };
   const nodeIds = new Set([start.id]);
   const hostOf = new Map(root ? [[root.id, start.id]] : []);
   const resolve = (anchor: Ref) => {
@@ -428,7 +443,7 @@ const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "diagram") return { width: NODE_WIDTH[level], height: 70 + Math.ceil(data.diagram.data.nodes.length / 4) * 76 };
-  if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: 140 + Math.max(1, data.messages.length) * 120 };
+  if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "spec") return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
@@ -505,7 +520,7 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
     if (n.data.kind === "change") laneOf.set(n.id, n.data.commit!);
     if (n.data.kind === "diagram") laneOf.set(n.id, n.data.diagram.data.commitIndex);
   }
-  const satellites = nodes.filter((n) => isSatellite(n.data));
+  const satellites = nodes.filter(isSatellite);
   for (let changed = true; changed;) {
     changed = false;
     for (const s of satellites) {
@@ -524,7 +539,7 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
   let x = 0;
   for (const lane of lanes) {
     const diagram = nodes.find((n) => n.data.kind === "diagram" && laneOf.get(n.id) === lane);
-    const main = nodes.filter((n) => !isSatellite(n.data) && n.data.kind !== "summary" && n.data.kind !== "diagram" && laneOf.get(n.id) === lane);
+    const main = nodes.filter((n) => !isSatellite(n) && n.data.kind !== "summary" && n.data.kind !== "diagram" && laneOf.get(n.id) === lane);
     const card = main.find((n) => n.data.kind === "commit")!;
     const ids = new Set(main.map((n) => n.id));
     const inLane = edges.filter((e) => ids.has(e.source) && ids.has(e.target));

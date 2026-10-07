@@ -135,6 +135,7 @@ export interface RevisionData { quote: string; correction: string }
 /** Data of a `ChatThread` artifact; linked `about → anchor`. */
 export interface ChatThreadData {
   anchor: Ref;
+  aside?: true;
   quote?: string;
   lines?: { path: string; side: "old" | "new"; start: number; end: number };
 }

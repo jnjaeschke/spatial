@@ -125,16 +125,17 @@ export function renderRef(view: SessionView, ref: Ref): string {
   throw new Error("Unknown ref: " + ref);
 }
 
-/** Overview of the session for its workflow: the latest narrative's summary, commits, changes, spec refs, threads, findings and remote comments for review; title, request and thread count for chat. */
+/** Overview of the session for its workflow, including the request that started it. */
 export function sessionOverview(view: SessionView): string {
   const start = view.artifacts.findLast((artifact) => artifact.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
   if (start?.data.workflow === "chat") {
     const threads = view.artifacts.filter((artifact) => artifact.type === "ChatThread");
     return ["# Conversation\n" + start.data.title, "# Request\n" + start.data.prompt, "# Threads\n" + threads.length + " thread" + (threads.length === 1 ? "" : "s")].join("\n\n");
   }
+  const request = start ? "# Request\n" + start.data.prompt : null;
   const diffArtifact = latestDiff(view.artifacts);
   const latest = diffArtifact ? narrativeOf(view.artifacts, diffArtifact.id) : null;
-  if (!latest) return "No narrative yet.";
+  if (!latest) return [request, "No narrative yet."].filter(Boolean).join("\n\n");
   const narrative = latest.data as PatchNarrativeData;
   const commits = diffArtifact!.data.commits.map((commit) => "- " + commit.subject + (commit.body ? "\n  " + commit.body : "")).join("\n");
   const changes = narrative.changes.map((change) => "- " + latest.id + "#" + change.id + ": " + change.title + " (hunks: " + (change.hunkIds.join(", ") || "none") + ")").join("\n") || "None";
@@ -158,5 +159,5 @@ export function sessionOverview(view: SessionView): string {
     const body = data.body.split(/\r?\n/, 1)[0]!.slice(0, 80);
     return `- ${artifact.id} @${data.author} (${location})${data.done ? ", done" : ""} : ${body}`;
   });
-  return ["# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings, ...(remoteComments.length ? ["# Remote comments\n" + remoteComments.join("\n")] : [])].join("\n\n");
+  return [...(request ? [request] : []), "# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings, ...(remoteComments.length ? ["# Remote comments\n" + remoteComments.join("\n")] : [])].join("\n\n");
 }

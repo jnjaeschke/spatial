@@ -121,7 +121,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
     : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
-  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter((n) => isSatellite(n.data)).map((n) => [n.id, n.anchors ?? []])), [shown]);
+  const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter(isSatellite).map((n) => [n.id, n.anchors ?? []])), [shown]);
   const edges = useMemo<Edge[]>(() => shown.edges.map((e) => satelliteAnchors.has(e.source)
     ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
     : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
@@ -227,7 +227,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const sized = shown.nodes.map((n) => {
       const m = measured.get(n.id);
       const estimate = estimateSize(n.data, level, textScale);
-      return { id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? estimate.width, height: m?.height ?? estimate.height };
+      const width = isSatellite(n) ? SATELLITE_WIDTH * textScale : estimate.width;
+      return { id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? width, height: m?.height ?? estimate.height };
     });
     const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
     basePos.current = pos;
@@ -238,7 +239,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
-      style: { width: (sizes[level]?.[n.id] ?? (isSatellite(n.data) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
+      style: { width: (sizes[level]?.[n.id] ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
       className: n.id === currentRef.current ? "guide-current" : undefined,
       selected: selected.has(n.id),
       draggable: true,

@@ -112,6 +112,11 @@ test("sessionOverview describes a chat workflow from its latest start artifact",
   assert.equal(sessionOverview({ artifacts: [start, root, reply], links: [] }), "# Conversation\nExplain X\n\n# Request\nExplain X in detail\n\n# Threads\n2 threads");
 });
 
+test("sessionOverview includes the request for a review session", () => {
+  const start = artifact("W", "WorkflowStart", { workflow: "review", title: "Review", prompt: "Check this patch" });
+  assert.match(sessionOverview({ artifacts: [diff, narrative, start], links: [] }), /# Request\nCheck this patch/);
+});
+
 test("sessionOverview lists carried findings and marks outdated locations", () => {
   const oldDiff = { ...diff, id: "D1", createdAt: "1" };
   const oldNarrative = { ...narrative, id: "N1", createdAt: "2", data: { ...narrative.data, diffId: "D1" } };

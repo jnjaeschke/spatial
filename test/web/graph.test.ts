@@ -36,6 +36,31 @@ test("sessionGraph requires a selected workflow and a chat start", () => {
   if (graph?.nodes[0]?.data.kind === "conversation") assert.equal(graph.nodes[0].data.prompt, "Explain X");
 });
 
+test("review graph hosts the session request and earliest root thread before the summary", () => {
+  const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "review", params: {}, title: "Review", prompt: "Check this patch" } } as Artifact<WorkflowStartData>;
+  const laterStart = { ...start, id: "W2", data: { ...start.data, prompt: "Latest request" } };
+  const aside = { id: "TA", sessionId: "S", type: "ChatThread", status: "proposed", createdAt: "2", provenance: { taskId: "t" }, data: { anchor: "W2", aside: true } } as Artifact;
+  const root = { id: "T0", sessionId: "S", type: "ChatThread", status: "proposed", createdAt: "3", provenance: { taskId: "t" }, data: { anchor: "W2" } } as Artifact;
+  const laterRoot = { ...root, id: "T1", createdAt: "4" };
+  const st = state([diff, narrative("N"), start, laterStart, aside, root, laterRoot]);
+  const graph = sessionGraph(st)!;
+  assert.equal(graph.nodes[0]?.id, "N");
+  const conversation = graph.nodes.find((node) => node.data.kind === "conversation")!;
+  assert.equal(conversation.id, "W2");
+  assert.deepEqual(conversation.anchors, ["N"]);
+  assert.ok(graph.edges.some((edge) => edge.source === "W2" && edge.target === "N"));
+  if (conversation.data.kind === "conversation") {
+    assert.equal(conversation.data.prompt, "Latest request");
+    assert.equal(conversation.data.threadId, "T0");
+  }
+});
+
+test("conversation prompt falls back to the workflow command when empty", () => {
+  const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "review", params: {}, title: "Review", prompt: "" } } as Artifact<WorkflowStartData>;
+  const conversation = sessionGraph(state([diff, narrative("N"), start]))!.nodes.find((node) => node.data.kind === "conversation");
+  assert.equal(conversation?.data.kind === "conversation" ? conversation.data.prompt : null, "/review");
+});
+
 test("zoomLevel switches up at the entry thresholds", () => {
   assert.equal(zoomLevel(0.6, "patch"), "concept");
   assert.equal(zoomLevel(1.2, "concept"), "code");

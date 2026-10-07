@@ -16,6 +16,12 @@ Data of a `ChatThread` artifact; linked `about → anchor`.
 
 ***
 
+### aside?
+
+> `optional` **aside?**: `true`
+
+***
+
 ### lines?
 
 > `optional` **lines?**: `object`
