@@ -73,6 +73,37 @@ test("double-clicking empty canvas opens a persistent chat at that spot", async 
   expect(await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"))).toBe(before);
 });
 
+test("/note from an aside draft creates a positioned draft note without a chat turn", async ({ page, request }) => {
+  const sessionId = await openNarrated(page, request);
+  const pane = page.locator(".react-flow__pane");
+  const box = (await pane.boundingBox())!;
+  const point = await page.evaluate(({ x, y, width, height }) => {
+    for (let fy = 0.2; fy < 0.8; fy += 0.05) for (let fx = 0.2; fx < 0.8; fx += 0.05) {
+      const p = { x: x + width * fx, y: y + height * fy };
+      if (document.elementFromPoint(p.x, p.y)?.classList.contains("react-flow__pane")) return p;
+    }
+    throw new Error("no empty canvas point");
+  }, box);
+  await page.mouse.dblclick(point.x, point.y);
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await expect(draft).toBeVisible();
+  await draft.getByLabel("message").fill("/note check the lifetime here");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const note = page.locator(".note-node");
+  await expect(note).toContainText("check the lifetime here");
+  await expect(note).toContainText("Draft");
+  const noteBox = (await note.boundingBox())!;
+  expect(point.x).toBeGreaterThanOrEqual(noteBox.x);
+  expect(point.x).toBeLessThanOrEqual(noteBox.x + noteBox.width);
+  expect(point.y).toBeGreaterThanOrEqual(noteBox.y);
+  expect(point.y).toBeLessThanOrEqual(noteBox.y + noteBox.height);
+  const snapshot = await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json() as { artifacts: { type: string }[]; tasks: { kind: string }[] };
+  expect(snapshot.artifacts.some((artifact) => artifact.type === "Note")).toBe(true);
+  expect(snapshot.tasks.some((task) => task.kind === "chatTurn")).toBe(false);
+  await page.reload();
+  await expect(page.locator(".note-node")).toContainText("check the lifetime here");
+});
+
 test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "concept");

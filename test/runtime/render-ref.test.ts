@@ -90,6 +90,14 @@ test("renderRef renders a WorkflowStart request", () => {
   assert.equal(renderRef({ artifacts: [start], links: [] }, "W"), "# Session request (chat)\n\nExplain X");
 });
 
+test("notes render, search, and appear in the session overview", () => {
+  const note = artifact("note-1", "Note", { body: "Check lifetime here\nMore detail" });
+  const noteView = { artifacts: [note], links: [] };
+  assert.match(renderRef(noteView, "note-1"), /Check lifetime here/);
+  assert.deepEqual(searchDocs(noteView, note), [{ ref: "note-1", kind: "note", body: "Check lifetime here\nMore detail" }]);
+  assert.match(sessionOverview(noteView), /# Notes\n1 note\n- note-1: Check lifetime here/);
+});
+
 test("sessionOverview lists latest narrative changes, specs, and threads", () => {
   const overview = sessionOverview(view);
   for (const expected of ["N#c1", "N#c2", "f0h0", "f0h1", "R", "T"]) assert.ok(overview.includes(expected));

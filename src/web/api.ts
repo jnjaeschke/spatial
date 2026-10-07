@@ -30,6 +30,7 @@ export const api = {
   models: () => get<ModelsResponse>("/api/llm/models"),
   turn: (sessionId: string, body: { threadId?: string; anchor?: string; text: string; llm: LlmSelection; quote?: string; lines?: ChatThreadData["lines"] }) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/turns`, body),
+  note: (sessionId: string, body: string) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/notes`, { body }),
   enableMcpServer: (sessionId: string, threadId: string, server: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
   decide: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>

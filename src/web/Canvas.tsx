@@ -13,6 +13,7 @@ import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { ChatNode } from "./nodes/ChatNode.tsx";
+import { NoteNode } from "./nodes/NoteNode.tsx";
 import { FindingNode } from "./nodes/FindingNode.tsx";
 import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
 import { ConversationNode } from "./nodes/ConversationNode.tsx";
@@ -29,7 +30,7 @@ import { useFreePositions } from "./free-positions.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
-const nodeTypes = { change: ChangeNode, commit: CommitNode, summary: SummaryNode, spec: SpecNode, diagram: DiagramNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode };
+const nodeTypes = { change: ChangeNode, commit: CommitNode, summary: SummaryNode, spec: SpecNode, diagram: DiagramNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode, note: NoteNode };
 type NodeKind = keyof typeof nodeTypes;
 const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; setWidth(level: ZoomLevel, id: string, width: number): void } | null>(null);
 function ResizableNode(props: NodeProps) {
@@ -50,7 +51,7 @@ const resizableNodeTypes = Object.fromEntries(Object.keys(nodeTypes).map((type) 
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
 const NO_DRAFTS: Draft[] = [];
-const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", diagram: "var(--kind-diagram)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
+const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", diagram: "var(--kind-diagram)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)", note: "var(--kind-note)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -91,8 +92,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     // A double-clicked draft opens where the user is looking; centering it would move it from under the pointer.
     if (added && !added.aside) anchor.current = added.id;
   }, [drafts]);
-  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); } } : null,
-    [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition]);
+  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
+    [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
   const graph = useMemo(() => {
     const g = sessionGraph(state, drafts, freePositions);
     if (!g) throw new Error("Canvas needs a session graph");

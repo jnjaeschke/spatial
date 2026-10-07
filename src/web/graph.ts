@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, NoteData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
@@ -70,6 +70,7 @@ export interface SummaryNodeData {
 
 export interface SpecNodeData { kind: "spec"; ref: Artifact<SpecReferenceData> }
 export interface DiagramNodeData { kind: "diagram"; diagram: Artifact<DiagramData> }
+export interface NoteNodeData { kind: "note"; body: string }
 export interface ChatNodeData {
   kind: "chat";
   anchor: Ref;
@@ -127,7 +128,7 @@ export interface PhabNodeData {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
 }
 
-export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
+export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | NoteNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[]; position?: FreePosition }
 export interface GraphEdge { id: string; source: string; target: string }
 type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
@@ -145,7 +146,7 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
 }
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
-export const isSatellite = (node: GraphNode) => node.data.kind === "spec" || (node.data.kind === "chat" && !node.position) || node.data.kind === "finding" || node.data.kind === "phab" || (node.data.kind === "conversation" && !!node.anchors?.length);
+export const isSatellite = (node: GraphNode) => node.data.kind === "spec" || node.data.kind === "note" || (node.data.kind === "chat" && !node.position) || node.data.kind === "finding" || node.data.kind === "phab" || (node.data.kind === "conversation" && !!node.anchors?.length);
 
 const latestStart = (state: SessionState) => state.artifacts.findLast((a) => a.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
 const rootThread = (state: SessionState, startId: string) => (state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[]).find((t) => t.data.anchor === startId && !t.data.aside);
@@ -404,7 +405,16 @@ const ROOT_GRAPHS: Record<WorkflowId, (state: SessionState, drafts: Draft[]) => 
 /** The canvas graph; its root (first node) comes from the session's workflow. Null when no workflow is chosen yet or the workflow has nothing to show yet. */
 export function sessionGraph(state: SessionState, drafts: Draft[] = [], freePositions: Record<string, FreePosition> = {}): Graph | null {
   const graph = state.session.workflow ? ROOT_GRAPHS[state.session.workflow](state, drafts) : null;
-  if (graph) for (const node of graph.nodes) if (node.data.kind === "chat") node.position = freePositions[node.id];
+  if (graph) {
+    const start = latestStart(state);
+    if (start) for (const artifact of state.artifacts) {
+      if (artifact.type !== "Note") continue;
+      const note = artifact as Artifact<NoteData>;
+      graph.nodes.push({ id: note.id, anchors: [start.id], position: freePositions[note.id], data: { kind: "note", body: note.data.body } });
+      graph.edges.push({ id: `${note.id}->${start.id}`, source: note.id, target: start.id });
+    }
+    for (const node of graph.nodes) if (node.data.kind === "chat" || node.data.kind === "note") node.position = freePositions[node.id];
+  }
   return graph;
 }
 
@@ -446,6 +456,7 @@ const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30
 
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+  if (data.kind === "note") return { width: SATELLITE_WIDTH, height: 100 + lines(data.body, 60) * 22 };
   if (data.kind === "diagram") return { width: NODE_WIDTH[level], height: 70 + Math.ceil(data.diagram.data.nodes.length / 4) * 76 };
   if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };

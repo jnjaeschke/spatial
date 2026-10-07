@@ -150,6 +150,19 @@ test("workflow start routes support slash commands, selection, and validation", 
   assert.ok(rt.store.listEvents(pending.id).some((event) => event.type === "session.updated"));
 });
 
+test("notes require a nonempty body and a session start request", async () => {
+  const session = await newSession();
+  const path = `/api/sessions/${session.id}/notes`;
+  assert.equal((await post(path, { body: "   " })).status, 400);
+  assert.equal((await post(path, { body: "draft note" })).status, 400);
+  rt.store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "chat", params: {}, title: "Chat", prompt: "Start" }, provenance: { taskId: "user" } });
+  const response = await post(path, { body: "draft note" });
+  assert.equal(response.status, 201);
+  const { artifactId } = await response.json();
+  assert.deepEqual(rt.store.getArtifact(artifactId).data, { body: "draft note" });
+  assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifactId && link.kind === "about"));
+});
+
 test("health reports whether the server serves the built UI", async () => {
   const response = await fetch(`${base}/api/health`);
   assert.equal(response.status, 200);

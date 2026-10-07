@@ -143,6 +143,9 @@ export interface ChatThreadData {
 /** Data for a requested or user-enabled MCP server; artifacts link about → chat thread. */
 export interface McpServerData { server: string }
 
+/** A user-authored note attached to a session request. */
+export interface NoteData { body: string }
+
 /** Data of a `ReviewFinding` artifact; linked `derivedFrom → narrative` and `about → anchor`. `anchor`, `quote`, `lines` mean the same as on `ChatThreadData`. */
 export interface ReviewFindingData {
   anchor: Ref;

@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChangeReviewData, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, PatchNarrativeData, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
+import type { Artifact, ChangeReviewData, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
@@ -376,6 +376,15 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
         console.error(`remote review failed in session ${id}: ${(e as Error).message}`),
       );
       send(res, 202, range);
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/notes$/, async ({ req, res, params }) => {
+      const id = requireSession(rt, params[0]).id;
+      const body = await readJson(req);
+      if (typeof body.body !== "string" || !body.body.trim()) throw new HttpError(400, "Note body must not be empty");
+      const start = rt.store.listArtifacts(id).findLast((artifact) => artifact.type === "WorkflowStart");
+      if (!start) throw new HttpError(400, "Session has no start request");
+      const note = putUserArtifact(rt, id, "Note", { body: body.body.trim() } satisfies NoteData, start.id);
+      send(res, 201, { artifactId: note.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/turns$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;

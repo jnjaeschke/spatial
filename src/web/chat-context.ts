@@ -13,5 +13,6 @@ export interface ChatActions {
   tasks: TaskRecord[];
   onSent(draftId: string, taskId: string): void;
   onDiscard(draftId: string): void;
+  onNote(draftId: string, noteId: string): void;
 }
 export const ChatActionsContext = createContext<ChatActions | null>(null);

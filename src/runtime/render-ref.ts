@@ -1,4 +1,4 @@
-import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, PatchNarrativeData, PhabCommentData, Ref, ReviewFindingData, SpecReferenceData, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DiffData, Id, Link, NoteData, PatchNarrativeData, PhabCommentData, Ref, ReviewFindingData, SpecReferenceData, WorkflowStartData } from "../shared/types.ts";
 import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
@@ -8,7 +8,7 @@ import { latestPhabComments, phabLatest, phabThread } from "../shared/phab-comme
 
 /** What rendering needs from one session; built from Store lists. */
 export interface SessionView { artifacts: Artifact[]; links: Link[] }
-export interface SearchDoc { ref: Ref; kind: "change" | "summary" | "hunk" | "commit" | "spec" | "chat" | "finding" | "comment"; body: string }
+export interface SearchDoc { ref: Ref; kind: "change" | "summary" | "hunk" | "commit" | "spec" | "chat" | "finding" | "comment" | "note"; body: string }
 
 export function sessionView(store: Store, sessionId: Id): SessionView {
   return { artifacts: store.listArtifacts(sessionId), links: store.listLinks(sessionId) };
@@ -49,6 +49,7 @@ export function searchDocs(view: SessionView, artifact: Artifact): SearchDoc[] {
     const finding = artifact.data as ReviewFindingData;
     return [{ ref: artifact.id, kind: "finding", body: finding.title + "\n" + finding.body }];
   }
+  if (artifact.type === "Note") return [{ ref: artifact.id, kind: "note", body: (artifact.data as NoteData).body }];
   return [];
 }
 
@@ -58,6 +59,7 @@ export function renderRef(view: SessionView, ref: Ref): string {
   const id = parts[0], subId = parts[1];
   const artifact = view.artifacts.find((item) => item.id === id);
   if (!artifact || parts.length > 2) throw new Error("Unknown ref: " + ref);
+  if (artifact.type === "Note" && subId === undefined) return "# Draft Note\n\n" + (artifact.data as NoteData).body;
   if (artifact.type === "WorkflowStart" && subId === undefined) {
     const data = artifact.data as WorkflowStartData;
     return `# Session request (${data.workflow})\n\n${data.prompt}`;
@@ -127,15 +129,17 @@ export function renderRef(view: SessionView, ref: Ref): string {
 
 /** Overview of the session for its workflow, including the request that started it. */
 export function sessionOverview(view: SessionView): string {
+  const notes = view.artifacts.filter((artifact) => artifact.type === "Note") as Artifact<NoteData>[];
+  const noteSection = notes.length ? "# Notes\n" + notes.length + " note" + (notes.length === 1 ? "" : "s") + "\n" + notes.map((note) => "- " + note.id + ": " + note.data.body.split(/\r?\n/, 1)[0]).join("\n") : null;
   const start = view.artifacts.findLast((artifact) => artifact.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
   if (start?.data.workflow === "chat") {
     const threads = view.artifacts.filter((artifact) => artifact.type === "ChatThread");
-    return ["# Conversation\n" + start.data.title, "# Request\n" + start.data.prompt, "# Threads\n" + threads.length + " thread" + (threads.length === 1 ? "" : "s")].join("\n\n");
+    return ["# Conversation\n" + start.data.title, "# Request\n" + start.data.prompt, "# Threads\n" + threads.length + " thread" + (threads.length === 1 ? "" : "s"), noteSection].filter(Boolean).join("\n\n");
   }
   const request = start ? "# Request\n" + start.data.prompt : null;
   const diffArtifact = latestDiff(view.artifacts);
   const latest = diffArtifact ? narrativeOf(view.artifacts, diffArtifact.id) : null;
-  if (!latest) return [request, "No narrative yet."].filter(Boolean).join("\n\n");
+  if (!latest) return [request, noteSection, "No narrative yet."].filter(Boolean).join("\n\n");
   const narrative = latest.data as PatchNarrativeData;
   const commits = diffArtifact!.data.commits.map((commit) => "- " + commit.subject + (commit.body ? "\n  " + commit.body : "")).join("\n");
   const changes = narrative.changes.map((change) => "- " + latest.id + "#" + change.id + ": " + change.title + " (hunks: " + (change.hunkIds.join(", ") || "none") + ")").join("\n") || "None";
@@ -159,5 +163,5 @@ export function sessionOverview(view: SessionView): string {
     const body = data.body.split(/\r?\n/, 1)[0]!.slice(0, 80);
     return `- ${artifact.id} @${data.author} (${location})${data.done ? ", done" : ""} : ${body}`;
   });
-  return [...(request ? [request] : []), "# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings, ...(remoteComments.length ? ["# Remote comments\n" + remoteComments.join("\n")] : [])].join("\n\n");
+  return [...(request ? [request] : []), noteSection, "# Summary\n" + narrative.summary, "# Commits\n" + commits, "# Changes\n" + changes, "# Specs\n" + specs, "# Threads\n" + threads, "# Findings\n" + findings, ...(remoteComments.length ? ["# Remote comments\n" + remoteComments.join("\n")] : [])].filter(Boolean).join("\n\n");
 }

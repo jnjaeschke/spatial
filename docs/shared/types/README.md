@@ -32,6 +32,7 @@
 - [McpServerData](interfaces/McpServerData.md)
 - [ModelInfo](interfaces/ModelInfo.md)
 - [ModelsResponse](interfaces/ModelsResponse.md)
+- [NoteData](interfaces/NoteData.md)
 - [NotifyPayload](interfaces/NotifyPayload.md)
 - [PatchNarrativeData](interfaces/PatchNarrativeData.md)
 - [PhabCommentData](interfaces/PhabCommentData.md)

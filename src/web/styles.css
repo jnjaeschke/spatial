@@ -27,6 +27,7 @@
   --kind-change: light-dark(#97a1b5, #566179);
   --kind-spec: light-dark(#0f9a6e, #3dd29c);
   --kind-chat: light-dark(#d98100, #f4b350);
+  --kind-note: light-dark(#608b35, #a7cf75);
   --kind-finding: light-dark(#e2541c, #ff8c5e);
   --kind-phab: light-dark(#8d5ce6, #b998fa);
   --kind-diagram: light-dark(#16809a, #55c8df);
@@ -338,6 +339,8 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .change-node { --kind: var(--kind-change); }
 .spec-node { --kind: var(--kind-spec); }
 .chat-node { --kind: var(--kind-chat); }
+.note-node { --kind: var(--kind-note); }
+.note-draft { margin-left: 8px; padding: 2px 6px; border-radius: 999px; background: color-mix(in oklab, var(--kind-note) 18%, transparent); font-size: 0.75em; }
 .finding-node { --kind: var(--kind-finding); }
 .phab-node { --kind: var(--kind-phab); }
 .finding-node.severity-high { --kind: var(--severity-high); }

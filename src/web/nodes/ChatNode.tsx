@@ -80,6 +80,13 @@ export function Conversation(data: ConversationProps) {
       {actions && <form className="nodrag nopan" onSubmit={(e) => {
         e.preventDefault();
         setError(null);
+        const note = data.aside && data.draftId ? /^\/note(?:\s+|$)([\s\S]*)$/.exec(text.trim()) : null;
+        if (note) {
+          const body = note[1]!.trim();
+          if (!body) { setError("A note needs a body"); return; }
+          api.note(actions.sessionId, body).then(({ artifactId }) => actions.onNote(data.draftId!, artifactId), (err: Error) => setError(err.message));
+          return;
+        }
         const selection = llm ?? actions.models.default;
         const body = data.threadId ? { threadId: data.threadId, text, llm: selection } : { anchor: data.anchor, text, llm: selection, ...(data.aside ? { aside: true } : {}), ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
         api.turn(actions.sessionId, body).then(({ taskId }) => {

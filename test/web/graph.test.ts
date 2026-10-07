@@ -73,6 +73,18 @@ test("conversation prompt falls back to the workflow command when empty", () => 
   assert.equal(conversation?.data.kind === "conversation" ? conversation.data.prompt : null, "/review");
 });
 
+test("sessionGraph shows draft notes as free positioned nodes", () => {
+  const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "chat", params: {}, title: "Chat", prompt: "Explain" } } as Artifact<WorkflowStartData>;
+  const note = { id: "N1", sessionId: "S", type: "Note", status: "verified", createdAt: "1", provenance: { taskId: "user" }, data: { body: "Check lifetime" } } as Artifact;
+  const graph = sessionGraph(state([start, note], "chat"), [], { N1: { x: 90, y: 120 } })!;
+  const node = graph.nodes.find((item) => item.id === "N1")!;
+  assert.equal(node.data.kind, "note");
+  assert.deepEqual(node.position, { x: 90, y: 120 });
+  const reviewStart = { ...start, data: { ...start.data, workflow: "review" as const } };
+  const review = sessionGraph(state([diff, narrative("N"), reviewStart, note], "review"))!;
+  assert.equal(review.nodes.find((item) => item.id === "N1")?.data.kind, "note");
+});
+
 test("zoomLevel switches up at the entry thresholds", () => {
   assert.equal(zoomLevel(0.6, "patch"), "concept");
   assert.equal(zoomLevel(1.2, "concept"), "code");
