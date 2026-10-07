@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { anchorNodeId, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, type GraphNode } from "../../src/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, diagramStepTarget, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -313,6 +313,35 @@ test("estimateSize grows with level and hunk size", () => {
 const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
   id, sessionId: "S", type: "Diagram", status: "proposed", createdAt: id, provenance: { taskId: "t" },
   data: { kind: "sequence", commit, commitIndex: Number(commit) - 1, title, summary: "A sequence summary.", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "run", call: "run()", what: "Runs", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.ts", line: 1 }, verified: true, text: "run()" }], before: null },
+});
+
+test("diagramStepTarget maps stack citations by commit coordinates and renamed paths", () => {
+  const node: GraphNode = { id: "change-a", data: { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), files: ["new.cpp"], commit: 0, reviewed: false, threads: [], hunks: [
+    { file: { path: "new.cpp", status: "renamed", binary: false, hunks: [] }, hunk: { ...hunk("f0h0", 2), newStart: 10, lines: [
+      { kind: "ctx", text: "before" }, { kind: "add", text: "wanted", commit: 0, commitLine: 42, commitPath: "old.cpp" },
+    ] } },
+  ] } };
+  const d = { ...diagram("D-seq", "sha"), data: { ...diagram("D-seq", "sha").data, commitIndex: 0 } };
+  const target = diagramStepTarget([node], d, { ...d.data.steps[0]!, status: "changed", cite: { path: "old.cpp", line: 42 } });
+  assert.deepEqual(target, { changeNodeId: "change-a", hunkId: "f0h0", row: { side: "new", line: 11 } });
+});
+
+test("diagramStepTarget maps single-commit adds and context by rendered new-side number", () => {
+  const node: GraphNode = { id: "change-a", data: { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), files: ["a.cpp"], commit: null, reviewed: false, threads: [], hunks: [
+    { file: { path: "a.cpp", status: "modified", binary: false, hunks: [] }, hunk: { ...hunk("f0h0", 3), newStart: 8, lines: [{ kind: "ctx", text: "context" }, { kind: "add", text: "added" }, { kind: "ctx", text: "after" }] } },
+  ] } };
+  const d = diagram("D-seq", "sha");
+  for (const line of [8, 9, 10]) assert.deepEqual(diagramStepTarget([node], d, { ...d.data.steps[0]!, status: "changed", cite: { path: "a.cpp", line } }), { changeNodeId: "change-a", hunkId: "f0h0", row: { side: "new", line } });
+});
+
+test("diagramStepTarget rejects unverified and unmatched citations", () => {
+  const d = diagram("D-seq", "sha");
+  assert.equal(diagramStepTarget([], d, d.data.steps[0]!), null);
+  assert.equal(diagramStepTarget([], d, { ...d.data.steps[0]!, verified: false }), null);
+  const node: GraphNode = { id: "change-a", data: { kind: "change", narrativeId: "N", diffId: "D", change: ch("c1", []), files: ["a.cpp"], commit: null, reviewed: false, threads: [], hunks: [
+    { file: { path: "a.cpp", status: "modified", binary: false, hunks: [] }, hunk: { ...hunk("f0h0", 1), lines: [{ kind: "ctx", text: "existing" }] } },
+  ] } };
+  assert.equal(diagramStepTarget([node], d, d.data.steps[0]!), null);
 });
 
 test("sessionGraph adds only the latest diagram for each commit in the current diff", () => {

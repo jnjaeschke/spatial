@@ -59,7 +59,7 @@ const stubOut = (name: string, structured: object) => {
 const diagramOut = stubOut("diagram", { answer: "Here is the sequence.", questions: [], revisions: [], requestMcpServers: [], diagram: { commit: 1, title: "First commit sequence", summary: "The changed value is applied, then observed.", lanes: [
   { id: "driver", label: "Refresh driver", note: null }, { id: "page", label: "Page", note: "current document" }, { id: "object", label: "Target object", note: null },
 ], steps: [
-  { from: "driver", to: "page", identifier: "THIRTY", call: "Apply(THIRTY)", what: "Applies the changed value.", when: "During refresh", guard: "if current", phase: "Refresh", status: "changed", cite: { path: "a.txt", line: 30 } },
+  { from: "driver", to: "page", identifier: "c", call: "Apply(c)", what: "Applies the changed value.", when: "During refresh", guard: "if current", phase: "Refresh", status: "changed", cite: { path: "c.txt", line: 1 } },
   { from: "page", to: "object", identifier: "NOPE", call: "Notify()", what: "Notifies the object.", when: null, guard: null, phase: "Refresh", status: "new", cite: { path: "a.txt", line: 999 } },
   { from: "object", to: "object", identifier: "line", call: "Render()", what: "Renders the result.", when: "Before the next paint", guard: null, phase: "Paint", status: "existing", cite: { path: "a.txt", line: 1 } },
 ], before: [{ from: "driver", to: "page", identifier: "line", call: "Render()", what: "Rendered the old value.", when: null, guard: null, phase: "Refresh", status: "removed", cite: { path: "a.txt", line: 1 } }] } });

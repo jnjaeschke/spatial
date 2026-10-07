@@ -206,7 +206,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .file-panel table { table-layout: auto; }
 .file-panel tr.in-hunk { border-left: 3px solid var(--border-strong); }
 .file-panel tr.target { border-left: 3px solid var(--accent); }
-.file-panel tr.focus { background: var(--diff-focus); }
+.file-panel tr.focus, .change-node tr.focus { background: var(--diff-focus); }
 .file-panel-error { padding: 8px 12px; color: var(--danger); }
 .empty { padding: 32px; color: var(--text-2); }
 .analysis { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; color: var(--text-2); }
@@ -322,15 +322,17 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .sequence-lane small { color: var(--text-2); font-size: 0.8em; }
 .sequence-lane i { position: absolute; top: 44px; bottom: 0; left: 50%; border-left: 1px dashed var(--border-strong); }
 .sequence-phase { position: absolute; left: 0; right: 0; padding-top: 3px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 0.75em; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
-.sequence-step { position: absolute; height: 0; color: var(--text-2); }
+.sequence-step { position: absolute; color: var(--text-2); }
+.sequence-step.clickable { padding: 0; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; box-shadow: none; }
+.sequence-step.clickable:hover .sequence-label { background: color-mix(in oklab, var(--warning) 14%, var(--surface)); border-radius: var(--radius-sm); }
 .sequence-step[data-status="new"] { color: var(--success); }
 .sequence-step[data-status="changed"] { color: var(--warning); }
 .sequence-step[data-status="removed"] { color: var(--danger); }
-.sequence-arrow { position: absolute; left: 0; right: 0; top: 0; border-top: 2px solid currentColor; }
+.sequence-arrow { position: absolute; left: 0; right: 0; bottom: 0; border-top: 2px solid currentColor; }
 .sequence-arrow::after { content: ""; position: absolute; top: -7px; border: 6px solid transparent; }
 .sequence-step.right .sequence-arrow::after { right: -2px; border-left: 10px solid currentColor; border-right: 0; }
 .sequence-step.left .sequence-arrow::after { left: -2px; border-right: 10px solid currentColor; border-left: 0; }
-.sequence-step.self .sequence-arrow { top: -16px; right: auto; width: 26px; height: 16px; border: 2px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; }
+.sequence-step.self .sequence-arrow { right: auto; width: 26px; height: 16px; border: 2px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; }
 .sequence-step.self .sequence-arrow::after { left: -4px; top: 9px; border-right: 10px solid currentColor; border-left: 0; }
 .sequence-label { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 320px; text-align: center; color: var(--text); font-size: 0.85em; line-height: 1.35; }
 .sequence-step.self .sequence-label { left: 34px; bottom: -6px; transform: none; max-width: 200px; text-align: left; }

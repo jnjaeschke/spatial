@@ -6,7 +6,7 @@ import {
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
+import { diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
@@ -169,6 +169,25 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     setGuideStep(null);
   }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [focusedRow, setFocusedRow] = useState<{ anchor: string; line: number } | null>(null);
+  const focusCentered = useRef(false);
+  useLayoutEffect(() => {
+    const root = container.current;
+    if (!root) return;
+    root.querySelector("tr.focus")?.classList.remove("focus");
+    if (!focusedRow) return;
+    const row = root.querySelector(`tr[data-anchor="${CSS.escape(focusedRow.anchor)}"][data-new="${focusedRow.line}"]`);
+    if (!row) return;
+    row.classList.add("focus");
+    if (focusCentered.current) return;
+    focusCentered.current = true;
+    // scrollIntoView would scroll React Flow's overflow-hidden pane; move the viewport instead.
+    requestAnimationFrame(() => {
+      const rect = row.getBoundingClientRect();
+      const point = rf.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      void rf.setCenter(point.x, point.y, { zoom: rf.getZoom(), duration: 200 });
+    });
+  }, [focusedRow, nodes]);
   const currentId = guideStep === null || !steps[guideStep] ? null : stepNodeId(steps[guideStep], level);
   const currentRef = useRef<string | null>(currentId);
   currentRef.current = currentId;
@@ -568,12 +587,19 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (levelRef.current !== "code") setLevel("code");
     expandExplicitly(collapseId);
   };
+  const revealStep = (nodeId: string, hunkId: string, line: number) => {
+    const node = graph.nodes.find((item) => item.id === nodeId);
+    if (node?.data.kind !== "change") return;
+    reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`);
+    focusCentered.current = false;
+    setFocusedRow({ anchor: `${node.data.diffId}#${hunkId}`, line });
+  };
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }}>
+    <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
-    <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
+    <CollapseContext.Provider value={{ collapsed, toggle, reveal, stepTarget: (diagram, step) => diagramStepTarget(graph.nodes, diagram, step), revealStep }}>
       <ResizeContext.Provider value={{ level, textScale, setWidth }}>
       <div className="canvas-layout">
       <ReactFlow

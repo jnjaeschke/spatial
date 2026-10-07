@@ -1,5 +1,6 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, NoteData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, NoteData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SequenceStep, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
+import { numberLines } from "../shared/diff-lines.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
@@ -39,6 +40,28 @@ export interface ChangeNodeData {
   commit: number | null;
   reviewed: boolean;
   threads: HostedThread[];
+}
+
+/** Finds a verified sequence citation in the rendered diff rows. */
+export function diagramStepTarget(nodes: GraphNode[], diagram: Artifact<DiagramData>, step: SequenceStep): { changeNodeId: string; hunkId: string; row: { side: "new" | "old"; line: number } } | null {
+  if (!step.verified || step.status === "existing" || step.status === "removed") return null;
+  for (const node of nodes) {
+    if (node.data.kind !== "change") continue;
+    for (const { file, hunk } of node.data.hunks) {
+      const path = file.path;
+      if (node.data.commit !== null) {
+        const index = hunk.lines.findIndex((item) => item.kind === "add" && item.commit === diagram.data.commitIndex && (item.commitPath ?? path) === step.cite.path && item.commitLine === step.cite.line);
+        if (index !== -1) {
+          const rendered = numberLines(hunk)[index];
+          if (rendered?.new !== undefined) return { changeNodeId: node.id, hunkId: hunk.id, row: { side: "new", line: rendered.new } };
+        }
+      } else if (path === step.cite.path) {
+        const line = numberLines(hunk).find((item) => (item.kind === "add" || item.kind === "ctx") && item.new === step.cite.line);
+        if (line?.new !== undefined) return { changeNodeId: node.id, hunkId: hunk.id, row: { side: "new", line: line.new } };
+      }
+    }
+  }
+  return null;
 }
 
 export interface CommitNodeData {

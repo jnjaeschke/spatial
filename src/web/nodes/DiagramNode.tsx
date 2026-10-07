@@ -33,7 +33,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
     <div className="diagram-summary">{diagram.data.summary}</div>
     {diagram.data.before && <button className="diagram-toggle nodrag" aria-pressed={showBefore} onClick={() => setShowBefore(!showBefore)}>Show flow {showBefore ? "after" : "before"} this commit</button>}
     {!closed && <div className="diagram-content nodrag nopan">
-      <div className="sequence-diagram" role="img" aria-label={`Sequence diagram: ${diagram.data.title}`} style={{ width, height }}>
+      <div className="sequence-diagram" role="group" aria-label={`Sequence diagram: ${diagram.data.title}`} style={{ width, height }}>
         <div className="sequence-lanes">{diagram.data.lanes.map((lane, index) => <div className="sequence-lane" key={lane.id} style={{ left: index * LANE_W, width: LANE_W }}><strong>{lane.label}</strong>{lane.note && <small>{lane.note}</small>}<i /></div>)}</div>
         {groups.map(({ step, index, startsPhase }) => {
           const from = diagram.data.lanes.findIndex((lane) => lane.id === step.from);
@@ -42,18 +42,19 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
           const x1 = from * LANE_W + LANE_W / 2, x2 = to * LANE_W + LANE_W / 2;
           const direction = from !== to ? x1 < x2 ? "right" : "left" : from === diagram.data.lanes.length - 1 ? "self last" : "self";
           const cite = `${step.cite.path}:${step.cite.line}`;
-          return <div className="sequence-row" key={`${cite}:${index}`}>
-            {startsPhase && step.phase && <div className="sequence-phase" style={{ top: rowTop }}>{step.phase}</div>}
-            <div className={`sequence-step ${direction}`} data-status={step.status} data-verified={String(step.verified)} style={{ top: rowTop + ROW_H - 14, left: Math.min(x1, x2), width: from === to ? 30 : Math.abs(x2 - x1) }} title={step.verified ? cite : `citation not found near ${cite}`}>
-              <div className="sequence-label">
+          const target = !showBefore ? collapse?.stepTarget?.(diagram, step) ?? null : null;
+          const stepProps = { className: `sequence-step ${direction}${target ? " clickable nodrag nopan" : ""}`, "data-status": step.status, "data-verified": String(step.verified), style: { top: rowTop, height: ROW_H - 14, left: Math.min(x1, x2), width: from === to ? 30 : Math.abs(x2 - x1) }, title: `${step.verified ? cite : `citation not found near ${cite}`}${step.text ? ` — ${step.text}` : ""}` };
+          const label = <><div className="sequence-label">
                 {step.guard && <span className="sequence-guard">[{step.guard}]</span>}
                 <span className="sequence-badge">{index + 1}</span><code className="sequence-call">{step.call}</code>
                 {!step.verified && <span className="sequence-warning">⚠</span>}
                 <span className="sequence-what">{step.what}</span>
                 {step.when && <span className="sequence-when">{step.when}</span>}
               </div>
-              <span className="sequence-arrow" />
-            </div>
+              <span className="sequence-arrow" /></>;
+          return <div className="sequence-row" key={`${cite}:${index}`}>
+            {startsPhase && step.phase && <div className="sequence-phase" style={{ top: rowTop }}>{step.phase}</div>}
+            {target ? <button {...stepProps} onClick={() => collapse?.revealStep?.(target.changeNodeId, target.hunkId, target.row.line)}>{label}</button> : <div {...stepProps}>{label}</div>}
           </div>;
         })}
       </div>

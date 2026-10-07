@@ -242,7 +242,14 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await expect(diagram.locator('.sequence-step[data-status="changed"]')).toHaveCount(1);
   await expect(diagram.locator('.sequence-step[data-status="new"]')).toHaveCount(1);
   await expect(diagram.locator('.sequence-step[data-status="existing"]')).toHaveCount(1);
+  const changedStep = diagram.locator('button.sequence-step[data-status="changed"]');
+  await expect(changedStep).toHaveCount(1);
+  await changedStep.click();
+  await expect(page.locator("tr.focus")).toHaveCount(1);
+  await expect(page.getByTestId("change-c2").locator('tr.focus[data-new="1"]')).toBeInViewport();
+  await expect(diagram.locator('button.sequence-step[data-status="existing"]')).toHaveCount(0);
   const toggle = diagram.locator(".diagram-toggle");
+  await revealNode(page, toggle);
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(diagram.locator(".sequence-step")).toHaveCount(1);
@@ -251,7 +258,9 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await expect(diagram.locator(".sequence-step")).toHaveCount(3);
   const content = diagram.locator(".diagram-content");
   expect(await content.evaluate((element) => element.scrollWidth)).toBe(await content.evaluate((element) => element.clientWidth));
-  await diagram.getByRole("button", { name: "Collapse" }).click();
+  const collapseDiagram = diagram.getByRole("button", { name: "Collapse" });
+  await revealNode(page, collapseDiagram);
+  await collapseDiagram.click();
   await expect(diagram.locator(".sequence-step")).toHaveCount(0);
   const showDiagram = answer.getByRole("button", { name: "Show diagram" });
   await revealNode(page, showDiagram);
