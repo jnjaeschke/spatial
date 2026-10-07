@@ -1,4 +1,5 @@
-import type { ChatThreadData, SessionState } from "../shared/types.ts";
+import type { ChatThreadData, DiagramData, SessionState } from "../shared/types.ts";
+import { latestDiff } from "../shared/epochs.ts";
 
 /** A session snapshot embedded in a static export file. */
 export interface SessionExport {
@@ -13,9 +14,16 @@ export interface SessionExport {
 
 const CLOSABLE = new Set(["ChatThread", "Note", "Diagram"]);
 
-/** The state as the canvas shows it: closed chats, notes and diagrams are dropped with everything that hangs off them (messages, replies, revisions, derived diagrams). Only the tasks the canvas reads are kept, since task inputs carry prompts. */
+/** The state as the canvas shows it: closed chats, notes and diagrams are dropped with everything that hangs off them (messages, replies, revisions, derived diagrams), and so are diagrams the canvas does not show (not the latest sequence diagram of a reviewed commit). Only the tasks the canvas reads are kept, since task inputs carry prompts. */
 export function exportState(state: SessionState, closed: ReadonlySet<string>): SessionState {
   const dropped = new Set(state.artifacts.filter((a) => closed.has(a.id) && CLOSABLE.has(a.type)).map((a) => a.id));
+  const commits = new Set(latestDiff(state.artifacts)?.data.commits.map((commit) => commit.sha) ?? []);
+  const shownDiagram = new Map<string, string>();
+  for (const a of state.artifacts) {
+    const data = a.data as DiagramData;
+    if (a.type === "Diagram" && data.kind === "sequence" && commits.has(data.commit)) shownDiagram.set(data.commit, a.id);
+  }
+  for (const a of state.artifacts) if (a.type === "Diagram" && shownDiagram.get((a.data as DiagramData).commit) !== a.id) dropped.add(a.id);
   for (let grew = dropped.size > 0; grew;) {
     grew = false;
     const drop = (id: string) => { if (!dropped.has(id)) { dropped.add(id); grew = true; } };

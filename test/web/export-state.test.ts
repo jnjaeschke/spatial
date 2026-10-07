@@ -25,7 +25,14 @@ test("exportState drops closed items with their messages, replies, revisions and
   assert.deepEqual(out.artifacts.map((a) => a.id), ["T3", "M3", "F"]);
   assert.deepEqual(out.links.map((l) => l.id), ["M3->T3"]);
   assert.deepEqual(out.tasks.map((t) => t.id), ["a"]);
-  assert.deepEqual(exportState(st, new Set()).artifacts.length, st.artifacts.length);
+  assert.deepEqual(exportState(st, new Set()).artifacts.filter((a) => a.type !== "Diagram").length, st.artifacts.filter((a) => a.type !== "Diagram").length);
+});
+
+test("exportState keeps only the diagram the canvas shows for each reviewed commit", () => {
+  const diff = artifact("DIFF", "Diff", { baseSha: "b", headSha: "h", commits: [{ sha: "c1" }, { sha: "c2" }], files: [] });
+  const sequence = (id: string, commit: string) => artifact(id, "Diagram", { kind: "sequence", commit });
+  const st = state([diff, sequence("D-old", "c1"), sequence("D-new", "c1"), artifact("D-legacy", "Diagram", { kind: "flow", commit: "c2" }), sequence("D-other", "gone"), sequence("D-c2", "c2")], []);
+  assert.deepEqual(exportState(st, new Set()).artifacts.map((a) => a.id), ["DIFF", "D-new", "D-c2"]);
 });
 
 test("exportHtml embeds the data and bundle as HTML-safe JSON", () => {
