@@ -5,6 +5,7 @@ import { createRuntime, defaultDbPath } from "../runtime/create.ts";
 import { createHttpServer } from "./http.ts";
 import { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { PhabricatorSyncer } from "../runtime/phabricator-sync.ts";
+import { execFileSync } from "node:child_process";
 
 const { values } = parseArgs({
   options: { port: { type: "string", default: "4177" }, db: { type: "string" }, static: { type: "string" } },
@@ -17,6 +18,8 @@ const watcher = new RevisionWatcher(rt);
 watcher.start();
 new PhabricatorSyncer(rt, watcher).start();
 const port = Number(values.port);
-createHttpServer(rt, { staticDir, watcher }).listen(port, "127.0.0.1", () => {
+let commit: string | null = null;
+try { commit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); } catch { /* Running outside a git checkout. */ }
+createHttpServer(rt, { staticDir, watcher, commit }).listen(port, "127.0.0.1", () => {
   console.log(`runtime on http://127.0.0.1:${port}${staticDir ? "" : " (no static UI; use `npm run web`)"}`);
 });

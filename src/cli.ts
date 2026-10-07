@@ -3,16 +3,19 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import type { LlmBackendId, PatchNarrativeData, WorkflowStartData } from "./shared/types.ts";
 import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
 import { createSession, resolveRepo } from "./runtime/git.ts";
 import { parseReviewArgs } from "./workflows/registry.ts";
 import { runWorkflow } from "./workflows/start.ts";
 import { latestDiff, narrativeOf } from "./shared/epochs.ts";
-import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl } from "./cli/launch.ts";
+import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl, staleServerMessage, stopServer } from "./cli/launch.ts";
 
 const USAGE = `usage:
   spatial [open [path]] [--port N] [--db PATH]   open the start screen of the repo at path (default: .), starting the server if needed
+  spatial stop [--port N] [--force]              stop the server on the port
+  spatial restart [--port N] [--db PATH] [--force] restart the server without opening a browser
   spatial review <repo> [<base>..<head> | D123 | <revision-url>] [--backend claude|codex] [--model M] [--effort E] [--db PATH]
   spatial models [--db PATH]`;
 
@@ -32,6 +35,7 @@ function parseCli() {
         db: { type: "string" },
         port: { type: "string" },
         help: { type: "boolean", short: "h" },
+        force: { type: "boolean" },
       },
     });
   } catch (e) {
@@ -53,12 +57,28 @@ function runtime() {
 
 const [cmd, ...rest] = positionals;
 try {
-  if (cmd === undefined || cmd === "open") {
+  if (cmd === "stop" || cmd === "restart") {
+    const port = Number(values.port ?? DEFAULT_PORT);
+    if (!Number.isInteger(port) || port <= 0) fail(`Invalid --port: ${values.port}`);
+    const stopped = await stopServer({ port, force: values.force });
+    if (cmd === "stop") console.log(stopped === "free" ? `No server running on port ${port}.` : `Stopped server on port ${port}.`);
+    else {
+      const root = fileURLToPath(new URL("..", import.meta.url));
+      const health = await ensureServer({ port, startServer: () => spawnServer(root, port, values.db) });
+      if (!health.ui) fail(`The server on port ${port} serves no UI (started with \`npm run server\`?). Build it with \`npm run build:web\`.`);
+      console.log(`Restarted server on port ${port}.`);
+    }
+  } else if (cmd === undefined || cmd === "open") {
     const port = Number(values.port ?? DEFAULT_PORT);
     if (!Number.isInteger(port) || port <= 0) fail(`Invalid --port: ${values.port}`);
     const { worktree } = await resolveRepo(resolve(rest[0] ?? "."));
     const root = fileURLToPath(new URL("..", import.meta.url));
     const health = await ensureServer({ port, startServer: () => spawnServer(root, port, values.db) });
+    let head: string | null;
+    try { head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(); }
+    catch { head = null; }
+    const warning = staleServerMessage(health.commit, head);
+    if (warning) console.error(warning);
     if (!health.ui) fail(`The server on port ${port} serves no UI (started with \`npm run server\`?). Open the Vite dev server with ?path=${encodeURIComponent(worktree)}`);
     const url = startScreenUrl(port, worktree);
     console.log(url);

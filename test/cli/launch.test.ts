@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { browserCommand, ensureServer, probe, startScreenUrl } from "../../src/cli/launch.ts";
+import { browserCommand, ensureServer, probe, startScreenUrl, stopServer, staleServerMessage } from "../../src/cli/launch.ts";
 
 const response = (status: number, body?: unknown): Response => new Response(body === undefined ? null : JSON.stringify(body), { status });
-const health = { app: "spatial-ide", ui: true } as const;
+const health = { app: "spatial-ide", ui: true, pid: 123, commit: null, runningTasks: 0 } as const;
 
 test("start screen URL and browser command", () => {
   assert.equal(startScreenUrl(4177, "/a b/c"), "http://127.0.0.1:4177/?path=%2Fa%20b%2Fc");
@@ -55,4 +55,19 @@ test("ensureServer probes health before observing a racing child exit", async ()
     startServer: () => ({ exited: Promise.resolve(1), log: "/x/server.log" }),
   });
   assert.deepEqual(result, health);
+});
+
+test("stopServer refuses running tasks unless forced and stops our server", async () => {
+  let kills = 0;
+  const running = { app: "spatial-ide", ui: true, pid: 123, commit: "abc", runningTasks: 2 };
+  await assert.rejects(stopServer({ port: 1, fetchImpl: async () => response(200, running), kill: () => { kills++; }, intervalMs: 1 }), /2 running tasks/);
+  assert.equal(kills, 0);
+  let probes = 0;
+  await stopServer({ port: 1, force: true, fetchImpl: async () => ++probes === 1 ? response(200, running) : Promise.reject(Object.assign(new Error("refused"), { cause: { code: "ECONNREFUSED" } })), kill: (pid, signal) => { assert.equal(pid, 123); assert.equal(signal, "SIGTERM"); kills++; }, intervalMs: 1 });
+  assert.equal(kills, 1);
+});
+
+test("stale server warning includes short commits", () => {
+  assert.equal(staleServerMessage("abcdef1234567890", "1234567890abcdef"), "The server runs abcdef123456, the checkout is at 1234567890ab; run `spatial restart` to update.");
+  assert.equal(staleServerMessage("same", "same"), null);
 });

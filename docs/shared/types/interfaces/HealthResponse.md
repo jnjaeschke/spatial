@@ -16,6 +16,24 @@
 
 ***
 
+### commit
+
+> **commit**: `string` \| `null`
+
+***
+
+### pid
+
+> **pid**: `number`
+
+***
+
+### runningTasks
+
+> **runningTasks**: `number`
+
+***
+
 ### ui
 
 > **ui**: `boolean`

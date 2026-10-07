@@ -16,6 +16,14 @@
 
 ### opts?
 
+#### commit?
+
+`string` \| `null`
+
+#### pid?
+
+`number`
+
 #### staticDir?
 
 `string`

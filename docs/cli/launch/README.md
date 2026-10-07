@@ -21,4 +21,6 @@
 - [openBrowser](functions/openBrowser.md)
 - [probe](functions/probe.md)
 - [spawnServer](functions/spawnServer.md)
+- [staleServerMessage](functions/staleServerMessage.md)
 - [startScreenUrl](functions/startScreenUrl.md)
+- [stopServer](functions/stopServer.md)

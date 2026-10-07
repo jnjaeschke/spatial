@@ -26,7 +26,10 @@ export async function probe(port: number, fetchImpl: typeof fetch = fetch): Prom
   }
   if (!res.ok) return "foreign";
   const body = await res.json().catch(() => null) as Partial<HealthResponse> | null;
-  return body?.app === "spatial-ide" && typeof body.ui === "boolean" ? { app: "spatial-ide", ui: body.ui } : "foreign";
+  return body?.app === "spatial-ide" && typeof body.ui === "boolean" && typeof body.pid === "number" && Number.isInteger(body.pid) &&
+    (typeof body.commit === "string" || body.commit === null) && typeof body.runningTasks === "number" && Number.isInteger(body.runningTasks)
+    ? { app: "spatial-ide", ui: body.ui, pid: body.pid, commit: body.commit, runningTasks: body.runningTasks }
+    : "foreign";
 }
 
 export interface StartedServer { exited: Promise<number | null>; log: string }
@@ -50,6 +53,28 @@ export async function ensureServer(opts: { port: number; startServer: () => Star
     if (exit !== undefined) throw new Error(`Server exited with code ${exit}; see ${server.log}`);
   }
   throw new Error(`Server did not answer within ${timeoutMs} ms; see ${server.log}`);
+}
+
+export async function stopServer(opts: { port: number; force?: boolean; fetchImpl?: typeof fetch; kill?: (pid: number, signal: "SIGTERM") => unknown; timeoutMs?: number; intervalMs?: number }): Promise<"stopped" | "free"> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const state = await probe(opts.port, fetchImpl);
+  if (state === "free") return "free";
+  if (state === "foreign") throw new Error(`Port ${opts.port} is in use by another program; refusing to stop it`);
+  if (state.runningTasks > 0 && !opts.force) throw new Error(`Server has ${state.runningTasks} running tasks; pass --force to stop it`);
+  (opts.kill ?? process.kill)(state.pid, "SIGTERM");
+  const deadline = Date.now() + (opts.timeoutMs ?? 10_000);
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, opts.intervalMs ?? 100));
+    const current = await probe(opts.port, fetchImpl);
+    if (current === "free") return "stopped";
+    if (current === "foreign") throw new Error(`Port ${opts.port} was taken by another program while stopping`);
+  }
+  throw new Error(`Server on port ${opts.port} did not stop within ${opts.timeoutMs ?? 10_000} ms`);
+}
+
+export function staleServerMessage(serverCommit: string | null, checkoutCommit: string | null): string | null {
+  if (!serverCommit || !checkoutCommit || serverCommit === checkoutCommit) return null;
+  return `The server runs ${serverCommit.slice(0, 12)}, the checkout is at ${checkoutCommit.slice(0, 12)}; run \`spatial restart\` to update.`;
 }
 
 /** Starts `node src/server/main.ts` detached from the package root; it outlives the CLI. */
