@@ -20,6 +20,10 @@
 
 `string` \| `null`
 
+#### homeDir?
+
+`string`
+
 #### pid?
 
 `number`

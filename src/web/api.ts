@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ChatThreadData, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, WorkflowInfo } from "../shared/types.ts";
+import type { ChatThreadData, DirectoryListing, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, WorkflowInfo } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 
 async function parse<T>(res: Response): Promise<T> {
@@ -19,6 +19,7 @@ const put = <T>(path: string, body: unknown) =>
 export const api = {
   sessions: () => get<Session[]>("/api/sessions"),
   repos: () => get<RecentRepo[]>("/api/repos"),
+  dirs: (path?: string) => get<DirectoryListing>(`/api/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
   workflows: () => get<WorkflowInfo[]>("/api/workflows"),
   start: (path: string, text: string, llm: LlmSelection) => post<Session>("/api/start", { path, text, llm }),

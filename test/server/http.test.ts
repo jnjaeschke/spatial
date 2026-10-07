@@ -4,9 +4,9 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { createServer as createNetServer } from "node:http";
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import { makeGit } from "../../src/runtime/git.ts";
@@ -68,6 +68,34 @@ test("sessions: create, list, validation", async () => {
   assert.equal(bad.status, 400);
   assert.match((await bad.json()).error, /Not a git repository/);
   assert.equal((await post("/api/sessions", { title: "t" })).status, 400);
+});
+
+test("dirs lists directories, marks git roots, validates paths, and defaults to injected home", async () => {
+  const home = mkdtempSync(join(tmpdir(), "dirs-home-"));
+  const child = join(home, "child");
+  const repoDir = join(home, "repo");
+  const hidden = join(home, ".hidden");
+  mkdirSync(child);
+  mkdirSync(join(repoDir, ".git"), { recursive: true });
+  mkdirSync(hidden);
+  const dirsServer = createHttpServer(rt, { homeDir: home });
+  await new Promise<void>((resolve) => dirsServer.listen(0, "127.0.0.1", resolve));
+  try {
+    const addr = dirsServer.address() as AddressInfo;
+    const origin = `http://127.0.0.1:${addr.port}`;
+    const root = await (await fetch(`${origin}/api/dirs`)).json() as { path: string; parent: string | null; entries: { name: string; path: string; repo: boolean }[] };
+    assert.equal(root.path, home);
+    assert.equal(root.parent, dirname(home));
+    assert.deepEqual(root.entries.map((entry) => entry.name), ["child", "repo"]);
+    assert.equal((await fetch(`${origin}/api/dirs?path=relative`)).status, 400);
+    assert.equal((await fetch(`${origin}/api/dirs?path=${encodeURIComponent(join(home, "missing"))}`)).status, 404);
+    const repoResponse = await fetch(`${origin}/api/dirs?path=${encodeURIComponent(home)}`);
+    const listing = await repoResponse.json() as { entries: { path: string; repo: boolean }[] };
+    assert.equal(listing.entries.find((entry) => entry.path === repoDir)?.repo, true);
+  } finally {
+    await new Promise<void>((resolve) => dirsServer.close(() => resolve()));
+    rmSync(home, { recursive: true, force: true });
+  }
 });
 
 test("reviewed marks validate narrative and change, then create a user artifact", async () => {

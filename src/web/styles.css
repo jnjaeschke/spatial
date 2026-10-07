@@ -246,6 +246,18 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .repo-switcher a[aria-current="page"] { border-color: var(--accent); background: var(--accent-soft); }
 .session-picker-heading { margin-top: 28px; }
 .start-screen > header > a { margin-left: auto; margin-right: 16px; }
+.folder-picker { width: min(720px, calc(100vw - 32px)); max-height: min(80vh, 760px); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+.folder-picker::backdrop { background: rgb(0 0 0 / 55%); }
+.folder-picker > header, .folder-picker > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.folder-picker h2 { margin: 0; }
+.folder-breadcrumbs { display: flex; gap: 4px; margin: 14px 0; overflow-x: auto; }
+.folder-picker form { display: flex; gap: 8px; align-items: end; }
+.folder-picker form label { flex: 1; }
+.folder-picker input { width: 100%; }
+.folder-entries { max-height: 42vh; overflow: auto; padding: 0; list-style: none; }
+.folder-entry, .folder-entries button { width: 100%; text-align: left; padding: 8px 10px; }
+.folder-entries button[aria-current="true"] { outline: 2px solid var(--accent); }
+.folder-picker > footer { justify-content: flex-end; margin-top: 16px; }
 .start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .start-input { position: relative; width: 100%; }
 .start-box textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }

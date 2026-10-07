@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { test, expect, type Page } from "@playwright/test";
@@ -92,4 +92,25 @@ test("start screen outside a git work tree shows the error", async ({ page }) =>
   repoDirs.push(dir);
   await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
   await expect(page.getByTestId("start-error")).toContainText("Not a git repository");
+});
+
+test("folder picker navigates to a repository", async ({ page }) => {
+  const parent = mkdtempSync(join(tmpdir(), "spatial-picker-"));
+  repoDirs.push(parent);
+  const dir = join(parent, "picked-repo");
+  mkdirSync(dir);
+  git(dir, "init", "-b", "main");
+  writeFileSync(join(dir, "base.txt"), "base\n");
+  git(dir, "add", "-A");
+  git(dir, "commit", "-m", "base");
+  await createSession(page, dir, "Picked session");
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("button", { name: "Open folder…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Open folder" });
+  await dialog.getByLabel("Path").fill(realpathSync(parent));
+  await dialog.getByRole("button", { name: "Go" }).click();
+  await dialog.getByRole("button", { name: /picked-repo/ }).click();
+  await dialog.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(realpathSync(dir))}`));
+  await expect(page.getByTestId("start-screen").getByRole("link", { name: "Picked session" })).toBeVisible();
 });

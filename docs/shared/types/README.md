@@ -20,6 +20,7 @@
 - [DiffData](interfaces/DiffData.md)
 - [DiffFile](interfaces/DiffFile.md)
 - [DiffLine](interfaces/DiffLine.md)
+- [DirectoryListing](interfaces/DirectoryListing.md)
 - [FindingCarryData](interfaces/FindingCarryData.md)
 - [FindingDecisionData](interfaces/FindingDecisionData.md)
 - [FindingVerdictData](interfaces/FindingVerdictData.md)

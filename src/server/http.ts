@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { readFile } from "node:fs/promises";
-import { extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChangeReviewData, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RecentRepo, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
+import { readFile, readdir, stat } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
+import type { Artifact, ChangeReviewData, DiffData, DirectoryListing, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RecentRepo, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
@@ -94,7 +95,7 @@ function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unk
   return artifact;
 }
 
-export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher; pid?: number; commit?: string | null } = {}): Server {
+export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher; pid?: number; commit?: string | null; homeDir?: string } = {}): Server {
   const requireNarratable = (id: string) => {
     const artifacts = rt.store.listArtifacts(id);
     const latest = latestDiff(artifacts);
@@ -128,6 +129,32 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       try { repo = await resolveRepo(path); }
       catch (e) { throw new HttpError(400, (e as Error).message); }
       return { ...repo, name: repoName(repo.repoDir), sessions: newestFirst(rt.store.listSessions().filter((s) => s.repoDir === repo.repoDir)) };
+    }],
+    ["GET", /^\/api\/dirs$/, async ({ url }): Promise<DirectoryListing> => {
+      const requested = url.searchParams.get("path");
+      const path = requested ?? opts.homeDir ?? homedir();
+      if (!isAbsolute(path)) throw new HttpError(400, "Query parameter path must be an absolute path");
+      let info;
+      try { info = await stat(path); }
+      catch (e) { const error = e as NodeJS.ErrnoException; throw new HttpError(error.code === "ENOENT" ? 404 : 400, error.message); }
+      if (!info.isDirectory()) throw new HttpError(400, "Path is not a directory");
+      let children;
+      try { children = await readdir(path, { withFileTypes: true }); }
+      catch (e) { throw new HttpError(400, (e as Error).message); }
+      const entries: DirectoryListing["entries"] = [];
+      for (const child of children) {
+        if (child.name.startsWith(".")) continue;
+        const childPath = join(path, child.name);
+        try {
+          if (!(child.isDirectory() || child.isSymbolicLink() && (await stat(childPath)).isDirectory())) continue;
+        } catch { continue; }
+        let repo = false;
+        try { await stat(join(childPath, ".git")); repo = true; } catch { /* Not a git root. */ }
+        entries.push({ name: child.name, path: childPath, repo });
+      }
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+      const truncated = entries.length > 2000;
+      return { path, parent: dirname(path) === path ? null : dirname(path), entries: entries.slice(0, 2000), ...(truncated ? { truncated: true as const } : {}) };
     }],
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
