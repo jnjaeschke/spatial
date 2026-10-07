@@ -56,7 +56,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
               <span className="sequence-arrow" /></>;
           return <div className="sequence-row" key={`${cite}:${index}`}>
             {startsPhase && step.phase && <div className="sequence-phase" style={{ top: rowTop }}>{step.phase}</div>}
-            {target ? <button {...stepProps} onClick={() => collapse?.revealStep?.(target.changeNodeId, target.hunkId, target.row.line)}>{label}</button> : <div {...stepProps}>{label}</div>}
+            {target ? <button {...stepProps} onClick={() => collapse?.revealStep?.(target.changeNodeId, target.hunkId, target.row)}>{label}</button> : <div {...stepProps}>{label}</div>}
           </div>;
         })}
       </div>

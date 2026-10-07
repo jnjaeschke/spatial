@@ -4,7 +4,7 @@ import type { Artifact, DiagramData, SequenceStep } from "../shared/types.ts";
 
 /** Collapsed node ids. Client-only view state, kept per session in localStorage. */
 export type DiagramStepTarget = { changeNodeId: string; hunkId: string; row: { side: "new" | "old"; line: number } } | null;
-export const CollapseContext = createContext<{ collapsed: ReadonlySet<string>; toggle(id: string): void; reveal(nodeId: string, collapseId: string): void; stepTarget?(diagram: Artifact<DiagramData>, step: SequenceStep): DiagramStepTarget; revealStep?(nodeId: string, hunkId: string, line: number): void } | null>(null);
+export const CollapseContext = createContext<{ collapsed: ReadonlySet<string>; toggle(id: string): void; reveal(nodeId: string, collapseId: string): void; stepTarget?(diagram: Artifact<DiagramData>, step: SequenceStep): DiagramStepTarget; revealStep?(nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }): void } | null>(null);
 
 export function useCollapsed(sessionId: string, defaults: ReadonlySet<string>) {
   const key = `spatial-ide:collapse:${sessionId}`;

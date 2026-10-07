@@ -553,3 +553,5 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .export-badge { color: var(--text-2); font-size: 12.5px; }
 .export-dialog { width: min(560px, calc(100vw - 32px)); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
 .export-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.file-panel tr.jumps { cursor: pointer; }
+.file-panel tr.jumps:hover td.ln, .file-panel tr.jumps:hover td.sign { text-decoration: underline; }

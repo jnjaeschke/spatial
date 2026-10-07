@@ -53,7 +53,9 @@ function ResizableNode(props: NodeProps) {
 }
 const resizableNodeTypes = Object.fromEntries(Object.keys(nodeTypes).map((type) => [type, ResizableNode]));
 
-interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
+interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void; jump?: HunkRow | null }
+/** A diff row to reveal and focus; a new object per request. */
+export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
 const NO_DRAFTS: Draft[] = [];
 const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", diagram: "var(--kind-diagram)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)", note: "var(--kind-note)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
@@ -68,7 +70,7 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: Props) {
+function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {}, jump = null }: Props) {
   const textScale = useTextScale();
   const { sizes, setWidth, clear: clearNodeSizes } = useNodeSizes(state.session.id);
   const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(state.session.id);
@@ -173,14 +175,14 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     setGuideStep(null);
   }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [focusedRow, setFocusedRow] = useState<{ anchor: string; line: number } | null>(null);
+  const [focusedRow, setFocusedRow] = useState<{ anchor: string; side: "new" | "old"; line: number } | null>(null);
   const focusCentered = useRef(false);
   useLayoutEffect(() => {
     const root = container.current;
     if (!root) return;
     root.querySelector("tr.focus")?.classList.remove("focus");
     if (!focusedRow) return;
-    const row = root.querySelector(`tr[data-anchor="${CSS.escape(focusedRow.anchor)}"][data-new="${focusedRow.line}"]`);
+    const row = root.querySelector(`tr[data-anchor="${CSS.escape(focusedRow.anchor)}"][data-${focusedRow.side}="${focusedRow.line}"]`);
     if (!row) return;
     row.classList.add("focus");
     if (focusCentered.current) return;
@@ -622,13 +624,19 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (levelRef.current !== "code") setLevel("code");
     expandExplicitly(collapseId);
   };
-  const revealStep = (nodeId: string, hunkId: string, line: number) => {
+  const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
     if (node?.data.kind !== "change") return;
     reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`);
     focusCentered.current = false;
-    setFocusedRow({ anchor: `${node.data.diffId}#${hunkId}`, line });
+    setFocusedRow({ anchor: `${node.data.diffId}#${hunkId}`, ...row });
   };
+  useEffect(() => {
+    if (!jump) return;
+    const change = graph.nodes.find((node) => node.data.kind === "change" && node.data.hunks.some(({ hunk }) => hunk.id === jump.hunkId));
+    if (change) revealStep(change.id, jump.hunkId, { side: jump.side, line: jump.line });
+    // Only a new request jumps; graph updates must not re-reveal.
+  }, [jump]);
 
   return (
     <ChatActionsContext.Provider value={chatActions}>

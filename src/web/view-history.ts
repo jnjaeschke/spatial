@@ -3,7 +3,7 @@ import type { ViewState } from "./view-state.ts";
 
 /** A canvas view kept in a history entry, so Back and Forward return to where a jump started or landed. */
 export interface HistoryView extends ViewState {
-  focusedRow: { anchor: string; line: number } | null;
+  focusedRow: { anchor: string; side: "new" | "old"; line: number } | null;
 }
 
 const JUMP = "spatial-ide:jump";

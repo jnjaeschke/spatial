@@ -82,6 +82,12 @@ test("open the whole file in the side panel", async ({ page }) => {
   await expect(panel.getByText("THIRTY", { exact: true })).toBeInViewport();
   await expect(panel.locator("td.code").first()).toHaveCSS("white-space", "pre-wrap");
   await expect(panel.locator("tr.add")).toHaveCSS("background-color", "rgb(230, 255, 236)");
+  await expect(panel.locator("tr", { hasText: "line 1" }).first()).not.toHaveClass(/jumps/);
+  await page.getByTestId("change-c1").getByRole("button", { name: "Collapse" }).click();
+  await panel.locator("tr", { has: page.getByText("THIRTY", { exact: true }) }).click();
+  const focused = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
+  await expect(focused).toBeInViewport();
+  await expect(focused).toContainText("THIRTY");
   await panel.getByRole("button", { name: "Close file" }).click();
   await expect(panel).toHaveCount(0);
 });
