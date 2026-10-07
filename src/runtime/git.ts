@@ -199,6 +199,10 @@ export function makeGit(repo: string): GitCapability {
         throw e;
       }
     },
+    async mainlineRefs() {
+      const out = await git(repo, ["for-each-ref", "--format=%(refname)", "refs/heads/main", "refs/heads/master", "refs/remotes/*/main", "refs/remotes/*/master"]);
+      return out.split("\n").filter(Boolean);
+    },
     async log(baseSha, headSha) {
       const out = await git(repo, ["log", "--reverse", "--format=%H%x00%s%x00%b%x1e", `${baseSha}..${headSha}`]);
       return out.split("\x1e").map((r) => r.replace(/^\n/, "")).filter((r) => r.length > 0).map((r): Commit => {

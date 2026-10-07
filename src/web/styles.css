@@ -559,3 +559,5 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .selector-question textarea { min-height: 4em; }
 .selector-question button { align-self: flex-end; }
 .commit-node .flow-hint { color: var(--text-2); font-size: 0.85em; }
+.revision-file > summary { cursor: pointer; padding: 4px 0; }
+.revision-file .counts { color: var(--text-2); font-size: 0.85em; }

@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { setLevel, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
@@ -113,4 +117,23 @@ test("the canvas works without the Navigation API", async ({ page }) => {
   await page.keyboard.press("n");
   await expect(page.getByTestId("guide")).toContainText("1/");
   expect(errors).toEqual([]);
+});
+
+test("a large diff whose narration failed lists files and mounts hunks on demand", async ({ page }) => {
+  const dir = mkdtempSync(join(tmpdir(), "spatial-large-"));
+  const git = (...args: string[]) => execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" });
+  git("init", "-q", "-b", "main");
+  writeFileSync(join(dir, "base.txt"), "base\n");
+  git("add", "-A");
+  git("commit", "-q", "-m", "base");
+  for (let f = 0; f < 25; f++) writeFileSync(join(dir, `f${f}.txt`), Array.from({ length: 100 }, (_, i) => f === 0 && i === 0 ? "FAIL-THIS-TURN" : `file ${f} line ${i}`).join("\n") + "\n");
+  git("add", "-A");
+  git("commit", "-q", "-m", "large");
+  await startReview(page, dir, "HEAD~1..HEAD");
+  const files = page.locator(".revision-file");
+  await expect(files).toHaveCount(25, { timeout: 15_000 });
+  await expect(page.locator(".revision-files [data-testid^=hunk-]")).toHaveCount(0);
+  await files.filter({ hasText: "f3.txt" }).locator("summary").click();
+  await expect(page.locator(".revision-files [data-testid^=hunk-]")).toHaveCount(1);
+  await expect(page.getByText("file 3 line 99", { exact: true })).toBeVisible();
 });

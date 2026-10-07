@@ -30,6 +30,8 @@ export interface GitCapability {
   resolve(rev: string): Promise<string>;
   isAncestor(ancestor: string, descendant: string): Promise<boolean>;
   mergeBase(a: string, b: string): Promise<string | null>;
+  /** Local and remote-tracking `main`/`master` branches (full ref names). */
+  mainlineRefs(): Promise<string[]>;
   /** Commits in `base..head`, oldest first. */
   log(baseSha: string, headSha: string): Promise<Commit[]>;
   /** Raw `git diff` text for `base..head`. */

@@ -8,7 +8,7 @@ import { Store } from "../../src/runtime/store.ts";
 import { makeGit } from "../../src/runtime/git.ts";
 import { importDiff } from "../../src/tasks/import-diff/task.ts";
 import { reviewRange } from "../../src/tasks/review-range/task.ts";
-import { defaultReviewRange } from "../../src/workflows/review-range.ts";
+import { MAX_DEFAULT_COMMITS, defaultReviewRange } from "../../src/workflows/review-range.ts";
 import { analysisStatus } from "../../src/web/analysis.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
@@ -94,6 +94,32 @@ test("defaultReviewRange finds a master-only repository's fork point", async () 
   const { store, session, rt } = runtimeFor(r.dir);
   try {
     assert.deepEqual(await defaultReviewRange(session.worktree, rt.gitFor(session.id)), { base: forkPoint, head: "HEAD" });
+  } finally { store.close(); }
+});
+
+test("defaultReviewRange forks from the nearest main, not a stale local one", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "base\n" }, "base");
+  r.git("checkout", "-q", "-b", "upstream");
+  r.commit({ "a.txt": "upstream 1\n" }, "upstream 1");
+  const upstream = r.commit({ "a.txt": "upstream 2\n" }, "upstream 2");
+  r.git("update-ref", "refs/remotes/origin/main", upstream);
+  r.git("checkout", "-q", "-b", "feature");
+  r.commit({ "a.txt": "mine\n" }, "mine");
+  const { store, session, rt } = runtimeFor(r.dir);
+  try {
+    assert.deepEqual(await defaultReviewRange(session.worktree, rt.gitFor(session.id)), { base: upstream, head: "HEAD" });
+  } finally { store.close(); }
+});
+
+test("defaultReviewRange refuses a range too long to be the user's branch", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "base\n" }, "base");
+  r.git("checkout", "-q", "-b", "feature");
+  for (let i = 0; i <= MAX_DEFAULT_COMMITS; i++) r.commit({ "a.txt": `${i}\n` }, `c${i}`);
+  const { store, session, rt } = runtimeFor(r.dir);
+  try {
+    await assert.rejects(defaultReviewRange(session.worktree, rt.gitFor(session.id)), new RegExp(`${MAX_DEFAULT_COMMITS + 1} commits ahead of its nearest main/master`));
   } finally { store.close(); }
 });
 

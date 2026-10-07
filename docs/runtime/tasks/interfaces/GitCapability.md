@@ -122,6 +122,18 @@ Commits in `base..head`, oldest first.
 
 ***
 
+### mainlineRefs()
+
+> **mainlineRefs**(): `Promise`\<`string`[]\>
+
+Local and remote-tracking `main`/`master` branches (full ref names).
+
+#### Returns
+
+`Promise`\<`string`[]\>
+
+***
+
 ### mergeBase()
 
 > **mergeBase**(`a`, `b`): `Promise`\<`string` \| `null`\>

@@ -35,7 +35,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
   };
   const store = new Store(":memory:");
   const git: GitCapability = {
-    effect: "read-only", isDirty: async () => false, resolve: async () => "H", isAncestor: async () => true, mergeBase: async () => null, blame: async () => [],
+    effect: "read-only", isDirty: async () => false, resolve: async () => "H", isAncestor: async () => true, mergeBase: async () => null, mainlineRefs: async () => [], blame: async () => [],
     log: async () => [], diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }),
     async show(sha, path) {
       showCalls.push(`${sha}:${path}`);
