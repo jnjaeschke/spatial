@@ -4,10 +4,13 @@ import { Canvas } from "./Canvas.tsx";
 import { SessionPicker } from "./SessionPicker.tsx";
 import { SessionView } from "./SessionView.tsx";
 import { StartScreen } from "./StartScreen.tsx";
+import { ExportView } from "./ExportView.tsx";
+import { exported } from "./exported.ts";
 
 const params = new URLSearchParams(location.search);
 
 export function App() {
+  if (exported) return <ExportView data={exported} />;
   if (params.has("fixture")) {
     return <div className="app"><div /><Canvas state={fixture as SessionState} /><div /></div>;
   }

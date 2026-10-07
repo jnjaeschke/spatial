@@ -4,6 +4,7 @@ import type { SummaryNodeData, ZoomLevel } from "../graph.ts";
 import { InlineText } from "../InlineText.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { api } from "../api.ts";
+import { ChatActionsContext } from "../chat-context.ts";
 import { PhabComment } from "../PhabComment.tsx";
 import { ReopenClosed } from "../ReopenClosed.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
@@ -14,6 +15,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   const [postResult, setPostResult] = useState<string | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
   const collapse = useContext(CollapseContext);
+  const actions = useContext(ChatActionsContext);
   const closed = collapse?.collapsed.has(data.narrativeId) ?? false;
   const specStatus = data.specStatus;
   const specText = specStatus && (
@@ -52,7 +54,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             {!closedGroup && <ul className="phab-comments">{group.comments.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} where={`${comment.data.path}:${comment.data.line}`} /></li>)}</ul>}
           </section>;
         })}
-        {data.level !== "patch" && (data.drafts.length > 0 || data.skipped > 0) && <div className="post-drafts-row">
+        {actions && data.level !== "patch" && (data.drafts.length > 0 || data.skipped > 0) && <div className="post-drafts-row">
           {data.drafts.length > 0 && <>
           <button className="post-drafts nodrag" onClick={async () => {
             setPostError(null);

@@ -17,12 +17,14 @@ import { InterdiffPanel } from "./InterdiffPanel.tsx";
 import { StackContext } from "./stack-context.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
+import { ExportDialog } from "./ExportDialog.tsx";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
   const [aside, setAside] = useState<"file" | "interdiff" | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [desktop, setDesktop] = useState(desktopEnabled);
+  const [exporting, setExporting] = useState(false);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const models = useModels();
   useEffect(() => {
@@ -51,7 +53,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       : state.session.workflow === "chat" ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
       : n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} state={state} models={models} /> : <AnalysisStatus state={state} models={models} />;
   return <div className="app">
-    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{state.session.workflow === "review" && <>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}</>}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{state.session.workflow === "review" && <>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}</>}<span className="spacer" />{(state.session.workflow === "chat" || n) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
@@ -64,5 +66,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     </FileViewContext.Provider></AskContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
+    {exporting && <ExportDialog state={state} onClose={() => setExporting(false)} />}
   </div>;
 }

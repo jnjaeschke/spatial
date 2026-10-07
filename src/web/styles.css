@@ -550,3 +550,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .phab-body.clamped.fading { mask-image: linear-gradient(to bottom, #000 calc(100% - 3em), transparent); }
 .phab-more { margin-top: 4px; padding: 0 4px; border: 0; background: transparent; font: inherit; font-size: 0.85em; color: var(--kind-phab); cursor: pointer; box-shadow: none; }
 .checkout-name { color: var(--text-2); font-weight: 500; }
+.export-badge { color: var(--text-2); font-size: 12.5px; }
+.export-dialog { width: min(560px, calc(100vw - 32px)); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+.export-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
