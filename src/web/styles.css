@@ -301,7 +301,6 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .diagram-entity.status-modified rect { stroke: var(--warning); }
 .diagram-entity.status-removed rect { stroke: var(--danger); }
 .diagram-entity.status-context rect { stroke: var(--border-strong); }
-.diagram-entity[data-verified="false"] rect { stroke: var(--text-3); }
 .diagram-entity text { fill: var(--text); text-anchor: middle; pointer-events: none; }
 .diagram-entity .diagram-label { font-size: 12px; font-weight: 650; }
 .diagram-entity .diagram-kind { fill: var(--text-2); font: 10px var(--font-mono); }

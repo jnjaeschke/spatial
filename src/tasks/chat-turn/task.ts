@@ -107,16 +107,14 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
     }
     let diagram: DiagramData | undefined;
     let diagramError: string | undefined;
+    const diff = latestDiff(view.artifacts);
     if (json.diagram !== null && json.diagram !== undefined) {
       if (!isDiagram(json.diagram)) diagramError = "diagram has an invalid shape";
-      else {
-      const diff = latestDiff(view.artifacts);
-      if (!diff) diagramError = "there is no reviewed commit range";
+      else if (!diff) diagramError = "there is no reviewed commit range";
       else {
         const result = await verifyDiagram(json.diagram, diff.data, (sha, path) => ctx.git.show(sha, path));
         if (result.ok) diagram = result.data;
         else diagramError = result.error;
-      }
       }
     }
 

@@ -211,6 +211,30 @@ test("commits are lanes; the guide walks the reading path and records reviews", 
   await expect(current.getByTestId("commit-1")).toBeVisible();
 });
 
+test("ask for a structure diagram from a commit card", async ({ page, request }) => {
+  const ids = newStackIds(2);
+  const stack = await buildStack(request, [
+    { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
+    { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
+  ]);
+  await narrate(page, stack, "code");
+  const firstCard = page.getByTestId("commit-0");
+  await revealNode(page, firstCard);
+  await firstCard.getByRole("button", { name: "Ask about commit 1" }).click();
+  const draft = page.locator('[data-testid^="chat-draft-"]').filter({ has: page.getByLabel("message") }).last();
+  await revealNode(page, draft);
+  await draft.getByLabel("message").fill("DIAGRAM-PLEASE");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".chat-node .msg.assistant").filter({ hasText: "Here is the structure." });
+  await expect(answer).toBeVisible({ timeout: 15_000 });
+  const diagram = page.locator('[data-testid^="diagram-"]');
+  await revealNode(page, diagram);
+  await expect(diagram).toContainText("2 entities · 2 unverified");
+  await diagram.getByRole("button", { name: "Expand" }).click();
+  await expect(diagram.locator('.diagram-entity[data-verified="true"]')).toHaveCount(1);
+  await expect(diagram.locator('.diagram-entity[data-verified="false"]')).toHaveCount(1);
+});
+
 test("posts a C1 line to C1", async ({ page, request }) => {
   const ids = newStackIds(2);
   const stack = await buildStack(request, [
