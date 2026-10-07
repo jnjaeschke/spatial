@@ -29,6 +29,7 @@ import { api } from "./api.ts";
 import { useNodeSizes } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
 import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
+import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
@@ -211,6 +212,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   };
   const moveGuide = (delta: 1 | -1) => {
     if (!steps.length) return;
+    pushJump(historyView());
     const next = moveStep(steps.length, guideStep, delta, start);
     setGuideStep(next);
     focusNode(stepNodeId(steps[next]!, level));
@@ -361,7 +363,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (autoFit.current) return;
     const { x, y, zoom } = rf.getViewport();
     saveViewState(state.session.id, { x, y, zoom, level, guideStep });
-  }, [level, guideStep, rf, state.session.id]);
+    saveHistoryView({ x, y, zoom, level, guideStep, focusedRow });
+  }, [level, guideStep, focusedRow, rf, state.session.id]);
 
   const quoteAt = (x: number, y: number) => {
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
@@ -572,7 +575,18 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const onMoveEnd = (_: unknown, vp: Viewport) => {
     if (autoFit.current) return;
     saveViewState(state.session.id, { ...vp, level: zoomLevel(vp.zoom, levelRef.current), guideStep });
+    saveHistoryView({ ...vp, level: zoomLevel(vp.zoom, levelRef.current), guideStep, focusedRow });
   };
+  const historyView = (): HistoryView => ({ ...rf.getViewport(), level: levelRef.current, guideStep, focusedRow });
+  useViewHistory((view) => {
+    autoFit.current = false;
+    anchor.current = null;
+    if (view.level !== levelRef.current) setLevel(view.level);
+    setGuideStep(view.guideStep);
+    focusCentered.current = true;
+    setFocusedRow(view.focusedRow);
+    void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
+  });
 
   const reset = () => {
     offsets.current.clear();
@@ -584,6 +598,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   };
 
   const reveal = (nodeId: string, collapseId: string) => {
+    pushJump(historyView());
     const height = rf.getNode(nodeId)?.measured?.height;
     if (collapsed.has(collapseId) && height !== undefined && levelRef.current === "code") anchorOnResize.current = { id: nodeId, height };
     else anchor.current = nodeId;

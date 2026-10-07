@@ -247,6 +247,13 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await changedStep.click();
   await expect(page.locator("tr.focus")).toHaveCount(1);
   await expect(page.getByTestId("change-c2").locator('tr.focus[data-new="1"]')).toBeInViewport();
+  const sessionUrl = page.url();
+  await page.goBack();
+  expect(page.url()).toBe(sessionUrl);
+  await expect(page.locator("tr.focus")).toHaveCount(0);
+  await expect(changedStep).toBeInViewport();
+  await page.goForward();
+  await expect(page.getByTestId("change-c2").locator('tr.focus[data-new="1"]')).toBeInViewport();
   await expect(diagram.locator('button.sequence-step[data-status="existing"]')).toHaveCount(0);
   const toggle = diagram.locator(".diagram-toggle");
   await revealNode(page, toggle);
