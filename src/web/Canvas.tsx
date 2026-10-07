@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Background, Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type Node, type Viewport,
@@ -181,7 +182,9 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   };
 
   const sizeBasis = useRef("");
-  useEffect(() => {
+  // A layout effect, so the new node widths are committed before the frame's ResizeObserver delivery; a passive
+  // effect would flush inside that delivery's callback and resize the nodes there.
+  useLayoutEffect(() => {
     // A new graph object (every session event) keeps the measured sizes of unchanged zoom and text scale, so
     // the view does not jump to estimated positions until the next measurement.
     const basis = `${level}|${textScale}`;
@@ -405,7 +408,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const next = zoomLevel(vp.zoom, levelRef.current);
     if (next !== levelRef.current) {
       if (!autoFit.current) anchor.current = nodeNearestCenter();
-      setLevel(next);
+      // Not synchronously: a viewport change resolved inside a ResizeObserver callback would resize the nodes within that delivery.
+      requestAnimationFrame(() => flushSync(() => setLevel(next)));
     }
   }, [nodeNearestCenter]);
 
