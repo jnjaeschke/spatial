@@ -1,8 +1,8 @@
 import { flushSync } from "react-dom";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
-  Background, Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
-  type Edge, type Node, type Viewport,
+  Background, Controls, MiniMap, NodeResizeControl, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
+  type Edge, type Node, type NodeProps, type Viewport,
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
@@ -24,10 +24,28 @@ import { useTextScale } from "./text-scale.ts";
 import { GuideBar } from "./GuideBar.tsx";
 import { moveStep, startStep, stepNodeId } from "./guide.ts";
 import { api } from "./api.ts";
+import { useNodeSizes } from "./node-sizes.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
 const nodeTypes = { change: ChangeNode, commit: CommitNode, summary: SummaryNode, spec: SpecNode, diagram: DiagramNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode };
+type NodeKind = keyof typeof nodeTypes;
+const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; setWidth(level: ZoomLevel, id: string, width: number): void } | null>(null);
+function ResizableNode(props: NodeProps) {
+  const resize = useContext(ResizeContext);
+  const Original = nodeTypes[props.type as NodeKind];
+  if (!Original) throw new Error(`Unknown node type: ${props.type}`);
+  return <>
+    {createElement(Original as ComponentType<any>, props)}
+    {props.selected && resize && <NodeResizeControl
+      position="right"
+      resizeDirection="horizontal"
+      minWidth={NODE_WIDTH[resize.level] * resize.textScale / 2}
+      onResizeEnd={(_, dimensions) => resize.setWidth(resize.level, props.id, dimensions.width / resize.textScale)}
+    />}
+  </>;
+}
+const resizableNodeTypes = Object.fromEntries(Object.keys(nodeTypes).map((type) => [type, ResizableNode]));
 
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
 const NO_DRAFTS: Draft[] = [];
@@ -46,6 +64,7 @@ export function Canvas(props: Props) {
 
 function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {} }: Props) {
   const textScale = useTextScale();
+  const { sizes, setWidth, clear: clearNodeSizes } = useNodeSizes(state.session.id);
   const paneHeight = useStore((s) => s.height);
   const colorMode = useResolvedTheme();
   const searchfox = useMemo(() => {
@@ -207,7 +226,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const selected = new Set(rf.getNodes().filter((n) => n.selected).map((n) => n.id));
     const sized = shown.nodes.map((n) => {
       const m = measured.get(n.id);
-      return { id: n.id, ...(m ? { width: m.width!, height: m.height! } : estimateSize(n.data, level, textScale)) };
+      const estimate = estimateSize(n.data, level, textScale);
+      return { id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? estimate.width, height: m?.height ?? estimate.height };
     });
     const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
     basePos.current = pos;
@@ -218,13 +238,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
-      style: { width: (isSatellite(n.data) ? SATELLITE_WIDTH : NODE_WIDTH[level]) * textScale },
+      style: { width: (sizes[level]?.[n.id] ?? (isSatellite(n.data) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
       className: n.id === currentRef.current ? "guide-current" : undefined,
       selected: selected.has(n.id),
       draggable: true,
       dragHandle: ".title",
     })));
-  }, [shown, level, textScale, setNodes, state.session.id, rf]);
+  }, [shown, level, textScale, setNodes, state.session.id, rf, sizes]);
 
   useEffect(() => {
     setNodes((ns) => ns.map((n) => ({ ...n, className: n.id === currentId ? "guide-current" : undefined })));
@@ -234,11 +254,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   useEffect(() => {
     if (nodes.length !== shown.nodes.length || nodes.some((n) => !shown.nodes.some((g) => g.id === n.id))) return;
     if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
-    const key = `${sizeKey}#${quoteDyVersion}`;
+    const key = `${sizeKey}#${quoteDyVersion}#${JSON.stringify(sizes[level] ?? {})}`;
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
     measureQuoteDy();
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const pending = anchorOnResize.current && nodes.find((n) => n.id === anchorOnResize.current!.id);
@@ -256,7 +276,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       const fitFloor = fitMinZoom(textScale, levelRef.current, shown.nodes.some((n) => n.data.kind === "commit"));
       void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
     }
-  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale]);
+  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, level]);
 
   const quoteAt = (x: number, y: number) => {
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
@@ -444,6 +464,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
 
   const reset = () => {
     offsets.current.clear();
+    clearNodeSizes();
     setNodes((ns) => ns.map((n) => {
       const p = basePos.current.get(n.id);
       return p ? { ...n, position: p } : n;
@@ -463,11 +484,12 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
+      <ResizeContext.Provider value={{ level, textScale, setWidth }}>
       <div className="canvas-layout">
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
+        nodeTypes={resizableNodeTypes}
         onNodesChange={onNodesChange}
         onMove={onMove}
         nodesDraggable
@@ -500,6 +522,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         maskColor="var(--minimap-mask)"
       />
       </div>
+      </ResizeContext.Provider>
     </CollapseContext.Provider>
     </div></SearchfoxContext.Provider>
     </ChatActionsContext.Provider>

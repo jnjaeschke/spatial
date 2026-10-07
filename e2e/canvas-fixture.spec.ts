@@ -264,3 +264,37 @@ test("zooming with the control buttons from the keyboard stops the automatic fit
   await waitForCanvasSettled(page);
   expect(await zoomOf(page)).toBeCloseTo(zoom, 5);
 });
+
+test("resizing a node persists width per zoom level and reset restores defaults", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "concept");
+  const first = page.getByTestId("change-c1").locator("..");
+  const second = page.getByTestId("change-c2").locator("..");
+  await first.click();
+  const beforeWidth = (await first.boundingBox())!.width;
+  const handle = first.locator(".react-flow__resize-control.right");
+  await expect(handle).toBeVisible();
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(async () => (await first.boundingBox())!.width).toBeGreaterThan(beforeWidth + 100);
+  await waitForCanvasSettled(page);
+  const resized = (await first.boundingBox())!;
+  const below = (await second.boundingBox())!;
+  expect(below.y).toBeGreaterThanOrEqual(resized.y + resized.height);
+
+  const resizedWidth = (await first.boundingBox())!.width;
+  await page.reload();
+  await setLevel(page, "concept");
+  const reloadedFirst = page.getByTestId("change-c1").locator("..");
+  await expect.poll(async () => (await reloadedFirst.boundingBox())!.width).toBeCloseTo(resizedWidth, -1);
+  await setLevel(page, "code");
+  await expect(reloadedFirst).toHaveCSS("width", /\d+px/);
+  const codeWidth = (await reloadedFirst.boundingBox())!.width;
+  expect(codeWidth).toBeGreaterThan(resizedWidth);
+  await setLevel(page, "concept");
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await expect.poll(async () => (await reloadedFirst.boundingBox())!.width).toBeLessThan(resizedWidth - 100);
+});
