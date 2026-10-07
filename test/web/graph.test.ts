@@ -632,7 +632,7 @@ test("closeGraph drops closed chats, their replies and diagrams, and lists close
   assert.deepEqual(change.kind === "change" ? change.threads : null, []);
   assert.ok(!graph.nodes.some((node) => node.id === "T2" || node.id === "T3"));
   assert.ok(!graph.edges.some((edge) => edge.source === "T2" || edge.source === "T3"));
-  assert.deepEqual(Object.fromEntries(closedOn), { "N#c1": ["T1"], N: ["T2"] });
+  assert.deepEqual(Object.fromEntries(closedOn), { "N#c1": [{ id: "T1", kind: "chat" }], N: [{ id: "T2", kind: "chat" }] });
   const diagrams = closeGraph(sessionGraph(state([stackDiff, stackNarrative, diagram("D-1", "2")]))!, new Set(["D-1"])).graph;
   assert.ok(!diagrams.nodes.some((node) => node.data.kind === "diagram"));
 });

@@ -170,15 +170,18 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
 }
 
-/** The graph without closed chats and diagrams, and per host node the closed chats it can reopen. Nodes anchored only on closed nodes close with them. */
-export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Graph; closedOn: Map<string, string[]> } {
-  const closedOn = new Map<string, string[]>();
-  const addClosed = (host: string, id: string) => closedOn.set(host, [...(closedOn.get(host) ?? []), id]);
+export interface ClosedItem { id: string; kind: "chat" | "note" }
+
+/** The graph without closed chats, notes and diagrams, and per host node the closed chats and notes it can reopen. Nodes anchored only on closed nodes close with them. */
+export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Graph; closedOn: Map<string, ClosedItem[]> } {
+  const closedOn = new Map<string, ClosedItem[]>();
+  const addClosed = (host: string, id: string, kind: ClosedItem["kind"] = "chat") => closedOn.set(host, [...(closedOn.get(host) ?? []), { id, kind }]);
   const gone = new Set<string>();
   for (const n of g.nodes) {
     if (!closed.has(n.id)) continue;
     if (n.data.kind === "diagram") gone.add(n.id);
     if (n.data.kind === "chat" && n.data.threadId !== null) { gone.add(n.id); addClosed(n.anchors![0]!, n.id); }
+    if (n.data.kind === "note") { gone.add(n.id); addClosed(n.anchors![0]!, n.id, "note"); }
   }
   for (let grew = gone.size > 0; grew;) {
     grew = false;

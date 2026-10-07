@@ -287,7 +287,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .collapse, .close { margin-left: 8px; padding: 0 4px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 0.8em; color: var(--text-3); cursor: pointer; box-shadow: none; }
 .close { margin-left: 2px; }
 .close:hover { color: var(--danger); }
-.reopen-chats { display: block; margin-top: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--accent); font: inherit; font-size: 0.85em; cursor: pointer; }
+.reopen-closed { display: block; margin-top: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--accent); font: inherit; font-size: 0.85em; cursor: pointer; }
 button.collapse:hover:not(:disabled) { background: var(--surface-3); color: var(--text); border-color: transparent; }
 .over-collapsed-quote .react-flow__node, .over-collapsed-quote .react-flow__node * { cursor: pointer; }
 .node .body { cursor: text; user-select: text; }

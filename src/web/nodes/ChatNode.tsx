@@ -9,7 +9,7 @@ import { LlmPicker } from "../LlmPicker.tsx";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { ClosedContext } from "../closed.ts";
-import { ReopenChats } from "../ReopenChats.tsx";
+import { ReopenClosed } from "../ReopenClosed.tsx";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
@@ -29,7 +29,7 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
       {!closed && <>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <Conversation {...data} />
-      <ReopenChats hostId={nodeId} />
+      <ReopenClosed hostId={nodeId} />
       </>}
     </div>
   );

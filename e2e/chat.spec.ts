@@ -124,6 +124,12 @@ test("/note from an aside draft creates a positioned draft note without a chat t
   expect(snapshot.tasks.some((task) => task.kind === "chatTurn")).toBe(false);
   await page.reload();
   await expect(page.locator(".note-node")).toContainText("check the lifetime here");
+  await note.getByRole("button", { name: "Close" }).click();
+  await expect(note).toHaveCount(0);
+  const reopen = page.getByTestId("conversation").getByRole("button", { name: "Reopen 1 closed note" });
+  await revealNode(page, reopen);
+  await reopen.click();
+  await expect(note).toContainText("check the lifetime here");
 });
 
 test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {

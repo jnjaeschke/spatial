@@ -1,7 +1,8 @@
 import { createContext, useCallback, useState } from "react";
+import type { ClosedItem } from "./graph.ts";
 
-/** Closed chat and diagram ids. Client-only view state, kept per session in localStorage. */
-export const ClosedContext = createContext<{ close(id: string): void; reopen(ids: string[]): void; closedOn: ReadonlyMap<string, string[]> } | null>(null);
+/** Closed chat, note and diagram ids. Client-only view state, kept per session in localStorage. */
+export const ClosedContext = createContext<{ close(id: string): void; reopen(ids: string[]): void; closedOn: ReadonlyMap<string, ClosedItem[]> } | null>(null);
 
 export function useClosed(sessionId: string) {
   const key = `spatial-ide:closed:${sessionId}`;

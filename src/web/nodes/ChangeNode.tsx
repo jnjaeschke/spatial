@@ -6,7 +6,7 @@ import { InlineText } from "../InlineText.tsx";
 import { AskContext } from "../chat-context.ts";
 import { CollapseContext } from "../collapse.ts";
 import { ClosedContext } from "../closed.ts";
-import { ReopenChats } from "../ReopenChats.tsx";
+import { ReopenClosed } from "../ReopenClosed.tsx";
 import { commitColors } from "../commit-colors.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
@@ -55,7 +55,7 @@ export function ChangeNode({ id: nodeId, data }: NodeProps<ChangeFlowNode>) {
         )}
         {level === "code" && hunks.map(({ file, hunk }) => <DiffView key={hunk.id} sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} threads={inlineThreads} renderThread={renderThread} />)}
         {level !== "patch" && data.threads.filter((thread) => level === "concept" || !inlineThreads.includes(thread)).map((thread) => <div key={thread.threadId ?? thread.draftId}>{renderThread(thread)}</div>)}
-        {level !== "patch" && <ReopenChats hostId={nodeId} />}
+        {level !== "patch" && <ReopenClosed hostId={nodeId} />}
       </div>}
       <Handle type="source" position={Position.Bottom} />
     </div>
