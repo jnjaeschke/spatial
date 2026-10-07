@@ -4,16 +4,16 @@ import type { Artifact, DiffData, PatchNarrativeData, PhabCommentData } from "..
 import { phabView } from "../../src/shared/phab-anchor.ts";
 
 const make = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, data, status: "verified", provenance: { taskId: "runtime" }, createdAt: id });
-const diff = (id: string, newLines: { kind: "ctx" | "add" | "del"; text: string }[], oldStart = 28): Artifact<DiffData> => make(id, "Diff", {
-  baseSha: "b", headSha: id, commits: [{ sha: id, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [{ id: `${id}h0`, header: "@@", oldStart, oldLines: newLines.length, newStart: 28, newLines: newLines.filter((line) => line.kind !== "del").length, lines: newLines }] }],
+const diff = (id: string, newLines: { kind: "ctx" | "add" | "del"; text: string }[], oldStart = 28, commits = [{ sha: id, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }]): Artifact<DiffData> => make(id, "Diff", {
+  baseSha: "b", headSha: id, commits, files: [{ path: "a.txt", status: "modified", binary: false, hunks: [{ id: `${id}h0`, header: "@@", oldStart, oldLines: newLines.length, newStart: 28, newLines: newLines.filter((line) => line.kind !== "del").length, lines: newLines }] }],
 });
 const narrative = (id: string, diffId: string, hunkId: string | null): Artifact<PatchNarrativeData> => make(id, "PatchNarrative", {
   diffId, summary: "summary", changes: hunkId ? [{ id: "c", title: "change", explanation: "", rationale: "", hunkIds: [hunkId], dependsOn: [], specUrls: [] }] : [],
 });
 const comment = (id: string, values: Partial<PhabCommentData> = {}) => make<PhabCommentData>(id, "PhabComment", {
-  revision: 1, phid: id, version: 1, author: "alice", bot: false, body: "body", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1, ...values,
+  revision: 1, phid: id, version: 1, author: "alice", bot: false, body: "body", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, quote: "target", own: false, done: false, txId: 1, dateCreated: 1, ...values,
 });
-const sync = (diffId: string, matchingDiffId: number | null) => make("sync-" + diffId, "PhabSync", { localDiff: diffId, matchingDiffId, revision: 1, latestDiffId: 1 });
+const sync = (diffId: string, matchingDiffId: number | null, revision = 1) => make("sync-" + diffId + "-" + revision, "PhabSync", { localDiff: diffId, matchingDiffId, revision, latestDiffId: 1 });
 
 test("phabView anchors direct new-side comments only on narrated hunks", () => {
   const d = diff("D1", [{ kind: "add", text: "one" }, { kind: "ctx", text: "target" }, { kind: "add", text: "three" }, { kind: "add", text: "four" }, { kind: "add", text: "five" }, { kind: "add", text: "six" }, { kind: "add", text: "seven" }]);
@@ -28,7 +28,7 @@ test("phabView anchors direct new-side comments only on narrated hunks", () => {
 test("phabView carries prior comments by matching line text and preserves outdated comments", () => {
   const old = diff("D1", [{ kind: "add", text: "first" }, { kind: "add", text: "target" }, { kind: "add", text: "last" }]);
   const current = diff("D2", [{ kind: "add", text: "first" }, { kind: "add", text: "inserted" }, { kind: "add", text: "target" }, { kind: "add", text: "last" }]);
-  const n1 = narrative("N1", "D1", "D1h0"), n2 = narrative("N2", "D2", "D2h0"), c = comment("C", { diffId: 1, line: 29 });
+  const n1 = narrative("N1", "D1", "D1h0"), n2 = narrative("N2", "D2", "D2h0"), c = comment("C", { diffId: 1, line: 29, quote: "target" });
   const artifacts = [old, n1, sync("D1", 1), current, n2, sync("D2", null), c];
   const view = phabView(artifacts, current, n2.data);
   assert.equal(view.anchored[0]?.anchor, "D2#D2h0");
@@ -45,7 +45,7 @@ test("phabView leaves unlisted and old-side latest comments separate, and carrie
   const n1 = narrative("N1", "D1", "D1h0"), n2 = narrative("N2", "D2", "D2h0");
   const direct = comment("direct", { diffId: 2, line: 29, isNewFile: false });
   const oldSide = comment("old-side", { diffId: 2, line: 28, isNewFile: false });
-  const carried = comment("carried", { diffId: 1, line: 28, isNewFile: false });
+  const carried = comment("carried", { diffId: 1, line: 28, isNewFile: false, quote: "removed" });
   const arts = [old, n1, sync("D1", 1), current, n2, sync("D2", 2), direct, oldSide, carried];
   const view = phabView(arts, current, n2.data);
   assert.deepEqual(view.anchored.map((item) => [item.anchorId, item.side, item.fromEpoch]), [["carried", "old", 1]]);
@@ -53,6 +53,30 @@ test("phabView leaves unlisted and old-side latest comments separate, and carrie
   assert.equal(view.unanchored[0]?.comments.length, 2);
   const noStory = phabView(arts, current, narrative("N2-empty", "D2", null).data);
   assert.ok(noStory.unanchored.some((item) => item.diffId === 2 && item.outdatedEpoch === null));
+});
+
+test("phabView reanchors earlier stack revision comments by their stored quote", () => {
+  const commits = [
+    { sha: "C1", subject: "first", body: "Differential Revision: https://phab.example.com/D1" },
+    { sha: "H", subject: "second", body: "Differential Revision: https://phab.example.com/D2" },
+  ];
+  const d = diff("stack", [{ kind: "add", text: "before" }, { kind: "add", text: "target" }, { kind: "add", text: "after" }], 28, commits);
+  const n = narrative("N", "stack", "stackh0");
+  const earlier = comment("earlier", { revision: 1, diffId: 11, line: 99, quote: "target" });
+  const arts = [d, n, sync("stack", 11, 1), sync("stack", 22, 2), earlier];
+  const view = phabView(arts, d, n.data);
+  assert.equal(view.anchored[0]?.anchor, "stack#stackh0");
+  assert.equal(view.anchored[0]?.line, 29);
+  assert.equal(view.anchored[0]?.fromEpoch, null);
+
+  const withoutQuote = comment("without-quote", { revision: 1, diffId: 11, line: 99, quote: undefined });
+  const noQuoteView = phabView([...arts.slice(0, -1), withoutQuote], d, n.data);
+  assert.equal(noQuoteView.anchored.length, 0);
+  assert.equal(noQuoteView.unanchored[0]?.outdatedEpoch, null);
+
+  const head = comment("head", { revision: 2, diffId: 22, line: 29, quote: "before" });
+  const headView = phabView([...arts, head], d, n.data);
+  assert.equal(headView.anchored.find((item) => item.anchorId === "head")?.line, 29);
 });
 
 test("phabView groups replies after their root, uses root done state, and omits own comments", () => {

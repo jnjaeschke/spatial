@@ -93,7 +93,7 @@ test("old-side inline is listed unanchored", async ({ page, request }) => {
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(130, "a.txt", 30, "Old side note", { diffId: ids.d1, isNewFile: false })] }));
   await expect(page.getByTestId("phab-thread")).toHaveCount(0, { timeout: 5_000 });
   const summary = page.getByTestId("summary");
-  await expect(summary).toContainText(`Phabricator comments (diff ${ids.d1}, old side)`, { timeout: 10_000 });
+  await expect(summary).toContainText(`Phabricator comments (D${ids.revision}, diff ${ids.d1}, old side)`, { timeout: 10_000 });
   await expect(summary).toContainText("alice");
 });
 
@@ -117,7 +117,7 @@ test("inline on a non-matching diff goes to the summary list", async ({ page, re
   const ids = newRevision();
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d2, ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(150, "a.txt", 30, "Different patch", { diffId: ids.d2 })] }));
   await expect(page.getByTestId("phab-thread")).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId("summary")).toContainText(`Phabricator comments (diff ${ids.d2}, not matching local)`, { timeout: 10_000 });
+  await expect(page.getByTestId("summary")).toContainText(`Phabricator comments (D${ids.revision}, diff ${ids.d2}, not matching local)`, { timeout: 10_000 });
   await expect(page.getByTestId("summary")).toContainText("alice");
 });
 

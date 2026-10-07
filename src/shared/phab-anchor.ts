@@ -34,6 +34,7 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
   const matchingDiffId = sync?.data.matchingDiffId ?? null;
   const diffs = artifacts.filter((artifact): artifact is Artifact<DiffData> => artifact.type === "Diff");
   const currentEpoch = epochNumber(artifacts, diff.id);
+  const headRevision = phabRevision(diff.data)?.id;
   const listed = new Set(narrative.changes.flatMap((change) => change.hunkIds));
   const currentRows = rowsByFile(diff.data);
   const latest = latestPhabComments(artifacts);
@@ -57,7 +58,21 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
     const data = root.data;
     if (!data.path || data.line === undefined) continue;
     const thread = commentsFor(root);
-    if (data.isNewFile === true && matchingDiffId !== null && data.diffId === matchingDiffId) {
+    const revision = data.revision;
+    const currentMatchingDiffId = latestPhabSync(artifacts, diff.id, revision)?.data.matchingDiffId ?? null;
+    if (data.diffId === currentMatchingDiffId) {
+      if (data.isNewFile !== true) {
+        unanchor(root, null);
+        continue;
+      }
+      if (revision !== headRevision) {
+        const result = data.quote ? reanchorFinding({ quote: data.quote, lines: { path: data.path, side: "new", start: data.line, end: data.line }, oldHunks: [] }, diff.data) : null;
+        if (result && placeable(result.hunkId) && result.lines) {
+          const anchorId = phabAnchorId(artifacts, data.phid);
+          if (anchorId) anchored.push({ anchorId, anchor: `${diff.id}#${result.hunkId}`, path: result.lines.path, line: result.lines.start, side: "new", done: data.done, fromEpoch: null, comments: thread });
+        } else unanchor(root, null);
+        continue;
+      }
       const row = currentRows.find((candidate) => candidate.pathMatches(data.path!) && candidate.rows.some((item) => item.line === data.line && item.side === "new" && (item.row.kind === "add" || item.row.kind === "ctx")));
       if (row) {
         const found = row.rows.find((item) => item.line === data.line && item.side === "new" && (item.row.kind === "add" || item.row.kind === "ctx"))!;
@@ -70,17 +85,15 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
         continue;
       }
     }
-    const previous = diffs.filter((item) => item.id !== diff.id && epochNumber(artifacts, item.id) < currentEpoch && phabRevision(item.data) && latestPhabSync(artifacts, item.id, phabRevision(item.data)!.id)?.data.matchingDiffId === data.diffId)
+    const previous = diffs.filter((item) => item.id !== diff.id && epochNumber(artifacts, item.id) < currentEpoch && latestPhabSync(artifacts, item.id, revision)?.data.matchingDiffId === data.diffId)
       .sort((a, b) => epochNumber(artifacts, b.id) - epochNumber(artifacts, a.id))[0];
     if (previous) {
-      const source = rowsByFile(previous.data).find((candidate) => candidate.pathMatches(data.path!) && candidate.rows.some((item) => item.line === data.line && item.side === (data.isNewFile ? "new" : "old") && (data.isNewFile ? item.row.kind !== "del" : item.row.kind === "del")));
-      const row = source?.rows.find((item) => item.line === data.line && item.side === (data.isNewFile ? "new" : "old") && (data.isNewFile ? item.row.kind !== "del" : item.row.kind === "del"));
       const oldEpoch = epochNumber(artifacts, previous.id);
-      if (!source || !row) { unanchor(root, oldEpoch); continue; }
-      const result = reanchorFinding({ quote: row.row.text, lines: { path: data.path, side: row.side, start: data.line, end: data.line }, oldHunks: [] }, diff.data);
+      const side = data.isNewFile ? "new" : "old";
+      const result = data.quote ? reanchorFinding({ quote: data.quote, lines: { path: data.path, side, start: data.line, end: data.line }, oldHunks: [] }, diff.data) : null;
       if (result && placeable(result.hunkId) && result.lines) {
         const anchorId = phabAnchorId(artifacts, data.phid);
-        if (anchorId) anchored.push({ anchorId, anchor: `${diff.id}#${result.hunkId}`, path: result.lines.path, line: result.lines.start, side: row.side, done: data.done, fromEpoch: oldEpoch, comments: thread });
+        if (anchorId) anchored.push({ anchorId, anchor: `${diff.id}#${result.hunkId}`, path: result.lines.path, line: result.lines.start, side, done: data.done, fromEpoch: oldEpoch, comments: thread });
       } else unanchor(root, oldEpoch);
       continue;
     }

@@ -42,9 +42,10 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         {data.level !== "patch" && data.phabUnanchored.map((group, index) => {
           const id = group.outdatedEpoch === null ? null : `phab-outdated:${group.outdatedEpoch}`;
           const closedGroup = id !== null && (collapse?.collapsed.has(id) ?? false);
+          const revision = group.comments[0]?.data.revision;
           const title = group.outdatedEpoch !== null ? `Phabricator comments (outdated, epoch ${group.outdatedEpoch})`
-            : group.oldSide ? `Phabricator comments (diff ${group.diffId}, old side)`
-              : `Phabricator comments${group.diffId === null ? " (not matching local)" : ` (diff ${group.diffId}, not matching local)`}`;
+            : group.oldSide ? `Phabricator comments (D${revision}, diff ${group.diffId}, old side)`
+              : `Phabricator comments (D${revision}${group.diffId === null ? ", not matching local" : `, diff ${group.diffId}, not matching local`})`;
           return <section className="phab-summary" key={`${group.diffId}:${group.oldSide}:${group.outdatedEpoch}:${index}`}>
             <h4>{title}{id !== null && collapse && <button aria-label={closedGroup ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(id)}>{closedGroup ? "▸" : "▾"}</button>}</h4>
             {!closedGroup && <ul className="phab-comments">{group.comments.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} where={`${comment.data.path}:${comment.data.line}`} /></li>)}</ul>}
