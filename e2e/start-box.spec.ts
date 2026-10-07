@@ -124,6 +124,8 @@ test("/review with a range runs the review chain", async ({ page, request }) => 
   await expect(page).toHaveURL(/\?session=/);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Epoch 1")).toBeVisible();
+  await expect(page.getByTestId("review-range")).toContainText("Reviewing 1 commit:");
+  await expect(page.getByTestId("review-range")).toHaveAttribute("title", /^[0-9a-f]+\.\.[0-9a-f]+$/);
 });
 
 test("/review D<id> imports the revision named by .arcconfig and leaves the repo untouched", async ({ page, request }) => {

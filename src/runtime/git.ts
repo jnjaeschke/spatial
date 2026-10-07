@@ -11,6 +11,51 @@ import { parseBlame } from "./blame.ts";
 
 const run = promisify(execFile);
 const MAX_BUFFER = 512 * 1024 * 1024;
+const MAX_SCM_OUTPUT = 64 * 1024;
+
+function capScmOutput(output: string): string {
+  return output.length > MAX_SCM_OUTPUT ? `${output.slice(0, MAX_SCM_OUTPUT)}\n[output truncated]` : output;
+}
+
+function safeRevision(value: string, name: string): string {
+  if (!value || value.startsWith("-")) throw new Error(`Invalid ${name}: ${value}`);
+  return value;
+}
+
+/** Read-only SCM summaries for an agent working in this repository. */
+export async function scmStatus(repo: string): Promise<string> {
+  let branch: string;
+  try { branch = (await git(repo, ["symbolic-ref", "--quiet", "--short", "HEAD"])).trim(); }
+  catch { branch = (await git(repo, ["rev-parse", "--short", "HEAD"])).trim() + " (detached HEAD)"; }
+  let upstream = "";
+  try { upstream = (await git(repo, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"])).trim(); }
+  catch { /* An upstream is optional. */ }
+  const lines = (await git(repo, ["--no-optional-locks", "status", "--porcelain", "--untracked-files=normal"])).trimEnd().split("\n").filter(Boolean).slice(0, 200);
+  return capScmOutput([`Branch: ${branch}`, ...(upstream ? [`Upstream: ${upstream}`] : []), lines.length ? "Changes:" : "Working tree clean.", ...lines].join("\n"));
+}
+
+export async function scmBranches(repo: string): Promise<string> {
+  const out = await git(repo, ["for-each-ref", "--format=%(refname:short)%00%(objectname:short)%00%(upstream:short)%00%(subject)", "refs/heads"]);
+  const rows = out.trimEnd().split("\n").filter(Boolean).slice(0, 200);
+  return capScmOutput(rows.length ? rows.map((row) => { const [name, sha, upstream, subject] = row.split("\0"); return `${name} ${sha}${upstream ? ` [${upstream}]` : ""} ${subject}`; }).join("\n") : "No local branches.");
+}
+
+export async function scmLog(repo: string, range: string, limit = 50): Promise<string> {
+  safeRevision(range, "range");
+  const out = await git(repo, ["log", `-${Math.min(Math.max(Math.trunc(limit), 1), 500)}`, "--abbrev=12", "--format=%h %s", "--end-of-options", range]);
+  return capScmOutput(out.trimEnd() || "No commits.");
+}
+
+export async function scmMergeBase(repo: string, a: string, b: string): Promise<string> {
+  safeRevision(a, "revision"); safeRevision(b, "revision");
+  try { return (await git(repo, ["merge-base", "--end-of-options", a, b])).trim(); }
+  catch (error) { if ((error as { code?: number }).code === 1) return "none"; throw error; }
+}
+
+export async function scmShow(repo: string, rev: string): Promise<string> {
+  safeRevision(rev, "revision");
+  return capScmOutput((await git(repo, ["show", "--no-patch", "--format=commit %H%nAuthor: %an <%ae>%nDate: %aI%n%n%B", "--stat", "--end-of-options", rev])).trimEnd());
+}
 
 async function git(repo: string, args: string[], env?: Record<string, string>): Promise<string> {
   const { stdout } = await run("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}) });

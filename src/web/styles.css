@@ -211,6 +211,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .analysis { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; color: var(--text-2); }
 .failed { color: var(--danger); }
 .epoch, .epoch-marker { font-size: 11.5px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent); border-radius: 999px; padding: 1px 9px; }
+.range { font: 11px var(--font-mono); color: var(--text-2); white-space: nowrap; }
 .epoch-marker { font-size: 10.5px; padding: 0 7px; margin-right: 6px; }
 .revision-view { overflow: auto; padding: 16px 20px; min-height: 0; }
 .revision-view .diff { background: var(--surface); }

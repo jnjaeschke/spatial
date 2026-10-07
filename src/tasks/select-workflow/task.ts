@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Id, LlmSelection, WorkflowId, WorkflowStartData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { workflows } from "../../workflows/registry.ts";
+import { prependRepoContext } from "../../runtime/repo-context.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 
@@ -26,7 +27,7 @@ export const selectWorkflow = defineTask<{ prompt: string; llm?: LlmSelection },
   async run(ctx, { prompt, llm }) {
     if (!prompt.trim()) throw new Error("Request is empty");
     const list = Object.values(workflows).map((w) => `- ${w.id}: ${w.description}\n  params: ${JSON.stringify(jsonSchema(w.params))}`).join("\n");
-    const r = await ctx.llm.run({ prompt: ["# Workflows", "", list, "", "# Request", "", prompt].join("\n"), system: SYSTEM, schema: selectorSchema(), cwd: ctx.repo, tools: "none" }, llm);
+    const r = await ctx.llm.run({ prompt: ["# Workflows", "", list, "", "# Request", "", prompt].join("\n"), system: prependRepoContext(SYSTEM, ctx), schema: selectorSchema(), cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const json = r.json as { workflow?: unknown; title?: unknown; params?: unknown } | undefined;
     const id = json?.workflow;
     if (typeof id !== "string" || !Object.hasOwn(workflows, id)) throw new Error(`Selector chose an unknown workflow: ${JSON.stringify(id)}`);

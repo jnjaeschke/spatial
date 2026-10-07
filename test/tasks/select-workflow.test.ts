@@ -21,7 +21,7 @@ function setup(json: unknown) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [selectWorkflow], llm, git: () => ({}) as GitCapability,
+  const rt = new Runtime({ store, tasks: [selectWorkflow], llm, sessionMcp: () => ({ spatial: { type: "stdio", command: "spatial", args: [] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { store, rt, session, get call() { return call; } };
@@ -37,7 +37,8 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.equal(start.status, "proposed");
   assert.ok(start.provenance.llm);
   assert.deepEqual(start.data, { via: "selector", workflow: "chat", params: {}, title: "Explain X", prompt: input });
-  assert.equal(setupResult.call?.tools, "none");
+  assert.equal(setupResult.call?.tools, "read-only");
+  assert.deepEqual(setupResult.call?.mcpServers, { spatial: { type: "stdio", command: "spatial", args: [] } });
   assert.deepEqual(setupResult.call?.schema, selectorSchema());
   const schema = selectorSchema() as { properties: { workflow: { enum: string[] }; params: { anyOf: unknown[] } } };
   assert.deepEqual(schema.properties.workflow.enum, ["review", "chat"]);
@@ -45,6 +46,8 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.ok(!("$schema" in schema));
   for (const text of ["# Workflows", "- review:", "- chat:", "# Request", input]) assert.ok(setupResult.call?.prompt.includes(text), text);
   assert.ok(setupResult.call?.system?.includes("both `base` and `head` to null"));
+  assert.ok(setupResult.call?.system?.includes("Repository instructions"));
+  assert.ok(setupResult.call?.system?.includes("scm_log"));
 });
 
 test("selector validates review params", async () => {
