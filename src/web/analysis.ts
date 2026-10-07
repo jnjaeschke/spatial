@@ -1,9 +1,9 @@
 import type { LlmSelection, SessionState } from "../shared/types.ts";
 import { latestDiff } from "../shared/epochs.ts";
 
-export type Step = "importRevision" | "importDiff" | "narrate";
+export type Step = "importRevision" | "reviewRange" | "importDiff" | "narrate";
 export type Analysis = { state: "none" } | { state: "running"; step: Step | null } | { state: "failed"; step: Step; error: string };
-const STEPS = new Set<Step>(["importRevision", "importDiff", "narrate"]);
+const STEPS = new Set<Step>(["importRevision", "reviewRange", "importDiff", "narrate"]);
 
 /** Progress for the latest review analysis while its epoch has no narrative. */
 export function analysisStatus(state: SessionState): Analysis {

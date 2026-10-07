@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { Id, LlmSelection, WorkflowId, WorkflowInfo } from "../shared/types.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { narratePatch } from "./narrate-patch.ts";
-import { defaultReviewRange } from "./review-range.ts";
 import { parseRevisionRef } from "../shared/phabricator.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
@@ -53,7 +52,7 @@ const review: Workflow<ReviewParams> = {
     }
     const range = params.base !== null && params.head !== null
       ? { base: params.base, head: params.head }
-      : await defaultReviewRange(rt, sessionId);
+      : await rt.run<{ base: string; head: string }>(sessionId, "reviewRange", {});
     await narratePatch(rt, sessionId, { ...range, llm });
   },
 };

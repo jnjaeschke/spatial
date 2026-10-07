@@ -10,7 +10,8 @@ export function AnalysisStatus({ state, models }: { state: SessionState; models:
   const message = status.state === "none" ? "This session has no review. Start one from the start screen."
     : status.state === "failed" ? `Analysis failed: ${status.error}`
       : status.step === "importRevision" ? "Fetching the revision…"
-        : status.step === "importDiff" ? "Reading the commits…" : "Analyzing the patch…";
+        : status.step === "reviewRange" ? "Reading the work tree…"
+          : status.step === "importDiff" ? "Reading the commits…" : "Analyzing the patch…";
   return <div className="analysis" data-testid="analysis" data-state={status.state}>
     <span>{message}</span>{status.state === "failed" && body && <button onClick={() => api.narrate(state.session.id, body).catch((e: Error) => setError(e.message))}>Retry</button>}
     {error && <span className="failed">{error}</span>}

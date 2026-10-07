@@ -3,11 +3,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Runtime } from "../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
 import { Store } from "../../src/runtime/store.ts";
 import { makeGit } from "../../src/runtime/git.ts";
 import { importDiff } from "../../src/tasks/import-diff/task.ts";
+import { reviewRange } from "../../src/tasks/review-range/task.ts";
 import { defaultReviewRange } from "../../src/workflows/review-range.ts";
+import { analysisStatus } from "../../src/web/analysis.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 function runtimeFor(dir: string) {
@@ -37,7 +39,7 @@ test("defaultReviewRange snapshots dirty worktrees for importDiff", async () => 
   const before = state(r);
   const { store, session, rt } = runtimeFor(r.dir);
   try {
-    const range = await defaultReviewRange(rt, session.id);
+    const range = await defaultReviewRange(session.worktree, rt.gitFor(session.id));
     assert.equal(range.base, r.git("rev-parse", "HEAD"));
     assert.match(range.head, /^refs\/spatial\/worktree\/[0-9a-f]{12}$/);
     assert.equal(r.git("rev-parse", `${range.head}^`), range.base);
@@ -57,11 +59,11 @@ test("defaultReviewRange uses latest commit when clean or tree-equivalent dirty"
   r.commit({ "a.txt": "new\n" }, "second");
   const { store, session, rt } = runtimeFor(r.dir);
   try {
-    assert.deepEqual(await defaultReviewRange(rt, session.id), { base: "HEAD~1", head: "HEAD" });
+    assert.deepEqual(await defaultReviewRange(session.worktree, rt.gitFor(session.id)), { base: "HEAD~1", head: "HEAD" });
     writeFileSync(join(r.dir, "a.txt"), "staged\n");
     r.git("add", "a.txt");
     writeFileSync(join(r.dir, "a.txt"), "new\n");
-    assert.deepEqual(await defaultReviewRange(rt, session.id), { base: "HEAD~1", head: "HEAD" });
+    assert.deepEqual(await defaultReviewRange(session.worktree, rt.gitFor(session.id)), { base: "HEAD~1", head: "HEAD" });
     assert.equal(r.git("for-each-ref", "refs/spatial"), "");
   } finally { store.close(); }
 });
@@ -73,8 +75,26 @@ test("repeated dirty snapshots have the same tree", async () => {
   writeFileSync(join(dir, "a.txt"), "dirty\n");
   const { store, session, rt } = runtimeFor(dir);
   try {
-    const a = await defaultReviewRange(rt, session.id);
-    const b = await defaultReviewRange(rt, session.id);
+    const a = await defaultReviewRange(session.worktree, rt.gitFor(session.id));
+    const b = await defaultReviewRange(session.worktree, rt.gitFor(session.id));
     assert.equal(r.git("rev-parse", `${a.head}^{tree}`), r.git("rev-parse", `${b.head}^{tree}`));
+  } finally { store.close(); }
+});
+
+test("failed default range is a failed reviewRange analysis step", async () => {
+  const store = new Store(":memory:");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "review" });
+  const rt = new Runtime({
+    store, tasks: [reviewRange], git: () => ({ isDirty: async () => { throw new Error("git status failed"); } }) as unknown as GitCapability,
+    llm: {} as never, webspec: {} as never, searchfox: {} as never,
+  });
+  try {
+    await assert.rejects(rt.run(session.id, "reviewRange", {}), /git status failed/);
+    const tasks = store.listTasks(session.id);
+    assert.equal(tasks.at(-1)?.kind, "reviewRange");
+    assert.equal(tasks.at(-1)?.status, "failed");
+    assert.deepEqual(analysisStatus({ tasks, artifacts: [] } as any), {
+      state: "failed", step: "reviewRange", error: "git status failed",
+    });
   } finally { store.close(); }
 });
