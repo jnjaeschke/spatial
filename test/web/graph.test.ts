@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { anchorNodeId, closeGraph, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, stackLayout, diagramStepTarget, type GraphNode } from "../../src/web/graph.ts";
+import { anchorNodeId, closeGraph, diagramLayoutEdges, estimateSize, fitMinZoom, latestNarrative, layout, narrativeGraph, placeSatellites, sessionGraph, visibleGraph, zoomLevel, SATELLITE_WIDTH, NODE_WIDTH, levelGraph, layerGraph, stackLayout, diagramStepTarget, type GraphNode } from "../../src/web/graph.ts";
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -274,9 +274,9 @@ test("sessionGraph counts active findings on their owning commit cards", () => {
 test("stackLayout keeps lanes and their satellites separate below the summary", () => {
   const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   const nodes = [...graph.nodes,
-    { id: "F1", anchors: ["NS#c1"], data: { kind: "finding", findingId: "F1", diffId: "DS", hunks: [], anchor: "NS#c1", category: "tests", severity: "low", title: "F1", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
-    { id: "F3", anchors: ["NS#c3"], data: { kind: "finding", findingId: "F3", diffId: "DS", hunks: [], anchor: "NS#c3", category: "tests", severity: "low", title: "F3", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
-    { id: "FS", anchors: ["NS"], data: { kind: "finding", findingId: "FS", diffId: "DS", hunks: [], anchor: "NS", category: "tests", severity: "low", title: "FS", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
+    { id: "F1", anchors: ["NS#c1"], data: { kind: "finding", findingId: "F1", ai: true, diffId: "DS", hunks: [], anchor: "NS#c1", category: "tests", severity: "low", title: "F1", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
+    { id: "F3", anchors: ["NS#c3"], data: { kind: "finding", findingId: "F3", ai: true, diffId: "DS", hunks: [], anchor: "NS#c3", category: "tests", severity: "low", title: "F3", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
+    { id: "FS", anchors: ["NS"], data: { kind: "finding", findingId: "FS", ai: true, diffId: "DS", hunks: [], anchor: "NS", category: "tests", severity: "low", title: "FS", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
   ] as GraphNode[];
   const sized = nodes.map((n) => ({ id: n.id, data: n.data, anchors: n.anchors ?? [], ...estimateSize(n.data, "concept") }));
   const pos = stackLayout(sized, graph.edges);
@@ -433,7 +433,7 @@ test("estimateSize scales change and finding dimensions", () => {
   const c2 = g.nodes[2].data;
   const base = estimateSize(c2, "code");
   assert.deepEqual(estimateSize(c2, "code", 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
-  const finding = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
+  const finding = { kind: "finding" as const, findingId: "F", ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
   const findingBase = estimateSize(finding, "code");
   assert.deepEqual(estimateSize(finding, "code", 1.5), { width: SATELLITE_WIDTH * 1.5, height: findingBase.height * 1.5 });
 });
@@ -852,7 +852,7 @@ test("a finding's thread lives in the finding node, and chats on its messages an
 });
 
 test("visibleGraph hides collapsed quoted findings except dismissed cards", () => {
-  const finding = (id: string, quote?: string, decision: "accepted" | "dismissed" | null = null): GraphNode => ({ id, data: { kind: "finding", findingId: id, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null, decision, comment: null, postedTo: null, status: decision ?? "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } });
+  const finding = (id: string, quote?: string, decision: "accepted" | "dismissed" | null = null): GraphNode => ({ id, data: { kind: "finding", findingId: id, ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null, decision, comment: null, postedTo: null, status: decision ?? "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } });
   const g = { nodes: [finding("quoted", "l0"), finding("plain"), finding("dismissed", "l0", "dismissed")], edges: [{ id: "q", source: "quoted", target: "N#c1" }, { id: "p", source: "plain", target: "N#c1" }, { id: "d", source: "dismissed", target: "N#c1" }] };
   const visible = visibleGraph(g, new Set(["quoted", "plain", "dismissed"]));
   assert.deepEqual(visible.nodes.map((n) => n.id), ["plain", "dismissed"]);
@@ -860,7 +860,7 @@ test("visibleGraph hides collapsed quoted findings except dismissed cards", () =
 });
 
 test("estimateSize gives findings the satellite width", () => {
-  const data = { kind: "finding" as const, findingId: "F", diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
+  const data = { kind: "finding" as const, findingId: "F", ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
   assert.deepEqual(estimateSize(data, "concept"), { width: SATELLITE_WIDTH, height: 110 + 20 });
 });
 
@@ -919,4 +919,25 @@ test("visibleGraph hides only collapsed quoted threads and their edges", () => {
   const visible = visibleGraph({ nodes, edges }, new Set(["quoted", "plain", "draft", "N#c1"]));
   assert.deepEqual(visible.nodes.map((n) => n.id), ["plain", "draft", "N#c1"]);
   assert.deepEqual(visible.edges.map((e) => e.id), ["plain-edge", "draft-edge"]);
+});
+
+test("layerGraph hides spec cards with spec checks, AI findings, or Phabricator comments, and what hangs off them", () => {
+  const node = (id: string, data: object, anchors?: string[]) => ({ id, ...(anchors ? { anchors } : {}), data } as unknown as GraphNode);
+  const g = { nodes: [
+    node("N", { kind: "summary", phabGeneral: ["general"], phabUnanchored: ["unanchored"] }),
+    node("N#c1", { kind: "change" }),
+    node("R", { kind: "spec" }, ["N#c1"]),
+    node("T", { kind: "chat" }, ["R"]),
+    node("F-ai", { kind: "finding", ai: true }, ["N#c1"]),
+    node("F-step", { kind: "finding", ai: false }, ["N#c1"]),
+    node("P", { kind: "phab" }, ["N#c1"]),
+  ], edges: [{ id: "R->N#c1", source: "R", target: "N#c1" }, { id: "T->R", source: "T", target: "R" }, { id: "P->N#c1", source: "P", target: "N#c1" }] };
+  const ids = (hidden: string[]) => layerGraph(g, new Set(hidden as ("spec" | "review" | "phab")[])).nodes.map((n) => n.id);
+  assert.equal(layerGraph(g, new Set()), g);
+  assert.deepEqual(ids(["spec"]), ["N", "N#c1", "F-ai", "P"]);
+  assert.deepEqual(ids(["review"]), ["N", "N#c1", "R", "T", "F-step", "P"]);
+  const phab = layerGraph(g, new Set(["phab"]));
+  assert.deepEqual(phab.nodes.map((n) => n.id), ["N", "N#c1", "R", "T", "F-ai", "F-step"]);
+  assert.deepEqual(phab.nodes[0]!.data, { kind: "summary", phabGeneral: [], phabUnanchored: [] });
+  assert.deepEqual(layerGraph(g, new Set(["spec"])).edges.map((e) => e.id), ["P->N#c1"]);
 });

@@ -53,3 +53,29 @@ test("a cited spec opens beside its code, colored by the step map; Step comments
   await page.keyboard.press("Escape");
   await expect(view).toHaveCount(0);
 });
+
+test("topbar toggles hide spec cards with spec checks and AI findings, and persist", async ({ page }) => {
+  const { dir, base } = specRepo();
+  await startReview(page, dir, `${base}..HEAD`);
+  const check = page.getByText("Step 3 comment describes step 2 of HTML#navigate");
+  await expect(check).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator(".spec-node")).toHaveCount(1);
+  const specs = page.getByRole("group", { name: "Show on canvas" }).getByRole("button", { name: "Specs" });
+  await specs.click();
+  await expect(specs).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".spec-node")).toHaveCount(0);
+  await expect(check).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("change-c1")).toBeVisible();
+  await expect(page.locator(".spec-node")).toHaveCount(0);
+  await specs.click();
+  await expect(page.locator(".spec-node")).toHaveCount(1);
+  await expect(check).toBeAttached();
+
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  const finding = page.getByText("No test for c");
+  await expect(finding).toBeAttached({ timeout: 15_000 });
+  await page.getByRole("group", { name: "Show on canvas" }).getByRole("button", { name: "AI review" }).click();
+  await expect(finding).toHaveCount(0);
+});

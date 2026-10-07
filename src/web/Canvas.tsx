@@ -6,7 +6,7 @@ import {
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type ZoomLevel } from "./graph.ts";
+import { closeGraph, layerGraph, LAYERS, diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type Layer, type ZoomLevel } from "./graph.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
@@ -21,6 +21,7 @@ import { DiagramNode } from "./nodes/DiagramNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
+import { useLayers } from "./layers.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
 import { GuideBar } from "./GuideBar.tsx";
@@ -57,6 +58,7 @@ interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: 
 /** A diff row to reveal and focus; a new object per request. */
 export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
 const NO_DRAFTS: Draft[] = [];
+const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", diagram: "var(--kind-diagram)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)", note: "var(--kind-note)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
@@ -94,11 +96,12 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
     [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
   const { closed: closedIds, close, reopen } = useClosed(state.session.id);
+  const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers();
   const { graph, closedOn } = useMemo(() => {
     const g = sessionGraph(state, drafts, freePositions);
     if (!g) throw new Error("Canvas needs a session graph");
-    return closeGraph(g, closedIds);
-  }, [state, drafts, freePositions, closedIds]);
+    return closeGraph(layerGraph(g, hiddenLayers), closedIds);
+  }, [state, drafts, freePositions, closedIds, hiddenLayers]);
   const closedValue = useMemo(() => ({ close, reopen, closedOn }), [close, reopen, closedOn]);
   useLayoutEffect(() => {
     const next = new Set(drafts.map((draft) => draft.id));
@@ -675,7 +678,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       >
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
-        <Panel position="top-right"><button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
+        <Panel position="top-right">{state.session.workflow === "review" && <span className="layers" role="group" aria-label="Show on canvas">{LAYERS.map((layer) => <button key={layer} type="button" aria-pressed={!hiddenLayers.has(layer)} onClick={() => toggleLayer(layer)}>{LAYER_LABEL[layer]}</button>)}</span>}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap
         position="top-right"

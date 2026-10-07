@@ -126,6 +126,8 @@ export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "dif
 export interface FindingNodeData extends ReviewFindingData {
   kind: "finding";
   findingId: string;
+  /** Raised by an LLM review; false for runtime checks (Step comments). */
+  ai: boolean;
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
   /** The chat anchored at the finding, shown inside the finding box. */
@@ -174,6 +176,14 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
 
 export interface ClosedItem { id: string; kind: "chat" | "note" }
 
+/** Adds to `gone` every node whose anchors are all gone. */
+function cascade(g: Graph, gone: Set<string>): void {
+  for (let grew = gone.size > 0; grew;) {
+    grew = false;
+    for (const n of g.nodes) if (!gone.has(n.id) && n.anchors?.length && n.anchors.every((a) => gone.has(a))) { gone.add(n.id); grew = true; }
+  }
+}
+
 /** The graph without closed chats, notes and diagrams, and per host node the closed chats and notes it can reopen. Nodes anchored only on closed nodes close with them. */
 export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Graph; closedOn: Map<string, ClosedItem[]> } {
   const closedOn = new Map<string, ClosedItem[]>();
@@ -185,10 +195,7 @@ export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Grap
     if (n.data.kind === "chat" && n.data.threadId !== null) { gone.add(n.id); addClosed(n.anchors![0]!, n.id); }
     if (n.data.kind === "note") { gone.add(n.id); addClosed(n.anchors![0]!, n.id, "note"); }
   }
-  for (let grew = gone.size > 0; grew;) {
-    grew = false;
-    for (const n of g.nodes) if (!gone.has(n.id) && n.anchors?.length && n.anchors.every((a) => gone.has(a))) { gone.add(n.id); grew = true; }
-  }
+  cascade(g, gone);
   const isClosed = (thread: HostedThread) => thread.threadId !== null && closed.has(thread.threadId);
   const nodes = g.nodes.filter((n) => !gone.has(n.id)).map((n) => {
     if (n.data.kind !== "change" || !n.data.threads.some(isClosed)) return n;
@@ -196,6 +203,22 @@ export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Grap
     return { ...n, data: { ...n.data, threads: n.data.threads.filter((thread) => !isClosed(thread)) } };
   });
   return { graph: { nodes, edges: g.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target)) }, closedOn };
+}
+
+/** Kinds of review input the canvas can hide: spec cards and spec checks, AI review findings, Phabricator comments. */
+export type Layer = "spec" | "review" | "phab";
+export const LAYERS: Layer[] = ["spec", "review", "phab"];
+
+const layerOf = (data: GraphNodeData): Layer | null =>
+  data.kind === "spec" ? "spec" : data.kind === "finding" ? (data.ai ? "review" : "spec") : data.kind === "phab" ? "phab" : null;
+
+/** The graph without the hidden layers' nodes and what hangs off them; hiding Phabricator also drops the summary's general and unanchored comments. */
+export function layerGraph(g: Graph, hidden: ReadonlySet<Layer>): Graph {
+  if (hidden.size === 0) return g;
+  const gone = new Set(g.nodes.filter((n) => { const layer = layerOf(n.data); return layer !== null && hidden.has(layer); }).map((n) => n.id));
+  cascade(g, gone);
+  const nodes = g.nodes.filter((n) => !gone.has(n.id)).map((n) => n.data.kind === "summary" && hidden.has("phab") ? { ...n, data: { ...n.data, phabGeneral: [], phabUnanchored: [] } } : n);
+  return { nodes, edges: g.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target)) };
 }
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
@@ -444,7 +467,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     const comment = state.artifacts.filter((a) => a.type === "ReviewComment" && related.includes(a.id)).at(-1) as Artifact<ReviewCommentData> | undefined;
     const posted = comment && (state.artifacts.filter((a) => a.type === "PostedComment") as Artifact<PostedCommentData>[]).find((a) => a.data.comment === comment.id);
     g.nodes.push({ id: finding.id, anchors: [node], data: {
-      kind: "finding", findingId: finding.id, ...finding.data, anchor: findingState.anchor ?? latest.narrative.id,
+      kind: "finding", findingId: finding.id, ai: finding.provenance.llm !== undefined, ...finding.data, anchor: findingState.anchor ?? latest.narrative.id,
       quote: findingState.quote, lines: findingState.lines, status: findingState.status, outdated: findingState.outdated,
       verdict: findingState.verdict ? { verdict: findingState.verdict.verdict, reason: findingState.verdict.reason } : null,
       fromEpoch: findingState.epoch < epochNumber(state.artifacts, latest.diff.id) ? findingState.epoch : null,

@@ -604,3 +604,9 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-view tr.map-selected td.code { background: color-mix(in oklab, var(--map-color) 18%, transparent); }
 .spec-view tr.jumps { cursor: pointer; }
 .spec-node button.steps { margin-left: 8px; }
+
+.layers { display: inline-flex; margin-right: 8px; }
+.layers button { border-radius: 0; margin-left: -1px; color: var(--text-3); text-decoration: line-through; }
+.layers button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.layers button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.layers button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
