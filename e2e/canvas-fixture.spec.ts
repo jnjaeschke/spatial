@@ -251,6 +251,36 @@ test("zooming out during a guide move still switches the zoom level", async ({ p
   await expect(page.locator("[data-level]").first()).not.toHaveAttribute("data-level", "code");
 });
 
+test("view, guide step, and collapse state persist across reloads", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "concept");
+  await page.locator(".canvas").focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowRight");
+  await page.getByRole("button", { name: "Next step" }).click();
+  await page.getByRole("button", { name: "Next step" }).click();
+  await page.getByTestId("change-c1").getByRole("button", { name: "Collapse" }).click();
+  await expect(page.getByTestId("change-c1").locator(".body")).toHaveCount(0);
+  await waitForCanvasSettled(page);
+  const before = await page.locator(".react-flow__viewport").evaluate((el) => {
+    const m = new DOMMatrix(getComputedStyle(el).transform);
+    return { x: m.e, y: m.f, zoom: m.a };
+  });
+
+  await page.reload();
+  await waitForCanvasSettled(page);
+  const after = await page.locator(".react-flow__viewport").evaluate((el) => {
+    const m = new DOMMatrix(getComputedStyle(el).transform);
+    return { x: m.e, y: m.f, zoom: m.a };
+  });
+  expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.zoom - before.zoom)).toBeLessThanOrEqual(0.01);
+  await expect(page.getByTestId("change-c1")).toHaveAttribute("data-level", "concept");
+  await expect(page.getByTestId("guide")).toContainText("Step 2/");
+  await expect(page.getByTestId("change-c1").locator(".body")).toHaveCount(0);
+});
+
 test("zooming with the control buttons from the keyboard stops the automatic fit", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("change-c1")).toBeVisible();

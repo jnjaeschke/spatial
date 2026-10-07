@@ -195,8 +195,8 @@ test("commits are lanes; the guide walks the reading path and records reviews", 
   expect(reviews.map((artifact) => [artifact.data.change, artifact.data.reviewed, artifact.provenance.taskId])).toEqual([["c1", true, "user"]]);
 
   await page.reload();
-  await expect(guide).toContainText("Start here", { timeout: 15_000 });
-  await expect(guide).toContainText("Add c");
+  await expect(guide).toContainText("Step 1/2", { timeout: 15_000 });
+  await expect(guide).toContainText("Edit a");
   await expect(guide.getByTestId("guide-progress")).toHaveText("1/2 reviewed");
   await setLevel(page, "patch", "commit-0");
   await expect(page.getByTestId("change-c1")).toHaveCount(0);

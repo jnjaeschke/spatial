@@ -27,6 +27,7 @@ import { moveStep, startStep, stepNodeId } from "./guide.ts";
 import { api } from "./api.ts";
 import { useNodeSizes } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
+import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
@@ -99,6 +100,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!g) throw new Error("Canvas needs a session graph");
     return g;
   }, [state, drafts, freePositions]);
+  const storedView = useRef(readViewState(state.session.id));
   useEffect(() => {
     for (const draft of drafts) {
       if (!draft.taskId) continue;
@@ -114,7 +116,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : [])), [graph]);
   const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
-  const [level, setLevel] = useState<ZoomLevel>("code");
+  const steps = useMemo(() => graph.nodes.flatMap((n) => n.data.kind === "change" ? [n.data] : []), [graph]);
+  const [level, setLevel] = useState<ZoomLevel>(() => storedView.current?.level ?? "code");
   const levelRef = useRef(level);
   const open = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
   const shown = useMemo(() => levelGraph(open, level), [open, level]);
@@ -145,11 +148,16 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   levelRef.current = level;
   // A new epoch is a new graph: fit it again even if the user moved the previous one.
   const rootId = graph.nodes[0]!.id;
-  useEffect(() => { autoFit.current = true; }, [rootId]);
-  const steps = useMemo(() => graph.nodes.flatMap((n) => n.data.kind === "change" ? [n.data] : []), [graph]);
+  const previousRootId = useRef(rootId);
   const start = startStep(steps.map((s) => s.reviewed));
-  const [guideStep, setGuideStep] = useState<number | null>(null);
-  useEffect(() => setGuideStep(null), [rootId]);
+  const [guideStep, setGuideStep] = useState<number | null>(() => clampGuideStep(storedView.current?.guideStep ?? null, steps.length));
+  useEffect(() => {
+    if (previousRootId.current === rootId) return;
+    previousRootId.current = rootId;
+    storedView.current = null;
+    autoFit.current = true;
+    setGuideStep(null);
+  }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const currentId = guideStep === null || !steps[guideStep] ? null : stepNodeId(steps[guideStep], level);
   const currentRef = useRef<string | null>(currentId);
@@ -295,10 +303,23 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       anchor.current = null;
       autoFit.current = false;
     } else if (autoFit.current) {
-      const fitFloor = fitMinZoom(textScale, levelRef.current, shown.nodes.some((n) => n.data.kind === "commit"));
-      void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
+      if (storedView.current) {
+        const view = storedView.current;
+        storedView.current = null;
+        autoFit.current = false;
+        void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
+      } else {
+        const fitFloor = fitMinZoom(textScale, levelRef.current, shown.nodes.some((n) => n.data.kind === "commit"));
+        void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
+      }
     }
   }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, level]);
+
+  useEffect(() => {
+    if (autoFit.current) return;
+    const { x, y, zoom } = rf.getViewport();
+    saveViewState(state.session.id, { x, y, zoom, level, guideStep });
+  }, [level, guideStep, rf, state.session.id]);
 
   const quoteAt = (x: number, y: number) => {
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
@@ -502,6 +523,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     }
   }, [nodeNearestCenter]);
 
+  const onMoveEnd = (_: unknown, vp: Viewport) => {
+    if (autoFit.current) return;
+    saveViewState(state.session.id, { ...vp, level: zoomLevel(vp.zoom, levelRef.current), guideStep });
+  };
+
   const reset = () => {
     offsets.current.clear();
     clearNodeSizes();
@@ -532,6 +558,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         nodeTypes={resizableNodeTypes}
         onNodesChange={onNodesChange}
         onMove={onMove}
+        onMoveEnd={onMoveEnd}
         nodesDraggable
         nodesConnectable={false}
         zoomOnDoubleClick={false}
