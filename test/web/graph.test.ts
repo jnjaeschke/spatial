@@ -276,6 +276,27 @@ test("sessionGraph adds only the latest diagram for each commit in the current d
   assert.deepEqual(levelGraph(graph, "patch").nodes.filter((node) => node.data.kind === "diagram"), []);
 });
 
+test("sessionGraph links each assistant message to its current diagrams", () => {
+  const old = diagram("D-old", "1"), latest = diagram("D-latest", "1");
+  const message = { id: "M", sessionId: "S", type: "ChatMessage", status: "proposed", createdAt: "3", provenance: { taskId: "t" }, data: { role: "assistant", text: "answer" } } as Artifact;
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "proposed", createdAt: "3", provenance: { taskId: "t" }, data: { anchor: "NS", quote: null } } as Artifact;
+  const st = state([stackDiff, stackNarrative, old, latest, thread, message]);
+  st.links.push(
+    { id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" },
+    { id: "old-diagram", sessionId: "S", from: "D-old", to: "M", kind: "derivedFrom" },
+    { id: "latest-diagram", sessionId: "S", from: "D-latest", to: "M", kind: "derivedFrom" },
+  );
+  const chat = sessionGraph(st)!.nodes.find((node) => node.id === "T")!;
+  assert.equal(chat.data.kind, "chat");
+  if (chat.data.kind === "chat") assert.deepEqual(chat.data.diagramsByMessage?.M, ["D-latest"]);
+  const conversationStart = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "chat", params: {}, title: "t", prompt: "t" } } as Artifact<WorkflowStartData>;
+  const conversation = state([conversationStart, thread, message, latest], "chat");
+  conversation.links.push({ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" }, { id: "diagram", sessionId: "S", from: "D-latest", to: "M", kind: "derivedFrom" });
+  const root = sessionGraph(conversation)!.nodes[0]!;
+  assert.equal(root.data.kind, "conversation");
+  if (root.data.kind === "conversation") assert.equal(root.data.diagramsByMessage, undefined);
+});
+
 test("stackLayout puts a diagram above its lane and shifts aligned cards down", () => {
   const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   const d = diagram("diagram-2", "2");

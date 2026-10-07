@@ -14,6 +14,14 @@ export function toggleExplicit(defaults: ReadonlySet<string>, explicit: Collapse
   return { collapsed: nextCollapsed, expanded: nextExpanded };
 }
 
+/** Explicitly expands one id, preserving every other user's choice. */
+export function expandExplicit(explicit: CollapseExplicit, id: string): CollapseExplicit {
+  const collapsed = new Set(explicit.collapsed), expanded = new Set(explicit.expanded);
+  collapsed.delete(id);
+  expanded.add(id);
+  return { collapsed, expanded };
+}
+
 /** Everything currently collapsed becomes explicitly expanded. */
 export function expandAllExplicit(defaults: ReadonlySet<string>): CollapseExplicit {
   return { collapsed: new Set(), expanded: new Set(defaults) };

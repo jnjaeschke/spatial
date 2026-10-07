@@ -228,11 +228,31 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   const answer = page.locator(".chat-node .msg.assistant").filter({ hasText: "Here is the structure." });
   await expect(answer).toBeVisible({ timeout: 15_000 });
   const diagram = page.locator('[data-testid^="diagram-"]');
-  await revealNode(page, diagram);
+  await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
+  const pane = page.locator(".react-flow");
+  const paneBox = (await pane.boundingBox())!;
+  const diagramBox = (await diagram.boundingBox())!;
+  expect(diagramBox.x).toBeGreaterThanOrEqual(paneBox.x);
+  expect(diagramBox.x + diagramBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
+  expect(diagramBox.y).toBeGreaterThanOrEqual(paneBox.y);
+  expect(diagramBox.y + diagramBox.height).toBeLessThanOrEqual(paneBox.y + paneBox.height);
   await expect(diagram).toContainText("2 entities · 2 unverified");
-  await diagram.getByRole("button", { name: "Expand" }).click();
   await expect(diagram.locator('.diagram-entity[data-verified="true"]')).toHaveCount(1);
   await expect(diagram.locator('.diagram-entity[data-verified="false"]')).toHaveCount(1);
+  await diagram.getByRole("button", { name: "Collapse" }).click();
+  await expect(diagram.locator(".diagram-entity")).toHaveCount(0);
+  const showDiagram = answer.getByRole("button", { name: "Show diagram" });
+  await revealNode(page, showDiagram);
+  await showDiagram.click();
+  await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
+  await expect(diagram.locator('.diagram-entity[data-verified="true"]')).toHaveCount(1);
+  const revealedBox = (await diagram.boundingBox())!;
+  expect(revealedBox.x).toBeGreaterThanOrEqual(paneBox.x);
+  expect(revealedBox.x + revealedBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
+  expect(revealedBox.y).toBeGreaterThanOrEqual(paneBox.y);
+  expect(revealedBox.y + revealedBox.height).toBeLessThanOrEqual(paneBox.y + paneBox.height);
+  expect(Math.abs(revealedBox.x + revealedBox.width / 2 - (paneBox.x + paneBox.width / 2))).toBeLessThan(2);
+  expect(Math.abs(revealedBox.y + revealedBox.height / 2 - (paneBox.y + paneBox.height / 2))).toBeLessThan(2);
 });
 
 test("posts a C1 line to C1", async ({ page, request }) => {

@@ -387,6 +387,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .msg.assistant { background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
 .msg.assistant p:first-child { margin-top: 0; }
 .msg.assistant p:last-child { margin-bottom: 0; }
+.msg.assistant .show-diagram { display: block; margin-top: 6px; }
 .msg.assistant ul, .msg.assistant ol { padding-left: 20px; margin: 6px 0; }
 .msg.assistant pre { overflow: auto; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 0.9em; }
 .msg.assistant pre code { background: transparent; padding: 0; }

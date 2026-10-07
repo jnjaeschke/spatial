@@ -83,8 +83,10 @@ export interface ChatNodeData {
   messages: Artifact<ChatMessageData>[];
   revisions: Record<Id, RevisionData[]>;
   mcpRequests: string[];
+  /** Current review diagrams created by each assistant message. */
+  diagramsByMessage?: Record<Id, Id[]>;
 }
-export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests"> {
+export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> {
   kind: "conversation";
   title: string;
   /** The request; shown until the first turn has created the thread. */
@@ -97,7 +99,7 @@ export interface FindingNodeData extends ReviewFindingData {
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
   /** The chat anchored at the finding, shown inside the finding box. */
-  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
+  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
   decision: FindingDecisionData["decision"] | null;
   comment: { id: string; body: string; status: Artifact<ReviewCommentData>["status"] } | null;
   postedTo: number | null;
@@ -120,7 +122,7 @@ export interface PhabNodeData {
   phabAnchors: Record<string, Id>;
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
-  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests"> & { threadId: string } | null;
+  thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
 }
 
 export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
@@ -228,23 +230,23 @@ function mcpRequestsFor(state: SessionState, threadId: string): string[] {
     .map((artifact) => artifact.data.server).filter((server) => !enabled.has(server)))];
 }
 
-function threadContent(state: SessionState, thread: Artifact<ChatThreadData>) {
+function threadContent(state: SessionState, thread: Artifact<ChatThreadData>, diagramsByMessage?: Record<Id, Id[]>) {
   const messages = state.links.filter((l) => l.kind === "reply" && l.to === thread.id)
     .map((l) => state.artifacts.find((a) => a.id === l.from))
     .filter((a): a is Artifact<ChatMessageData> => !!a);
   const revisions = Object.fromEntries(messages.map((message) => [message.id, revisionsOf(state, message.id).map((revision) => revision.data)]));
-  return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(state, thread.id) };
+  return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(state, thread.id), ...(diagramsByMessage ? { diagramsByMessage } : {}) };
 }
 
 /** Adds chat nodes for threads not in `hostOf` and drafts, each attached to `resolve(anchor)`; unresolvable ones are skipped. */
-function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: ReadonlyMap<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"]): void {
+function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: ReadonlyMap<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"], diagramsByMessage?: Record<Id, Id[]>): void {
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   for (const thread of threads) {
     if (hostOf.has(thread.id)) continue;
     const node = resolve(thread.data.anchor);
     if (!node) continue;
     nodeIds.add(thread.id);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId, hunks, ...threadContent(state, thread), draftId: null } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId, hunks, ...threadContent(state, thread, diagramsByMessage), draftId: null } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
@@ -269,6 +271,11 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     const diagram = diagramsByCommit.get(commit.sha);
     if (!diagram) continue;
     g.nodes.push({ id: diagram.id, data: { kind: "diagram", diagram } });
+  }
+  const diagramIds = new Set(g.nodes.filter((node) => node.data.kind === "diagram").map((node) => node.id));
+  const diagramsByMessage: Record<Id, Id[]> = {};
+  for (const link of state.links) {
+    if (link.kind === "derivedFrom" && diagramIds.has(link.from)) (diagramsByMessage[link.to] ??= []).push(link.from);
   }
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
   const plan = postPlan(latest.diff.data, postableComments(state, latest.narrative.id));
@@ -316,7 +323,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     if (thread) { hostOf.set(thread.id, remote.anchorId); nodeIds.add(thread.id); }
     g.nodes.push({ id: remote.anchorId, anchors: [node], data: {
       kind: "phab", ...remote, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id,
-      hunks: allHunks, thread: thread ? threadContent(state, thread) : null,
+      hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null,
     } });
     g.edges.push({ id: `${remote.anchorId}->${node}`, source: remote.anchorId, target: node });
   }
@@ -336,7 +343,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
       verdict: findingState.verdict ? { verdict: findingState.verdict.verdict, reason: findingState.verdict.reason } : null,
       fromEpoch: findingState.epoch < epochNumber(state.artifacts, latest.diff.id) ? findingState.epoch : null,
       collapsedByDefault: findingState.collapsedByDefault, diffId: latest.diff.id, hunks: allHunks,
-      thread: thread ? threadContent(state, thread) : null,
+      thread: thread ? threadContent(state, thread, diagramsByMessage) : null,
       decision: findingState.decision,
       comment: comment ? { id: comment.id, body: comment.data.body, status: comment.status } : null,
       postedTo: posted?.data.revision ?? null,
@@ -351,7 +358,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     const card = g.nodes.find((n) => n.id === commitNodeId(latest.narrative.id, commit));
     if (card?.data.kind === "commit") card.data.findingCount++;
   }
-  addChats(g, state, drafts, hostOf, nodeIds, resolve, latest.diff.id, allHunks);
+  addChats(g, state, drafts, hostOf, nodeIds, resolve, latest.diff.id, allHunks, diagramsByMessage);
   return g;
 }
 

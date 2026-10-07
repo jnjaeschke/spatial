@@ -55,7 +55,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
   const anchor = useRef<string | null>(null);
+  // A revealed node that is still collapsed: anchor it once its measured height changes, since an unrelated
+  // re-layout can run before the expansion is measured and would center on the collapsed size.
+  const anchorOnResize = useRef<{ id: string; height: number } | null>(null);
   const knownDrafts = useRef(new Set<string>());
+  const knownDiagrams = useRef<Set<string> | null>(null);
   useEffect(() => {
     const next = new Set(drafts.map((draft) => draft.id));
     const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
@@ -69,18 +73,25 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (!g) throw new Error("Canvas needs a session graph");
     return g;
   }, [state, drafts]);
+  const graphDiagramIds = useMemo(() => graph.nodes.filter((n) => n.data.kind === "diagram").map((n) => n.id), [graph]);
   const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => n.data.kind === "finding" && n.data.collapsedByDefault ? [n.id]
     : n.data.kind === "phab" ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
-      : n.data.kind === "diagram" ? [`diagram:${n.data.diagram.id}`]
       : n.data.kind === "summary" ? [
         ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
         ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : [])), [graph]);
-  const { collapsed, toggle, expandAll } = useCollapsed(state.session.id, defaults);
+  const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
   const [level, setLevel] = useState<ZoomLevel>("code");
   const levelRef = useRef(level);
   const open = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
   const shown = useMemo(() => levelGraph(open, level), [open, level]);
+  useLayoutEffect(() => {
+    const next = new Set(graphDiagramIds);
+    if (!knownDiagrams.current) { knownDiagrams.current = next; return; }
+    const added = graphDiagramIds.find((id) => !knownDiagrams.current!.has(id));
+    knownDiagrams.current = next;
+    if (added && shown.nodes.some((n) => n.id === added)) anchor.current = added;
+  }, [graphDiagramIds, shown]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
   const quoted = useMemo(() => graph.nodes.filter((n): n is GraphNode & { data: (ChatNodeData | FindingNodeData) & { quote: string } } => (n.data.kind === "chat" || n.data.kind === "finding") && !!n.data.quote), [graph]);
   const [hoveredChat, setHoveredChat] = useState<string | null>(null);
@@ -185,6 +196,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   // A layout effect, so the new node widths are committed before the frame's ResizeObserver delivery; a passive
   // effect would flush inside that delivery's callback and resize the nodes there.
   useLayoutEffect(() => {
+    if (anchor.current && graph.nodes.some((n) => n.id === anchor.current && n.data.kind === "diagram")
+      && !shown.nodes.some((n) => n.id === anchor.current)) anchor.current = null;
     // A new graph object (every session event) keeps the measured sizes of unchanged zoom and text scale, so
     // the view does not jump to estimated positions until the next measurement.
     const basis = `${level}|${textScale}`;
@@ -226,6 +239,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
+    const pending = anchorOnResize.current && nodes.find((n) => n.id === anchorOnResize.current!.id);
+    if (pending && pending.measured!.height !== anchorOnResize.current!.height) {
+      anchor.current = pending.id;
+      anchorOnResize.current = null;
+    }
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
     if (a) {
       const p = place(a.id, pos.get(a.id)!);
@@ -421,11 +439,19 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     }));
   };
 
+  const reveal = (nodeId: string, collapseId: string) => {
+    const height = rf.getNode(nodeId)?.measured?.height;
+    if (collapsed.has(collapseId) && height !== undefined && levelRef.current === "code") anchorOnResize.current = { id: nodeId, height };
+    else anchor.current = nodeId;
+    if (levelRef.current !== "code") setLevel("code");
+    expandExplicitly(collapseId);
+  };
+
   return (
     <ChatActionsContext.Provider value={chatActions}>
     <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
-    <CollapseContext.Provider value={{ collapsed, toggle }}>
+    <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
       <div className="canvas-layout">
       <ReactFlow
         nodes={nodes}
