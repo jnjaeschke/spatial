@@ -1,9 +1,13 @@
-import type { DiffData, PatchNarrativeData, SpecReferenceData } from "../../shared/types.ts";
+import type { DiffData, PatchNarrativeData, ResolvedSpec, ReviewFindingData, SpecReferenceData } from "../../shared/types.ts";
+import { findingStates } from "../../shared/findings.ts";
+import { parseSteps } from "../../shared/spec-text.ts";
 import { isGeckoRepo } from "../../runtime/searchfox.ts";
 import { defineTask } from "../../runtime/tasks.ts";
-import { specUrlsNear } from "./cited.ts";
+import { specUrlsNear, stepCommentsNear, type StepComment } from "./cited.ts";
+import { checkStepComment } from "./step-check.ts";
 
-export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[] }>({
+/** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports `Step N` comments on added lines that do not match the cited algorithm as `ReviewFinding`s (no LLM). */
+export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[] }>({
   kind: "resolveSpecRefs",
   async run(ctx, { narrativeId }) {
     const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
@@ -24,6 +28,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       for (const changeId of changeIds) citation.changeIds.add(changeId);
     };
 
+    const stepComments: { comment: StepComment; path: string; hunkId: string; quote: string }[] = [];
     for (const file of diffArtifact.data.files) {
       if (file.status === "deleted" || file.hunks.length === 0) continue;
       const lines = (await ctx.git.show(diffArtifact.data.headSha, file.path)).split("\n");
@@ -31,6 +36,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
         const changeIds = hunkChanges.get(hunk.id) ?? [];
         if (changeIds.length === 0) continue;
         for (const url of specUrlsNear(lines, hunk)) addCitation(url, changeIds, "code");
+        for (const comment of stepCommentsNear(lines, hunk)) stepComments.push({ comment, path: file.path, hunkId: hunk.id, quote: lines[comment.line - 1]!.trim() });
       }
     }
     for (const change of narrative.data.changes) {
@@ -39,6 +45,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
 
     const gecko = isGeckoRepo(ctx.repo);
     const groups = new Map<string, { data: SpecReferenceData; changeIds: Set<string> }>();
+    const resolvedByUrl = new Map<string, ResolvedSpec>();
     let i = 0;
     for (const [url, citation] of citations) {
       const changeIds = [...citation.changeIds];
@@ -49,6 +56,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
         return { found: false as const, reason: error.message };
       });
       // Code comments link Bugzilla, MDN, GitHub etc.; only the LLM's unresolved proposals are worth an unverified card.
+      if (result.found) resolvedByUrl.set(url, result.spec);
       if (!result.found && !citation.llm) continue;
       const origin = citation.code ? "code" : "llm";
       const key = result.found ? result.spec.url : url;
@@ -78,6 +86,22 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       for (const changeId of changeIds) ctx.links.put(artifact.id, `${narrativeId}#${changeId}`, "supports");
       specRefIds.push(artifact.id);
     }
-    return { specRefIds };
+
+    // A re-run for a new epoch finds the same comments again; their carried findings already cover them.
+    const carried = new Set(findingStates(ctx.artifacts.view(), narrativeId).filter((s) => !s.outdated).map((s) => `${s.finding.data.title}\n${s.quote}`));
+    const findingIds: string[] = [];
+    for (const { comment, path, hunkId, quote } of stepComments) {
+      const spec = resolvedByUrl.get(comment.url);
+      const steps = spec ? parseSteps(spec.content) : [];
+      if (!spec || steps.length === 0) continue;
+      const problem = checkStepComment(comment, `${spec.spec}#${spec.anchor}`, steps);
+      if (!problem || carried.has(`${problem.title}\n${quote}`)) continue;
+      const anchor = `${diffArtifact.id}#${hunkId}`;
+      const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "verified", { anchor, quote, lines: { path, side: "new", start: comment.line, end: comment.line }, category: "spec", ...problem });
+      ctx.links.put(finding.id, narrativeId, "derivedFrom");
+      ctx.links.put(finding.id, anchor, "about");
+      findingIds.push(finding.id);
+    }
+    return { specRefIds, findingIds };
   },
 });

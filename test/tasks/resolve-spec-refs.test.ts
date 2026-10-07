@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { DiffData, PatchNarrativeData, SpecReferenceData } from "../../src/shared/types.ts";
+import type { DiffData, DiffLine, PatchNarrativeData, ReviewFindingData, SpecReferenceData } from "../../src/shared/types.ts";
 import { resolveSpecRefs } from "../../src/tasks/resolve-spec-refs/task.ts";
 
 const CANON = "https://html.spec.whatwg.org/#navigate";
@@ -14,12 +14,12 @@ const webspecFor = (failing?: string): WebspecCapability => ({
   effect: "read-only",
   async resolve(url) {
     if (url === failing) throw new Error("webspec-index exited with code 1: parse worker panicked");
-    if (url.endsWith("#navigate")) return { found: true, spec: { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: CANON, content: "To navigate" } };
+    if (url.endsWith("#navigate")) return { found: true, spec: { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: CANON, content: "To navigate:\n\n1. Fire *navigate*.\n2. Commit the entry.\n3. Fire navigatesuccess after the commit." } };
     return { found: false, reason: `URL not recognized: ${url}` };
   },
 });
 
-function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: string }) {
+function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: string; head?: string[]; f0h0?: DiffLine[] }) {
   const repo = mkdtempSync(join(tmpdir(), "repo-"));
   if (opts.gecko) { writeFileSync(join(repo, "mach"), ""); writeFileSync(join(repo, "moz.build"), ""); }
   const searchfoxCalls: string[] = [];
@@ -39,12 +39,12 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
     log: async () => [], diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }),
     async show(sha, path) {
       showCalls.push(`${sha}:${path}`);
-      return [
+      return (opts.head ?? [
         "// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate",
         "void First() {", "  Changed();", "}",
         "// https://github.com/whatwg/html/issues/1#issuecomment-2",
         "void Second() {", "  Changed();", "}",
-      ].join("\n");
+      ]).join("\n");
     },
   };
   const rt = new Runtime({ store, tasks: [resolveSpecRefs], llm: {} as LlmService, git: () => git, webspec: webspecFor(opts.webspecFails), searchfox });
@@ -53,7 +53,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
   const diff: DiffData = {
     baseSha: "B", headSha: "H", commits: [], files: [
       { path: "dom/N.cpp", status: "modified", binary: false, hunks: [
-        { id: "f0h0", header: "", oldStart: 3, oldLines: 1, newStart: 3, newLines: 1, lines: [] },
+        { id: "f0h0", header: "", oldStart: 3, oldLines: 1, newStart: 3, newLines: opts.f0h0?.length ?? 1, lines: opts.f0h0 ?? [] },
         { id: "f0h1", header: "", oldStart: 7, oldLines: 1, newStart: 7, newLines: 1, lines: [] },
       ] },
       { path: "dom/Deleted.cpp", status: "deleted", binary: false, hunks: [
@@ -140,5 +140,28 @@ test("narrative without spec URLs produces nothing", async () => {
   const { store, rt, session } = setup({ gecko: true });
   const diffId = store.listArtifacts(session.id).find((a) => a.type === "Diff")!.id;
   const id = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId, summary: "s", changes: [] }, provenance: { taskId: "x" } }).id;
-  assert.deepEqual(await rt.run(session.id, "resolveSpecRefs", { narrativeId: id }), { specRefIds: [] });
+  assert.deepEqual(await rt.run(session.id, "resolveSpecRefs", { narrativeId: id }), { specRefIds: [], findingIds: [] });
+});
+
+test("Step comments on added lines that do not match the cited algorithm become spec findings, once", async () => {
+  const head = [
+    "// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate",
+    "void First() {",
+    "  // Step 2. Commit the entry.",
+    "  // Step 3. Commit the entry.",
+    "  // Step 9. Unknown.",
+    "}",
+  ];
+  const { store, rt, session, narrativeId } = setup({ gecko: false, head, f0h0: head.slice(2, 5).map((text) => ({ kind: "add", text })) });
+  const { findingIds } = await rt.run<{ findingIds: string[] }>(session.id, "resolveSpecRefs", { narrativeId });
+  const findings = findingIds.map((id) => store.getArtifact<ReviewFindingData>(id));
+  assert.deepEqual(findings.map((f) => [f.status, f.provenance.llm, f.data.category, f.data.severity, f.data.title, f.data.quote, f.data.lines]), [
+    ["verified", undefined, "spec", "medium", "Step 3 comment describes step 2 of HTML#navigate", "// Step 3. Commit the entry.", { path: "dom/N.cpp", side: "new", start: 4, end: 4 }],
+    ["verified", undefined, "spec", "low", "Comment cites step 9, which HTML#navigate does not have", "// Step 9. Unknown.", { path: "dom/N.cpp", side: "new", start: 5, end: 5 }],
+  ]);
+  const diffId = store.listArtifacts(session.id).find((a) => a.type === "Diff")!.id;
+  const links = store.listLinks(session.id).filter((l) => l.from === findingIds[0]).map((l) => [l.to, l.kind]);
+  assert.deepEqual(links, [[narrativeId, "derivedFrom"], [`${diffId}#f0h0`, "about"]]);
+  const again = await rt.run<{ findingIds: string[] }>(session.id, "resolveSpecRefs", { narrativeId });
+  assert.deepEqual(again.findingIds, []);
 });
