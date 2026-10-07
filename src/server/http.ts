@@ -390,11 +390,14 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
           (lines.start as number) < 1 || (lines.end as number) < (lines.start as number)) throw new HttpError(400, "Invalid lines");
       }
       const threadId = body.threadId as string | undefined;
+      if (body.aside !== undefined && typeof body.aside !== "boolean") throw new HttpError(400, "Invalid aside");
+      if (body.aside !== undefined && body.anchor === undefined) throw new HttpError(400, "aside requires anchor");
+      if (body.threadId !== undefined && body.aside !== undefined) throw new HttpError(400, "aside cannot be used with threadId");
       if (threadId && rt.store.listTasks(id).some((t) =>
         t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") && (t.input as { threadId?: string }).threadId === threadId)) {
         throw new HttpError(409, "A turn is already running in this thread");
       }
-      const { taskId, done } = rt.start(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, text, llm: body.llm, quote: body.quote, lines: body.lines });
+      const { taskId, done } = rt.start(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, aside: body.aside as boolean | undefined, text, llm: body.llm, quote: body.quote, lines: body.lines });
       done.catch((e) => console.error(`chatTurn ${taskId} failed: ${(e as Error).message}`));
       send(res, 202, { taskId });
     }],

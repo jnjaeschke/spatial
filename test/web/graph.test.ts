@@ -55,6 +55,18 @@ test("review graph hosts the session request and earliest root thread before the
   }
 });
 
+test("aside threads at the workflow start are chat nodes and use saved free positions", () => {
+  const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "chat", params: {}, title: "Chat", prompt: "Explain" } } as Artifact<WorkflowStartData>;
+  const aside = { id: "TA", sessionId: "S", type: "ChatThread", status: "verified", createdAt: "1", provenance: { taskId: "turn" }, data: { anchor: "W", aside: true } } as Artifact;
+  const fallback = sessionGraph(state([start, aside], "chat"))!;
+  const node = fallback.nodes.find((item) => item.id === "TA")!;
+  assert.equal(node.data.kind, "chat");
+  assert.deepEqual(node.anchors, ["W"]);
+  assert.equal(node.position, undefined);
+  const placed = sessionGraph(state([start, aside], "chat"), [], { TA: { x: 123, y: 456 } })!;
+  assert.deepEqual(placed.nodes.find((item) => item.id === "TA")?.position, { x: 123, y: 456 });
+});
+
 test("conversation prompt falls back to the workflow command when empty", () => {
   const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "review", params: {}, title: "Review", prompt: "" } } as Artifact<WorkflowStartData>;
   const conversation = sessionGraph(state([diff, narrative("N"), start]))!.nodes.find((node) => node.data.kind === "conversation");

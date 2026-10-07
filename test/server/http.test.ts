@@ -439,6 +439,15 @@ test("turns reject selected quotes over 20000 characters", async () => {
   assert.equal(response.status, 400);
 });
 
+test("turns validate aside as an anchored session-level chat only", async () => {
+  const s = await newSession();
+  const llm = { backend: "claude", model: "sonnet", effort: "medium" };
+  const postTurn = (body: unknown) => post(`/api/sessions/${s.id}/turns`, body);
+  assert.equal((await postTurn({ anchor: "W", aside: "yes", text: "x", llm })).status, 400);
+  assert.equal((await postTurn({ aside: true, text: "x", llm })).status, 400);
+  assert.equal((await postTurn({ threadId: "T", aside: true, text: "x", llm })).status, 400);
+});
+
 test("enable MCP server is scoped to a chat thread and records user provenance", async () => {
   const session = await newSession();
   writeFileSync(join(repo.dir, ".mcp.json"), JSON.stringify({ mcpServers: {

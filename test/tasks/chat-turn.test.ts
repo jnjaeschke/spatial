@@ -83,6 +83,13 @@ test("first turn on a change creates the thread and injects change context", asy
   assert.ok(!p.prompt.includes("other();"));
 });
 
+test("aside first turn records an aside thread without changing its anchor", async () => {
+  const { store, session, narrativeId, turn } = setup();
+  const { threadId } = await turn({ anchor: `${narrativeId}#c1`, aside: true, text: "Side question", llm: SONNET });
+  assert.deepEqual(store.getArtifact<ChatThreadData>(threadId).data, { anchor: `${narrativeId}#c1`, aside: true });
+  assert.ok(store.listLinks(session.id).some((link) => link.from === threadId && link.to === `${narrativeId}#c1` && link.kind === "about"));
+});
+
 test("chat system prompt includes repo instructions and skill index on every turn", async () => {
   const store = new Store(":memory:");
   const calls: LlmPrompt[] = [];

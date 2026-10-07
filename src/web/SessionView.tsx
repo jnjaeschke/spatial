@@ -36,6 +36,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   }, []);
   const askContext = useMemo(() => ({ ask }), [ask]);
   const onSent = useCallback((draftId: string, taskId: string) => setDrafts((current) => current.map((d) => d.id === draftId ? { ...d, taskId } : d)), []);
+  const onOpenAside = useCallback((draft: Draft) => setDrafts((current) => [...current, draft]), []);
   if (error) return <p className="empty failed">{error}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
   const n = latestNarrative(state);
@@ -47,8 +48,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
   const body = state.session.workflow === null
     ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
-    : state.session.workflow === "chat" ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} />
-      : n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} state={state} models={models} /> : <AnalysisStatus state={state} models={models} />;
+      : state.session.workflow === "chat" ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
+      : n ? <Canvas state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} state={state} models={models} /> : <AnalysisStatus state={state} models={models} />;
   return <div className="app">
     <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{state.session.workflow === "review" && <>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}</>}<span className="spacer" /><label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);

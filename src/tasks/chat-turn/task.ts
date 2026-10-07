@@ -27,10 +27,11 @@ const isReply = (j: unknown): j is Reply => {
 };
 const same = (a?: LlmSelection, b?: LlmSelection) => !!a && !!b && a.backend === b.backend && a.model === b.model && a.effort === b.effort;
 
-export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: string; quote?: string; lines?: SelectedText["lines"]; llm: LlmSelection }, { threadId: string; messageId: string }>({
+export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?: boolean; text: string; quote?: string; lines?: SelectedText["lines"]; llm: LlmSelection }, { threadId: string; messageId: string }>({
   kind: "chatTurn",
-  async run(ctx, { threadId, anchor, text, quote, lines, llm }) {
+  async run(ctx, { threadId, anchor, aside, text, quote, lines, llm }) {
     if ((threadId === undefined) === (anchor === undefined)) throw new Error("chatTurn needs exactly one of threadId or anchor");
+    if (aside && threadId) throw new Error("aside chatTurn needs an anchor");
     if (!text.trim()) throw new Error("Message is empty");
     const view = ctx.artifacts.view();
     let thread: Artifact<ChatThreadData>;
@@ -39,7 +40,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
       if (thread.type !== "ChatThread") throw new Error(`Artifact ${threadId} is not a ChatThread`);
     } else {
       buildAnchorContext(view, anchor!);
-      thread = ctx.artifacts.put<ChatThreadData>("ChatThread", "verified", { anchor: anchor!, quote, lines });
+      thread = ctx.artifacts.put<ChatThreadData>("ChatThread", "verified", { anchor: anchor!, ...(aside ? { aside: true } : {}), quote, lines });
       ctx.links.put(thread.id, anchor!, "about");
     }
 

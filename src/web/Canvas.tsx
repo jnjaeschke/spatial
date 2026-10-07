@@ -25,6 +25,7 @@ import { GuideBar } from "./GuideBar.tsx";
 import { moveStep, startStep, stepNodeId } from "./guide.ts";
 import { api } from "./api.ts";
 import { useNodeSizes } from "./node-sizes.ts";
+import { useFreePositions } from "./free-positions.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
@@ -47,7 +48,7 @@ function ResizableNode(props: NodeProps) {
 }
 const resizableNodeTypes = Object.fromEntries(Object.keys(nodeTypes).map((type) => [type, ResizableNode]));
 
-interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void }
+interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
 const NO_DRAFTS: Draft[] = [];
 const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", diagram: "var(--kind-diagram)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
@@ -62,9 +63,10 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {} }: Props) {
+function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: Props) {
   const textScale = useTextScale();
   const { sizes, setWidth, clear: clearNodeSizes } = useNodeSizes(state.session.id);
+  const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(state.session.id);
   const paneHeight = useStore((s) => s.height);
   const colorMode = useResolvedTheme();
   const searchfox = useMemo(() => {
@@ -77,21 +79,32 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   // A revealed node that is still collapsed: anchor it once its measured height changes, since an unrelated
   // re-layout can run before the expansion is measured and would center on the collapsed size.
   const anchorOnResize = useRef<{ id: string; height: number } | null>(null);
+  // A draft opened by double-click; its input is focused once laid out (React Flow hides unmeasured nodes,
+  // and hidden elements cannot take focus).
+  const focusDraft = useRef<string | null>(null);
   const knownDrafts = useRef(new Set<string>());
   const knownDiagrams = useRef<Set<string> | null>(null);
   useEffect(() => {
     const next = new Set(drafts.map((draft) => draft.id));
     const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
     knownDrafts.current = next;
-    if (added) anchor.current = added.id;
+    // A double-clicked draft opens where the user is looking; centering it would move it from under the pointer.
+    if (added && !added.aside) anchor.current = added.id;
   }, [drafts]);
-  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent } : null,
-    [models, state.session.id, state.tasks, onSent]);
+  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); } } : null,
+    [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition]);
   const graph = useMemo(() => {
-    const g = sessionGraph(state, drafts);
+    const g = sessionGraph(state, drafts, freePositions);
     if (!g) throw new Error("Canvas needs a session graph");
     return g;
-  }, [state, drafts]);
+  }, [state, drafts, freePositions]);
+  useEffect(() => {
+    for (const draft of drafts) {
+      if (!draft.taskId) continue;
+      const thread = state.artifacts.find((a) => a.type === "ChatThread" && a.provenance.taskId === draft.taskId);
+      if (thread) moveFreePosition(draft.id, thread.id);
+    }
+  }, [drafts, state.artifacts, moveFreePosition]);
   const graphDiagramIds = useMemo(() => graph.nodes.filter((n) => n.data.kind === "diagram").map((n) => n.id), [graph]);
   const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => n.data.kind === "finding" && n.data.collapsedByDefault ? [n.id]
     : n.data.kind === "phab" ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
@@ -199,16 +212,18 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   };
 
   const arrange = (sized: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
+    const free = new Map(shown.nodes.filter((n) => n.position).map((n) => [n.id, n.position!]));
+    sized = sized.filter((n) => !free.has(n.id));
     if (shown.nodes.some((n) => n.data.kind === "commit")) {
       const byId = new Map(shown.nodes.map((n) => [n.id, n]));
-      return stackLayout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges);
+      return new Map([...stackLayout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free]);
     }
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
     const layoutEdges = diagramLayoutEdges(shown.nodes, shown.edges.filter((e) => !satelliteAnchors.has(e.source)));
     const mainPos = layout(main, layoutEdges);
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
     const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!, ...(dy?.has(n.id) ? { dy: dy.get(n.id)! } : {}) }));
-    return new Map([...mainPos, ...placeSatellites(rects, satellites)]);
+    return new Map([...mainPos, ...placeSatellites(rects, satellites), ...free]);
   };
 
   const sizeBasis = useRef("");
@@ -262,6 +277,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
+    const draftToFocus = focusDraft.current;
+    if (draftToFocus && nodes.some((n) => n.id === draftToFocus)) {
+      focusDraft.current = null;
+      requestAnimationFrame(() => container.current?.querySelector<HTMLTextAreaElement>(`.react-flow__node[data-id="${draftToFocus}"] textarea`)?.focus());
+    }
     const pending = anchorOnResize.current && nodes.find((n) => n.id === anchorOnResize.current!.id);
     if (pending && pending.measured!.height !== anchorOnResize.current!.height) {
       anchor.current = pending.id;
@@ -289,6 +309,24 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     }
     return null;
   };
+
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const start = state.artifacts.findLast((artifact) => artifact.type === "WorkflowStart");
+    if (!start || !chatActions) return;
+    const doubleClick = (event: MouseEvent) => {
+      // Nodes render inside the pane, so only a hit on the pane element itself is empty canvas.
+      if (!(event.target instanceof Element) || !event.target.classList.contains("react-flow__pane")) return;
+      const id = `draft-${crypto.randomUUID()}`;
+      const position = rf.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setFreePosition(id, position);
+      focusDraft.current = id;
+      onOpenAside({ id, anchor: start.id, aside: true }, position);
+    };
+    el.addEventListener("dblclick", doubleClick);
+    return () => el.removeEventListener("dblclick", doubleClick);
+  }, [state.artifacts, chatActions, rf, setFreePosition, onOpenAside]);
 
   useEffect(() => {
     const el = container.current;
@@ -495,12 +533,17 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         onMove={onMove}
         nodesDraggable
         nodesConnectable={false}
+        zoomOnDoubleClick={false}
         selectNodesOnDrag
         nodeDragThreshold={1}
         elevateNodesOnSelect
         onNodeDragStop={(_, node) => {
-          const b = basePos.current.get(node.id)!;
-          offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
+          const graphNode = graph.nodes.find((item) => item.id === node.id);
+          if (graphNode?.position) setFreePosition(node.id, node.position);
+          else {
+            const b = basePos.current.get(node.id);
+            if (b) offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
+          }
         }}
         panOnScroll
         disableKeyboardA11y

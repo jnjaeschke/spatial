@@ -34,6 +34,45 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
+test("double-clicking empty canvas opens a persistent chat at that spot", async ({ page, request }) => {
+  await openNarrated(page, request);
+  const paneBox = (await page.locator(".react-flow__pane").boundingBox())!;
+  const point = await page.evaluate(({ x, y, width, height }) => {
+    for (let fy = 0.2; fy < 0.8; fy += 0.05) for (let fx = 0.2; fx < 0.8; fx += 0.05) {
+      const p = { x: x + width * fx, y: y + height * fy };
+      if (document.elementFromPoint(p.x, p.y)?.classList.contains("react-flow__pane")) return p;
+    }
+    throw new Error("no empty canvas point");
+  }, paneBox);
+  await page.mouse.dblclick(point.x, point.y);
+  const draft = page.locator('[data-testid^="chat-draft-"]');
+  await expect(draft).toBeVisible();
+  await expect(draft.getByLabel("message")).toBeFocused();
+  const draftBox = (await draft.boundingBox())!;
+  expect(point.x).toBeGreaterThanOrEqual(draftBox.x);
+  expect(point.x).toBeLessThanOrEqual(draftBox.x + draftBox.width);
+  expect(point.y).toBeGreaterThanOrEqual(draftBox.y);
+  expect(point.y).toBeLessThanOrEqual(draftBox.y + draftBox.height);
+  await draft.getByLabel("message").fill("A session-level question");
+  await draft.getByRole("button", { name: "Send" }).click();
+  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  await expect(answer).toBeVisible({ timeout: 10_000 });
+  await page.reload();
+  await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible();
+  const persisted = page.locator(".chat-node").filter({ has: page.locator(".msg.assistant", { hasText: "Stub answer." }) });
+  const persistedBox = (await persisted.boundingBox())!;
+  expect(point.x).toBeGreaterThanOrEqual(persistedBox.x);
+  expect(point.x).toBeLessThanOrEqual(persistedBox.x + persistedBox.width);
+  expect(point.y).toBeGreaterThanOrEqual(persistedBox.y);
+  expect(point.y).toBeLessThanOrEqual(persistedBox.y + persistedBox.height);
+
+  const before = await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"));
+  const nodeBox = (await page.locator("[data-testid='change-c1']").boundingBox())!;
+  await page.mouse.dblclick(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
+  await expect(page.locator('[data-testid^="chat-draft-"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"))).toBe(before);
+});
+
 test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "concept");

@@ -6,6 +6,7 @@ import { postPlan } from "../shared/post-plan.ts";
 import { epochNumber, latestDiff, narrativeOf } from "../shared/epochs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
+import type { FreePosition } from "./free-positions.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
 import { changeCommit, reviewedChanges } from "../shared/review-path.ts";
@@ -80,6 +81,7 @@ export interface ChatNodeData {
   draftId: string | null;
   /** Task of the turn that created the thread (or that the draft sent); later turns carry `threadId` in their input. */
   taskId: string | null;
+  aside?: boolean;
   messages: Artifact<ChatMessageData>[];
   revisions: Record<Id, RevisionData[]>;
   mcpRequests: string[];
@@ -126,7 +128,7 @@ export interface PhabNodeData {
 }
 
 export type GraphNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | ChatNodeData | ConversationNodeData | FindingNodeData | PhabNodeData;
-export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[] }
+export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[]; position?: FreePosition }
 export interface GraphEdge { id: string; source: string; target: string }
 type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
@@ -143,7 +145,7 @@ export function visibleGraph(g: { nodes: GraphNode[]; edges: GraphEdge[] }, coll
 }
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
-export const isSatellite = (node: GraphNode) => node.data.kind === "spec" || node.data.kind === "chat" || node.data.kind === "finding" || node.data.kind === "phab" || (node.data.kind === "conversation" && !!node.anchors?.length);
+export const isSatellite = (node: GraphNode) => node.data.kind === "spec" || (node.data.kind === "chat" && !node.position) || node.data.kind === "finding" || node.data.kind === "phab" || (node.data.kind === "conversation" && !!node.anchors?.length);
 
 const latestStart = (state: SessionState) => state.artifacts.findLast((a) => a.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
 const rootThread = (state: SessionState, startId: string) => (state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[]).find((t) => t.data.anchor === startId && !t.data.aside);
@@ -256,13 +258,13 @@ function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: Readon
     const node = resolve(thread.data.anchor);
     if (!node) continue;
     nodeIds.add(thread.id);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, diffId, hunks, ...threadContent(state, thread, diagramsByMessage), draftId: null } });
+    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, aside: thread.data.aside, diffId, hunks, ...threadContent(state, thread, diagramsByMessage), draftId: null } });
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
     const node = resolve(draft.anchor);
     if (!node) continue;
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId, hunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
+    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, aside: draft.aside, diffId, hunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
     g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
   }
 }
@@ -400,8 +402,10 @@ function conversationGraph(state: SessionState, drafts: Draft[]): Graph | null {
 const ROOT_GRAPHS: Record<WorkflowId, (state: SessionState, drafts: Draft[]) => Graph | null> = { review: reviewGraph, chat: conversationGraph };
 
 /** The canvas graph; its root (first node) comes from the session's workflow. Null when no workflow is chosen yet or the workflow has nothing to show yet. */
-export function sessionGraph(state: SessionState, drafts: Draft[] = []): Graph | null {
-  return state.session.workflow ? ROOT_GRAPHS[state.session.workflow](state, drafts) : null;
+export function sessionGraph(state: SessionState, drafts: Draft[] = [], freePositions: Record<string, FreePosition> = {}): Graph | null {
+  const graph = state.session.workflow ? ROOT_GRAPHS[state.session.workflow](state, drafts) : null;
+  if (graph) for (const node of graph.nodes) if (node.data.kind === "chat") node.position = freePositions[node.id];
+  return graph;
 }
 
 const SATELLITE_GAP_X = 80;

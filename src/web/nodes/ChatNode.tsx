@@ -1,4 +1,4 @@
-import { useContext, useState, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
@@ -31,7 +31,7 @@ export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   );
 }
 
-type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { lead?: ReactNode };
+type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -41,10 +41,14 @@ export function Conversation(data: ConversationProps) {
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
-  const turns = (actions?.tasks ?? []).filter((t) => t.kind === "chatTurn" && (t.id === data.taskId ||
-    (data.threadId !== null && (t.input as { threadId?: string }).threadId === data.threadId) ||
-    (data.draftId === null && (t.input as { anchor?: string }).anchor === data.anchor)));
+  const turns = (actions?.tasks ?? []).filter((t) => {
+    if (t.kind !== "chatTurn") return false;
+    const input = t.input as { threadId?: string; anchor?: string; aside?: boolean };
+    return t.id === data.taskId || (data.threadId !== null && input.threadId === data.threadId) ||
+      (data.draftId === null && input.anchor === data.anchor && !input.aside);
+  });
   const last = turns.at(-1);
   const busy = last?.status === "running" || last?.status === "pending";
   const failed = last?.status === "failed" ? last : undefined;
@@ -77,13 +81,13 @@ export function Conversation(data: ConversationProps) {
         e.preventDefault();
         setError(null);
         const selection = llm ?? actions.models.default;
-        const body = data.threadId ? { threadId: data.threadId, text, llm: selection } : { anchor: data.anchor, text, llm: selection, ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
+        const body = data.threadId ? { threadId: data.threadId, text, llm: selection } : { anchor: data.anchor, text, llm: selection, ...(data.aside ? { aside: true } : {}), ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
         api.turn(actions.sessionId, body).then(({ taskId }) => {
           setText("");
           if (data.draftId) actions.onSent(data.draftId, taskId);
         }, (err: Error) => setError(err.message));
       }}>
-        <textarea aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
+        <textarea ref={textarea} aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
           if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
           e.preventDefault();
           if (e.ctrlKey) {
@@ -96,6 +100,7 @@ export function Conversation(data: ConversationProps) {
         }} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
+        {data.aside && data.draftId && <button type="button" aria-label="Discard draft" onClick={() => actions.onDiscard(data.draftId!)}>×</button>}
         {error && <span className="failed">{error}</span>}
       </form>}
   </>;
