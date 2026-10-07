@@ -68,20 +68,31 @@ export async function revealNode(page: Page, target: string | Locator): Promise<
     if (box.x + Math.min(box.width, paneBox.width) > paneBox.x + paneBox.width) return "ArrowRight";
     return null;
   };
+  // A top panel (the layer toggles) over a revealed button intercepts its clicks.
+  const clearTopPanels = async () => {
+    for (let i = 0; i < 10; i++) {
+      const box = (await node.boundingBox())!;
+      const paneBox = (await pane.boundingBox())!;
+      const panels = await page.locator(".react-flow__panel.top").evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map(({ left, right, bottom }) => ({ left, right, bottom })));
+      const covered = panels.some((p) => p.left < box.x + box.width && box.x < p.right && box.y < p.bottom);
+      if (!covered || box.y + box.height > paneBox.y + paneBox.height) return;
+      await page.keyboard.press("ArrowUp");
+    }
+  };
   const opposite: Record<string, string> = { ArrowUp: "ArrowDown", ArrowDown: "ArrowUp", ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" };
   const probes = 40;
   for (const probe of Object.keys(opposite)) {
     let pressed = 0;
     for (; pressed < probes; pressed++) {
       const key = await correction();
-      if (key === null) return;
+      if (key === null) return clearTopPanels();
       if (key !== "") break;
       await page.keyboard.press(probe);
     }
     if (pressed < probes) {
       for (let i = 0; i < 200; i++) {
         const key = await correction();
-        if (key === null) return;
+        if (key === null) return clearTopPanels();
         if (key === "") break;
         await page.keyboard.press(key);
       }
