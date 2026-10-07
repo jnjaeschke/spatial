@@ -6,7 +6,7 @@
 
 # Interface: DiagramCite
 
-A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `removed` nodes).
+A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `before` steps).
 
 ## Properties
 

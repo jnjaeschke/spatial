@@ -6,7 +6,7 @@
 
 # Function: reanchorFinding()
 
-> **reanchorFinding**(`input`, `next`): \{ `hunkId`: `string`; `lines?`: \{ `end`: `number`; `path`: `string`; `side`: `"old"` \| `"new"`; `start`: `number`; \}; \} \| `null`
+> **reanchorFinding**(`input`, `next`): \{ `hunkId`: `string`; `lines?`: \{ `end`: `number`; `path`: `string`; `side`: `"new"` \| `"old"`; `start`: `number`; \}; \} \| `null`
 
 Finds where a finding's code is in `next`.
 
@@ -16,7 +16,7 @@ Finds where a finding's code is in `next`.
 
 #### lines?
 
-\{ `end`: `number`; `path`: `string`; `side`: `"old"` \| `"new"`; `start`: `number`; \}
+\{ `end`: `number`; `path`: `string`; `side`: `"new"` \| `"old"`; `start`: `number`; \}
 
 #### lines.end
 
@@ -28,7 +28,7 @@ Finds where a finding's code is in `next`.
 
 #### lines.side
 
-`"old"` \| `"new"`
+`"new"` \| `"old"`
 
 #### lines.start
 
@@ -48,4 +48,4 @@ Finds where a finding's code is in `next`.
 
 ## Returns
 
-\{ `hunkId`: `string`; `lines?`: \{ `end`: `number`; `path`: `string`; `side`: `"old"` \| `"new"`; `start`: `number`; \}; \} \| `null`
+\{ `hunkId`: `string`; `lines?`: \{ `end`: `number`; `path`: `string`; `side`: `"new"` \| `"old"`; `start`: `number`; \}; \} \| `null`

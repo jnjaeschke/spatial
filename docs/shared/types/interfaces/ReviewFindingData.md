@@ -42,7 +42,7 @@ Data of a `ReviewFinding` artifact; linked `derivedFrom → narrative` and `abou
 
 #### side
 
-> **side**: `"old"` \| `"new"`
+> **side**: `"new"` \| `"old"`
 
 #### start
 

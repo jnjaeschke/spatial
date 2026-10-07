@@ -26,7 +26,7 @@ test("session MCP exposes live read-only overview, get, and search", async () =>
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["get", "read_skill", "scm_branches", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["get", "read_skill", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview"]);
   assert.ok(tools.every((tool) => tool.annotations?.readOnlyHint === true));
   const got = await client.callTool({ name: "get", arguments: { ref: `${narrative.id}#c1` } });
   assert.match(text(got), /Useful explanation/);
@@ -54,7 +54,7 @@ test("session MCP exposes bounded read-only SCM tools for its worktree", async (
   const repo = makeRepo();
   try {
     const first = repo.commit({ "a.txt": "one\n" }, "first commit");
-    const second = repo.commit({ "a.txt": "two\n" }, "second commit");
+    const second = repo.commit({ "a.txt": "two\n", "many.txt": Array.from({ length: 405 }, (_, index) => `line${index + 1}`).join("\n") + "\n" }, "second commit");
     const store = new Store(":memory:");
     const session = store.createSession({ worktree: repo.dir, repoDir: `${repo.dir}/.git`, title: "test" });
     const server = createSessionServer(store, session.id, repo.dir);
@@ -73,6 +73,20 @@ test("session MCP exposes bounded read-only SCM tools for its worktree", async (
     assert.equal(text(base), first);
     const shown = await client.callTool({ name: "scm_show", arguments: { rev: second } });
     assert.match(text(shown), /second commit/);
+    const patch = await client.callTool({ name: "scm_diff", arguments: { rev: second } });
+    assert.match(text(patch), /two/);
+    const file = await client.callTool({ name: "scm_file", arguments: { rev: second, path: "a.txt", start: 1, end: 1 } });
+    assert.equal(text(file), "1: two");
+    const bounded = await client.callTool({ name: "scm_file", arguments: { rev: second, path: "many.txt" } });
+    assert.match(text(bounded), /^1: line1\n2: line2/);
+    assert.match(text(bounded), /400: line400\n\[more lines available; request from line 401\]$/);
+    assert.equal((await client.callTool({ name: "scm_file", arguments: { rev: second, path: "a.txt", start: 2 } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_file", arguments: { rev: second, path: "../a.txt" } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_file", arguments: { rev: second, path: "/etc/passwd" } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_diff", arguments: { rev: second, path: "../a.txt" } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_file", arguments: { rev: second, path: "a.txt", start: 3, end: 2 } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_diff", arguments: { rev: "--bad" } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_file", arguments: { rev: "missing-revision", path: "a.txt" } })).isError, true);
     assert.match(text(shown), /a\.txt/);
     const unsafe = await client.callTool({ name: "scm_log", arguments: { range: "--all" } });
     assert.equal(unsafe.isError, true);

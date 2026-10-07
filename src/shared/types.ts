@@ -81,15 +81,14 @@ export interface GeckoSpecRef {
   url: string;
 }
 
-export type DiagramEntityKind = "class" | "struct" | "function" | "method" | "field" | "module" | "file" | "other";
-export type DiagramStatus = "added" | "modified" | "removed" | "context";
-export type DiagramEdgeKind = "calls" | "inherits" | "owns" | "uses";
-/** A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `removed` nodes). */
+export type SequenceStatus = "new" | "changed" | "existing" | "removed";
+/** A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `before` steps). */
 export interface DiagramCite { path: string; line: number }
-export interface DiagramNode { id: string; label: string; identifier: string; kind: DiagramEntityKind; status: DiagramStatus; cite: DiagramCite; verified: boolean }
-export interface DiagramEdge { from: string; to: string; kind: DiagramEdgeKind; step: number | null; cite: DiagramCite; verified: boolean }
-/** Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `verified` flags are set by the runtime. */
-export interface DiagramData { commit: string; commitIndex: number; mode: "map" | "flow"; title: string; nodes: DiagramNode[]; edges: DiagramEdge[] }
+/** One call between lanes (`from === to` for a self step). The runtime sets `verified`, `text` (the matched source line, trimmed) and moves `cite.line` to the matched line. */
+export interface SequenceStep { from: string; to: string; identifier: string; call: string; what: string; when: string | null; guard: string | null; phase: string | null; status: SequenceStatus; cite: DiagramCite; verified: boolean; text: string | null }
+export interface SequenceLane { id: string; label: string; note: string | null }
+/** Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `before` is the parent commit's flow, null for a new flow. */
+export interface DiagramData { kind: "sequence"; commit: string; commitIndex: number; title: string; summary: string; lanes: SequenceLane[]; steps: SequenceStep[]; before: SequenceStep[] | null }
 
 /** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
 export interface SpecReferenceData {

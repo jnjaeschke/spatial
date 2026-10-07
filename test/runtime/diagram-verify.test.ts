@@ -1,67 +1,59 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { verifyDiagram, type DiagramProposal } from "../../src/runtime/diagram-verify.ts";
-import type { DiffData, DiagramNode, DiagramEdge } from "../../src/shared/types.ts";
+import { verifySequence, type SequenceProposal } from "../../src/runtime/diagram-verify.ts";
+import type { DiffData } from "../../src/shared/types.ts";
 
 const diff: DiffData = { baseSha: "base", headSha: "c2", commits: [{ sha: "c1", subject: "one", body: "" }, { sha: "c2", subject: "two", body: "" }], files: [] };
-const node = (id: string, identifier: string, path = "a.ts", line = 1, status: DiagramNode["status"] = "context"): Omit<DiagramNode, "verified"> => ({ id, label: id, identifier, kind: "function", status, cite: { path, line } });
-const edge = (from: string, to: string, path = "a.ts", line = 1): Omit<DiagramEdge, "verified"> => ({ from, to, kind: "calls", step: null, cite: { path, line } });
-const proposal = (nodes: Omit<DiagramNode, "verified">[], edges: Omit<DiagramEdge, "verified">[] = [], commit = 1): DiagramProposal => ({ commit, mode: "map", title: "test", nodes, edges });
+const lane = (id: string) => ({ id, label: id, note: null });
+const step = (identifier: string, line = 1, status: SequenceProposal["steps"][number]["status"] = "new") => ({ from: "a", to: "b", identifier, call: `${identifier}()`, what: "Calls it", when: null, guard: null, phase: "run", status, cite: { path: "a.ts", line } });
+const proposal = (steps: SequenceProposal["steps"] = [step("alpha")], before: SequenceProposal["before"] = null, commit = 1): SequenceProposal => ({ commit, title: "test", summary: "summary", lanes: [lane("a"), lane("b")], steps, before });
 function fixture(files: Record<string, string>) {
   const calls: string[] = [];
-  const show = async (sha: string, path: string) => {
-    calls.push(`${sha}:${path}`);
-    const value = files[`${sha}:${path}`];
-    if (value === undefined) throw new Error("missing");
-    return value;
-  };
+  const show = async (sha: string, path: string) => { calls.push(`${sha}:${path}`); const value = files[`${sha}:${path}`]; if (value === undefined) throw new Error("missing"); return value; };
   return { show, calls };
 }
 
-test("verifies node identifiers at cited lines and marks missing or out-of-range citations unverified", async () => {
-  const { show } = fixture({ "c1:a.ts": "const alpha = 1;\nconst beta = 2;" });
-  const result = await verifyDiagram(proposal([node("a", "alpha"), node("b", "wrong", "a.ts", 2), node("c", "alpha", "missing.ts"), node("d", "alpha", "a.ts", 0), node("e", "alpha", "a.ts", 3)]), diff, show);
+test("matches the nearest whole-token line within two lines and records its text", async () => {
+  const { show } = fixture({ "c1:a.ts": "other\nalpha\nalpha();\nother\nbeta\nbeta()" });
+  const result = await verifySequence(proposal([step("alpha", 4), step("beta", 4)]), diff, show);
   assert.equal(result.ok, true);
-  if (result.ok) assert.deepEqual(result.data.nodes.map((n) => n.verified), [true, false, false, false, false]);
+  if (result.ok) {
+    assert.deepEqual([result.data.steps[0]?.cite.line, result.data.steps[0]?.text], [3, "alpha();"]);
+    assert.deepEqual([result.data.steps[1]?.cite.line, result.data.steps[1]?.text], [5, "beta"]);
+  }
 });
 
-test("checks removed nodes in the parent tree", async () => {
-  const { show, calls } = fixture({ "c1:a.ts": "gone()", "base:a.ts": "oldName()" });
-  const result = await verifyDiagram(proposal([node("a", "oldName", "a.ts", 1, "removed")], [], 1), diff, show);
+test("before steps are checked against the commit parent", async () => {
+  const { show, calls } = fixture({ "base:a.ts": "oldFlow()", "c1:a.ts": "newFlow()" });
+  const result = await verifySequence(proposal([step("newFlow")], [step("oldFlow", 1, "removed")]), diff, show);
   assert.equal(result.ok, true);
-  if (result.ok) assert.equal(result.data.nodes[0]!.verified, true);
-  assert.deepEqual(calls, ["base:a.ts"]);
+  if (result.ok) assert.equal(result.data.before?.[0]?.verified, true);
+  assert.deepEqual(calls, ["c1:a.ts", "base:a.ts"]);
 });
 
-test("verifies an edge against the target identifier, not the source", async () => {
-  const { show } = fixture({ "c1:a.ts": "source(); target();" });
-  const result = await verifyDiagram(proposal([node("s", "source"), node("t", "target")], [edge("s", "t")]), diff, show);
+test("missing citations stay unverified and preserve their requested line", async () => {
+  const result = await verifySequence(proposal([step("absent", 8), step("alpha", 2)]), diff, fixture({ "c1:a.ts": "other\nalphabet" }).show);
   assert.equal(result.ok, true);
-  if (result.ok) assert.equal(result.data.edges[0]!.verified, true);
-  const negative = await verifyDiagram(proposal([node("s", "source"), node("t", "absent")], [edge("s", "t")]), diff, show);
-  assert.equal(negative.ok, true);
-  if (negative.ok) assert.equal(negative.data.edges[0]!.verified, false);
+  if (result.ok) {
+    assert.deepEqual([result.data.steps[0]?.verified, result.data.steps[0]?.text, result.data.steps[0]?.cite.line], [false, null, 8]);
+    assert.equal(result.data.steps[1]?.verified, false);
+  }
 });
 
-test("matches whole identifiers including operators", async () => {
-  const { show } = fixture({ "c1:a.ts": "runner(); bool operator==(x);" });
-  const result = await verifyDiagram(proposal([node("a", "run"), node("b", "operator==", "a.ts", 1)]), diff, show);
-  assert.equal(result.ok, true);
-  if (result.ok) assert.deepEqual(result.data.nodes.map((n) => n.verified), [false, true]);
+test("rejects bad commit, lane counts and ids, unknown lanes, empty or oversized steps, and removed current steps", async () => {
+  const show = fixture({}).show;
+  const base = proposal();
+  const candidates: SequenceProposal[] = [
+    { ...base, commit: 0 }, { ...base, commit: 3 }, { ...base, lanes: [] }, { ...base, lanes: Array.from({ length: 9 }, (_, i) => lane(String(i))) },
+    { ...base, lanes: [lane("a"), lane("a")] }, { ...base, steps: [{ ...step("x"), from: "missing" }] },
+    { ...base, steps: [] }, { ...base, steps: Array.from({ length: 31 }, () => step("x")) },
+    { ...base, steps: [step("x", 1, "removed")] }, { ...base, before: Array.from({ length: 31 }, () => step("x", 1, "removed")) },
+  ];
+  for (const candidate of candidates) assert.equal((await verifySequence(candidate, diff, show)).ok, false);
 });
 
-test("rejects invalid endpoints, duplicate ids, invalid commit, and oversized proposals", async () => {
-  const { show } = fixture({});
-  for (const candidate of [
-    proposal([node("a", "a")], [edge("a", "unknown")]),
-    proposal([node("a", "a"), node("a", "b")]),
-    proposal([node("a", "a")], [], 3),
-    proposal(Array.from({ length: 41 }, (_, i) => node(String(i), "x"))),
-  ]) assert.equal((await verifyDiagram(candidate, diff, show)).ok, false);
-});
-
-test("reads each commit and path at most once", async () => {
+test("reads each revision and path at most once", async () => {
   const { show, calls } = fixture({ "c1:a.ts": "alpha beta" });
-  await verifyDiagram(proposal([node("a", "alpha"), node("b", "beta")], [edge("a", "b")]), diff, show);
+  await verifySequence(proposal([step("alpha"), step("beta")]), diff, show);
   assert.deepEqual(calls, ["c1:a.ts"]);
 });

@@ -17,6 +17,21 @@ function capScmOutput(output: string): string {
   return output.length > MAX_SCM_OUTPUT ? `${output.slice(0, MAX_SCM_OUTPUT)}\n[output truncated]` : output;
 }
 
+function safeRepoPath(path: string): string {
+  if (!path || path.startsWith("/") || path.startsWith("\\") || /^[A-Za-z]:[\\/]/.test(path) || path.split(/[\\/]/).includes("..")) throw new Error(`Invalid path: ${path}`);
+  return path;
+}
+
+/** Keeps whole lines within the SCM output cap; returns how many lines fit. */
+function capWholeLines(lines: string[]): { text: string; kept: number } {
+  let length = 0;
+  for (let index = 0; index < lines.length; index++) {
+    length += lines[index]!.length + 1;
+    if (length > MAX_SCM_OUTPUT - 100) return { text: lines.slice(0, index).join("\n"), kept: index };
+  }
+  return { text: lines.join("\n"), kept: lines.length };
+}
+
 function safeRevision(value: string, name: string): string {
   if (!value || value.startsWith("-")) throw new Error(`Invalid ${name}: ${value}`);
   return value;
@@ -55,6 +70,26 @@ export async function scmMergeBase(repo: string, a: string, b: string): Promise<
 export async function scmShow(repo: string, rev: string): Promise<string> {
   safeRevision(rev, "revision");
   return capScmOutput((await git(repo, ["show", "--no-patch", "--format=commit %H%nAuthor: %an <%ae>%nDate: %aI%n%n%B", "--stat", "--end-of-options", rev])).trimEnd());
+}
+
+export async function scmDiff(repo: string, rev: string, path?: string): Promise<string> {
+  safeRevision(rev, "revision");
+  const args = ["show", "--format=", "-U5", "--end-of-options", rev];
+  if (path !== undefined) args.push("--", safeRepoPath(path));
+  const lines = (await git(repo, args)).trimEnd().split("\n");
+  const { text, kept } = capWholeLines(lines);
+  return kept < lines.length ? `${text}\n[diff truncated at a whole line]` : text;
+}
+
+export async function scmFile(repo: string, rev: string, path: string, start = 1, end?: number): Promise<string> {
+  safeRevision(rev, "revision");
+  safeRepoPath(path);
+  const lines = (await git(repo, ["show", "--end-of-options", `${rev}:${path}`])).replace(/\n$/, "").split(/\r?\n/);
+  if (!Number.isInteger(start) || start < 1 || start > lines.length || (end !== undefined && (!Number.isInteger(end) || end < start))) throw new Error(`Invalid line range for a file of ${lines.length} lines`);
+  const stop = Math.min(end ?? lines.length, start + 399, lines.length);
+  const { text, kept } = capWholeLines(lines.slice(start - 1, stop).map((line, index) => `${start + index}: ${line}`));
+  const next = start + kept;
+  return next <= Math.min(end ?? lines.length, lines.length) ? `${text}\n[more lines available; request from line ${next}]` : text;
 }
 
 async function git(repo: string, args: string[], env?: Record<string, string>): Promise<string> {

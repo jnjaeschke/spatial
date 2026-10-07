@@ -312,7 +312,7 @@ test("estimateSize grows with level and hunk size", () => {
 
 const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
   id, sessionId: "S", type: "Diagram", status: "proposed", createdAt: id, provenance: { taskId: "t" },
-  data: { commit, commitIndex: 1, mode: "map", title, nodes: [], edges: [] },
+  data: { kind: "sequence", commit, commitIndex: 1, title, summary: "A sequence summary.", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "run", call: "run()", what: "Runs", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.ts", line: 1 }, verified: true, text: "run()" }], before: null },
 });
 
 test("sessionGraph adds only the latest diagram for each commit in the current diff", () => {

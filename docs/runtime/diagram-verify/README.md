@@ -8,8 +8,9 @@
 
 ## Type Aliases
 
-- [DiagramProposal](type-aliases/DiagramProposal.md)
+- [SequenceProposal](type-aliases/SequenceProposal.md)
+- [SequenceStepProposal](type-aliases/SequenceStepProposal.md)
 
 ## Functions
 
-- [verifyDiagram](functions/verifyDiagram.md)
+- [verifySequence](functions/verifySequence.md)

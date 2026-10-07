@@ -474,7 +474,7 @@ const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30
 /** First-paint estimate; the canvas re-layouts with measured sizes. */
 function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
   if (data.kind === "note") return { width: SATELLITE_WIDTH, height: 100 + lines(data.body, 60) * 22 };
-  if (data.kind === "diagram") return { width: NODE_WIDTH[level], height: 70 + Math.ceil(data.diagram.data.nodes.length / 4) * 76 };
+  if (data.kind === "diagram") return { width: Math.max(NODE_WIDTH[level], data.diagram.data.lanes.length * 170), height: 150 + data.diagram.data.steps.length * 92 };
   if (data.kind === "conversation") return { width: NODE_WIDTH[level], height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
   if (data.kind === "finding") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (data.kind === "phab") return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };

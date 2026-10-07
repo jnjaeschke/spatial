@@ -6,7 +6,7 @@ import type { Id } from "../shared/types.ts";
 import { renderRef, sessionOverview, sessionView } from "../runtime/render-ref.ts";
 import { Store } from "../runtime/store.ts";
 import { readRepoSkill } from "../runtime/repo-context.ts";
-import { scmBranches, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
+import { scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
 
 // Codex refuses MCP tool calls without readOnlyHint, even with approval_policy=never.
 const annotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
@@ -45,6 +45,8 @@ export function createSessionServer(store: Store, sessionId: Id, repoRoot: strin
   server.registerTool("scm_log", { description: "Show commits in a revision or range, newest first", inputSchema: { range: z.string(), limit: z.number().int().min(1).max(500).optional() }, annotations }, async ({ range, limit }) => answerAsync(() => scmLog(repoRoot, range, limit)));
   server.registerTool("scm_merge_base", { description: "Find the common ancestor of two revisions", inputSchema: { a: z.string(), b: z.string() }, annotations }, async ({ a, b }) => answerAsync(() => scmMergeBase(repoRoot, a, b)));
   server.registerTool("scm_show", { description: "Show commit metadata and changed-file summary", inputSchema: { rev: z.string() }, annotations }, async ({ rev }) => answerAsync(() => scmShow(repoRoot, rev)));
+  server.registerTool("scm_diff", { description: "Show the patch for a commit", inputSchema: { rev: z.string(), path: z.string().optional() }, annotations }, async ({ rev, path }) => answerAsync(() => scmDiff(repoRoot, rev, path)));
+  server.registerTool("scm_file", { description: "Read numbered lines from a file at a revision", inputSchema: { rev: z.string(), path: z.string(), start: z.number().int().min(1).optional(), end: z.number().int().min(1).optional() }, annotations }, async ({ rev, path, start, end }) => answerAsync(() => scmFile(repoRoot, rev, path, start, end)));
   return server;
 }
 

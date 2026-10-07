@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Artifact, ChatMessageData, ChatThreadData, DiagramData, LlmSelection, McpServerData, RevisionData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
-import { verifyDiagram, type DiagramProposal } from "../../runtime/diagram-verify.ts";
+import { verifySequence, type SequenceProposal, type SequenceStepProposal } from "../../runtime/diagram-verify.ts";
 import { latestDiff } from "../../shared/epochs.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
@@ -10,14 +10,18 @@ import { prependRepoContext } from "../../runtime/repo-context.ts";
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
 interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[]; diagram?: unknown }
-const diagramKinds = new Set(["class", "struct", "function", "method", "field", "module", "file", "other"]);
-const diagramStatuses = new Set(["added", "modified", "removed", "context"]);
-const edgeKinds = new Set(["calls", "inherits", "owns", "uses"]);
-function isDiagram(j: unknown): j is DiagramProposal {
+const sequenceStatuses = new Set(["new", "changed", "existing", "removed"]);
+function isDiagram(j: unknown): j is SequenceProposal {
   if (!j || typeof j !== "object") return false;
-  const d = j as Partial<DiagramProposal>;
+  const d = j as Partial<SequenceProposal>;
+  const nullableString = (value: unknown) => value === null || typeof value === "string";
   const cite = (value: unknown) => !!value && typeof value === "object" && typeof (value as { path?: unknown }).path === "string" && Number.isInteger((value as { line?: unknown }).line) && (value as { line: number }).line >= 1;
-  return Number.isInteger(d.commit) && d.commit! >= 1 && (d.mode === "map" || d.mode === "flow") && typeof d.title === "string" && Array.isArray(d.nodes) && d.nodes.every((node) => !!node && typeof node.id === "string" && typeof node.label === "string" && typeof node.identifier === "string" && diagramKinds.has(node.kind) && diagramStatuses.has(node.status) && cite(node.cite)) && Array.isArray(d.edges) && d.edges.every((edge) => !!edge && typeof edge.from === "string" && typeof edge.to === "string" && edgeKinds.has(edge.kind) && (edge.step === null || Number.isInteger(edge.step)) && cite(edge.cite));
+  const step = (value: unknown) => {
+    if (!value || typeof value !== "object") return false;
+    const s = value as SequenceStepProposal;
+    return typeof s.from === "string" && typeof s.to === "string" && typeof s.identifier === "string" && typeof s.call === "string" && typeof s.what === "string" && nullableString(s.when) && nullableString(s.guard) && nullableString(s.phase) && sequenceStatuses.has(s.status) && cite(s.cite);
+  };
+  return Number.isInteger(d.commit) && d.commit! >= 1 && typeof d.title === "string" && typeof d.summary === "string" && Array.isArray(d.lanes) && d.lanes.every((lane) => !!lane && typeof lane.id === "string" && typeof lane.label === "string" && nullableString(lane.note)) && Array.isArray(d.steps) && d.steps.every(step) && (d.before === null || (Array.isArray(d.before) && d.before.every(step)));
 }
 const isReply = (j: unknown): j is Reply => {
   const r = j as Partial<Reply> | undefined;
@@ -113,7 +117,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       if (!isDiagram(json.diagram)) diagramError = "diagram has an invalid shape";
       else if (!diff) diagramError = "there is no reviewed commit range";
       else {
-        const result = await verifyDiagram(json.diagram, diff.data, (sha, path) => ctx.git.show(sha, path));
+        const result = await verifySequence(json.diagram, diff.data, (sha, path) => ctx.git.show(sha, path));
         if (result.ok) diagram = result.data;
         else diagramError = result.error;
       }

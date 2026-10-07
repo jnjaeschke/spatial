@@ -28,7 +28,7 @@
 
 ### side
 
-> **side**: `"old"` \| `"new"`
+> **side**: `"new"` \| `"old"`
 
 ***
 

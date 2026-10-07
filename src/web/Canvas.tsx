@@ -38,6 +38,7 @@ function ResizableNode(props: NodeProps) {
   const resize = useContext(ResizeContext);
   const Original = nodeTypes[props.type as NodeKind];
   if (!Original) throw new Error(`Unknown node type: ${props.type}`);
+  if (props.type === "diagram") return createElement(Original as ComponentType<any>, props);
   return <>
     {createElement(Original as ComponentType<any>, props)}
     {props.selected && resize && <NodeResizeControl
@@ -262,7 +263,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       const m = measured.get(n.id);
       const estimate = estimateSize(n.data, level, textScale);
       const width = isSatellite(n) ? SATELLITE_WIDTH * textScale : estimate.width;
-      return { id: n.id, width: sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? width, height: m?.height ?? estimate.height };
+      return { id: n.id, width: n.data.kind !== "diagram" && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? width, height: m?.height ?? estimate.height };
     });
     const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
     basePos.current = pos;
@@ -273,7 +274,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
-      style: { width: (sizes[level]?.[n.id] ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
+      style: { width: n.data.kind === "diagram" ? estimateSize(n.data, level, textScale).width : (sizes[level]?.[n.id] ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
       className: n.id === currentRef.current ? "guide-current" : undefined,
       selected: selected.has(n.id),
       draggable: true,

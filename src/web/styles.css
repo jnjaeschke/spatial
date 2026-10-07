@@ -313,8 +313,26 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 .diagram-node .title { display: flex; align-items: baseline; gap: 8px; }
 .diagram-mode, .diagram-counts { color: var(--text-2); font-size: 0.78em; font-weight: 500; }
 .diagram-counts { margin-left: auto; }
+.diagram-summary { color: var(--text-2); margin-top: 5px; }
+.diagram-toggle { margin-top: 8px; }
 .diagram-content { overflow: auto; margin-top: 10px; border-top: 1px solid var(--border); }
-.diagram-content svg { display: block; overflow: visible; }
+.sequence-diagram { position: relative; }
+.sequence-lane { position: absolute; top: 0; bottom: 0; text-align: center; }
+.sequence-lane strong, .sequence-lane small { display: block; }
+.sequence-lane small { color: var(--text-2); }
+.sequence-lane i { position: absolute; top: 48px; bottom: 0; left: 50%; border-left: 1px dashed var(--border-strong); }
+.sequence-step { position: absolute; height: 56px; text-align: center; }
+.sequence-badge { position: absolute; left: 4px; top: 4px; border-radius: 50%; padding: 2px 7px; background: var(--text-2); color: var(--surface); }
+.sequence-step[data-status="new"] .sequence-badge { background: var(--success); }
+.sequence-step[data-status="changed"] .sequence-badge { background: var(--warning); }
+.sequence-step[data-status="removed"] .sequence-badge { background: var(--danger); }
+.sequence-call, .sequence-what, .sequence-guard { display: block; }
+.sequence-call { font-family: var(--font-mono); }
+.sequence-what { color: var(--text-2); font-size: 0.85em; }
+.sequence-guard { color: var(--warning); font-size: 0.8em; }
+.sequence-arrow { position: absolute; top: 54px; font-size: 20px; }
+.sequence-phase { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border-strong); color: var(--text-2); font-size: 0.8em; }
+.sequence-warning { position: absolute; right: 4px; top: 4px; color: var(--warning); }
 .diagram-edge path { fill: none; stroke: var(--text-2); stroke-width: 1.5; }
 .diagram-edge marker path { fill: var(--text-2); stroke: none; }
 .diagram-edge text { fill: var(--text-2); font: 11px var(--font-sans); text-anchor: middle; }

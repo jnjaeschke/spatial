@@ -36,7 +36,7 @@ Data of a `ChatThread` artifact; linked `about → anchor`.
 
 #### side
 
-> **side**: `"old"` \| `"new"`
+> **side**: `"new"` \| `"old"`
 
 #### start
 

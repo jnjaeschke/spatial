@@ -135,25 +135,23 @@ test("chat passes the reply schema on new and resumed turns and stores structure
 
 test("chat verifies a proposed diagram and links it to the assistant reply", async () => {
   const git: GitCapability = { effect: "read-only", isDirty: async () => false, resolve: async () => "", isAncestor: async () => true, mergeBase: async () => null, blame: async () => [], log: async () => [], diff: async () => "", replay: async () => ({ tree: "", conflicts: [] }), async show() { return "call target()"; } };
-  const diagram = { commit: 1, mode: "flow", title: "Calls", nodes: [
-    { id: "a", label: "caller", identifier: "call", kind: "function", status: "modified", cite: { path: "dom/A.cpp", line: 1 } },
-    { id: "b", label: "target", identifier: "target", kind: "function", status: "context", cite: { path: "dom/A.cpp", line: 1 } },
-  ], edges: [{ from: "a", to: "b", kind: "calls", step: 1, cite: { path: "dom/A.cpp", line: 1 } }] };
+  const diagram = { commit: 1, title: "Calls", summary: "Call path", lanes: [{ id: "a", label: "caller", note: null }, { id: "b", label: "target", note: null }],
+    steps: [{ from: "a", to: "b", identifier: "call", call: "call target()", what: "Calls target", when: null, guard: null, phase: "run", status: "changed", cite: { path: "dom/A.cpp", line: 1 } }], before: null };
   const { store, turn, narrativeId, session } = setup({ git, replies: [{ answer: "Flow", revisions: [], questions: [], diagram }] });
   const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Show the flow", llm: SONNET });
   const artifacts = store.listArtifacts(session.id, "Diagram");
   assert.equal(artifacts.length, 1);
   assert.equal(artifacts[0]!.status, "proposed");
-  assert.deepEqual((artifacts[0]!.data as DiagramData).nodes.map((node) => node.verified), [true, true]);
-  assert.deepEqual((artifacts[0]!.data as DiagramData).edges.map((edge) => edge.verified), [true]);
+  assert.equal((artifacts[0]!.data as DiagramData).kind, "sequence");
+  assert.deepEqual((artifacts[0]!.data as DiagramData).steps.map((step) => step.verified), [true]);
   assert.ok(store.listLinks(session.id).some((link) => link.from === artifacts[0]!.id && link.to === messageId && link.kind === "derivedFrom"));
 });
 
 test("invalid diagrams are dropped with an error on the assistant message", async () => {
   for (const diagram of [
     "not a diagram",
-    { commit: 2, mode: "map", title: "Bad commit", nodes: [], edges: [] },
-    { commit: 1, mode: "map", title: "Bad edge", nodes: [], edges: [{ from: "missing", to: "also-missing", kind: "uses", step: null, cite: { path: "x", line: 1 } }] },
+    { commit: 2, title: "Bad commit", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
+    { commit: 1, title: "Bad lane", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "missing", to: "a", identifier: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
   ]) {
     const { store, turn, narrativeId, session } = setup({ replies: [{ answer: "Kept", revisions: [], questions: [], diagram }] });
     const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Draw", llm: SONNET });

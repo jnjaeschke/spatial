@@ -29,37 +29,38 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["commit", "mode", "title", "nodes", "edges"],
+          "required": ["commit", "title", "summary", "lanes", "steps", "before"],
           "properties": {
             "commit": { "type": "integer", "minimum": 1 },
-            "mode": { "type": "string", "enum": ["map", "flow"] },
             "title": { "type": "string" },
-            "nodes": { "type": "array", "items": {
+            "summary": { "type": "string" },
+            "lanes": { "type": "array", "items": {
               "type": "object", "additionalProperties": false,
-              "required": ["id", "label", "identifier", "kind", "status", "cite"],
-              "properties": {
-                "id": { "type": "string" }, "label": { "type": "string" }, "identifier": { "type": "string" },
-                "kind": { "type": "string", "enum": ["class", "struct", "function", "method", "field", "module", "file", "other"] },
-                "status": { "type": "string", "enum": ["added", "modified", "removed", "context"] },
-                "cite": { "$ref": "#/$defs/cite" }
-              }
+              "required": ["id", "label", "note"],
+              "properties": { "id": { "type": "string" }, "label": { "type": "string" }, "note": { "type": ["string", "null"] } }
             } },
-            "edges": { "type": "array", "items": {
-              "type": "object", "additionalProperties": false,
-              "required": ["from", "to", "kind", "step", "cite"],
-              "properties": {
-                "from": { "type": "string" }, "to": { "type": "string" },
-                "kind": { "type": "string", "enum": ["calls", "inherits", "owns", "uses"] },
-                "step": { "type": ["integer", "null"] }, "cite": { "$ref": "#/$defs/cite" }
-              }
-            } }
+            "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+            "before": { "anyOf": [{ "type": "null" }, { "type": "array", "items": { "$ref": "#/$defs/step" } }] }
           }
         }
       ]
     }
   },
-  "$defs": { "cite": {
-    "type": "object", "additionalProperties": false, "required": ["path", "line"],
-    "properties": { "path": { "type": "string" }, "line": { "type": "integer", "minimum": 1 } }
-  } }
+  "$defs": {
+    "cite": {
+      "type": "object", "additionalProperties": false, "required": ["path", "line"],
+      "properties": { "path": { "type": "string" }, "line": { "type": "integer", "minimum": 1 } }
+    },
+    "step": {
+      "type": "object", "additionalProperties": false,
+      "required": ["from", "to", "identifier", "call", "what", "when", "guard", "phase", "status", "cite"],
+      "properties": {
+        "from": { "type": "string" }, "to": { "type": "string" }, "identifier": { "type": "string" },
+        "call": { "type": "string" }, "what": { "type": "string" },
+        "when": { "type": ["string", "null"] }, "guard": { "type": ["string", "null"] }, "phase": { "type": ["string", "null"] },
+        "status": { "type": "string", "enum": ["new", "changed", "existing", "removed"] },
+        "cite": { "$ref": "#/$defs/cite" }
+      }
+    }
+  }
 }

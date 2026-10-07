@@ -6,9 +6,15 @@
 
 # Interface: DiagramData
 
-Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `verified` flags are set by the runtime.
+Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `before` is the parent commit's flow, null for a new flow.
 
 ## Properties
+
+### before
+
+> **before**: [`SequenceStep`](SequenceStep.md)[] \| `null`
+
+***
 
 ### commit
 
@@ -22,21 +28,27 @@ Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assist
 
 ***
 
-### edges
+### kind
 
-> **edges**: [`DiagramEdge`](DiagramEdge.md)[]
-
-***
-
-### mode
-
-> **mode**: `"map"` \| `"flow"`
+> **kind**: `"sequence"`
 
 ***
 
-### nodes
+### lanes
 
-> **nodes**: [`DiagramNode`](DiagramNode.md)[]
+> **lanes**: [`SequenceLane`](SequenceLane.md)[]
+
+***
+
+### steps
+
+> **steps**: [`SequenceStep`](SequenceStep.md)[]
+
+***
+
+### summary
+
+> **summary**: `string`
 
 ***
 

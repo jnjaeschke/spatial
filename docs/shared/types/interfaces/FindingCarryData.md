@@ -36,7 +36,7 @@ Where a finding sits in the Diff `toDiff` after re-anchoring; `hunkId` null mean
 
 #### side
 
-> **side**: `"old"` \| `"new"`
+> **side**: `"new"` \| `"old"`
 
 #### start
 

@@ -28,7 +28,7 @@ Maps a comment range on the squashed diff to the commit that owns it and that co
 
 #### side
 
-`"old"` \| `"new"`
+`"new"` \| `"old"`
 
 #### start
 

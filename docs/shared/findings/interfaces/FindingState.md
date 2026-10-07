@@ -58,7 +58,7 @@ Epoch the finding was raised in.
 
 #### side
 
-> **side**: `"old"` \| `"new"`
+> **side**: `"new"` \| `"old"`
 
 #### start
 
