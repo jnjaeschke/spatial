@@ -70,6 +70,8 @@ export interface CommitNodeData {
   index: number;
   commit: Commit;
   intent: string | null;
+  /** Narration's phrase for a flow worth a sequence diagram; null when there is none or the commit already has a diagram. */
+  flowHint: string | null;
   changeCount: number;
   findingCount: number;
   reviewedCount: number;
@@ -241,7 +243,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   if (stack) {
     diff.data.commits.forEach((commit, index) => {
       const cardId = commitNodeId(narrative.id, index);
-      nodes.push({ id: cardId, data: { kind: "commit", narrativeId: narrative.id, index, commit, intent: narrative.data.commitIntents?.[index] ?? null,
+      nodes.push({ id: cardId, data: { kind: "commit", narrativeId: narrative.id, index, commit, intent: narrative.data.commitIntents?.[index] ?? null, flowHint: narrative.data.flowHints?.[index] ?? null,
         changeCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index).length,
         reviewedCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index && reviewed.has(change.id)).length, findingCount: 0 } });
       edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
@@ -360,11 +362,13 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     if (diagram.data.kind !== "sequence") continue;
     if (latest.diff.data.commits.some((commit) => commit.sha === diagram.data.commit)) diagramsByCommit.set(diagram.data.commit, diagram);
   }
-  for (const commit of latest.diff.data.commits) {
+  latest.diff.data.commits.forEach((commit, index) => {
     const diagram = diagramsByCommit.get(commit.sha);
-    if (!diagram) continue;
+    if (!diagram) return;
     g.nodes.push({ id: diagram.id, data: { kind: "diagram", diagram } });
-  }
+    const card = g.nodes.find((node) => node.id === commitNodeId(latest.narrative.id, index));
+    if (card?.data.kind === "commit") card.data.flowHint = null;
+  });
   const diagramIds = new Set(g.nodes.filter((node) => node.data.kind === "diagram").map((node) => node.id));
   const diagramsByMessage: Record<Id, Id[]> = {};
   for (const link of state.links) {

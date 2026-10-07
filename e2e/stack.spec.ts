@@ -288,6 +288,21 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
 });
 
+test("a commit card draws the diagram narration suggests", async ({ page, request }) => {
+  const ids = newStackIds(2);
+  const stack = await buildStack(request, [
+    { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
+    { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
+  ]);
+  await narrate(page, stack, "concept");
+  const card = page.getByTestId("commit-0");
+  await expect(card).toContainText("Flow: how the changed value is applied");
+  await expect(page.getByTestId("commit-1").getByRole("button", { name: "Draw diagram" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Draw diagram" }).click();
+  await expect(page.locator('[data-testid^="diagram-"]')).toContainText("First commit sequence", { timeout: 15_000 });
+  await expect(card.getByRole("button", { name: /Draw diagram|Drawing/ })).toHaveCount(0);
+});
+
 test("posts a C1 line to C1", async ({ page, request }) => {
   const ids = newStackIds(2);
   const stack = await buildStack(request, [

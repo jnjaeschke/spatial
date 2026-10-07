@@ -13,7 +13,7 @@ export const MAX_PROMPT_CHARS = 300_000;
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const UPDATE_SYSTEM = readFileSync(new URL("./prompt-update.md", import.meta.url), "utf8");
 const STACK_SYSTEM = readFileSync(new URL("./prompt-stack.md", import.meta.url), "utf8");
-const STACK_SCHEMA = { ...schema, required: [...schema.required, "commitIntents"], properties: { ...schema.properties, commitIntents: { type: "array", items: { type: "string" } } } };
+const STACK_SCHEMA = { ...schema, required: [...schema.required, "commitIntents", "flowHints"], properties: { ...schema.properties, commitIntents: { type: "array", items: { type: "string" } }, flowHints: { type: "array", items: { type: ["string", "null"] } } } };
 
 export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?: { previousNarrativeId: string; interdiffId: string } }, { narrativeId: string }>({
   kind: "narrate",

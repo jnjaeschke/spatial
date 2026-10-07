@@ -331,6 +331,8 @@ export interface PatchNarrativeData {
   changes: SemanticChange[];
   /** One sentence per stack commit, in commit order, on what the commit achieves within the stack. Present for stacks only. */
   commitIntents?: string[];
+  /** Per stack commit, in commit order: a short phrase naming the runtime flow a sequence diagram would explain, or null. Present for stacks only. */
+  flowHints?: (string | null)[];
   /** Previous epoch's narrative; present when this narrative describes what changed since it. */
   previous?: Id;
 }

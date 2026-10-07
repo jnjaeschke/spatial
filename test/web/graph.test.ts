@@ -344,6 +344,13 @@ test("diagramStepTarget rejects unverified and unmatched citations", () => {
   assert.equal(diagramStepTarget([node], d, d.data.steps[0]!), null);
 });
 
+test("commit cards carry the narration's flow hint until the commit has a diagram", () => {
+  const hinted = { ...stackNarrative, data: { ...stackNarrative.data, flowHints: ["how A runs", null] } };
+  const hints = (artifacts: Artifact[]) => sessionGraph(state(artifacts))!.nodes.flatMap((node) => node.data.kind === "commit" ? [node.data.flowHint] : []);
+  assert.deepEqual(hints([stackDiff, hinted]), ["how A runs", null]);
+  assert.deepEqual(hints([stackDiff, hinted, diagram("D-1", stackDiff.data.commits[0]!.sha)]), [null, null]);
+});
+
 test("sessionGraph adds only the latest diagram for each commit in the current diff", () => {
   const old = diagram("D-old", "2"), latest = diagram("D-latest", "2");
   const legacy = { ...diagram("D-legacy", "2"), data: { ...diagram("D-legacy", "2").data, kind: "flow" } } as unknown as Artifact<DiagramData>;

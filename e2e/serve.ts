@@ -65,7 +65,7 @@ const diagramOut = stubOut("diagram", { answer: "Here is the sequence.", questio
   { from: "page", to: "object", symbol: "NOPE", call: "Notify()", what: "Notifies the object.", when: null, guard: null, phase: "Refresh", status: "new", cite: { path: "a.txt", line: 999 } },
   { from: "object", to: "object", symbol: "line", call: "Render()", what: "Renders the result.", when: "Before the next paint", guard: null, phase: "Paint", status: "existing", cite: { path: "a.txt", line: 1 } },
 ], before: [{ from: "driver", to: "page", symbol: "line", call: "Render()", what: "Rendered the old value.", when: null, guard: null, phase: "Refresh", status: "removed", cite: { path: "a.txt", line: 1 } }] } });
-const stackRewriteOut = stubOut("stack-rewrite", { summary: "Edits `a.txt` and adds `c.txt`, then rewrites line 30 again.", commitIntents: ["Replaces `line 30` and adds `c.txt`.", "Rewrites line 30 a second time."], changes: [
+const stackRewriteOut = stubOut("stack-rewrite", { summary: "Edits `a.txt` and adds `c.txt`, then rewrites line 30 again.", commitIntents: ["Replaces `line 30` and adds `c.txt`.", "Rewrites line 30 a second time."], flowHints: ["how the changed value is applied", null], changes: [
   { id: "c1", title: "Edit a", explanation: "Replaces `line 30`.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] },
   { id: "c2", title: "Add c", explanation: "Adds file c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] },
   { id: "c3", title: "Rewrite line 30", explanation: "Rewrites line 30 again.", rationale: "r", hunkIds: ["f0h1"], dependsOn: ["c1"], specUrls: [] },
@@ -76,7 +76,7 @@ const stackAddOut = stubOut("stack-add", { summary: "Edits `a.txt`, then adds `c
 ] });
 const commentOut = join(dir, "comment.json");
 writeFileSync(commentOut, JSON.stringify({ type: "result", is_error: false, result: "No test was added for the c.txt change.", structured_output: { body: "No test was added for the c.txt change." }, session_id: "stub-comment", usage: { input_tokens: 1, output_tokens: 1 } }));
-process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
 process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 
 const arcrc = join(dir, "arcrc");

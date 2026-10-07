@@ -3,7 +3,7 @@ import { hunkCommit } from "../../shared/review-path.ts";
 
 /** Deterministic checks the LLM cannot be trusted with. Returns human-readable errors; empty = valid. */
 export function validateNarrative(json: unknown, diff: DiffData): string[] {
-  const n = json as { summary?: unknown; changes?: unknown; commitIntents?: unknown };
+  const n = json as { summary?: unknown; changes?: unknown; commitIntents?: unknown; flowHints?: unknown };
   if (typeof n !== "object" || n === null || typeof n.summary !== "string" || !Array.isArray(n.changes)) {
     return ["Narrative must be an object with string summary and array changes"];
   }
@@ -47,11 +47,15 @@ function orderErrors(changes: SemanticChange[]): string[] {
   }));
 }
 
-function stackErrors(json: { commitIntents?: unknown }, changes: SemanticChange[], diff: DiffData): string[] {
+function stackErrors(json: { commitIntents?: unknown; flowHints?: unknown }, changes: SemanticChange[], diff: DiffData): string[] {
   const errors: string[] = [];
   const intents = json.commitIntents;
   if (!Array.isArray(intents) || intents.length !== diff.commits.length || intents.some((intent) => typeof intent !== "string" || !intent.trim())) {
     errors.push(`commitIntents must hold one non-empty sentence per commit (${diff.commits.length})`);
+  }
+  const hints = json.flowHints;
+  if (hints !== undefined && (!Array.isArray(hints) || hints.length !== diff.commits.length || hints.some((hint) => hint !== null && (typeof hint !== "string" || !hint.trim())))) {
+    errors.push(`flowHints must hold one phrase or null per commit (${diff.commits.length})`);
   }
   const hunks = new Map(diff.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, hunk] as const)));
   let latest = 0;

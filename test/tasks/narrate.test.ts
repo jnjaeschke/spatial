@@ -75,6 +75,10 @@ test("validate: stack ownership, order, and commit intents", () => {
     const result = validateNarrative({ ...valid, commitIntents: intents }, STACK);
     assert.ok(result.includes("commitIntents must hold one non-empty sentence per commit (2)"));
   }
+  assert.deepEqual(validateNarrative({ ...valid, flowHints: ["how A runs", null] }, STACK), []);
+  for (const hints of [["a"], [" ", null], [1, null], "a"]) {
+    assert.ok(validateNarrative({ ...valid, flowHints: hints }, STACK).includes("flowHints must hold one phrase or null per commit (2)"), JSON.stringify(hints));
+  }
   assert.ok(validateNarrative({ ...valid, changes: [change("c1", ["f0h0", "f0h1"]), ...valid.changes.slice(1)] }, STACK).includes("Change c1 mixes hunks of C1, C2; split it by commit"));
   const reversed = { ...valid, changes: [change("c1", ["f0h1"]), change("c2", ["f0h0"]), change("c3", ["f1h0"])] };
   assert.ok(validateNarrative(reversed, STACK).includes("Change c2 (C1) comes after a change of C2; order changes by commit"));
@@ -149,14 +153,15 @@ test("narrate: stores proposed PatchNarrative with provenance and derivedFrom li
   assert.doesNotMatch(prompts[0].prompt, /# Previous narrative|# Interdiff|\[unchanged\]|\[modified\]|\[new\]/);
 });
 
-test("narrate stack: adds stack prompt and schema and stores commit intents", async () => {
-  const narrative = { summary: "S", commitIntents: ["First.", "Second."], changes: [change("c1", ["f0h0"]), change("c2", ["f1h0"], ["c1"]), change("c3", ["f0h1"], ["c1"])] };
+test("narrate stack: adds stack prompt and schema and stores commit intents and flow hints", async () => {
+  const narrative = { summary: "S", commitIntents: ["First.", "Second."], flowHints: ["how A runs", null], changes: [change("c1", ["f0h0"]), change("c2", ["f1h0"], ["c1"]), change("c3", ["f0h1"], ["c1"])] };
   const { store, rt, session, prompts } = setup([narrative]);
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: STACK, provenance: { taskId: "x" } }).id;
   const { narrativeId } = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId });
   assert.match(prompts[0].system!, /stack of several commits/);
-  assert.deepEqual((prompts[0].schema as { required: string[] }).required, [...(schema as { required: string[] }).required, "commitIntents"]);
+  assert.deepEqual((prompts[0].schema as { required: string[] }).required, [...(schema as { required: string[] }).required, "commitIntents", "flowHints"]);
   assert.deepEqual(store.getArtifact<PatchNarrativeData>(narrativeId).data.commitIntents, narrative.commitIntents);
+  assert.deepEqual(store.getArtifact<PatchNarrativeData>(narrativeId).data.flowHints, narrative.flowHints);
 });
 
 test("narrate: passes session and repo MCP servers with read-only tools", async () => {
