@@ -833,3 +833,21 @@ test("static files with SPA fallback", async () => {
   assert.match(await (await fetch(`${base}/some/deep/route`)).text(), /<title>app<\/title>/);
   assert.match(await (await fetch(`${base}/%2e%2e/etc/passwd`)).text(), /<title>app<\/title>/);
 });
+
+test("mapping a spec's steps needs a narrative and a spec with steps supporting its changes", async () => {
+  const session = await newSession();
+  const path = (specId: string) => `/api/sessions/${session.id}/specs/${specId}/map`;
+  assert.equal((await post(path("none"), {})).status, 409);
+  const put = (type: string, data: unknown) => rt.store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
+  const diff = put("Diff", { baseSha: "B", headSha: "H", commits: [], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [{ id: "f0h0", header: "", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "add", text: "x" }] }] }] });
+  const narrative = put("PatchNarrative", { diffId: diff.id, summary: "s", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }] });
+  const resolved = { spec: "HTML", anchor: "a", title: "a", type: "algorithm", url: "https://h/#a", content: "1. Do it." };
+  const prose = put("SpecReference", { url: resolved.url, resolved: { ...resolved, content: "No steps." }, origin: "code", geckoRefs: [] });
+  const steps = put("SpecReference", { url: resolved.url, resolved, origin: "code", geckoRefs: [] });
+  for (const spec of [prose, steps]) rt.store.putLink({ sessionId: session.id, from: spec.id, to: `${narrative.id}#c1`, kind: "supports" });
+  assert.equal((await post(path(prose.id), {})).status, 409);
+  const started = await post(path(steps.id), {});
+  assert.equal(started.status, 202);
+  const { taskId } = await started.json() as { taskId: string };
+  assert.deepEqual(rt.store.getTask(taskId).input, { narrativeId: narrative.id, specId: steps.id });
+});

@@ -114,6 +114,14 @@ export interface SpecReferenceData {
   geckoRefsError?: string;
 }
 
+export type StepLinkKind = "implements" | "partial" | "structural" | "deviates";
+/** Lines `start..end` (inclusive) of one side of a file in the diff. */
+export interface LineRange { path: string; side: "old" | "new"; start: number; end: number }
+/** `step` is a step number of the spec section as `parseSteps` numbers it, e.g. "4.2". `structural` links (ordering, queuing, "in parallel") may have no ranges. */
+export interface StepLink { step: string; kind: StepLinkKind; ranges: LineRange[]; note: string }
+/** Data of a `SpecStepMap` artifact: which changed lines implement which steps of a spec section, over the changes the spec supports. Linked `derivedFrom → SpecReference`, `about → narrative`; latest per (spec, narrative) wins. Proposed (LLM); the runtime dropped links to unknown steps and lines outside those changes' hunks, and says so in `dropped`. */
+export interface SpecStepMapData { spec: Id; narrative: Id; links: StepLink[]; dropped: string[] }
+
 /** Full snapshot of one session; the web client's only data source besides events. */
 export interface SessionState {
   session: Session;

@@ -20,6 +20,7 @@ import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { continueSelection, runWorkflow, startSession } from "../workflows/start.ts";
 import { importRevision, ImportRevisionError } from "../runtime/import-revision.ts";
+import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 
 class HttpError extends Error {
   status: number;
@@ -247,6 +248,19 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       const body = await readJson(req);
       const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
       done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
+      send(res, 202, { taskId });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/specs\/([^/]+)\/map$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]);
+      const specId = params[1]!;
+      const artifacts = rt.store.listArtifacts(session.id);
+      const diff = latestDiff(artifacts);
+      const narrative = diff && narrativeOf(artifacts, diff.id);
+      if (!narrative) throw new HttpError(409, "Session has no narrative");
+      if (!mappableSpecs({ artifacts, links: rt.store.listLinks(session.id) }, narrative.id).includes(specId)) throw new HttpError(409, "Spec has no steps to map onto this narrative's changes");
+      const body = await readJson(req);
+      const { taskId, done } = rt.start(session.id, "mapSpecSteps", { narrativeId: narrative.id, specId, llm: body.llm as LlmSelection | undefined });
+      done.catch((e) => console.error(`mapSpecSteps ${taskId} failed: ${(e as Error).message}`));
       send(res, 202, { taskId });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/post-drafts$/, async ({ params, res }) => {

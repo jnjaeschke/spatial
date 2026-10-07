@@ -8,7 +8,7 @@
 
 > **narratePatch**(`rt`, `sessionId`, `opts`): `Promise`\<\{ `diffId`: `string`; `narrativeId`: `string`; \}\>
 
-importDiff → narrate → resolveSpecRefs → review. Plain orchestration; no workflow engine.
+importDiff → narrate → resolveSpecRefs → review, with mapSpecSteps for each spec section with steps alongside the review. Plain orchestration; no workflow engine.
 
 ## Parameters
 
