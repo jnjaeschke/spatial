@@ -34,15 +34,15 @@ writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "St
 process.env.FAKE_LLM_STDOUT = out;
 const chatOut = join(dir, "chat.json");
 const chatAnswer = "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```";
-writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [] }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const selectReviewOut = join(dir, "select-review.json");
 writeFileSync(selectReviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "review", params: { base: null, head: null, revision: null }, title: "Review via selector" }, session_id: "stub-select-review", usage: { input_tokens: 1, output_tokens: 1 } }));
 const selectChatOut = join(dir, "select-chat.json");
 writeFileSync(selectChatOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "chat", params: {}, title: "Chat via selector" }, session_id: "stub-select-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const mcpRequestOut = join(dir, "mcp-request.json");
-writeFileSync(mcpRequestOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: [], revisions: [], requestMcpServers: ["firefox-devtools"] }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(mcpRequestOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: [], revisions: [], requestMcpServers: ["firefox-devtools"], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const revisedOut = join(dir, "revised-chat.json");
-writeFileSync(revisedOut, JSON.stringify({ type: "result", is_error: false, result: "You are right, corrected.", structured_output: { answer: "You are right, corrected.", questions: [], revisions: [{ message: null, quote: "Stub answer.", correction: "Corrected stub answer." }], requestMcpServers: [] }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(revisedOut, JSON.stringify({ type: "result", is_error: false, result: "You are right, corrected.", structured_output: { answer: "You are right, corrected.", questions: [], revisions: [{ message: null, quote: "Stub answer.", correction: "Corrected stub answer." }], requestMcpServers: [], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const reviewOut = join(dir, "review.json");
 writeFileSync(reviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { findings: [{ anchor: "f1h0", quote: "c", category: "tests", severity: "medium", title: "No test for c", body: "Adds `c.txt` without a test." }], verdicts: [] }, session_id: "stub-review", usage: { input_tokens: 1, output_tokens: 1 } }));
 const updateReview1Out = join(dir, "update-review1.json");

@@ -68,6 +68,23 @@ test("renderRef renders artifacts and supported subrefs", () => {
   assert.throws(() => renderRef(view, "N#nope"), /Unknown ref: N#nope/);
 });
 
+test("renderRef renders a commit anchor from the narrative's own diff", () => {
+  const ownDiff = artifact("D-own", "Diff", {
+    baseSha: "base", headSha: "head", commits: [
+      { sha: "0123456789abcdef", subject: "First subject", body: "First body" },
+      { sha: "fedcba9876543210", subject: "Second subject", body: "Second body" },
+    ], files: [
+      { path: "src/first.ts", status: "modified" as const, binary: false, hunks: [{ ...hunk("f0h0"), lines: [{ kind: "add" as const, text: "a", commit: 0 }] }] },
+      { path: "src/changed.ts", status: "modified" as const, binary: false, hunks: [{ ...hunk("f1h0"), lines: [{ kind: "add" as const, text: "b", commit: 1 }] }] },
+    ],
+  });
+  const ownNarrative = artifact("N-own", "PatchNarrative", { ...narrative.data, diffId: "D-own" });
+  const rendered = renderRef({ artifacts: [diff, ownDiff, ownNarrative], links: [] }, "N-own#commit-1");
+  for (const expected of ["2 of 2", "fedcba987654", "Second subject", "Second body", "src/changed.ts"]) assert.ok(rendered.includes(expected), expected);
+  assert.ok(!rendered.includes("src/first.ts"));
+  assert.throws(() => renderRef({ artifacts: [diff, ownDiff, ownNarrative], links: [] }, "N-own#commit-2"), /Unknown ref/);
+});
+
 test("renderRef renders a WorkflowStart request", () => {
   const start = artifact("W", "WorkflowStart", { workflow: "chat", prompt: "Explain X" });
   assert.equal(renderRef({ artifacts: [start], links: [] }, "W"), "# Session request (chat)\n\nExplain X");

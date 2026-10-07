@@ -209,6 +209,7 @@ export function anchorNodeId(
     return thread && nodeIds.has(thread) ? thread : null;
   }
   const artifactId = anchor.slice(0, i), subId = anchor.slice(i + 1);
+  if (artifactId === narrativeId && /^commit-\d+$/.test(subId)) return nodeIds.has(anchor) ? anchor : null;
   if (artifactId === narrativeId) return narrative.changes.some((c) => c.id === subId) ? anchor : null;
   if (artifactId === diffId) {
     const change = narrative.changes.find((c) => c.hunkIds.includes(subId));

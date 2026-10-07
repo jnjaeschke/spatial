@@ -190,6 +190,8 @@ export interface ChatMessageData {
   questions?: string[];
   /** Revisions from this reply that were not applied, with the reason. */
   revisionErrors?: string[];
+  /** Why a proposed diagram was dropped during deterministic verification. */
+  diagramError?: string;
 }
 
 export interface Link {

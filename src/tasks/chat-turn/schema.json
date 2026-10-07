@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["answer", "questions", "revisions", "requestMcpServers"],
+  "required": ["answer", "questions", "revisions", "requestMcpServers", "diagram"],
   "properties": {
     "answer": { "type": "string" },
     "questions": { "type": "array", "items": { "type": "string" } },
@@ -22,6 +22,44 @@
           "correction": { "type": "string" }
         }
       }
+    },
+    "diagram": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "mode", "title", "nodes", "edges"],
+          "properties": {
+            "commit": { "type": "integer", "minimum": 1 },
+            "mode": { "type": "string", "enum": ["map", "flow"] },
+            "title": { "type": "string" },
+            "nodes": { "type": "array", "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["id", "label", "identifier", "kind", "status", "cite"],
+              "properties": {
+                "id": { "type": "string" }, "label": { "type": "string" }, "identifier": { "type": "string" },
+                "kind": { "type": "string", "enum": ["class", "struct", "function", "method", "field", "module", "file", "other"] },
+                "status": { "type": "string", "enum": ["added", "modified", "removed", "context"] },
+                "cite": { "$ref": "#/$defs/cite" }
+              }
+            } },
+            "edges": { "type": "array", "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["from", "to", "kind", "step", "cite"],
+              "properties": {
+                "from": { "type": "string" }, "to": { "type": "string" },
+                "kind": { "type": "string", "enum": ["calls", "inherits", "owns", "uses"] },
+                "step": { "type": ["integer", "null"] }, "cite": { "$ref": "#/$defs/cite" }
+              }
+            } }
+          }
+        }
+      ]
     }
-  }
+  },
+  "$defs": { "cite": {
+    "type": "object", "additionalProperties": false, "required": ["path", "line"],
+    "properties": { "path": { "type": "string" }, "line": { "type": "integer", "minimum": 1 } }
+  } }
 }

@@ -73,6 +73,16 @@ export function renderRef(view: SessionView, ref: Ref): string {
   if (artifact.type === "PatchNarrative") {
     const narrative = artifact.data as PatchNarrativeData;
     if (subId === undefined) return "# Summary\n" + narrative.summary + "\n\n# Changes\n" + narrative.changes.map((change) => "- " + artifact.id + "#" + change.id + ": " + change.title).join("\n");
+    const commitAnchor = /^commit-(\d+)$/.exec(subId);
+    if (commitAnchor) {
+      const index = Number(commitAnchor[1]);
+      const diffArtifact = view.artifacts.find((item) => item.id === narrative.diffId && item.type === "Diff");
+      const diff = diffArtifact?.data as DiffData | undefined;
+      const commit = diff?.commits[index];
+      if (!commit) throw new Error("Unknown ref: " + ref);
+      const files = diff.files.filter((file) => file.hunks.some((hunk) => hunk.lines.some((line) => line.commit === index)));
+      return [`# Commit ${index + 1} of ${diff.commits.length}`, `Commit: ${commit.sha.slice(0, 12)}`, `Subject: ${commit.subject}`, ...(commit.body ? [`Body:\n${commit.body}`] : []), "# Changed files", ...(files.length ? files.map((file) => `- ${file.path} (${file.status})`) : ["None"])].join("\n\n");
+    }
     const change = narrative.changes.find((item) => item.id === subId);
     if (!change) throw new Error("Unknown ref: " + ref);
     const diffArtifact = view.artifacts.find((item) => item.id === narrative.diffId && item.type === "Diff");

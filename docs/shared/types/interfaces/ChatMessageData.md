@@ -10,6 +10,14 @@ Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages 
 
 ## Properties
 
+### diagramError?
+
+> `optional` **diagramError?**: `string`
+
+Why a proposed diagram was dropped during deterministic verification.
+
+***
+
 ### llm?
 
 > `optional` **llm?**: [`LlmSelection`](LlmSelection.md)

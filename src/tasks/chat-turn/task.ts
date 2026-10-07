@@ -1,13 +1,24 @@
 import { readFileSync } from "node:fs";
-import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, McpServerData, RevisionData } from "../../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DiagramData, LlmSelection, McpServerData, RevisionData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
+import { verifyDiagram, type DiagramProposal } from "../../runtime/diagram-verify.ts";
+import { latestDiff } from "../../shared/epochs.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
-interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[] }
+interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[]; diagram?: unknown }
+const diagramKinds = new Set(["class", "struct", "function", "method", "field", "module", "file", "other"]);
+const diagramStatuses = new Set(["added", "modified", "removed", "context"]);
+const edgeKinds = new Set(["calls", "inherits", "owns", "uses"]);
+function isDiagram(j: unknown): j is DiagramProposal {
+  if (!j || typeof j !== "object") return false;
+  const d = j as Partial<DiagramProposal>;
+  const cite = (value: unknown) => !!value && typeof value === "object" && typeof (value as { path?: unknown }).path === "string" && Number.isInteger((value as { line?: unknown }).line) && (value as { line: number }).line >= 1;
+  return Number.isInteger(d.commit) && d.commit! >= 1 && (d.mode === "map" || d.mode === "flow") && typeof d.title === "string" && Array.isArray(d.nodes) && d.nodes.every((node) => !!node && typeof node.id === "string" && typeof node.label === "string" && typeof node.identifier === "string" && diagramKinds.has(node.kind) && diagramStatuses.has(node.status) && cite(node.cite)) && Array.isArray(d.edges) && d.edges.every((edge) => !!edge && typeof edge.from === "string" && typeof edge.to === "string" && edgeKinds.has(edge.kind) && (edge.step === null || Number.isInteger(edge.step)) && cite(edge.cite));
+}
 const isReply = (j: unknown): j is Reply => {
   const r = j as Partial<Reply> | undefined;
   return typeof r?.answer === "string" && Array.isArray(r.questions) && r.questions.every((q) => typeof q === "string") && Array.isArray(r.revisions) &&
@@ -94,13 +105,31 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; text: s
       }
       return `${label}: ${failures.find((f) => f !== "quote not found") ?? (revision.message === null ? "quote not found in this chat" : "quote not found")}`;
     }
+    let diagram: DiagramData | undefined;
+    let diagramError: string | undefined;
+    if (json.diagram !== null && json.diagram !== undefined) {
+      if (!isDiagram(json.diagram)) diagramError = "diagram has an invalid shape";
+      else {
+      const diff = latestDiff(view.artifacts);
+      if (!diff) diagramError = "there is no reviewed commit range";
+      else {
+        const result = await verifyDiagram(json.diagram, diff.data, (sha, path) => ctx.git.show(sha, path));
+        if (result.ok) diagram = result.data;
+        else diagramError = result.error;
+      }
+      }
+    }
 
     const reply = ctx.artifacts.put<ChatMessageData>(
       "ChatMessage", "proposed",
-      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
+      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), ...(diagramError ? { diagramError } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
       r.selection,
     );
     ctx.links.put(reply.id, thread.id, "reply");
+    if (diagram) {
+      const artifact = ctx.artifacts.put<DiagramData>("Diagram", "proposed", diagram, r.selection);
+      ctx.links.put(artifact.id, reply.id, "derivedFrom");
+    }
     for (const { target, data } of accepted) {
       const revision = ctx.artifacts.put<RevisionData>("Revision", "proposed", data, r.selection);
       ctx.links.put(revision.id, target.id, "revises");

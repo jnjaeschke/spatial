@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { defineTask, Runtime, TaskCancelledError, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm/types.ts";
-import type { ChatMessageData, ChatThreadData, DiffData, LlmSelection, McpServerData, PatchNarrativeData } from "../../src/shared/types.ts";
+import type { ChatMessageData, ChatThreadData, DiagramData, DiffData, LlmSelection, McpServerData, PatchNarrativeData } from "../../src/shared/types.ts";
 import { chatTurn } from "../../src/tasks/chat-turn/task.ts";
 import { renderRef, sessionView } from "../../src/runtime/render-ref.ts";
 
@@ -19,7 +19,7 @@ const DIFF: DiffData = {
   ] }],
 };
 
-function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[] } | undefined)[] } = {}) {
+function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; git?: GitCapability; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[]; diagram?: unknown } | undefined)[] } = {}) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let n = 0;
@@ -30,15 +30,15 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
       if (opts.hang) return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
       if (opts.failWith) return Promise.reject(new Error(opts.failWith));
       n++;
-      const reply = opts.replies ? opts.replies[n - 1] : { answer: `answer ${n}`, questions: [], revisions: [] };
-      const json = reply && { requestMcpServers: [], ...reply };
+      const reply = opts.replies ? opts.replies[n - 1] : { answer: `answer ${n}`, questions: [], revisions: [], diagram: null };
+      const json = reply && { requestMcpServers: [], diagram: null, ...reply };
       if (json) for (const revision of json.revisions ?? []) if (revision.message === "$USER") revision.message = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "user")!.id;
       return Promise.resolve({ text: json?.answer ?? `answer ${n}`, json, providerSessionId: `${selection!.backend}-session-${n}`, selection: selection! });
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({
-    store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
+    store, tasks: [chatTurn], llm, git: () => opts.git ?? ({} as GitCapability),
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
@@ -79,6 +79,7 @@ test("first turn on a change creates the thread and injects change context", asy
   for (const s of ["Add flag", "Adds mFlag.", "Teardown after commit.", "mFlag = true;", "Bug 1 - Add flag", "Why the flag?"]) assert.ok(p.prompt.includes(s), s);
   assert.ok(p.prompt.includes("# Session"));
   assert.ok(p.prompt.includes("# You are asked about"));
+  assert.ok(p.prompt.includes("# Commits in the reviewed range\n1. 1 Bug 1 - Add flag"));
   assert.ok(!p.prompt.includes("other();"));
 });
 
@@ -89,7 +90,7 @@ test("chat system prompt includes repo instructions and skill index on every tur
     defaultSelection: SONNET,
     async run(selection, prompt) {
       calls.push(prompt);
-      return { text: "ok", json: { answer: "ok", questions: [], revisions: [], requestMcpServers: [] }, providerSessionId: `p${calls.length}`, selection: selection! };
+      return { text: "ok", json: { answer: "ok", questions: [], revisions: [], requestMcpServers: [], diagram: null }, providerSessionId: `p${calls.length}`, selection: selection! };
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
@@ -123,6 +124,41 @@ test("chat passes the reply schema on new and resumed turns and stores structure
   const assistant = store.getArtifact<ChatMessageData>(first.messageId).data;
   assert.equal(assistant.text, "The answer");
   assert.deepEqual(assistant.questions, ["Need a choice?"]);
+});
+
+test("chat verifies a proposed diagram and links it to the assistant reply", async () => {
+  const git: GitCapability = { effect: "read-only", isDirty: async () => false, resolve: async () => "", isAncestor: async () => true, mergeBase: async () => null, blame: async () => [], log: async () => [], diff: async () => "", replay: async () => ({ tree: "", conflicts: [] }), async show() { return "call target()"; } };
+  const diagram = { commit: 1, mode: "flow", title: "Calls", nodes: [
+    { id: "a", label: "caller", identifier: "call", kind: "function", status: "modified", cite: { path: "dom/A.cpp", line: 1 } },
+    { id: "b", label: "target", identifier: "target", kind: "function", status: "context", cite: { path: "dom/A.cpp", line: 1 } },
+  ], edges: [{ from: "a", to: "b", kind: "calls", step: 1, cite: { path: "dom/A.cpp", line: 1 } }] };
+  const { store, turn, narrativeId, session } = setup({ git, replies: [{ answer: "Flow", revisions: [], questions: [], diagram }] });
+  const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Show the flow", llm: SONNET });
+  const artifacts = store.listArtifacts(session.id, "Diagram");
+  assert.equal(artifacts.length, 1);
+  assert.equal(artifacts[0]!.status, "proposed");
+  assert.deepEqual((artifacts[0]!.data as DiagramData).nodes.map((node) => node.verified), [true, true]);
+  assert.deepEqual((artifacts[0]!.data as DiagramData).edges.map((edge) => edge.verified), [true]);
+  assert.ok(store.listLinks(session.id).some((link) => link.from === artifacts[0]!.id && link.to === messageId && link.kind === "derivedFrom"));
+});
+
+test("invalid diagrams are dropped with an error on the assistant message", async () => {
+  for (const diagram of [
+    "not a diagram",
+    { commit: 2, mode: "map", title: "Bad commit", nodes: [], edges: [] },
+    { commit: 1, mode: "map", title: "Bad edge", nodes: [], edges: [{ from: "missing", to: "also-missing", kind: "uses", step: null, cite: { path: "x", line: 1 } }] },
+  ]) {
+    const { store, turn, narrativeId, session } = setup({ replies: [{ answer: "Kept", revisions: [], questions: [], diagram }] });
+    const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Draw", llm: SONNET });
+    assert.equal(store.getArtifact<ChatMessageData>(messageId).data.diagramError !== undefined, true);
+    assert.equal(store.listArtifacts(session.id, "Diagram").length, 0);
+  }
+});
+
+test("a null diagram stores no Diagram artifact", async () => {
+  const { store, turn, narrativeId, session } = setup({ replies: [{ answer: "Plain", revisions: [], questions: [], diagram: null }] });
+  await turn({ anchor: `${narrativeId}#c1`, text: "Explain", llm: SONNET });
+  assert.equal(store.listArtifacts(session.id, "Diagram").length, 0);
 });
 
 test("chat applies exact matched revisions and links them to target and reply", async () => {

@@ -425,6 +425,12 @@ test("anchorNodeId maps change refs and hunk refs to change nodes", () => {
   assert.equal(anchorNodeId("D#f9h9", "N", n.data, "D"), null);
 });
 
+test("anchorNodeId maps a commit ref only when its commit card is present", () => {
+  const n = narrative("N");
+  assert.equal(anchorNodeId("N#commit-1", "N", n.data, "D", new Set(["N#commit-1"])), "N#commit-1");
+  assert.equal(anchorNodeId("N#commit-1", "N", n.data, "D", new Set()), null);
+});
+
 test("anchorNodeId resolves summaries, specs, chats and chat messages to graph nodes", () => {
   const n = narrative("N");
   const nodes = new Set(["N", "R", "T"]);
