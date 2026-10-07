@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["links"],
+  "required": ["links", "unmapped"],
   "properties": {
     "links": {
       "type": "array",
@@ -27,6 +27,19 @@
             }
           },
           "note": { "type": "string", "description": "One short sentence; for deviates, what differs from the step." }
+        }
+      }
+    },
+    "unmapped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ranges", "reason", "note"],
+        "properties": {
+          "ranges": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "side", "start", "end"], "properties": { "path": { "type": "string" }, "side": { "type": "string", "enum": ["new", "old"] }, "start": { "type": "integer" }, "end": { "type": "integer" } } } },
+          "reason": { "type": "string", "enum": ["plumbing", "error-path", "test", "unexplained"] },
+          "note": { "type": "string" }
         }
       }
     }

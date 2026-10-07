@@ -1,4 +1,4 @@
-import type { Artifact, Id, LineRange, SessionState, SpecStepMapData, StepLink, StepLinkKind } from "../shared/types.ts";
+import type { Artifact, Id, LineRange, SessionState, SpecStepMapData, StepLink, StepLinkKind, UnmappedLines } from "../shared/types.ts";
 import type { SpecStep } from "../shared/spec-text.ts";
 
 /** How a step is covered: its worst direct link kind, `substeps` when only its substeps are linked, else `unmapped`. */
@@ -29,6 +29,16 @@ export function linksByLine(links: StepLink[]): Map<string, StepLink[]> {
         if (!list.includes(link)) out.set(key, [...list, link]);
       }
     }
+  }
+  return out;
+}
+
+/** The unmapped entry covering each line, by `lineKey`; the first entry wins. */
+export function unmappedByLine(unmapped: UnmappedLines[]): Map<string, UnmappedLines> {
+  const out = new Map<string, UnmappedLines>();
+  for (const entry of unmapped) for (const range of entry.ranges) for (let line = range.start; line <= range.end; line++) {
+    const key = lineKey(range.path, range.side, line);
+    if (!out.has(key)) out.set(key, entry);
   }
   return out;
 }

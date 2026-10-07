@@ -21,7 +21,7 @@ function specRepo() {
   git(dir, "add", "-A");
   git(dir, "commit", "-m", "base");
   const base = git(dir, "rev-parse", "HEAD");
-  writeFileSync(file, "// https://html.spec.whatwg.org/#navigate\nvoid Navigate() {\n  // Step 1. Edit the line.\n  Edit();\n  // Step 3. Add the file.\n  Other();\n}\n");
+  writeFileSync(file, "// https://html.spec.whatwg.org/#navigate\nvoid Navigate() {\n  // Step 1. Edit the line.\n  Edit();\n  // Step 3. Add the file.\n  Other();\n  // Step 1. Edit the line.\n  Add();\n  Log();\n}\n");
   git(dir, "commit", "-am", "Implement navigate");
   return { dir, base };
 }
@@ -36,10 +36,14 @@ test("a cited spec opens beside its code, colored by the step map; Step comments
   await revealNode(page, spec);
   await spec.getByRole("button", { name: "Steps" }).click();
   const view = page.getByTestId("spec-view");
-  await expect(view.getByTestId("spec-map-status")).toHaveText("2 of 2 steps mapped · 1 deviates · 1 added line not mapped", { timeout: 15_000 });
+  await expect(view.getByTestId("spec-map-status")).toHaveText("2 of 2 steps mapped · 1 deviates · 2 added lines unexplained", { timeout: 15_000 });
   await expect(view.getByTestId("step-1")).toHaveClass(/status-implements/);
   await expect(view.getByTestId("step-2")).toHaveClass(/status-deviates/);
   await expect(view.locator('tr[data-new="5"]')).toHaveClass(/map-none/);
+  await expect(view.locator('tr[data-new="9"]')).toHaveClass(/map-plumbing/);
+  await view.getByTestId("unmapped-0").click();
+  await expect(view.getByText("Logs the navigation.")).toBeVisible();
+  await expect(view.locator('tr[data-new="9"]')).toHaveClass(/map-selected/);
 
   await view.getByTestId("step-2").click();
   await expect(view.getByText("Calls Other() instead of adding the file.")).toBeVisible();

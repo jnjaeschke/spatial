@@ -94,7 +94,7 @@ test("narratePatch maps the steps of cited specs alongside the review; a failed 
   const cited = { ...narrative, changes: [{ ...narrative.changes[0]!, specUrls: ["https://html.spec.whatwg.org/#edit"] }, { ...narrative.changes[1]!, specUrls: ["https://html.spec.whatwg.org/#add"] }] };
   writeFileSync(join(dir, "claude-out.json"), JSON.stringify({ type: "result", is_error: false, result: "", structured_output: cited, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));
   const mapOut = join(dir, "map.json");
-  writeFileSync(mapOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { links: [{ step: "1", kind: "implements", ranges: [{ path: "a.txt", side: "new", start: 2, end: 2 }], note: "Edits it." }] }, session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
+  writeFileSync(mapOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { links: [{ step: "1", kind: "implements", ranges: [{ path: "a.txt", side: "new", start: 2, end: 2 }], note: "Edits it." }], unmapped: [] }, session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
   process.env.FAKE_LLM_ROUTES = JSON.stringify({ '"findings"': join(dir, "findings.json"), "# Spec: HTML#edit": mapOut });
   const rt = createRuntime({ dbPath: join(dir, "map.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC });
   const session = await createSession(rt.store, r.dir, "t", "review");

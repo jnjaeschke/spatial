@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { Artifact, DiffData, Id, LineRange, Link, LlmSelection, PatchNarrativeData, SpecReferenceData, SpecStepMapData, StepLink } from "../../shared/types.ts";
+import type { Artifact, DiffData, Id, LineRange, Link, LlmSelection, PatchNarrativeData, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
@@ -7,10 +7,12 @@ import { parseSteps } from "../../shared/spec-text.ts";
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
 const KINDS = ["implements", "partial", "structural", "deviates"];
-const isReply = (j: unknown): j is { links: StepLink[] } => {
-  const r = j as { links?: Partial<StepLink>[] } | undefined;
-  return Array.isArray(r?.links) && r.links.every((l) => typeof l?.step === "string" && KINDS.includes(l.kind as string) && typeof l.note === "string" && Array.isArray(l.ranges) &&
-    l.ranges.every((range) => typeof range?.path === "string" && (range.side === "new" || range.side === "old") && Number.isInteger(range.start) && Number.isInteger(range.end)));
+const REASONS: UnmappedReason[] = ["plumbing", "error-path", "test", "unexplained"];
+const validRanges = (ranges: unknown): ranges is LineRange[] => Array.isArray(ranges) && ranges.every((range) => typeof range?.path === "string" && (range.side === "new" || range.side === "old") && Number.isInteger(range.start) && Number.isInteger(range.end));
+const isReply = (j: unknown): j is { links: StepLink[]; unmapped: UnmappedLines[] } => {
+  const r = j as { links?: Partial<StepLink>[]; unmapped?: Partial<UnmappedLines>[] } | undefined;
+  return Array.isArray(r?.links) && r.links.every((l) => typeof l?.step === "string" && KINDS.includes(l.kind as string) && typeof l.note === "string" && validRanges(l.ranges)) &&
+    Array.isArray(r.unmapped) && r.unmapped.every((entry) => REASONS.includes(entry.reason as UnmappedReason) && typeof entry.note === "string" && validRanges(entry.ranges));
 };
 
 /** Change ids of the narrative a SpecReference supports. */
@@ -83,7 +85,13 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
       if (ranges.length === 0 && link.kind !== "structural") { dropped.push(`step ${link.step}: no lines left`); continue; }
       links.push({ step: link.step, kind: link.kind, ranges, note: link.note });
     }
-    const map = ctx.artifacts.put<SpecStepMapData>("SpecStepMap", "proposed", { spec: specId, narrative: narrativeId, links, dropped }, reply.selection);
+    const unmapped: UnmappedLines[] = [];
+    for (const entry of reply.json.unmapped) {
+      const ranges = entry.ranges.map(trim).filter((range): range is LineRange => range !== null);
+      if (ranges.length < entry.ranges.length) dropped.push(`unmapped ${entry.reason}: ${entry.ranges.length - ranges.length} range(s) outside the changes' hunks`);
+      if (ranges.length) unmapped.push({ ranges, reason: entry.reason, note: entry.note });
+    }
+    const map = ctx.artifacts.put<SpecStepMapData>("SpecStepMap", "proposed", { spec: specId, narrative: narrativeId, links, unmapped, dropped }, reply.selection);
     ctx.links.put(map.id, specId, "derivedFrom");
     ctx.links.put(map.id, narrativeId, "about");
     return { mapId: map.id };

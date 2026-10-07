@@ -31,3 +31,9 @@ Data of a `SpecStepMap` artifact: which changed lines implement which steps of a
 ### spec
 
 > **spec**: `string`
+
+***
+
+### unmapped
+
+> **unmapped**: [`UnmappedLines`](UnmappedLines.md)[]

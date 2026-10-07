@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { StepLink } from "../../src/shared/types.ts";
+import type { StepLink, UnmappedLines } from "../../src/shared/types.ts";
 import { parseSteps } from "../../src/shared/spec-text.ts";
-import { linksByLine, stepStatuses } from "../../src/web/spec-map.ts";
+import { linksByLine, stepStatuses, unmappedByLine } from "../../src/web/spec-map.ts";
 
 const steps = parseSteps("1. A.\n2. B:\n\n    1. B1.\n    2. B2.\n3. C.\n4. D.");
 const link = (step: string, kind: StepLink["kind"], start = 1, end = start): StepLink => ({ step, kind, ranges: [{ path: "a.cpp", side: "new", start, end }], note: "" });
@@ -18,4 +18,15 @@ test("linksByLine lists every link covering a line once", () => {
   assert.deepEqual(byLine.get("a.cpp:new:5")!.map((l) => l.step), ["1", "2.1", "4"]);
   assert.equal(byLine.get("a.cpp:new:4")!.length, 2);
   assert.equal(byLine.has("a.cpp:new:6"), false);
+});
+
+test("unmappedByLine covers ranges and keeps the first entry on overlap", () => {
+  const entries: UnmappedLines[] = [
+    { ranges: [{ path: "a.cpp", side: "new", start: 2, end: 4 }], reason: "plumbing", note: "Glue." },
+    { ranges: [{ path: "a.cpp", side: "new", start: 4, end: 5 }], reason: "test", note: "Tests." },
+  ];
+  const byLine = unmappedByLine(entries);
+  assert.equal(byLine.get("a.cpp:new:2"), entries[0]);
+  assert.equal(byLine.get("a.cpp:new:4"), entries[0]);
+  assert.equal(byLine.get("a.cpp:new:5"), entries[1]);
 });

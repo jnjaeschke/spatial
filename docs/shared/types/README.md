@@ -58,6 +58,7 @@
 - [SpecStepMapData](interfaces/SpecStepMapData.md)
 - [StepLink](interfaces/StepLink.md)
 - [TaskRecord](interfaces/TaskRecord.md)
+- [UnmappedLines](interfaces/UnmappedLines.md)
 - [WorkflowInfo](interfaces/WorkflowInfo.md)
 - [WorkflowStartData](interfaces/WorkflowStartData.md)
 
@@ -77,4 +78,5 @@
 - [SequenceStatus](type-aliases/SequenceStatus.md)
 - [StepLinkKind](type-aliases/StepLinkKind.md)
 - [TaskStatus](type-aliases/TaskStatus.md)
+- [UnmappedReason](type-aliases/UnmappedReason.md)
 - [WorkflowId](type-aliases/WorkflowId.md)
