@@ -341,7 +341,7 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
   await expect(page.locator(".chat-node")).toHaveCount(0);
 });
 
-test("a quoted chat aligns to its quote once its unrendered anchor comes into view", async ({ page, request }) => {
+test("a quoted chat aligns to its quote once its anchor comes into view", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "code");
   const row = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)').last();

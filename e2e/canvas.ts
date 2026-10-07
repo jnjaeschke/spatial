@@ -51,7 +51,7 @@ export async function setLevel(page: Page, level: Level, testId = "change-c1"): 
 
 /**
  * Pans with the arrow keys until the target is inside the canvas pane (its top-left corner, when it is larger than
- * the pane). Nodes outside the viewport are not in the DOM, so the direction is probed: up, left, down, right.
+ * the pane). While the target is not in the DOM yet, the direction is probed: up, left, down, right.
  */
 export async function revealNode(page: Page, target: string | Locator): Promise<void> {
   const node = (typeof target === "string" ? page.getByTestId(target) : target).first();

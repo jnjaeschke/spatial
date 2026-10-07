@@ -147,7 +147,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   useEffect(() => offsets.current.clear(), [graph]);
 
   // Offset of each quote below its anchor's top, in flow units. Measured whenever the anchor is rendered, so a
-  // chat placed while its anchor was off-screen (`onlyRenderVisibleElements`) moves to its quote once it renders.
+  // chat placed before its anchor was measured moves to its quote once it is.
   const quoteDy = useRef(new Map<string, number>());
   const [quoteDyVersion, setQuoteDyVersion] = useState(0);
   useEffect(() => quoteDy.current.clear(), [level]);
@@ -432,7 +432,6 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
           const b = basePos.current.get(node.id)!;
           offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
         }}
-        onlyRenderVisibleElements
         panOnScroll
         disableKeyboardA11y
         minZoom={0.1}

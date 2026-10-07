@@ -167,7 +167,7 @@ test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {
   await expect.poll(async () => (await viewport()).zoom).toBeGreaterThan(before.zoom);
 });
 
-test("minimap shows every node, also those culled from the viewport", async ({ page }) => {
+test("canvas and minimap hold every node, also off-screen ones", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("change-c1")).toBeVisible();
   const minimap = page.locator(".react-flow__minimap");
@@ -195,7 +195,8 @@ test("minimap shows every node, also those culled from the viewport", async ({ p
   const all = await page.locator(".react-flow__node").count();
   await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
   await setLevel(page, "code");
-  await expect.poll(() => page.locator(".react-flow__node").count()).toBeLessThan(all);
+  // Every node stays mounted, also off-screen, so the layout can use its measured size.
+  await expect(page.locator(".react-flow__node")).toHaveCount(all);
   await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
 });
 
