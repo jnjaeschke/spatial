@@ -39,6 +39,7 @@
 - [PhabSyncData](interfaces/PhabSyncData.md)
 - [PostedCommentData](interfaces/PostedCommentData.md)
 - [Provenance](interfaces/Provenance.md)
+- [RecentRepo](interfaces/RecentRepo.md)
 - [RepoInfo](interfaces/RepoInfo.md)
 - [ResolvedSpec](interfaces/ResolvedSpec.md)
 - [ReviewCommentData](interfaces/ReviewCommentData.md)

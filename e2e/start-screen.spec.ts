@@ -72,6 +72,21 @@ test("sessions of another worktree appear under the same repo", async ({ page })
   await expect(group.getByText("Main session")).toBeVisible();
 });
 
+test("start screen switches between recent repositories", async ({ page }) => {
+  const first = makeRepo();
+  const second = makeRepo();
+  await createSession(page, first, "First session");
+  await createSession(page, second, "Second session");
+  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(first)}`);
+
+  const switcher = page.getByRole("navigation", { name: "Recent repositories" });
+  const link = switcher.getByRole("link").filter({ hasText: realpathSync(second) });
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(realpathSync(second))}`));
+  await expect(page.getByTestId("start-screen").getByRole("link", { name: /Second session/ })).toBeVisible();
+});
+
 test("start screen outside a git work tree shows the error", async ({ page }) => {
   const dir = mkdtempSync(join(tmpdir(), "spatial-not-repo-"));
   repoDirs.push(dir);

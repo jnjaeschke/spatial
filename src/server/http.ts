@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChangeReviewData, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
+import type { Artifact, ChangeReviewData, DiffData, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RecentRepo, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
@@ -13,7 +13,7 @@ import { narratePatch } from "../workflows/narrate-patch.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
-import { newestFirst, repoName } from "../shared/repos.ts";
+import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { workflowInfo } from "../workflows/registry.ts";
@@ -130,6 +130,20 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       return { ...repo, name: repoName(repo.repoDir), sessions: newestFirst(rt.store.listSessions().filter((s) => s.repoDir === repo.repoDir)) };
     }],
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
+    ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
+      const result: RecentRepo[] = [];
+      for (const group of groupByRepo(rt.store.listSessions())) {
+        let worktree: string | undefined;
+        for (const session of group.sessions) {
+          try {
+            const resolved = await resolveRepo(session.worktree);
+            if (resolved.repoDir === group.repoDir) { worktree = resolved.worktree; break; }
+          } catch { /* Stale worktrees are skipped; an older live worktree may still represent this repo. */ }
+        }
+        if (worktree) result.push({ repoDir: group.repoDir, name: group.name, worktree, sessions: group.sessions.length, lastActive: group.sessions[0]!.createdAt });
+      }
+      return result;
+    }],
     ["POST", /^\/api\/sessions$/, async ({ req, res }) => {
       const body = await readJson(req);
       try {

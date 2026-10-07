@@ -35,6 +35,9 @@ export interface HealthResponse { app: "spatial-ide"; ui: boolean; pid: number; 
 /** `GET /api/repo?path=`: the repo containing `path` and all its sessions (any worktree), newest first. */
 export interface RepoInfo { worktree: string; repoDir: string; name: string; sessions: Session[] }
 
+/** A repository with at least one session worktree that still exists. */
+export interface RecentRepo { repoDir: string; name: string; worktree: string; sessions: number; lastActive: string }
+
 export type ArtifactStatus = "proposed" | "verified" | "rejected";
 
 export type LlmBackendId = "claude" | "codex";

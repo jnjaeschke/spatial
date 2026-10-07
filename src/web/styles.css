@@ -238,6 +238,13 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .repo-group > code, .repo-paths { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
 .repo-group .session-list { margin-top: 10px; }
 .repo-paths { margin: 0 0 16px; }
+.recent-repo, .repo-switcher a { display: flex; align-items: baseline; gap: 12px; padding: 10px 12px; margin: 8px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.recent-repo a, .repo-switcher a { font-weight: 600; text-decoration: none; color: var(--text); }
+.recent-repo code, .repo-switcher code { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+.repo-switcher { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 10px 0 16px; }
+.repo-switcher a { margin: 0; padding: 6px 9px; }
+.repo-switcher a[aria-current="page"] { border-color: var(--accent); background: var(--accent-soft); }
+.session-picker-heading { margin-top: 28px; }
 .start-screen > header > a { margin-left: auto; margin-right: 16px; }
 .start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .start-input { position: relative; width: 100%; }
