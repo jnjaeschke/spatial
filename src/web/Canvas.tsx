@@ -204,6 +204,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const keepMeasured = basis === sizeBasis.current;
     sizeBasis.current = basis;
     const measured = new Map(keepMeasured ? rf.getNodes().flatMap((n) => n.measured?.width && n.measured.height ? [[n.id, n.measured] as const] : []) : []);
+    const selected = new Set(rf.getNodes().filter((n) => n.selected).map((n) => n.id));
     const sized = shown.nodes.map((n) => {
       const m = measured.get(n.id);
       return { id: n.id, ...(m ? { width: m.width!, height: m.height! } : estimateSize(n.data, level, textScale)) };
@@ -219,10 +220,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
       style: { width: (isSatellite(n.data) ? SATELLITE_WIDTH : NODE_WIDTH[level]) * textScale },
       className: n.id === currentRef.current ? "guide-current" : undefined,
+      selected: selected.has(n.id),
       draggable: true,
       dragHandle: ".title",
     })));
-  }, [shown, level, textScale, setNodes, state.session.id]);
+  }, [shown, level, textScale, setNodes, state.session.id, rf]);
 
   useEffect(() => {
     setNodes((ns) => ns.map((n) => ({ ...n, className: n.id === currentId ? "guide-current" : undefined })));
@@ -323,6 +325,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       setHoveredChat(null);
     };
     const focus = (event: FocusEvent) => setFocusedChat(chatAt(event.target));
+    const selectFocusedNode = (event: FocusEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const node = event.target.closest<HTMLElement>(".react-flow__node[data-id]");
+      const id = node?.getAttribute("data-id");
+      if (!id) return;
+      setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === id })));
+    };
     const blur = (event: FocusEvent) => {
       if (chatAt(event.relatedTarget)) return;
       setFocusedChat(null);
@@ -330,11 +339,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     el.addEventListener("pointerover", over);
     el.addEventListener("pointerout", out);
     el.addEventListener("focusin", focus);
+    el.addEventListener("focusin", selectFocusedNode);
     el.addEventListener("focusout", blur);
     return () => {
       el.removeEventListener("pointerover", over);
       el.removeEventListener("pointerout", out);
       el.removeEventListener("focusin", focus);
+      el.removeEventListener("focusin", selectFocusedNode);
       el.removeEventListener("focusout", blur);
     };
   }, [quotedBoxIds]);
@@ -461,6 +472,9 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         onMove={onMove}
         nodesDraggable
         nodesConnectable={false}
+        selectNodesOnDrag
+        nodeDragThreshold={1}
+        elevateNodesOnSelect
         onNodeDragStop={(_, node) => {
           const b = basePos.current.get(node.id)!;
           offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });

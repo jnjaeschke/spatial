@@ -67,6 +67,26 @@ test("spec text is selectable without panning", async ({ page }) => {
   expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
 });
 
+test("interacting with a node selects and raises it until selection moves or clears", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "concept");
+  const first = page.getByTestId("change-c1").locator("..");
+  const second = page.getByTestId("change-c2").locator("..");
+
+  await first.click();
+  await expect(first).toHaveClass(/\bselected\b/);
+  const firstZ = Number(await first.evaluate((el) => getComputedStyle(el).zIndex));
+  const secondZ = Number(await second.evaluate((el) => getComputedStyle(el).zIndex));
+  expect(firstZ).toBeGreaterThan(secondZ);
+
+  await second.click();
+  await expect(second).toHaveClass(/\bselected\b/);
+  await expect(first).not.toHaveClass(/\bselected\b/);
+
+  await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(0);
+});
+
 const flowX =(page: Page, id: string) =>
   page.getByTestId(`change-${id}`).locator("..").evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).m41);
 
