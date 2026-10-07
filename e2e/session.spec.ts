@@ -95,3 +95,16 @@ test("code span in an explanation opens the file at the matching line", async ({
   await expect(focus).toHaveText(/THIRTY/);
   await expect(focus).toBeInViewport();
 });
+
+test("the canvas works without the Navigation API", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, "navigation", { value: undefined }));
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  await expect(page.getByTestId("change-c1")).toBeVisible();
+  await page.locator(".canvas").focus();
+  await page.keyboard.press("n");
+  await expect(page.getByTestId("guide")).toContainText("1/");
+  expect(errors).toEqual([]);
+});
