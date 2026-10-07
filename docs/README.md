@@ -12,6 +12,7 @@
 - [runtime/blame](runtime/blame/README.md)
 - [runtime/conduit](runtime/conduit/README.md)
 - [runtime/create](runtime/create/README.md)
+- [runtime/diagram-verify](runtime/diagram-verify/README.md)
 - [runtime/drift](runtime/drift/README.md)
 - [runtime/import-revision](runtime/import-revision/README.md)
 - [runtime/interdiff](runtime/interdiff/README.md)

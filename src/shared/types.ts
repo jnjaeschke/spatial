@@ -75,6 +75,16 @@ export interface GeckoSpecRef {
   url: string;
 }
 
+export type DiagramEntityKind = "class" | "struct" | "function" | "method" | "field" | "module" | "file" | "other";
+export type DiagramStatus = "added" | "modified" | "removed" | "context";
+export type DiagramEdgeKind = "calls" | "inherits" | "owns" | "uses";
+/** A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `removed` nodes). */
+export interface DiagramCite { path: string; line: number }
+export interface DiagramNode { id: string; label: string; identifier: string; kind: DiagramEntityKind; status: DiagramStatus; cite: DiagramCite; verified: boolean }
+export interface DiagramEdge { from: string; to: string; kind: DiagramEdgeKind; step: number | null; cite: DiagramCite; verified: boolean }
+/** Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `verified` flags are set by the runtime. */
+export interface DiagramData { commit: string; commitIndex: number; mode: "map" | "flow"; title: string; nodes: DiagramNode[]; edges: DiagramEdge[] }
+
 /** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
 export interface SpecReferenceData {
   url: string;
