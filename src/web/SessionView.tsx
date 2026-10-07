@@ -19,6 +19,7 @@ import { ThemeToggle } from "./ThemeToggle.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { SelectorQuestion } from "./SelectorQuestion.tsx";
+import { SpecView, SpecViewContext } from "./SpecView.tsx";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
@@ -27,6 +28,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [desktop, setDesktop] = useState(desktopEnabled);
   const [exporting, setExporting] = useState(false);
+  const [specView, setSpecView] = useState<string | null>(null);
+  const closeSpecView = useCallback(() => setSpecView(null), []);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const models = useModels();
   useEffect(() => {
@@ -64,10 +67,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
     <AskContext.Provider value={askContext}><FileViewContext.Provider value={(file) => { setOpenFile(file); setAside("file"); }}>
-      <StackContext.Provider value={stack}><div className="session-body">
+      <StackContext.Provider value={stack}><SpecViewContext.Provider value={setSpecView}><div className="session-body">
         {body}
+        {specView && n && <SpecView state={state} specId={specView} llm={models.default} onClose={closeSpecView} />}
         {aside === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => setAside(null)} /> : aside === "file" && diff && openFile?.diffId === diff.id && <FilePanel sessionId={sessionId} diff={diff} open={openFile} onClose={() => { setOpenFile(null); setAside(null); }} onJump={setJump} />}
-      </div></StackContext.Provider>
+      </div></SpecViewContext.Provider></StackContext.Provider>
       <AskOnSelect />
     </FileViewContext.Provider></AskContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />

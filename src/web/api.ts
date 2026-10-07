@@ -42,6 +42,7 @@ export const api = {
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/narratives/${narrativeId}/changes/${changeId}/reviewed`, { reviewed }),
   saveComment: (sessionId: string, findingId: string, body: string) =>
     put<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),
+  mapSpecSteps: (sessionId: string, specId: string, llm: LlmSelection) => post<{ taskId: string }>(`/api/sessions/${sessionId}/specs/${specId}/map`, { llm }),
   regenerateComment: (sessionId: string, findingId: string, llm?: LlmSelection) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),
   postDrafts: (sessionId: string) => post<{ posted: number; skipped: { finding: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/post-drafts`, {}),

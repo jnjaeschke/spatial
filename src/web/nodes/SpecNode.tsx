@@ -1,7 +1,8 @@
 import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SpecNodeData, ZoomLevel } from "../graph.ts";
-import { plainSpecText } from "../../shared/spec-text.ts";
+import { parseSteps, plainSpecText } from "../../shared/spec-text.ts";
+import { SpecViewContext } from "../SpecView.tsx";
 import { CollapseContext } from "../collapse.ts";
 
 export type SpecFlowNode = Node<Record<string, unknown> & SpecNodeData & { level: ZoomLevel }, "spec">;
@@ -9,6 +10,7 @@ export type SpecFlowNode = Node<Record<string, unknown> & SpecNodeData & { level
 export function SpecNode({ data }: NodeProps<SpecFlowNode>) {
   const { ref, level } = data;
   const collapse = useContext(CollapseContext);
+  const openSpecView = useContext(SpecViewContext);
   const closed = collapse?.collapsed.has(ref.id) ?? false;
   const r = ref.data.resolved;
   return (
@@ -18,6 +20,7 @@ export function SpecNode({ data }: NodeProps<SpecFlowNode>) {
       {!closed && level !== "patch" && <div className="body nodrag nopan">
         {r ? <p className="spec-text">{plainSpecText(r.content, level === "code" ? 6000 : 400)}</p> : <p className="failed">{ref.data.reason}</p>}
         <a href={r?.url ?? ref.data.url} target="_blank" rel="noreferrer">open spec</a>
+        {r && openSpecView && parseSteps(r.content).length > 0 && <button className="steps" onClick={() => openSpecView(ref.id)}>Steps</button>}
         {level === "code" && ref.data.geckoRefs.length > 0 && <ul className="files">{ref.data.geckoRefs.map((g) => <li key={g.url}><a href={g.url} target="_blank" rel="noreferrer">{g.group}: {g.path}:{g.line}</a></li>)}</ul>}
         {level === "code" && ref.data.geckoRefsError && <p className="failed">Searchfox: {ref.data.geckoRefsError}</p>}
       </div>}

@@ -19,8 +19,8 @@ export const FileViewContext = createContext<((file: OpenFile) => void) | null>(
 const SIGN = { ctx: " ", add: "+", del: "-" } as const;
 
 /** `oldHref` links old-side line numbers (e.g. to Searchfox). */
-/** Rows without a `diffId` carry no `data-anchor`, so selecting them offers no Ask. */
-export function DiffRows({ rows, hunkId, diffId, path, oldHref, afterRow, onRowClick }: { rows: Row[]; hunkId?: string; diffId?: string; path: string; oldHref?: (line: number) => string; afterRow?: (row: Row, index: number) => ReactNode; onRowClick?: (row: Row) => void }) {
+/** Rows without a `diffId` carry no `data-anchor`, so selecting them offers no Ask. `rowClass` adds classes to a row. */
+export function DiffRows({ rows, hunkId, diffId, path, oldHref, afterRow, onRowClick, rowClass }: { rows: Row[]; hunkId?: string; diffId?: string; path: string; oldHref?: (line: number) => string; afterRow?: (row: Row, index: number) => ReactNode; onRowClick?: (row: Row) => void; rowClass?: (row: Row) => string | undefined }) {
   const commits = useContext(StackContext);
   const cells = useRef<(HTMLTableCellElement | null)[]>([]);
   const painter = useRef<RowPainter>(null);
@@ -33,7 +33,7 @@ export function DiffRows({ rows, hunkId, diffId, path, oldHref, afterRow, onRowC
     const inHunk = hunkId !== undefined && row.hunkId !== undefined;
     const target = hunkId !== undefined && row.hunkId === hunkId;
     const jumps = onRowClick !== undefined && row.hunkId !== undefined;
-    const classes = [row.kind, inHunk && "in-hunk", target && "target", jumps && "jumps"].filter(Boolean).join(" ");
+    const classes = [row.kind, inHunk && "in-hunk", target && "target", jumps && "jumps", rowClass?.(row)].filter(Boolean).join(" ");
     const commit = row.commit === undefined ? undefined : commits?.[row.commit];
     const rowColor = commit ? commitColors(row.commit!).row : undefined;
     return <Fragment key={`${row.hunkId ?? "context"}-${i}`}><tr className={classes} data-hunk={row.hunkId} data-anchor={diffId && `${diffId}#${row.hunkId ?? hunkId}`} data-path={path} data-old={row.old} data-new={row.new} data-commit={commit ? row.commit : undefined} onClick={jumps ? () => { if (window.getSelection()?.isCollapsed !== false) onRowClick(row); } : undefined}>

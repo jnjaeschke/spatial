@@ -15,6 +15,7 @@ import { makeRepo } from "../test/helpers/git-fixture.ts";
 const PORT = Number(process.env.E2E_PORT ?? 4178);
 const CONDUIT_PORT = Number(process.env.E2E_CONDUIT_PORT ?? 4179);
 const STUB = fileURLToPath(new URL("../test/stubs/fake-llm.mjs", import.meta.url));
+const WEBSPEC = fileURLToPath(new URL("../test/stubs/fake-webspec.mjs", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "e2e-"));
 const repo = makeRepo();
 const baseLines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
@@ -76,7 +77,13 @@ const stackAddOut = stubOut("stack-add", { summary: "Edits `a.txt`, then adds `c
 ] });
 const commentOut = join(dir, "comment.json");
 writeFileSync(commentOut, JSON.stringify({ type: "result", is_error: false, result: "No test was added for the c.txt change.", structured_output: { body: "No test was added for the c.txt change." }, session_id: "stub-comment", usage: { input_tokens: 1, output_tokens: 1 } }));
-process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
+const specNarrativeOut = stubOut("spec-narrative", { summary: "Implements navigate.", changes: [{ id: "c1", title: "Implement navigate", explanation: "Edits and adds.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }] });
+const specMapOut = stubOut("spec-map", { links: [
+  { step: "1", kind: "implements", ranges: [{ path: "SpecViewFixture.cpp", side: "new", start: 3, end: 4 }], note: "Edits the line." },
+  { step: "2", kind: "deviates", ranges: [{ path: "SpecViewFixture.cpp", side: "new", start: 6, end: 6 }], note: "Calls Other() instead of adding the file." },
+] });
+// Spec view routes come first: the mapping and narration prompts of SpecViewFixture.cpp also contain the generic needles below.
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Spec: HTML#navigate": specMapOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
 process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 
 const arcrc = join(dir, "arcrc");
@@ -164,7 +171,7 @@ const conduit = createServer(async (req, res) => {
 await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", resolve));
 process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
 
-const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
+const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC });
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);
 const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
 await runWorkflow(rt, fixture.id, fixtureStart.id);
