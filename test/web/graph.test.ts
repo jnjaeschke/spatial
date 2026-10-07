@@ -637,6 +637,15 @@ test("closeGraph drops closed chats, their replies and diagrams, and lists close
   assert.ok(!diagrams.nodes.some((node) => node.data.kind === "diagram"));
 });
 
+test("sessionGraph anchors a chat on a note", () => {
+  const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "verified" as const, createdAt: "1", provenance: { taskId: "t" }, data: { workflow: "review", prompt: "/review" } };
+  const note = { id: "NOTE", sessionId: "S", type: "Note", status: "proposed" as const, createdAt: "2", provenance: { taskId: "t" }, data: { body: "check this" } };
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" }, data: { anchor: "NOTE" } };
+  const g = sessionGraph(state([diff, narrative("N"), start, note, thread] as Artifact[]))!;
+  assert.deepEqual(g.nodes.find((node) => node.id === "T")?.anchors, ["NOTE"]);
+  assert.ok(g.edges.some((edge) => edge.source === "T" && edge.target === "NOTE"));
+});
+
 test("sessionGraph attaches revisions to hosted thread messages", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0" } };
   const msg = { id: "M", sessionId: "S", type: "ChatMessage", status: "verified" as const, createdAt: "5", provenance: { taskId: "t" }, data: { role: "assistant" as const, text: "Stub answer." } };

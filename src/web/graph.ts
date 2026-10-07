@@ -302,6 +302,19 @@ function threadContent(state: SessionState, thread: Artifact<ChatThreadData>, di
   return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(state, thread.id), ...(diagramsByMessage ? { diagramsByMessage } : {}) };
 }
 
+/** Adds the session's notes beside the workflow start; before the chats, so chats can anchor on notes. */
+function addNotes(g: Graph, state: SessionState, nodeIds: Set<string>): void {
+  const start = latestStart(state);
+  if (!start) return;
+  for (const artifact of state.artifacts) {
+    if (artifact.type !== "Note") continue;
+    const note = artifact as Artifact<NoteData>;
+    g.nodes.push({ id: note.id, anchors: [start.id], data: { kind: "note", body: note.data.body } });
+    g.edges.push({ id: `${note.id}->${start.id}`, source: note.id, target: start.id });
+    nodeIds.add(note.id);
+  }
+}
+
 /** Hosts change-anchored threads on their change and adds nodes for the remaining chats; unresolvable anchors are skipped. */
 function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: Map<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"], diagramsByMessage?: Record<Id, Id[]>): void {
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
@@ -447,6 +460,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
     const card = g.nodes.find((n) => n.id === commitNodeId(latest.narrative.id, commit));
     if (card?.data.kind === "commit") card.data.findingCount++;
   }
+  addNotes(g, state, nodeIds);
   addChats(g, state, drafts, hostOf, nodeIds, resolve, latest.diff.id, allHunks, diagramsByMessage);
   return g;
 }
@@ -463,6 +477,7 @@ function conversationGraph(state: SessionState, drafts: Draft[]): Graph | null {
     const host = target && (hostOf.get(target) ?? target);
     return host && nodeIds.has(host) ? host : null;
   };
+  addNotes(g, state, nodeIds);
   addChats(g, state, drafts, hostOf, nodeIds, resolve, "", []);
   return g;
 }
@@ -473,13 +488,6 @@ const ROOT_GRAPHS: Record<WorkflowId, (state: SessionState, drafts: Draft[]) => 
 export function sessionGraph(state: SessionState, drafts: Draft[] = [], freePositions: Record<string, FreePosition> = {}): Graph | null {
   const graph = state.session.workflow ? ROOT_GRAPHS[state.session.workflow](state, drafts) : null;
   if (graph) {
-    const start = latestStart(state);
-    if (start) for (const artifact of state.artifacts) {
-      if (artifact.type !== "Note") continue;
-      const note = artifact as Artifact<NoteData>;
-      graph.nodes.push({ id: note.id, anchors: [start.id], position: freePositions[note.id], data: { kind: "note", body: note.data.body } });
-      graph.edges.push({ id: `${note.id}->${start.id}`, source: note.id, target: start.id });
-    }
     for (const node of graph.nodes) if (node.data.kind === "chat" || node.data.kind === "note") node.position = freePositions[node.id];
   }
   return graph;

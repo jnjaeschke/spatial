@@ -130,6 +130,15 @@ test("/note from an aside draft creates a positioned draft note without a chat t
   await revealNode(page, reopen);
   await reopen.click();
   await expect(note).toContainText("check the lifetime here");
+  await note.locator(".title").click({ position: { x: 5, y: 5 } });
+  await note.getByRole("button", { name: "Ask about note" }).click();
+  const noteDraft = page.locator('[data-testid^="chat-draft-"]');
+  await noteDraft.getByLabel("message").fill("Is this lifetime right?");
+  await noteDraft.getByRole("button", { name: "Send" }).click();
+  await expect(page.locator(".chat-node .msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  const threads = (await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json() as { artifacts: { type: string; data: { anchor?: string } }[] }).artifacts.filter((artifact) => artifact.type === "ChatThread");
+  const noteId = snapshot.artifacts.find((artifact) => artifact.type === "Note") as unknown as { id: string };
+  expect(threads.some((thread) => thread.data.anchor === noteId.id)).toBe(true);
 });
 
 test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {

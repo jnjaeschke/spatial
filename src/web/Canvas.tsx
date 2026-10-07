@@ -255,19 +255,36 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     return changed;
   };
 
-  const arrange = (sized: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
+  const arrange = (all: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
     const free = new Map(shown.nodes.filter((n) => n.position).map((n) => [n.id, n.position!]));
-    sized = sized.filter((n) => !free.has(n.id));
+    // Satellites hanging (directly or through other satellites) off a freely placed node sit beside that node.
+    const rootOf = new Map<string, string>();
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const [id, anchors] of satelliteAnchors) {
+        if (rootOf.has(id) || free.has(id) || !anchors.length) continue;
+        const root = free.has(anchors[0]!) ? anchors[0]! : rootOf.get(anchors[0]!);
+        if (root) { rootOf.set(id, root); grew = true; }
+      }
+    }
+    const freePlaced = new Map<string, { x: number; y: number }>();
+    for (const root of new Set(rootOf.values())) {
+      const rootSize = all.find((n) => n.id === root)!;
+      const rects = new Map([[root, { ...free.get(root)!, width: rootSize.width, height: rootSize.height }]]);
+      const satellites = all.filter((n) => rootOf.get(n.id) === root).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!.slice(0, 1) }));
+      for (const [id, p] of placeSatellites(rects, satellites)) freePlaced.set(id, p);
+    }
+    const sized = all.filter((n) => !free.has(n.id) && !rootOf.has(n.id));
     if (shown.nodes.some((n) => n.data.kind === "commit")) {
       const byId = new Map(shown.nodes.map((n) => [n.id, n]));
-      return new Map([...stackLayout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free]);
+      return new Map([...stackLayout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free, ...freePlaced]);
     }
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
     const layoutEdges = diagramLayoutEdges(shown.nodes, shown.edges.filter((e) => !satelliteAnchors.has(e.source)));
     const mainPos = layout(main, layoutEdges);
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
     const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!, ...(dy?.has(n.id) ? { dy: dy.get(n.id)! } : {}) }));
-    return new Map([...mainPos, ...placeSatellites(rects, satellites), ...free]);
+    return new Map([...mainPos, ...placeSatellites(rects, satellites), ...free, ...freePlaced]);
   };
 
   const sizeBasis = useRef("");
