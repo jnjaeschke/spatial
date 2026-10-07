@@ -179,18 +179,23 @@ export function changedLines(before: LineSegment[][], after: LineSegment[][]): n
 
 const highlights = new Map<string, Highlight>();
 
-function highlightFor(name: string): Highlight {
-  let highlight = highlights.get(name);
-  if (!highlight) {
-    highlight = new Highlight();
+/**
+ * Applies range removals and additions to the shared highlights, one registration per changed highlight.
+ * Gecko re-sorts a highlight's ranges on every `Highlight.delete()` (seconds for a few thousand ranges in a
+ * removed subtree), while registering a rebuilt highlight sorts once.
+ */
+function applyRanges(removed: Map<string, Set<Range>>, added: Map<string, Range[]>): void {
+  for (const name of new Set([...removed.keys(), ...added.keys()])) {
+    const gone = removed.get(name);
+    const kept = [...(highlights.get(name) ?? [])].filter((range) => !gone?.has(range as Range)) as Range[];
+    const highlight = new Highlight(...kept, ...(added.get(name) ?? []));
     highlight.priority = -1;
     highlights.set(name, highlight);
     CSS.highlights.set(name, highlight);
   }
-  return highlight;
 }
 
-interface PaintedRow { node: Text; data: string; segments: LineSegment[]; ranges: [Highlight, Range][] }
+interface PaintedRow { node: Text; data: string; segments: LineSegment[]; ranges: [string, Range][] }
 
 /**
  * Owns the ranges of one code view, keyed by row. `update` replaces only the rows whose text node,
@@ -202,39 +207,48 @@ export class RowPainter {
 
   /** `cells[i]` is the code cell of row i; `segments` come from `rowSegments`. */
   update(cells: (Element | null)[], segments: Segment[]): void {
+    const removed = new Map<string, Set<Range>>(), added = new Map<string, Range[]>();
     const byRow = new Map<number, LineSegment[]>();
     for (const { row, ...seg } of segments) byRow.set(row, [...(byRow.get(row) ?? []), seg]);
     for (const row of [...this.rows.keys()]) {
-      if (!byRow.has(row) || row >= cells.length) this.clear(row);
+      if (!byRow.has(row) || row >= cells.length) this.clear(row, removed);
     }
     for (const [row, segs] of byRow) {
       const node = cells[row]?.firstChild;
       if (node?.nodeType !== Node.TEXT_NODE) {
-        this.clear(row);
+        this.clear(row, removed);
         continue;
       }
       const text = node as Text;
       const old = this.rows.get(row);
       if (old && old.node === text && old.data === text.data && sameSegments(old.segments, segs)) continue;
-      this.clear(row);
-      const ranges = segs.map((seg): [Highlight, Range] => {
+      this.clear(row, removed);
+      const ranges = segs.map((seg): [string, Range] => {
         const range = new Range();
         range.setStart(text, seg.start);
         range.setEnd(text, seg.end);
-        const highlight = highlightFor(seg.name);
-        highlight.add(range);
-        return [highlight, range];
+        let list = added.get(seg.name);
+        if (!list) added.set(seg.name, list = []);
+        list.push(range);
+        return [seg.name, range];
       });
       this.rows.set(row, { node: text, data: text.data, segments: segs, ranges });
     }
+    applyRanges(removed, added);
   }
 
   dispose(): void {
-    for (const row of [...this.rows.keys()]) this.clear(row);
+    const removed = new Map<string, Set<Range>>();
+    for (const row of [...this.rows.keys()]) this.clear(row, removed);
+    applyRanges(removed, new Map());
   }
 
-  private clear(row: number): void {
-    for (const [highlight, range] of this.rows.get(row)?.ranges ?? []) highlight.delete(range);
+  private clear(row: number, removed: Map<string, Set<Range>>): void {
+    for (const [name, range] of this.rows.get(row)?.ranges ?? []) {
+      let set = removed.get(name);
+      if (!set) removed.set(name, set = new Set());
+      set.add(range);
+    }
     this.rows.delete(row);
   }
 }
