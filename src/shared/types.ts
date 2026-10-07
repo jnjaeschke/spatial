@@ -16,6 +16,19 @@ export interface WorkflowStartData {
   prompt: string;
 }
 
+/** Data of a `SelectorQuestion` artifact: the workflow selector could not choose and asks the user; `prompt` is the request it was given, `round` counts questions so far (1-based). */
+export interface SelectorQuestionData {
+  prompt: string;
+  question: string;
+  round: number;
+}
+
+/** Data of a `SelectorAnswer` artifact: the user's answer to a `SelectorQuestion`. */
+export interface SelectorAnswerData {
+  question: Id;
+  text: string;
+}
+
 /** The user's durable unit of work. Grouped by repo (`repoDir`); runs in one worktree of it. */
 export interface Session {
   id: Id;

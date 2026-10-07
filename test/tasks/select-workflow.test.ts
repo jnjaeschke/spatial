@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import type { LlmSelection, WorkflowStartData } from "../../src/shared/types.ts";
+import type { LlmSelection, SelectorQuestionData, WorkflowStartData } from "../../src/shared/types.ts";
 import { workflows } from "../../src/workflows/registry.ts";
-import { selectWorkflow, selectorSchema } from "../../src/tasks/select-workflow/task.ts";
+import { MAX_SELECTOR_QUESTIONS, selectWorkflow, selectorSchema } from "../../src/tasks/select-workflow/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
@@ -48,6 +48,23 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.ok(setupResult.call?.system?.includes("both `base` and `head` to null"));
   assert.ok(setupResult.call?.system?.includes("Repository instructions"));
   assert.ok(setupResult.call?.system?.includes("scm_log"));
+});
+
+test("selector stores a question instead of a start when it asks", async () => {
+  const setupResult = setup({ question: "  Which branch: feature or fix?  ", workflow: "review", params: { base: null, head: null, revision: null }, title: "Review" });
+  const { store, rt, session } = setupResult;
+  const out = await rt.run<{ questionId: string }>(session.id, "selectWorkflow", { prompt: "review my branch" });
+  assert.deepEqual(store.getArtifact<SelectorQuestionData>(out.questionId).data, { prompt: "review my branch", question: "Which branch: feature or fix?", round: 1 });
+  assert.ok(!store.listArtifacts(session.id).some((a) => a.type === "WorkflowStart"));
+  assert.ok(!setupResult.call?.prompt.includes("choose now"));
+});
+
+test("selector must choose after the last allowed question", async () => {
+  const setupResult = setup({ question: "Still unsure?", workflow: "chat", params: {}, title: "x" });
+  const { store, rt, session } = setupResult;
+  await assert.rejects(rt.run(session.id, "selectWorkflow", { prompt: "x", round: MAX_SELECTOR_QUESTIONS }), /still asks after 2 answers/);
+  assert.ok(setupResult.call?.prompt.includes("choose now"));
+  assert.equal(store.listArtifacts(session.id).length, 0);
 });
 
 test("selector validates review params", async () => {

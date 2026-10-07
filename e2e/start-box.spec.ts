@@ -106,6 +106,20 @@ test("plain text goes to the selector: chat", async ({ page, request }) => {
   await expect(page.getByTestId("task-selectWorkflow")).toHaveAttribute("data-status", "succeeded");
 });
 
+test("the selector asks a question and continues with the answer", async ({ page, request }) => {
+  await openStartBox(page, request);
+  const box = page.getByLabel("start");
+  await box.fill("SELECT-ROUTE-ASK look at my branch");
+  await box.press("Enter");
+  const question = page.getByTestId("selector-question");
+  await expect(question).toContainText("Review your branch or chat about it?", { timeout: 10_000 });
+  await question.getByLabel("answer").fill("just chat");
+  await question.getByLabel("answer").press("Enter");
+  await expect(page.locator(".session-title")).toHaveText("Chat via selector", { timeout: 10_000 });
+  await expect(page.getByTestId("conversation")).toContainText("Answer: just chat");
+  await expect(page.getByTestId("conversation")).toContainText("Stub answer.", { timeout: 10_000 });
+});
+
 test("plain text goes to the selector: review", async ({ page, request }) => {
   await openStartBox(page, request);
   const box = page.getByLabel("start");

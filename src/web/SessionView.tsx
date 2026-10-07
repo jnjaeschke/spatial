@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Ref } from "../shared/types.ts";
+import type { Artifact, Ref, SelectorAnswerData, SelectorQuestionData } from "../shared/types.ts";
 import { repoName } from "../shared/repos.ts";
 import { useSessionState, useModels } from "./api.ts";
 import { ActivityStrip } from "./ActivityStrip.tsx";
@@ -18,6 +18,7 @@ import { StackContext } from "./stack-context.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
+import { SelectorQuestion } from "./SelectorQuestion.tsx";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
@@ -49,7 +50,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
-  const body = state.session.workflow === null
+  const question = state.artifacts.findLast((a) => a.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
+  const openQuestion = question && selecting?.status === "succeeded" && !state.artifacts.some((a) => a.type === "SelectorAnswer" && (a.data as SelectorAnswerData).question === question.id) ? question : null;
+  const body = state.session.workflow === null && openQuestion
+    ? <SelectorQuestion sessionId={sessionId} question={openQuestion} llm={models.default} />
+    : state.session.workflow === null
     ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
       : state.session.workflow === "chat" ? <Canvas jump={jump} state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
       : n ? <Canvas jump={jump} state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} state={state} models={models} /> : <AnalysisStatus state={state} models={models} />;

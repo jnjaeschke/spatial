@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChangeReviewData, DiffData, DirectoryListing, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RecentRepo, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
+import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChangeReviewData, DiffData, DirectoryListing, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RecentRepo, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { ConduitClient, readArcToken } from "../runtime/conduit.ts";
 import { checkDrift } from "../runtime/drift.ts";
@@ -18,7 +18,7 @@ import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { workflowInfo } from "../workflows/registry.ts";
-import { runWorkflow, startSession } from "../workflows/start.ts";
+import { continueSelection, runWorkflow, startSession } from "../workflows/start.ts";
 import { importRevision, ImportRevisionError } from "../runtime/import-revision.ts";
 
 class HttpError extends Error {
@@ -429,6 +429,20 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
         console.error(`remote review failed in session ${id}: ${(e as Error).message}`),
       );
       send(res, 202, range);
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/selector-answer$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]);
+      const body = await readJson(req);
+      const text = str(body.text, "text").trim();
+      if (!text) throw new HttpError(400, "Answer must not be empty");
+      if (session.workflow) throw new HttpError(409, "Session already has a workflow");
+      const artifacts = rt.store.listArtifacts(session.id);
+      const question = artifacts.findLast((artifact) => artifact.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
+      if (!question) throw new HttpError(409, "No open selector question");
+      if (artifacts.some((artifact) => artifact.type === "SelectorAnswer" && (artifact.data as SelectorAnswerData).question === question.id)) throw new HttpError(409, "Question already answered");
+      const answer = putUserArtifact(rt, session.id, "SelectorAnswer", { question: question.id, text } satisfies SelectorAnswerData, question.id);
+      continueSelection(rt, session.id, question, text, body.llm as LlmSelection | undefined);
+      send(res, 201, { artifactId: answer.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/notes$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;

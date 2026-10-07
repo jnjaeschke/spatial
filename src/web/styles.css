@@ -555,3 +555,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .export-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .file-panel tr.jumps { cursor: pointer; }
 .file-panel tr.jumps:hover td.ln, .file-panel tr.jumps:hover td.sign { text-decoration: underline; }
+.selector-question { max-width: 640px; margin: 48px auto; display: flex; flex-direction: column; gap: 8px; }
+.selector-question textarea { min-height: 4em; }
+.selector-question button { align-self: flex-end; }

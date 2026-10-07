@@ -8,5 +8,6 @@
 
 ## Functions
 
+- [continueSelection](functions/continueSelection.md)
 - [runWorkflow](functions/runWorkflow.md)
 - [startSession](functions/startSession.md)
