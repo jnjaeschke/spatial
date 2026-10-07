@@ -6,9 +6,14 @@ import type { Store } from "./store.ts";
 import { searchDocs, sessionView, type SessionView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
 
+/** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
+export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
+
 export interface WebspecCapability {
   readonly effect: "read-only";
   resolve(url: string, signal: AbortSignal): Promise<{ found: true; spec: ResolvedSpec } | { found: false; reason: string }>;
+  /** Step comments of a source file checked against the spec algorithms it links (`webspec-index analyze`, as its LSP does). `name` is the file's base name. */
+  analyze(name: string, text: string, signal: AbortSignal): Promise<StepCommentCheck[]>;
 }
 
 export interface SearchfoxCapability {

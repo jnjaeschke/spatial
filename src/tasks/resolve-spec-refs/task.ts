@@ -1,13 +1,18 @@
+import { basename } from "node:path";
 import type { DiffData, PatchNarrativeData, ResolvedSpec, ReviewFindingData, SpecReferenceData } from "../../shared/types.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
 import { isGeckoRepo } from "../../runtime/searchfox.ts";
-import { defineTask } from "../../runtime/tasks.ts";
-import { specUrlsNear, stepCommentsNear, type StepComment } from "./cited.ts";
+import { numberLines } from "../../shared/diff-lines.ts";
+import { defineTask, type StepCommentCheck } from "../../runtime/tasks.ts";
+import { specUrlsNear } from "./cited.ts";
 import { checkStepComment } from "./step-check.ts";
 
-/** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports `Step N` comments on added lines that do not match the cited algorithm as `ReviewFinding`s (no LLM). */
-export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[] }>({
+/** A line that may be a Step comment (`// Step 3.`, `// 3.1 ...`); files without one on an added line skip `webspec-index analyze`. */
+const STEP_LIKE = /^\s*(?:\/\/+|\/?\*+|#)\s*(?:step\s+)?\d+(?:\.\d+)*[.:)]?(?:\s|$)/i;
+
+/** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports Step comments on added lines that webspec-index finds do not match their algorithm as `ReviewFinding`s (no LLM). `stepCheckErrors` lists files whose check failed. */
+export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[]; stepCheckErrors: string[] }>({
   kind: "resolveSpecRefs",
   async run(ctx, { narrativeId }) {
     const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
@@ -28,15 +33,28 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       for (const changeId of changeIds) citation.changeIds.add(changeId);
     };
 
-    const stepComments: { comment: StepComment; path: string; hunkId: string; quote: string }[] = [];
+    const stepComments: { check: StepCommentCheck; path: string; hunkId: string; quote: string }[] = [];
+    const stepCheckErrors: string[] = [];
     for (const file of diffArtifact.data.files) {
       if (file.status === "deleted" || file.hunks.length === 0) continue;
-      const lines = (await ctx.git.show(diffArtifact.data.headSha, file.path)).split("\n");
+      const text = await ctx.git.show(diffArtifact.data.headSha, file.path);
+      const lines = text.split("\n");
+      const addedIn = new Map<number, string>();
       for (const hunk of file.hunks) {
         const changeIds = hunkChanges.get(hunk.id) ?? [];
         if (changeIds.length === 0) continue;
         for (const url of specUrlsNear(lines, hunk)) addCitation(url, changeIds, "code");
-        for (const comment of stepCommentsNear(lines, hunk)) stepComments.push({ comment, path: file.path, hunkId: hunk.id, quote: lines[comment.line - 1]!.trim() });
+        for (const row of numberLines(hunk)) if (row.kind === "add") addedIn.set(row.new!, hunk.id);
+      }
+      if (![...addedIn.keys()].some((line) => STEP_LIKE.test(lines[line - 1] ?? ""))) continue;
+      try {
+        for (const check of await ctx.webspec.analyze(basename(file.path), text, ctx.signal)) {
+          const hunkId = addedIn.get(check.line);
+          if (hunkId) stepComments.push({ check, path: file.path, hunkId, quote: lines[check.line - 1]!.trim() });
+        }
+      } catch (error) {
+        if (ctx.signal.aborted) throw error;
+        stepCheckErrors.push(`${file.path}: ${(error as Error).message}`);
       }
     }
     for (const change of narrative.data.changes) {
@@ -90,18 +108,26 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
     // A re-run for a new epoch finds the same comments again; their carried findings already cover them.
     const carried = new Set(findingStates(ctx.artifacts.view(), narrativeId).filter((s) => !s.outdated).map((s) => `${s.finding.data.title}\n${s.quote}`));
     const findingIds: string[] = [];
-    for (const { comment, path, hunkId, quote } of stepComments) {
-      const spec = resolvedByUrl.get(comment.url);
+    for (const { check, path, hunkId, quote } of stepComments) {
+      if (check.result === "exact" || check.result === "fuzzy") continue;
+      if (!resolvedByUrl.has(check.url)) {
+        const result = await ctx.webspec.resolve(check.url, ctx.signal).catch((error: Error) => {
+          if (ctx.signal.aborted) throw error;
+          return { found: false as const, reason: error.message };
+        });
+        if (result.found) resolvedByUrl.set(check.url, result.spec);
+      }
+      const spec = resolvedByUrl.get(check.url);
       const steps = spec ? parseSteps(spec.content) : [];
       if (!spec || steps.length === 0) continue;
-      const problem = checkStepComment(comment, `${spec.spec}#${spec.anchor}`, steps);
+      const problem = checkStepComment(check, `${spec.spec}#${spec.anchor}`, steps);
       if (!problem || carried.has(`${problem.title}\n${quote}`)) continue;
       const anchor = `${diffArtifact.id}#${hunkId}`;
-      const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "verified", { anchor, quote, lines: { path, side: "new", start: comment.line, end: comment.line }, category: "spec", ...problem });
+      const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "verified", { anchor, quote, lines: { path, side: "new", start: check.line, end: check.line }, category: "spec", ...problem });
       ctx.links.put(finding.id, narrativeId, "derivedFrom");
       ctx.links.put(finding.id, anchor, "about");
       findingIds.push(finding.id);
     }
-    return { specRefIds, findingIds };
+    return { specRefIds, findingIds, stepCheckErrors };
   },
 });
