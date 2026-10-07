@@ -312,7 +312,7 @@ test("estimateSize grows with level and hunk size", () => {
 
 const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
   id, sessionId: "S", type: "Diagram", status: "proposed", createdAt: id, provenance: { taskId: "t" },
-  data: { kind: "sequence", commit, commitIndex: Number(commit) - 1, title, summary: "A sequence summary.", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "run", call: "run()", what: "Runs", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.ts", line: 1 }, verified: true, text: "run()" }], before: null },
+  data: { kind: "sequence", commit, commitIndex: Number(commit) - 1, title, summary: "A sequence summary.", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", symbol: "run", call: "run()", what: "Runs", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.ts", line: 1 }, verified: true, text: "run()" }], before: null },
 });
 
 test("diagramStepTarget maps stack citations by commit coordinates and renamed paths", () => {

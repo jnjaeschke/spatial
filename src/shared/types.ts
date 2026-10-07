@@ -85,7 +85,7 @@ export type SequenceStatus = "new" | "changed" | "existing" | "removed";
 /** A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `before` steps). */
 export interface DiagramCite { path: string; line: number }
 /** One call between lanes (`from === to` for a self step). The runtime sets `verified`, `text` (the matched source line, trimmed) and moves `cite.line` to the matched line. */
-export interface SequenceStep { from: string; to: string; identifier: string; call: string; what: string; when: string | null; guard: string | null; phase: string | null; status: SequenceStatus; cite: DiagramCite; verified: boolean; text: string | null }
+export interface SequenceStep { from: string; to: string; symbol: string; call: string; what: string; when: string | null; guard: string | null; phase: string | null; status: SequenceStatus; cite: DiagramCite; verified: boolean; text: string | null }
 export interface SequenceLane { id: string; label: string; note: string | null }
 /** Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `before` is the parent commit's flow, null for a new flow. */
 export interface DiagramData { kind: "sequence"; commit: string; commitIndex: number; title: string; summary: string; lanes: SequenceLane[]; steps: SequenceStep[]; before: SequenceStep[] | null }

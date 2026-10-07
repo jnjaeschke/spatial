@@ -19,7 +19,7 @@ function isDiagram(j: unknown): j is SequenceProposal {
   const step = (value: unknown) => {
     if (!value || typeof value !== "object") return false;
     const s = value as SequenceStepProposal;
-    return typeof s.from === "string" && typeof s.to === "string" && typeof s.identifier === "string" && typeof s.call === "string" && typeof s.what === "string" && nullableString(s.when) && nullableString(s.guard) && nullableString(s.phase) && sequenceStatuses.has(s.status) && cite(s.cite);
+    return typeof s.from === "string" && typeof s.to === "string" && typeof s.symbol === "string" && typeof s.call === "string" && typeof s.what === "string" && nullableString(s.when) && nullableString(s.guard) && nullableString(s.phase) && sequenceStatuses.has(s.status) && cite(s.cite);
   };
   return Number.isInteger(d.commit) && d.commit! >= 1 && typeof d.title === "string" && typeof d.summary === "string" && Array.isArray(d.lanes) && d.lanes.every((lane) => !!lane && typeof lane.id === "string" && typeof lane.label === "string" && nullableString(lane.note)) && Array.isArray(d.steps) && d.steps.every(step) && (d.before === null || (Array.isArray(d.before) && d.before.every(step)));
 }

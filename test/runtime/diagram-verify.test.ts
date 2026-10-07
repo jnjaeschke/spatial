@@ -5,7 +5,7 @@ import type { DiffData } from "../../src/shared/types.ts";
 
 const diff: DiffData = { baseSha: "base", headSha: "c2", commits: [{ sha: "c1", subject: "one", body: "" }, { sha: "c2", subject: "two", body: "" }], files: [] };
 const lane = (id: string) => ({ id, label: id, note: null });
-const step = (identifier: string, line = 1, status: SequenceProposal["steps"][number]["status"] = "new") => ({ from: "a", to: "b", identifier, call: `${identifier}()`, what: "Calls it", when: null, guard: null, phase: "run", status, cite: { path: "a.ts", line } });
+const step = (symbol: string, line = 1, status: SequenceProposal["steps"][number]["status"] = "new") => ({ from: "a", to: "b", symbol, call: `${symbol}()`, what: "Calls it", when: null, guard: null, phase: "run", status, cite: { path: "a.ts", line } });
 const proposal = (steps: SequenceProposal["steps"] = [step("alpha")], before: SequenceProposal["before"] = null, commit = 1): SequenceProposal => ({ commit, title: "test", summary: "summary", lanes: [lane("a"), lane("b")], steps, before });
 function fixture(files: Record<string, string>) {
   const calls: string[] = [];

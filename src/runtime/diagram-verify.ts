@@ -37,11 +37,11 @@ export async function verifySequence(
     }
     return contents.then((text) => text?.split(/\r?\n/) ?? null);
   };
-  const containsIdentifier = (text: string | null, identifier: string): boolean => {
-    if (text === null || identifier.length === 0) return false;
-    const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const before = /\w/.test(identifier[0]!) ? "(?<!\\w)" : "";
-    const last = identifier[identifier.length - 1]!;
+  const containsSymbol = (text: string | null, symbol: string): boolean => {
+    if (text === null || symbol.length === 0) return false;
+    const escaped = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const before = /\w/.test(symbol[0]!) ? "(?<!\\w)" : "";
+    const last = symbol[symbol.length - 1]!;
     const after = /\w/.test(last) ? "(?!\\w)" : "";
     return new RegExp(`${before}${escaped}${after}`).test(text);
   };
@@ -50,7 +50,7 @@ export async function verifySequence(
     let match = -1;
     for (let distance = 0; distance <= 2 && match < 0; distance++) {
       for (const index of distance === 0 ? [step.cite.line - 1] : [step.cite.line - 1 - distance, step.cite.line - 1 + distance]) {
-        if (index >= 0 && index < (lines?.length ?? 0) && containsIdentifier(lines![index]!, step.identifier)) { match = index; break; }
+        if (index >= 0 && index < (lines?.length ?? 0) && containsSymbol(lines![index]!, step.symbol)) { match = index; break; }
       }
     }
     if (match < 0) return { ...step, verified: false, text: null };

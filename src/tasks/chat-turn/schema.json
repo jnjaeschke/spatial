@@ -53,9 +53,9 @@
     },
     "step": {
       "type": "object", "additionalProperties": false,
-      "required": ["from", "to", "identifier", "call", "what", "when", "guard", "phase", "status", "cite"],
+      "required": ["from", "to", "symbol", "call", "what", "when", "guard", "phase", "status", "cite"],
       "properties": {
-        "from": { "type": "string" }, "to": { "type": "string" }, "identifier": { "type": "string" },
+        "from": { "type": "string" }, "to": { "type": "string" }, "symbol": { "type": "string", "description": "Function, method or field name exactly as written on the cited line, e.g. AddEarlyRunner." },
         "call": { "type": "string" }, "what": { "type": "string" },
         "when": { "type": ["string", "null"] }, "guard": { "type": ["string", "null"] }, "phase": { "type": ["string", "null"] },
         "status": { "type": "string", "enum": ["new", "changed", "existing", "removed"] },

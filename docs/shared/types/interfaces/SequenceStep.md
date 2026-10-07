@@ -34,12 +34,6 @@ One call between lanes (`from === to` for a self step). The runtime sets `verifi
 
 ***
 
-### identifier
-
-> **identifier**: `string`
-
-***
-
 ### phase
 
 > **phase**: `string` \| `null`
@@ -49,6 +43,12 @@ One call between lanes (`from === to` for a self step). The runtime sets `verifi
 ### status
 
 > **status**: [`SequenceStatus`](../type-aliases/SequenceStatus.md)
+
+***
+
+### symbol
+
+> **symbol**: `string`
 
 ***
 

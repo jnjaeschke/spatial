@@ -136,7 +136,7 @@ test("chat passes the reply schema on new and resumed turns and stores structure
 test("chat verifies a proposed diagram and links it to the assistant reply", async () => {
   const git: GitCapability = { effect: "read-only", isDirty: async () => false, resolve: async () => "", isAncestor: async () => true, mergeBase: async () => null, blame: async () => [], log: async () => [], diff: async () => "", replay: async () => ({ tree: "", conflicts: [] }), async show() { return "call target()"; } };
   const diagram = { commit: 1, title: "Calls", summary: "Call path", lanes: [{ id: "a", label: "caller", note: null }, { id: "b", label: "target", note: null }],
-    steps: [{ from: "a", to: "b", identifier: "call", call: "call target()", what: "Calls target", when: null, guard: null, phase: "run", status: "changed", cite: { path: "dom/A.cpp", line: 1 } }], before: null };
+    steps: [{ from: "a", to: "b", symbol: "call", call: "call target()", what: "Calls target", when: null, guard: null, phase: "run", status: "changed", cite: { path: "dom/A.cpp", line: 1 } }], before: null };
   const { store, turn, narrativeId, session } = setup({ git, replies: [{ answer: "Flow", revisions: [], questions: [], diagram }] });
   const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Show the flow", llm: SONNET });
   const artifacts = store.listArtifacts(session.id, "Diagram");
@@ -150,8 +150,8 @@ test("chat verifies a proposed diagram and links it to the assistant reply", asy
 test("invalid diagrams are dropped with an error on the assistant message", async () => {
   for (const diagram of [
     "not a diagram",
-    { commit: 2, title: "Bad commit", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", identifier: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
-    { commit: 1, title: "Bad lane", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "missing", to: "a", identifier: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
+    { commit: 2, title: "Bad commit", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", symbol: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
+    { commit: 1, title: "Bad lane", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "missing", to: "a", symbol: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
   ]) {
     const { store, turn, narrativeId, session } = setup({ replies: [{ answer: "Kept", revisions: [], questions: [], diagram }] });
     const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Draw", llm: SONNET });
