@@ -3,10 +3,11 @@ import { numberLines } from "./diff-lines.ts";
 import { epochNumber } from "./epochs.ts";
 import { latestPhabComments, phabAnchorId } from "./phab-comments.ts";
 import { reanchorFinding } from "./reanchor.ts";
+import { phabRevision } from "./phabricator.ts";
 
 /** Latest PhabSync recorded for a local Diff, or null. */
-export function latestPhabSync(artifacts: Artifact[], diffArtifactId: Id): Artifact<PhabSyncData> | null {
-  return artifacts.filter((artifact) => artifact.type === "PhabSync" && (artifact.data as PhabSyncData).localDiff === diffArtifactId).at(-1) as Artifact<PhabSyncData> | undefined ?? null;
+export function latestPhabSync(artifacts: Artifact[], diffArtifactId: Id, revision: number): Artifact<PhabSyncData> | null {
+  return artifacts.filter((artifact) => artifact.type === "PhabSync" && (artifact.data as PhabSyncData).localDiff === diffArtifactId && (artifact.data as PhabSyncData).revision === revision).at(-1) as Artifact<PhabSyncData> | undefined ?? null;
 }
 
 export interface AnchoredPhabThread {
@@ -28,7 +29,8 @@ export interface PhabView {
 
 /** Resolve remote comments against the latest local narrative and prior local epochs. */
 export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrative: PatchNarrativeData): PhabView {
-  const sync = latestPhabSync(artifacts, diff.id);
+  const revision = phabRevision(diff.data)?.id;
+  const sync = revision === undefined ? null : latestPhabSync(artifacts, diff.id, revision);
   const matchingDiffId = sync?.data.matchingDiffId ?? null;
   const diffs = artifacts.filter((artifact): artifact is Artifact<DiffData> => artifact.type === "Diff");
   const currentEpoch = epochNumber(artifacts, diff.id);
@@ -68,7 +70,7 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
         continue;
       }
     }
-    const previous = diffs.filter((item) => item.id !== diff.id && epochNumber(artifacts, item.id) < currentEpoch && latestPhabSync(artifacts, item.id)?.data.matchingDiffId === data.diffId)
+    const previous = diffs.filter((item) => item.id !== diff.id && epochNumber(artifacts, item.id) < currentEpoch && phabRevision(item.data) && latestPhabSync(artifacts, item.id, phabRevision(item.data)!.id)?.data.matchingDiffId === data.diffId)
       .sort((a, b) => epochNumber(artifacts, b.id) - epochNumber(artifacts, a.id))[0];
     if (previous) {
       const source = rowsByFile(previous.data).find((candidate) => candidate.pathMatches(data.path!) && candidate.rows.some((item) => item.line === data.line && item.side === (data.isNewFile ? "new" : "old") && (data.isNewFile ? item.row.kind !== "del" : item.row.kind === "del")));

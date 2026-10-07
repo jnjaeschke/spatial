@@ -14,4 +14,5 @@
 
 - [fetchTransactions](functions/fetchTransactions.md)
 - [parseTransactions](functions/parseTransactions.md)
+- [quoteLine](functions/quoteLine.md)
 - [storeRemoteComments](functions/storeRemoteComments.md)

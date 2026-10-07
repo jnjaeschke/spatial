@@ -166,7 +166,7 @@ export interface PhabSyncData { revision: number; matchingDiffId: number | null;
 
 /** A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact. `bot` is set when the username ends in "bot": Phabricator roles do not distinguish bots. */
 export interface PhabCommentData {
-  revision: number; phid: string; version: number; author: string; bot: boolean; body: string; path?: string; line?: number; length?: number;
+  revision: number; phid: string; version: number; author: string; bot: boolean; body: string; path?: string; line?: number; length?: number; /** Text of the commented line in the raw diff of `diffId`; absent when not found. */ quote?: string;
   diffId?: number; isNewFile?: boolean; replyTo?: string; own: boolean; done: boolean; txId: number; dateCreated: number;
 }
 

@@ -68,6 +68,12 @@
 
 ***
 
+### quote?
+
+> `optional` **quote?**: `string`
+
+***
+
 ### replyTo?
 
 > `optional` **replyTo?**: `string`

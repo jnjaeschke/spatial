@@ -5,7 +5,7 @@ import { phabView } from "../../src/shared/phab-anchor.ts";
 
 const make = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, data, status: "verified", provenance: { taskId: "runtime" }, createdAt: id });
 const diff = (id: string, newLines: { kind: "ctx" | "add" | "del"; text: string }[], oldStart = 28): Artifact<DiffData> => make(id, "Diff", {
-  baseSha: "b", headSha: id, commits: [], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [{ id: `${id}h0`, header: "@@", oldStart, oldLines: newLines.length, newStart: 28, newLines: newLines.filter((line) => line.kind !== "del").length, lines: newLines }] }],
+  baseSha: "b", headSha: id, commits: [{ sha: id, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [{ id: `${id}h0`, header: "@@", oldStart, oldLines: newLines.length, newStart: 28, newLines: newLines.filter((line) => line.kind !== "del").length, lines: newLines }] }],
 });
 const narrative = (id: string, diffId: string, hunkId: string | null): Artifact<PatchNarrativeData> => make(id, "PatchNarrative", {
   diffId, summary: "summary", changes: hunkId ? [{ id: "c", title: "change", explanation: "", rationale: "", hunkIds: [hunkId], dependsOn: [], specUrls: [] }] : [],

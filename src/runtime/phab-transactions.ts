@@ -1,11 +1,21 @@
-import type { Artifact, Id, PhabCommentData } from "../shared/types.ts";
+import type { Artifact, DiffFile, Id, PhabCommentData } from "../shared/types.ts";
+import { numberLines } from "../shared/diff-lines.ts";
 import { ConduitClient } from "./conduit.ts";
 import { Store } from "./store.ts";
 import { latestByPhid } from "../shared/phab-comments.ts";
 
 export interface RemoteComment {
   phid: string; version: number; authorPHID: string; body: string; path?: string; line?: number; length?: number;
-  diffId?: number; isNewFile?: boolean; isDone?: boolean; replyTo?: string; txId: number; dateCreated: number;
+  diffId?: number; isNewFile?: boolean; isDone?: boolean; replyTo?: string; quote?: string; txId: number; dateCreated: number;
+}
+
+export function quoteLine(files: DiffFile[], path: string, line: number, isNewFile: boolean): string | undefined {
+  const file = files.find((item) => item.path === path || item.oldPath === path);
+  if (!file) return undefined;
+  for (const hunk of file.hunks) for (const row of numberLines(hunk)) {
+    if (isNewFile ? (row.kind === "add" || row.kind === "ctx") && row.new === line : row.kind === "del" && row.old === line) return row.text;
+  }
+  return undefined;
 }
 
 /** Parses the supported comment transactions returned by `transaction.search`. */
@@ -73,7 +83,7 @@ export function storeRemoteComments(store: Store, sessionId: Id, revision: numbe
       revision, phid: comment.phid, version: comment.version, author, bot: /bot$/i.test(author),
       body: comment.body, ...(comment.path !== undefined ? { path: comment.path } : {}), ...(comment.line !== undefined ? { line: comment.line } : {}),
       ...(comment.length !== undefined ? { length: comment.length } : {}), ...(comment.diffId !== undefined ? { diffId: comment.diffId } : {}),
-      ...(comment.isNewFile !== undefined ? { isNewFile: comment.isNewFile } : {}), ...(comment.replyTo ? { replyTo: comment.replyTo } : {}),
+      ...(comment.isNewFile !== undefined ? { isNewFile: comment.isNewFile } : {}), ...(comment.quote !== undefined ? { quote: comment.quote } : {}), ...(comment.replyTo ? { replyTo: comment.replyTo } : {}),
       own: isOwn, done, txId: comment.txId, dateCreated: comment.dateCreated,
     };
     const artifact = store.putArtifact({ sessionId, type: "PhabComment", status: "verified", data, provenance: { taskId: "runtime" } });

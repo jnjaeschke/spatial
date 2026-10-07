@@ -9,7 +9,7 @@ const hunk = (id: string, n = 3) => ({
 });
 const diff: Artifact<DiffData> = {
   id: "D", sessionId: "S", type: "Diff", status: "verified", createdAt: "1", provenance: { taskId: "t" },
-  data: { baseSha: "b", headSha: "h", commits: [{ sha: "1", subject: "Bug 1", body: "" }], files: [
+  data: { baseSha: "b", headSha: "h", commits: [{ sha: "1", subject: "Bug 1", body: "Differential Revision: https://phab.example.com/D1" }], files: [
     { path: "a.cpp", status: "modified", binary: false, hunks: [hunk("f0h0"), hunk("f0h1", 40)] },
     { path: "b.h", status: "modified", binary: false, hunks: [hunk("f1h0")] },
   ] },

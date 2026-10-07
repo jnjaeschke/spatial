@@ -82,6 +82,12 @@ A comment imported from Phabricator. Provenance is runtime verified; a newer ver
 
 ***
 
+### quote?
+
+> `optional` **quote?**: `string`
+
+***
+
 ### replyTo?
 
 > `optional` **replyTo?**: `string`

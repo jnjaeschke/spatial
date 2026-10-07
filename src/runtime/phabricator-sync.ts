@@ -1,10 +1,11 @@
-import type { Artifact, Id, NotifyPayload, PhabCommentData, PhabSyncData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
+import type { Artifact, DiffData, DiffFile, Id, NotifyPayload, PhabCommentData, PhabSyncData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
 import { latestDiff } from "../shared/epochs.ts";
-import { phabRevision } from "../shared/phabricator.ts";
+import { commitRevision, phabRevision } from "../shared/phabricator.ts";
+import { parseUnifiedDiff } from "./diff-parse.ts";
 import { latestPhabSync } from "../shared/phab-anchor.ts";
 import { checkDrift } from "./drift.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
-import { fetchTransactions, storeRemoteComments } from "./phab-transactions.ts";
+import { fetchTransactions, quoteLine, storeRemoteComments } from "./phab-transactions.ts";
 import { sessionView, searchDocs } from "./render-ref.ts";
 import type { Runtime } from "./tasks.ts";
 import type { RevisionWatcher } from "./revision-watcher.ts";
@@ -21,10 +22,11 @@ export class PhabricatorSyncer {
   #conduits = new Map<string, ConduitClient>();
   #revisionPHIDs = new Map<string, string | null>();
   #rawDiffs = new Map<string, string>();
+  #parsedDiffs = new Map<string, DiffFile[]>();
   #whoami = new Map<string, WhoAmI>();
   #authors = new Map<string, Map<string, string>>();
-  #announced = new Map<Id, number>();
-  #highWater = new Map<Id, number>();
+  #announced = new Map<string, number>();
+  #highWater = new Map<string, number>();
   #errors = new Map<Id, string>();
   #missingToken = new Set<Id>();
   #timer: ReturnType<typeof setInterval> | undefined;
@@ -73,8 +75,22 @@ export class PhabricatorSyncer {
     const artifacts = this.#rt.store.listArtifacts(sessionId);
     const diff = latestDiff(artifacts);
     if (!diff) return;
-    const revision = phabRevision(diff.data);
-    if (!revision) return;
+    const ranges: { revision: NonNullable<ReturnType<typeof commitRevision>>; base: string; head: string }[] = [];
+    let start = diff.data.baseSha;
+    for (const commit of diff.data.commits) {
+      const revision = commitRevision(commit);
+      if (!revision) continue;
+      const existing = ranges.find((range) => range.revision.host === revision.host && range.revision.id === revision.id);
+      if (existing) existing.head = commit.sha;
+      else ranges.push({ revision, base: start, head: commit.sha });
+      start = commit.sha;
+    }
+    for (const range of ranges) await this.#pollRevision(sessionId, diff, range);
+  }
+
+  async #pollRevision(sessionId: Id, diff: Artifact<DiffData>, range: { revision: NonNullable<ReturnType<typeof commitRevision>>; base: string; head: string }): Promise<void> {
+    const revision = range.revision;
+    const artifacts = this.#rt.store.listArtifacts(sessionId);
     if (this.#missingToken.has(sessionId)) return;
     let conduit = this.#conduits.get(revision.host);
     if (!conduit) {
@@ -101,7 +117,7 @@ export class PhabricatorSyncer {
 
     const diffResult = await conduit.call<{ data?: { id: number }[] }>("differential.diff.search", { constraints: { revisionPHIDs: [revisionPHID] }, order: "newest", limit: 20 });
     const diffs: DiffInfo[] = (diffResult.data ?? []).filter((item) => Number.isInteger(item.id)).map((item) => ({ id: item.id, phid: "" })).sort((a, b) => b.id - a.id);
-    const localText = await this.#rt.gitFor(sessionId).diff(diff.data.baseSha, diff.data.headSha);
+    const localText = await this.#rt.gitFor(sessionId).diff(range.base, range.head);
     let matchingDiffId: number | null = null;
     for (const item of diffs) {
       const key = `${revision.host}:${item.id}`;
@@ -113,19 +129,35 @@ export class PhabricatorSyncer {
       if (checkDrift(localText, raw) === null) { matchingDiffId = item.id; break; }
     }
     const newestDiffId = diffs[0]?.id ?? null;
-    const previousSync = latestPhabSync(artifacts, diff.id);
-    if (!previousSync || previousSync.data.revision !== revision.id || previousSync.data.matchingDiffId !== matchingDiffId || previousSync.data.latestDiffId !== newestDiffId) {
+    const previousSync = latestPhabSync(artifacts, diff.id, revision.id);
+    if (!previousSync || previousSync.data.matchingDiffId !== matchingDiffId || previousSync.data.latestDiffId !== newestDiffId) {
       const sync = this.#rt.store.putArtifact<PhabSyncData>({ sessionId, type: "PhabSync", status: "verified", data: { revision: revision.id, matchingDiffId, latestDiffId: newestDiffId, localDiff: diff.id }, provenance: { taskId: "runtime" } });
       this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: sync.id, type: sync.type });
     }
-    if (matchingDiffId !== null && newestDiffId !== null && newestDiffId > matchingDiffId && this.#announced.get(sessionId) !== newestDiffId) {
-      this.#announced.set(sessionId, newestDiffId);
+    const revisionKey = `${sessionId}:${revision.host}:D${revision.id}`;
+    if (matchingDiffId !== null && newestDiffId !== null && newestDiffId > matchingDiffId && this.#announced.get(revisionKey) !== newestDiffId) {
+      this.#announced.set(revisionKey, newestDiffId);
       const position = [...diffs].sort((a, b) => a.id - b.id).findIndex((item) => item.id === newestDiffId) + 1;
       const payload: NotifyPayload = { id: `phab-diff:D${revision.id}:${newestDiffId}`, title: `D${revision.id} has a new diff (Diff ${position})`, body: `Run \`moz-phab patch D${revision.id}\` to fetch it (diff ${newestDiffId})` };
       this.#rt.emit(sessionId, "runtime", "notify", payload);
     }
 
     const comments = await fetchTransactions(conduit, revisionPHID);
+    for (const comment of comments) {
+      if (!comment.path || comment.line === undefined || comment.diffId === undefined || comment.isNewFile === undefined) continue;
+      const key = `${revision.host}:${comment.diffId}`;
+      let files = this.#parsedDiffs.get(key);
+      if (!files) {
+        let raw = this.#rawDiffs.get(key);
+        if (raw === undefined) {
+          raw = await conduit.call<string>("differential.getrawdiff", { diffID: comment.diffId });
+          this.#rawDiffs.set(key, raw);
+        }
+        try { files = parseUnifiedDiff(raw); } catch { files = []; }
+        this.#parsedDiffs.set(key, files);
+      }
+      comment.quote = quoteLine(files, comment.path, comment.line, comment.isNewFile);
+    }
     let whoami = this.#whoami.get(revision.host);
     if (!whoami) {
       whoami = await conduit.call<WhoAmI>("user.whoami", {});
@@ -152,8 +184,8 @@ export class PhabricatorSyncer {
       if (old) this.#rt.store.putSearchDocs(sessionId, old.to, []);
     }
     const maxTxId = comments.reduce((max, comment) => Math.max(max, comment.txId), 0);
-    const previousHighWater = this.#highWater.get(sessionId);
-    this.#highWater.set(sessionId, maxTxId);
+    const previousHighWater = this.#highWater.get(revisionKey);
+    this.#highWater.set(revisionKey, maxTxId);
     const announce = previousHighWater === undefined ? [] : created.filter((item) => {
       if (item.data.own || item.data.txId <= previousHighWater) return false;
       const previous = newLinks.find((link) => link.from === item.id && link.kind === "revises");
