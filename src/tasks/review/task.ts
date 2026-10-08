@@ -3,7 +3,7 @@ import type { DiffData, FindingVerdictData, LlmSelection, PatchNarrativeData, Po
 import { defineTask } from "../../runtime/tasks.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
-import { epochNumber } from "../../shared/epochs.ts";
+import { diffNumber } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
@@ -29,7 +29,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
     const diff = ctx.artifacts.get<DiffData>(narrative.data.diffId);
     if (diff.type !== "Diff") throw new Error(`Artifact ${narrative.data.diffId} is not a Diff (got ${diff.type})`);
     const view = ctx.artifacts.view();
-    const currentEpoch = epochNumber(view.artifacts, narrative.data.diffId);
+    const currentEpoch = diffNumber(view.artifacts, narrative.data.diffId);
     const priors = findingStates(view, narrativeId).filter((s) => s.epoch < currentEpoch);
     const priorLabels = new Map(priors.map((s, i) => [`F${i + 1}`, s]));
     const diffHunks = new Map(diff.data.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, { file, hunk }] as const)));

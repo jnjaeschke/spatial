@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/epochs](../README.md) / latestDiff
+[spatial-ide](../../../README.md) / [shared/diffs](../README.md) / latestDiff
 
 # Function: latestDiff()
 

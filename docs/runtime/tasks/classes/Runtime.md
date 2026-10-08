@@ -154,6 +154,8 @@ Read-only git for server queries outside tasks.
 
 > **retryPhase**(`sessionId`): `Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>
 
+Reruns the latest epoch, which must have failed or been cancelled, in place with its stored input; otherwise like `runPhase`.
+
 #### Parameters
 
 ##### sessionId
@@ -215,6 +217,8 @@ Read-only git for server queries outside tasks.
 ### runPhase()
 
 > **runPhase**(`sessionId`, `phaseId`, `input`): `Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>
+
+Opens the next epoch and runs the phase in it. Throws synchronously (`PhaseBusyError`) while another epoch runs. Resolves to the finished epoch (also when cancelled); rejects with the phase's error after marking the epoch failed.
 
 #### Parameters
 

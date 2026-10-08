@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/epochs](../README.md) / narrativeOf
+[spatial-ide](../../../README.md) / [shared/diffs](../README.md) / narrativeOf
 
 # Function: narrativeOf()
 

@@ -2,13 +2,13 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/epochs](../README.md) / diffsOf
+[spatial-ide](../../../README.md) / [shared/diffs](../README.md) / diffsOf
 
 # Function: diffsOf()
 
 > **diffsOf**(`artifacts`): [`Artifact`](../../types/interfaces/Artifact.md)\<[`DiffData`](../../types/interfaces/DiffData.md)\>[]
 
-Diff artifacts in creation order; the index + 1 is the epoch number.
+Diff artifacts in creation order.
 
 ## Parameters
 

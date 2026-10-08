@@ -9,11 +9,10 @@ import { checkDrift } from "../runtime/drift.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { buildSessionState } from "../runtime/state.ts";
-import type { Runtime } from "../runtime/tasks.ts";
-import { narratePatch } from "../workflows/narrate-patch.ts";
+import { PhaseBusyError, type Runtime } from "../runtime/tasks.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { commitRevision } from "../shared/phabricator.ts";
-import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
+import { latestDiff, narrativeOf, sessionRefs } from "../shared/diffs.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
 import { workflowInfo } from "../workflows/registry.ts";
@@ -401,13 +400,27 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
-      const latest = requireNarratable(id);
       const body = await readJson(req);
       const llm = body.llm as LlmSelection | undefined;
-      let opts: Parameters<typeof narratePatch>[2];
       if (body.base === undefined && body.head === undefined) {
-        if (latest) opts = { diffId: latest.id, llm };
-        else {
+        const latest = requireNarratable(id);
+        const epoch = rt.store.listEpochs(id).at(-1);
+        if (epoch && (epoch.status === "failed" || epoch.status === "cancelled")) {
+          let retry: Promise<unknown>;
+          try { retry = rt.retryPhase(id); }
+          catch (e) { if (e instanceof PhaseBusyError) throw new HttpError(409, e.message); throw e; }
+          retry.catch((e) => console.error(`phase retry failed in session ${id}: ${(e as Error).message}`));
+          send(res, 202, {});
+          return;
+        }
+        if (latest) {
+          let work: Promise<unknown>;
+          try { work = rt.runPhase(id, "review", { base: latest.data.baseSha, head: latest.data.headSha, update: false, diffId: latest.id, llm }); }
+          catch (e) { if (e instanceof PhaseBusyError) throw new HttpError(409, e.message); throw e; }
+          work.catch((e) => console.error(`narrate failed in session ${id}: ${(e as Error).message}`));
+          send(res, 202, {});
+          return;
+        } else {
           const start = rt.store.listArtifacts(id, "WorkflowStart").at(-1);
           if (!start) throw new HttpError(400, "Missing string field: base");
           runWorkflow(rt, id, start.id, llm).catch((e) => console.error(`workflow retry failed in session ${id}: ${(e as Error).message}`));
@@ -419,12 +432,15 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       } else if (body.head === undefined) {
         throw new HttpError(400, "Missing string field: head");
       } else {
-        opts = { base: str(body.base, "base"), head: str(body.head, "head"), llm };
+        requireNarratable(id);
+        const base = str(body.base, "base"), head = str(body.head, "head");
+        let work: Promise<unknown>;
+        try { work = rt.runPhase(id, "review", { base, head, update: false, llm }); }
+        catch (e) { if (e instanceof PhaseBusyError) throw new HttpError(409, e.message); throw e; }
+        work.catch((e) => console.error(`narrate failed in session ${id}: ${(e as Error).message}`));
+        send(res, 202, {});
+        return;
       }
-      narratePatch(rt, id, opts).catch((e) =>
-        console.error(`narrate failed in session ${id}: ${(e as Error).message}`),
-      );
-      send(res, 202, {});
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/import-revision$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]!).id;
@@ -440,9 +456,10 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
         throw new HttpError(e.kind === "remote" ? 502 : 409, e.message);
       }
       if (requireNarratable(id)) throw new HttpError(409, "Session already has an imported diff");
-      narratePatch(rt, id, { ...range, llm: body.llm as LlmSelection | undefined }).catch((e) =>
-        console.error(`remote review failed in session ${id}: ${(e as Error).message}`),
-      );
+      let work: Promise<unknown>;
+      try { work = rt.runPhase(id, "review", { ...range, update: false, llm: body.llm as LlmSelection | undefined }); }
+      catch (e) { if (e instanceof PhaseBusyError) throw new HttpError(409, e.message); throw e; }
+      work.catch((e) => console.error(`remote review failed in session ${id}: ${(e as Error).message}`));
       send(res, 202, range);
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/selector-answer$/, async ({ req, res, params }) => {

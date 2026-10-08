@@ -6,7 +6,7 @@
 
 # Interface: Workflow\<P\>
 
-A kind of session. `start` orchestrates phases with `rt.runPhase`.
+A kind of session; `start` runs it to completion by orchestrating phases with `rt.runPhase`. `description` is shown to the selector LLM and in the command popup; avoid e2e stub needles in it.
 
 ## Extends
 
@@ -54,7 +54,7 @@ A kind of session. `start` orchestrates phases with `rt.runPhase`.
 
 > **params**: `ZodType`\<`P`\>
 
-Validated input produced by the selector or slash command.
+Params the selector must produce; a `z.strictObject` so its JSON schema is OpenAI-strict. Validates selector output.
 
 ## Methods
 
@@ -62,7 +62,7 @@ Validated input produced by the selector or slash command.
 
 > `optional` **overview**(`view`): `string`[]
 
-Markdown sections for this workflow, each beginning with a heading.
+Session overview sections for sessions of this workflow; markdown, each starting with a `# ` heading.
 
 #### Parameters
 
@@ -97,8 +97,6 @@ Deterministic parser for slash-command arguments.
 ### start()
 
 > **start**(`rt`, `sessionId`, `input`): `Promise`\<`void`\>
-
-Runs the workflow to completion by orchestrating phases with rt.runPhase.
 
 #### Parameters
 

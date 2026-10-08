@@ -5,7 +5,7 @@ import { useSessionState, useModels } from "./api.ts";
 import { ActivityStrip } from "./ActivityStrip.tsx";
 import { Canvas, type HunkRow } from "./Canvas.tsx";
 import { latestNarrative } from "./graph.ts";
-import { epochNumber, interdiffOf, latestDiff } from "../shared/epochs.ts";
+import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
 import { desktopEnabled, disableDesktop, enableDesktop, isStaleNotice } from "./notifications.ts";
 import { Toasts } from "./Toasts.tsx";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
@@ -49,7 +49,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const n = latestNarrative(state);
   const diff = latestDiff(state.artifacts);
   const stack = diff && diff.data.commits.length > 1 ? diff.data.commits : null;
-  const epoch = diff ? epochNumber(state.artifacts, diff.id) : null;
+  const epoch = diff ? diffNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);

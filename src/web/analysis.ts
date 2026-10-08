@@ -1,5 +1,5 @@
 import type { LlmSelection, SessionState } from "../shared/types.ts";
-import { latestDiff } from "../shared/epochs.ts";
+import { latestDiff } from "../shared/diffs.ts";
 
 export type Step = "importRevision" | "reviewRange" | "importDiff" | "narrate";
 export type Analysis = { state: "none" } | { state: "running"; step: Step | null } | { state: "failed"; step: Step; error: string };

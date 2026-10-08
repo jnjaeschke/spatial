@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/epochs](../README.md) / interdiffOf
+[spatial-ide](../../../README.md) / [shared/diffs](../README.md) / interdiffOf
 
 # Function: interdiffOf()
 

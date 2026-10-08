@@ -6,6 +6,8 @@
 
 # Interface: PluginRegistry
 
+Contributions of a plugin list merged by `pluginRegistry`, which throws on duplicate ids.
+
 ## Properties
 
 ### artifactKinds

@@ -1,6 +1,6 @@
 import type { Artifact, DiffData, Id, PatchNarrativeData, PhabCommentData, PhabSyncData } from "./types.ts";
 import { numberLines } from "./diff-lines.ts";
-import { epochNumber } from "./epochs.ts";
+import { diffNumber } from "./diffs.ts";
 import { latestPhabComments, phabAnchorId } from "./phab-comments.ts";
 import { reanchorFinding } from "./reanchor.ts";
 import { phabRevision } from "./phabricator.ts";
@@ -33,7 +33,7 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
   const sync = headRevision === undefined ? null : latestPhabSync(artifacts, diff.id, headRevision);
   const matchingDiffId = sync?.data.matchingDiffId ?? null;
   const diffs = artifacts.filter((artifact): artifact is Artifact<DiffData> => artifact.type === "Diff");
-  const currentEpoch = epochNumber(artifacts, diff.id);
+  const currentEpoch = diffNumber(artifacts, diff.id);
   const listed = new Set(narrative.changes.flatMap((change) => change.hunkIds));
   const currentRows = rowsByFile(diff.data);
   const latest = latestPhabComments(artifacts);
@@ -84,10 +84,10 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
         continue;
       }
     }
-    const previous = diffs.filter((item) => item.id !== diff.id && epochNumber(artifacts, item.id) < currentEpoch && latestPhabSync(artifacts, item.id, revision)?.data.matchingDiffId === data.diffId)
-      .sort((a, b) => epochNumber(artifacts, b.id) - epochNumber(artifacts, a.id))[0];
+    const previous = diffs.filter((item) => item.id !== diff.id && diffNumber(artifacts, item.id) < currentEpoch && latestPhabSync(artifacts, item.id, revision)?.data.matchingDiffId === data.diffId)
+      .sort((a, b) => diffNumber(artifacts, b.id) - diffNumber(artifacts, a.id))[0];
     if (previous) {
-      const oldEpoch = epochNumber(artifacts, previous.id);
+      const oldEpoch = diffNumber(artifacts, previous.id);
       const side = data.isNewFile ? "new" : "old";
       const result = data.quote ? reanchorFinding({ quote: data.quote, lines: { path: data.path, side, start: data.line, end: data.line }, oldHunks: [] }, diff.data) : null;
       if (result && placeable(result.hunkId) && result.lines) {

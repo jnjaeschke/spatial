@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { diffsOf, epochNumber, importRefs, interdiffOf, latestDiff, narrativeOf, sessionRefs } from "../../src/shared/epochs.ts";
+import { diffsOf, diffNumber, importRefs, interdiffOf, latestDiff, narrativeOf, sessionRefs } from "../../src/shared/diffs.ts";
 import type { Artifact, Link, TaskRecord } from "../../src/shared/types.ts";
 
 const artifact = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id, epoch: null});
@@ -13,9 +13,9 @@ test("epoch helpers derive Diff order, narratives, import refs, and latest inter
   const artifacts = [d1, n1, d2, artifact("I1", "Interdiff", {}), artifact("I2", "Interdiff", {}), artifact("I3", "Interdiff", {})];
   assert.deepEqual(diffsOf(artifacts).map((d) => d.id), ["D1", "D2"]);
   assert.equal(latestDiff(artifacts)?.id, "D2");
-  assert.equal(epochNumber(artifacts, "D1"), 1);
-  assert.equal(epochNumber(artifacts, "D2"), 2);
-  assert.throws(() => epochNumber(artifacts, "N1"), /not a Diff/);
+  assert.equal(diffNumber(artifacts, "D1"), 1);
+  assert.equal(diffNumber(artifacts, "D2"), 2);
+  assert.throws(() => diffNumber(artifacts, "N1"), /not a Diff/);
   assert.equal(narrativeOf(artifacts, "D1")?.id, "N1");
   assert.equal(narrativeOf(artifacts, "D2"), null);
   const tasks = [imp("T1", { base: "main", head: "feature" }, { diffId: "D1" }), imp("T2", { base: "sha-b", head: "sha-h" }, { diffId: "D2" }), imp("TF", { base: "x", head: "y" }, { diffId: "D1" }, "failed"), imp("TO", { base: "x", head: "y" }, { diffId: "else" })];

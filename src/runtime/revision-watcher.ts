@@ -1,4 +1,4 @@
-import { latestDiff, sessionRefs } from "../shared/epochs.ts";
+import { latestDiff, sessionRefs } from "../shared/diffs.ts";
 import type { Id, NotifyPayload } from "../shared/types.ts";
 import type { Runtime } from "./tasks.ts";
 

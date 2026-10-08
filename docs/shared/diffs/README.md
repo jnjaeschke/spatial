@@ -2,14 +2,14 @@
 
 ***
 
-[spatial-ide](../../README.md) / shared/epochs
+[spatial-ide](../../README.md) / shared/diffs
 
-# shared/epochs
+# shared/diffs
 
 ## Functions
 
+- [diffNumber](functions/diffNumber.md)
 - [diffsOf](functions/diffsOf.md)
-- [epochNumber](functions/epochNumber.md)
 - [importRefs](functions/importRefs.md)
 - [interdiffOf](functions/interdiffOf.md)
 - [latestDiff](functions/latestDiff.md)

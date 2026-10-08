@@ -6,7 +6,7 @@
 
 # Interface: Plugin
 
-A packaging unit that contributes runtime behavior.
+A packaging unit; contributes any mix of these. Artifact kinds are keyed by artifact type.
 
 ## Properties
 
@@ -14,15 +14,13 @@ A packaging unit that contributes runtime behavior.
 
 > `optional` **artifactKinds?**: `Record`\<`string`, [`ArtifactKind`](ArtifactKind.md)\>
 
-Artifact implementations keyed by artifact type.
-
 ***
 
 ### chatReplyFields?
 
 > `optional` **chatReplyFields?**: [`ChatReplyField`](ChatReplyField.md)[]
 
-Additional structured fields accepted on chat replies.
+Extra fields of the structured chat reply.
 
 ***
 
@@ -36,15 +34,11 @@ Additional structured fields accepted on chat replies.
 
 > `optional` **phases?**: [`Phase`](../../tasks/interfaces/Phase.md)\<`any`\>[]
 
-Phases contributed by this plugin.
-
 ***
 
 ### searchKinds?
 
 > `optional` **searchKinds?**: `string`[]
-
-Search document kinds produced by this plugin.
 
 ***
 
@@ -52,15 +46,11 @@ Search document kinds produced by this plugin.
 
 > `optional` **tasks?**: [`TaskDefinition`](../../tasks/interfaces/TaskDefinition.md)\<`any`, `any`\>[]
 
-Tasks contributed by this plugin.
-
 ***
 
 ### workflows?
 
 > `optional` **workflows?**: [`Workflow`](Workflow.md)\<`any`\>[]
-
-Workflows contributed by this plugin.
 
 ## Methods
 
@@ -68,7 +58,7 @@ Workflows contributed by this plugin.
 
 > `optional` **chatContext**(`view`): `string` \| `null`
 
-Extra context appended after the session overview in chat.
+Extra chat context after the session overview; null when it has none for this session.
 
 #### Parameters
 
@@ -85,8 +75,6 @@ Extra context appended after the session overview in chat.
 ### server()?
 
 > `optional` **server**(`rt`, `opts`): [`PluginServer`](PluginServer.md)
-
-Builds server routes and services once per HTTP server.
 
 #### Parameters
 

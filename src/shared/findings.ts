@@ -1,4 +1,4 @@
-import { epochNumber, narrativeOf } from "./epochs.ts";
+import { diffNumber, narrativeOf } from "./diffs.ts";
 import type { Artifact, ChatThreadData, FindingCarryData, FindingDecisionData, FindingVerdictData, Id, Link, PatchNarrativeData, Ref, ReviewFindingData } from "./types.ts";
 
 export type FindingStatus = "open" | "accepted" | "dismissed" | "addressed" | "partially" | "not_addressed";
@@ -44,7 +44,7 @@ export function findingStates(state: { artifacts: Artifact[]; links: Link[] }, n
     const source = state.links.find((link) => link.from === finding.id && link.kind === "derivedFrom");
     const sourceNarrative = source ? state.artifacts.find((artifact) => artifact.id === source.to && artifact.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined : undefined;
     if (!sourceNarrative) return [];
-    const epoch = epochNumber(state.artifacts, sourceNarrative.data.diffId);
+    const epoch = diffNumber(state.artifacts, sourceNarrative.data.diffId);
     const outdated = !isOwn && carry!.data.hunkId === null;
     const anchor = isOwn ? finding.data.anchor : outdated ? null : `${narrative.data.diffId}#${carry!.data.hunkId}`;
     const quote = outdated ? undefined : finding.data.quote;

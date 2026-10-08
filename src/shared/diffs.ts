@@ -1,6 +1,6 @@
 import type { Artifact, DiffData, Id, InterdiffData, Link, PatchNarrativeData, TaskRecord } from "./types.ts";
 
-/** Diff artifacts in creation order; the index + 1 is the epoch number. */
+/** Diff artifacts in creation order. */
 export function diffsOf(artifacts: Artifact[]): Artifact<DiffData>[] {
   return artifacts.filter((artifact) => artifact.type === "Diff") as Artifact<DiffData>[];
 }
@@ -9,8 +9,8 @@ export function latestDiff(artifacts: Artifact[]): Artifact<DiffData> | null {
   return diffsOf(artifacts).at(-1) ?? null;
 }
 
-/** 1-based epoch of a Diff artifact. Throws when `diffId` is not a Diff of `artifacts`. */
-export function epochNumber(artifacts: Artifact[], diffId: Id): number {
+/** 1-based position of a Diff among the session's Diffs; the review UI calls it "Epoch N". */
+export function diffNumber(artifacts: Artifact[], diffId: Id): number {
   const index = diffsOf(artifacts).findIndex((artifact) => artifact.id === diffId);
   if (index < 0) throw new Error(`${diffId} is not a Diff in the artifacts`);
   return index + 1;

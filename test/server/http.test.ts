@@ -19,6 +19,7 @@ import { commitRevision } from "../../src/shared/phabricator.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
+let failNarrationOnce = false;
 const CHAT_REPLY = { answer: "hi", questions: [], revisions: [], requestMcpServers: [], diagram: null };
 const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
 const selectorFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "workflow" in (prompt.schema as { properties: object }).properties;
@@ -26,7 +27,7 @@ const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.syste
 const commentFor = (prompt: { schema?: object }) => !!prompt.schema && "properties" in prompt.schema && "body" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { const selector = selectorFor(prompt); const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); const stack = prompt.schema && "properties" in prompt.schema && "commitIntents" in (prompt.schema as { properties: object }).properties; const commitHunks = [...prompt.prompt.matchAll(/^### (f\d+h\d+) .* \[C(\d+)\](?: \[[^\]]+\])*$/gm)].map((match) => [match[1]!, Number(match[2])]); return { text: "hi", json: prompt.schema ? selector ? { workflow: "chat", params: {}, title: "Picked" } : chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : stack ? { summary: "Adds `c.txt`, then updates `a.txt`.", commitIntents: Array.from({ length: (prompt.prompt.match(/^## C\d+: /gm) ?? []).length }, (_, i) => `Commit ${i + 1} intent.`), changes: [...new Set(commitHunks.map(([, commit]) => commit))].sort().map((commit, index, owners) => ({ id: `c${commit}`, title: `Commit ${commit}`, explanation: `Changes of commit ${commit}.`, rationale: "r", hunkIds: commitHunks.filter(([, owner]) => owner === commit).map(([id]) => id), dependsOn: index ? [`c${owners[index - 1]}`] : [], specUrls: [] })) } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { if (failNarrationOnce && prompt.system?.startsWith("You explain a code patch")) { failNarrationOnce = false; throw new Error("synthetic narration failure"); } const selector = selectorFor(prompt); const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); const stack = prompt.schema && "properties" in prompt.schema && "commitIntents" in (prompt.schema as { properties: object }).properties; const commitHunks = [...prompt.prompt.matchAll(/^### (f\d+h\d+) .* \[C(\d+)\](?: \[[^\]]+\])*$/gm)].map((match) => [match[1]!, Number(match[2])]); return { text: "hi", json: prompt.schema ? selector ? { workflow: "chat", params: {}, title: "Picked" } : chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : stack ? { summary: "Adds `c.txt`, then updates `a.txt`.", commitIntents: Array.from({ length: (prompt.prompt.match(/^## C\d+: /gm) ?? []).length }, (_, i) => `Commit ${i + 1} intent.`), changes: [...new Set(commitHunks.map(([, commit]) => commit))].sort().map((commit, index, owners) => ({ id: `c${commit}`, title: `Commit ${commit}`, explanation: `Changes of commit ${commit}.`, rationale: "r", hunkIds: commitHunks.filter(([, owner]) => owner === commit).map(([id]) => id), dependsOn: index ? [`c${owners[index - 1]}`] : [], specUrls: [] })) } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -299,6 +300,25 @@ test("narrate retries a failed workflow before a Diff exists", async () => {
   });
   assert.ok(rt.store.getArtifact(start.id));
   assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
+});
+
+test("narrate Retry reruns a failed review phase in the same epoch and reuses its Diff", async () => {
+  const session = await newSession();
+  failNarrationOnce = true;
+  assert.equal((await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" })).status, 202);
+  const failed = await waitFor(async () => {
+    const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return snapshot.epochs.at(-1)?.status === "failed" ? snapshot : undefined;
+  });
+  assert.deepEqual(failed.epochs.map(({ n, phase, status }) => ({ n, phase, status })), [{ n: 1, phase: "review", status: "failed" }]);
+  assert.equal(failed.artifacts.filter((artifact) => artifact.type === "Diff").length, 1);
+  assert.equal((await post(`/api/sessions/${session.id}/narrate`, {})).status, 202);
+  const retried = await waitFor(async () => {
+    const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    return snapshot.epochs.at(-1)?.status === "succeeded" ? snapshot : undefined;
+  });
+  assert.deepEqual(retried.epochs.map(({ n, phase, status }) => ({ n, phase, status })), [{ n: 1, phase: "review", status: "succeeded" }]);
+  assert.equal(retried.artifacts.filter((artifact) => artifact.type === "Diff").length, 1);
 });
 
 test("narrate without a Diff still rejects a session without a WorkflowStart", async () => {

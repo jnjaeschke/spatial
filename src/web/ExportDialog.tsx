@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Artifact, PostedCommentData, SessionState } from "../shared/types.ts";
-import { latestDiff } from "../shared/epochs.ts";
+import { latestDiff } from "../shared/diffs.ts";
 import { exportHtml, exportState, type SessionExport } from "./export-state.ts";
 import { loadFileLines } from "./file-lines.ts";
 

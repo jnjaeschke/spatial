@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import { parseCommand, workflowInfo } from "../../src/workflows/registry.ts";
-import { parseReviewArgs } from "../../src/plugins/review/index.ts";
+import { parseReviewArgs } from "../../src/workflows/review.ts";
 import { plugins } from "../../src/plugins/index.ts";
 const workflows = Object.fromEntries(plugins.flatMap((plugin) => plugin.workflows ?? []).map((workflow) => [workflow.id, workflow]));
 const workflowList = Object.values(workflows);
@@ -25,6 +25,10 @@ test("workflow parsers validate review and chat arguments", () => {
   assert.deepEqual(workflows.review.parseArgs(""), { ok: true, params: { base: null, head: null, revision: null } });
   assert.deepEqual(workflows.chat.parseArgs("  "), { ok: false, error: "Usage: /chat <message>" });
   assert.deepEqual(workflows.chat.parseArgs("hi"), { ok: true, params: {} });
+});
+
+test("review and chat plugins register their initial phases", () => {
+  assert.deepEqual(plugins.flatMap((plugin) => plugin.phases?.map((phase) => phase.id) ?? []), ["review", "chat"]);
 });
 
 test("parseCommand handles workflow arguments and rejects unknown names", () => {

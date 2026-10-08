@@ -1,5 +1,5 @@
 import type { DiagramData, DiffData } from "../shared/types.ts";
-import { latestDiff } from "../shared/epochs.ts";
+import { latestDiff } from "../shared/diffs.ts";
 import { verifySequence, type SequenceProposal, type SequenceStepProposal } from "./diagram-verify.ts";
 import type { ChatReplyField } from "./plugins.ts";
 

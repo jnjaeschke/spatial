@@ -152,6 +152,24 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ***
 
+### failInterrupted()
+
+> **failInterrupted**(`reason`): `void`
+
+Fails every running epoch and pending or running task with `reason`. Only a server process that just started may call it: they belong to a process that died.
+
+#### Parameters
+
+##### reason
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
 ### getArtifact()
 
 > **getArtifact**\<`T`\>(`id`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>

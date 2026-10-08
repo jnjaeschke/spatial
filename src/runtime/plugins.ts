@@ -4,18 +4,18 @@ import type { Runtime, TaskContext, TaskDefinition, Phase } from "./tasks.ts";
 import type { Artifact, Ref } from "../shared/types.ts";
 import type { SearchDoc, SessionView } from "./render-ref.ts";
 import type { Route } from "../server/http.ts";
+import { coreArtifactKinds } from "./render-ref.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
-/** A kind of session. `start` orchestrates phases with `rt.runPhase`. */
+/** A kind of session; `start` runs it to completion by orchestrating phases with `rt.runPhase`. `description` is shown to the selector LLM and in the command popup; avoid e2e stub needles in it. */
 export interface Workflow<P> extends WorkflowInfo {
-  /** Validated input produced by the selector or slash command. */
+  /** Params the selector must produce; a `z.strictObject` so its JSON schema is OpenAI-strict. Validates selector output. */
   params: z.ZodType<P>;
   /** Deterministic parser for slash-command arguments. */
   parseArgs(args: string): ParseResult<P>;
-  /** Runs the workflow to completion by orchestrating phases with rt.runPhase. */
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
-  /** Markdown sections for this workflow, each beginning with a heading. */
+  /** Session overview sections for sessions of this workflow; markdown, each starting with a `# ` heading. */
   overview?(view: SessionView): string[];
 }
 /** What core needs to treat one artifact type generically. */
@@ -45,26 +45,21 @@ export interface ChatReplyField {
   /** Validates the value and returns artifacts to store and link to the reply. */
   accept(ctx: TaskContext, value: unknown): Promise<{ ok: true; artifacts: { type: string; data: unknown }[] } | { ok: false; error: string }>;
 }
-/** A packaging unit that contributes runtime behavior. */
+/** A packaging unit; contributes any mix of these. Artifact kinds are keyed by artifact type. */
 export interface Plugin {
   id: string;
-  /** Workflows contributed by this plugin. */
   workflows?: Workflow<any>[];
-  /** Phases contributed by this plugin. */
   phases?: Phase<any>[];
-  /** Tasks contributed by this plugin. */
   tasks?: TaskDefinition<any, any>[];
-  /** Artifact implementations keyed by artifact type. */
   artifactKinds?: Record<string, ArtifactKind>;
-  /** Search document kinds produced by this plugin. */
   searchKinds?: string[];
-  /** Extra context appended after the session overview in chat. */
+  /** Extra chat context after the session overview; null when it has none for this session. */
   chatContext?(view: SessionView): string | null;
-  /** Additional structured fields accepted on chat replies. */
+  /** Extra fields of the structured chat reply. */
   chatReplyFields?: ChatReplyField[];
-  /** Builds server routes and services once per HTTP server. */
   server?(rt: Runtime, opts: { intervalMs?: number }): PluginServer;
 }
+/** Contributions of a plugin list merged by `pluginRegistry`, which throws on duplicate ids. */
 export interface PluginRegistry {
   plugins: Plugin[];
   workflows: Map<string, Workflow<any>>;
@@ -101,4 +96,3 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
   return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()] };
 }
 
-import { coreArtifactKinds } from "./render-ref.ts";

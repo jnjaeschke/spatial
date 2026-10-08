@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/epochs](../README.md) / importRefs
+[spatial-ide](../../../README.md) / [shared/diffs](../README.md) / importRefs
 
 # Function: importRefs()
 

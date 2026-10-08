@@ -1,4 +1,4 @@
-import { diffsOf, epochNumber, narrativeOf } from "../../shared/epochs.ts";
+import { diffsOf, diffNumber, narrativeOf } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { reanchorFinding } from "../../shared/reanchor.ts";
 import type { DiffData, FindingCarryData, Hunk, PatchNarrativeData } from "../../shared/types.ts";
@@ -12,7 +12,7 @@ export const carryFindings = defineTask<{ narrativeId: string }, { carried: numb
     const diffId = narrative.data.diffId;
     const view = ctx.artifacts.view();
     const diffs = diffsOf(view.artifacts);
-    const epoch = epochNumber(view.artifacts, diffId);
+    const epoch = diffNumber(view.artifacts, diffId);
     if (epoch === 1) return { carried: 0, outdated: 0 };
     const prevDiff = diffs[epoch - 2];
     const prevNarrative = narrativeOf(view.artifacts, prevDiff.id);

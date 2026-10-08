@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/epochs](../README.md) / sessionRefs
+[spatial-ide](../../../README.md) / [shared/diffs](../README.md) / sessionRefs
 
 # Function: sessionRefs()
 

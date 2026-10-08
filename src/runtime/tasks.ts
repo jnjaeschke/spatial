@@ -298,6 +298,7 @@ export class Runtime {
     return this.start<O>(sessionId, kind, input).done;
   }
 
+  /** Opens the next epoch and runs the phase in it. Throws synchronously (`PhaseBusyError`) while another epoch runs. Resolves to the finished epoch (also when cancelled); rejects with the phase's error after marking the epoch failed. */
   runPhase(sessionId: Id, phaseId: string, input: unknown): Promise<Epoch> {
     const phase = this.#phases.get(phaseId);
     if (!phase) throw new Error(`Unknown phase: ${phaseId}`);
@@ -305,9 +306,10 @@ export class Runtime {
     if (running) throw new PhaseBusyError(sessionId, running);
     const epoch = this.#store.createEpoch(sessionId, phaseId, input);
     this.emit(sessionId, "runtime", "epoch.started", { n: epoch.n, phase: epoch.phase });
-    return this.executePhase(phase, sessionId, input, epoch);
+    return this.#executePhase(phase, sessionId, input, epoch);
   }
 
+  /** Reruns the latest epoch, which must have failed or been cancelled, in place with its stored input; otherwise like `runPhase`. */
   retryPhase(sessionId: Id): Promise<Epoch> {
     const epoch = this.#store.listEpochs(sessionId).at(-1);
     if (!epoch || (epoch.status !== "failed" && epoch.status !== "cancelled")) throw new Error("Latest epoch did not fail");
@@ -317,14 +319,14 @@ export class Runtime {
     if (running) throw new PhaseBusyError(sessionId, running);
     const retry = this.#store.updateEpoch(sessionId, epoch.n, { status: "running", error: null });
     this.emit(sessionId, "runtime", "epoch.started", { n: retry.n, phase: retry.phase });
-    return this.executePhase(phase, sessionId, retry.input, retry);
+    return this.#executePhase(phase, sessionId, retry.input, retry);
   }
 
   runningEpoch(sessionId: Id): Epoch | null {
     return this.#store.listEpochs(sessionId).filter((epoch) => epoch.status === "running").at(-1) ?? null;
   }
 
-  private async executePhase(phase: Phase<unknown>, sessionId: Id, input: unknown, epoch: Epoch): Promise<Epoch> {
+  async #executePhase(phase: Phase<unknown>, sessionId: Id, input: unknown, epoch: Epoch): Promise<Epoch> {
     try {
       await phase.run(this, sessionId, input, epoch);
       const done = this.#store.updateEpoch(sessionId, epoch.n, { status: "succeeded", error: null });

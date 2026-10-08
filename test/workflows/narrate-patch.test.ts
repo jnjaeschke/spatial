@@ -7,12 +7,21 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createRuntime } from "../../src/runtime/create.ts";
 import { createSession } from "../../src/runtime/git.ts";
-import { narratePatch } from "../../src/workflows/narrate-patch.ts";
+import type { Runtime } from "../../src/runtime/tasks.ts";
 import type { PatchNarrativeData } from "../../src/shared/types.ts";
+import { narrativeOf } from "../../src/shared/diffs.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 const CLI = fileURLToPath(new URL("../../src/cli.ts", import.meta.url));
+
+/** Runs the review phase; returns the Diff it narrated (the latest) and its narrative. */
+async function runReview(rt: Runtime, sessionId: string, input: { base: string; head: string; diffId?: string }) {
+  await rt.runPhase(sessionId, "review", { update: false, ...input });
+  const artifacts = rt.store.listArtifacts(sessionId);
+  const diffId = input.diffId ?? artifacts.filter((a) => a.type === "Diff").at(-1)!.id;
+  return { diffId, narrativeId: narrativeOf(artifacts, diffId)!.id };
+}
 
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), "np-"));
@@ -36,13 +45,14 @@ function fixture() {
   return { dir, r, narrative };
 }
 
-test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted with events", async () => {
+test("review phase: importDiff, narrate, resolve spec refs and review, persisted with events", async () => {
   const { dir, r, narrative } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
   const session = await createSession(rt.store, r.dir, "t", "review");
-  const { diffId, narrativeId } = await narratePatch(rt, session.id, { base: "HEAD~1", head: "HEAD" });
+  const { diffId, narrativeId } = await runReview(rt, session.id, { base: "HEAD~1", head: "HEAD" });
   const n = rt.store.getArtifact<PatchNarrativeData>(narrativeId);
   assert.deepEqual(n.data, { diffId, ...narrative });
+  assert.deepEqual(rt.store.listEpochs(session.id).map(({ n, phase, status }) => ({ n, phase, status })), [{ n: 1, phase: "review", status: "succeeded" }]);
   assert.deepEqual(n.provenance.llm, { backend: "claude", model: "sonnet", effort: "medium" });
   const types = rt.store.listEvents(session.id).map((e) => e.type);
   assert.equal(types.filter((t) => t === "task.succeeded").length, 4);
@@ -52,18 +62,18 @@ test("narratePatch: importDiff, narrate, resolve spec refs and review, persisted
   assert.equal(call.cwd, session.worktree);
 });
 
-test("narratePatch can narrate an existing Diff without importing another", async () => {
+test("review phase can narrate an existing Diff without importing another", async () => {
   const { dir, r } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "reuse.sqlite"), claudeBin: STUB });
   const session = await createSession(rt.store, r.dir, "t", "review");
   const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
   const before = rt.store.listArtifacts(session.id, "Diff").length;
-  const result = await narratePatch(rt, session.id, { diffId });
+  const result = await runReview(rt, session.id, { base: "HEAD~1", head: "HEAD", diffId });
   assert.equal(result.diffId, diffId);
   assert.equal(rt.store.listArtifacts(session.id, "Diff").length, before);
 });
 
-test("narratePatch carries findings after update narration and before resolving specs", async () => {
+test("review phase carries findings after update narration and before resolving specs", async () => {
   const { dir, r, narrative } = fixture();
   const rt = createRuntime({ dbPath: join(dir, "epoch2.sqlite"), claudeBin: STUB });
   const session = await createSession(rt.store, r.dir, "t", "review");
@@ -82,14 +92,15 @@ test("narratePatch carries findings after update narration and before resolving 
     ],
   };
   writeFileSync(join(dir, "claude-out.json"), JSON.stringify({ type: "result", is_error: false, result: "", structured_output: stackNarrative, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));
-  const result = await narratePatch(rt, session.id, { diffId: secondDiff });
+  const result = await runReview(rt, session.id, { base: "HEAD~2", head: "HEAD", diffId: secondDiff });
   assert.equal(rt.store.getArtifact<PatchNarrativeData>(result.narrativeId).data.previous, firstNarrative.narrativeId);
+  assert.deepEqual(rt.store.listEpochs(session.id).map(({ n, phase, status }) => ({ n, phase, status })), [{ n: 1, phase: "review", status: "succeeded" }]);
   assert.deepEqual(rt.store.listTasks(session.id).slice(-4).map((task) => task.kind), ["narrate", "carryFindings", "resolveSpecRefs", "review"]);
 });
 
 const WEBSPEC = fileURLToPath(new URL("../stubs/fake-webspec.mjs", import.meta.url));
 
-test("narratePatch maps the steps of cited specs alongside the review; a failed mapping does not fail it", async () => {
+test("review phase maps the steps of cited specs alongside the review; a failed mapping does not fail it", async () => {
   const { dir, r, narrative } = fixture();
   const cited = { ...narrative, changes: [{ ...narrative.changes[0]!, specUrls: ["https://html.spec.whatwg.org/#edit"] }, { ...narrative.changes[1]!, specUrls: ["https://html.spec.whatwg.org/#add"] }] };
   writeFileSync(join(dir, "claude-out.json"), JSON.stringify({ type: "result", is_error: false, result: "", structured_output: cited, session_id: "s", usage: { input_tokens: 5, output_tokens: 5 } }));
@@ -98,7 +109,7 @@ test("narratePatch maps the steps of cited specs alongside the review; a failed 
   process.env.FAKE_LLM_ROUTES = JSON.stringify({ '"findings"': join(dir, "findings.json"), "# Spec: HTML#edit": mapOut });
   const rt = createRuntime({ dbPath: join(dir, "map.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC });
   const session = await createSession(rt.store, r.dir, "t", "review");
-  await narratePatch(rt, session.id, { base: "HEAD~1", head: "HEAD" });
+  await runReview(rt, session.id, { base: "HEAD~1", head: "HEAD" });
   const mapTasks = rt.store.listTasks(session.id).filter((task) => task.kind === "mapSpecSteps");
   assert.deepEqual(mapTasks.map((task) => task.status).sort(), ["failed", "succeeded"]);
   const [map] = rt.store.listArtifacts(session.id, "SpecStepMap");

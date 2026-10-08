@@ -4,7 +4,7 @@ import { numberLines } from "../shared/diff-lines.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
-import { epochNumber, latestDiff, narrativeOf } from "../shared/epochs.ts";
+import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
 import type { FreePosition } from "./free-positions.ts";
@@ -258,7 +258,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const nodes: GraphNode[] = [{
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, sessionId: narrative.sessionId,
-      sinceEpoch: previousNarrative ? epochNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [] },
+      sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [] },
   }];
   const edges: GraphEdge[] = [];
   const stack = diff.data.commits.length > 1;
@@ -470,7 +470,7 @@ function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
       kind: "finding", findingId: finding.id, ai: finding.provenance.llm !== undefined, ...finding.data, anchor: findingState.anchor ?? latest.narrative.id,
       quote: findingState.quote, lines: findingState.lines, status: findingState.status, outdated: findingState.outdated,
       verdict: findingState.verdict ? { verdict: findingState.verdict.verdict, reason: findingState.verdict.reason } : null,
-      fromEpoch: findingState.epoch < epochNumber(state.artifacts, latest.diff.id) ? findingState.epoch : null,
+      fromEpoch: findingState.epoch < diffNumber(state.artifacts, latest.diff.id) ? findingState.epoch : null,
       collapsedByDefault: findingState.collapsedByDefault, diffId: latest.diff.id, hunks: allHunks,
       thread: thread ? threadContent(state, thread, diagramsByMessage) : null,
       decision: findingState.decision,

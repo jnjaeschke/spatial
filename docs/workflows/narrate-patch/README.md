@@ -8,4 +8,4 @@
 
 ## Functions
 
-- [narratePatch](functions/narratePatch.md)
+- [narrateDiff](functions/narrateDiff.md)

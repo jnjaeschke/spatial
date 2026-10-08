@@ -32,7 +32,7 @@
 - [runtime/tasks](runtime/tasks/README.md)
 - [server/http](server/http/README.md)
 - [shared/change-status](shared/change-status/README.md)
-- [shared/epochs](shared/epochs/README.md)
+- [shared/diffs](shared/diffs/README.md)
 - [shared/findings](shared/findings/README.md)
 - [shared/phab-anchor](shared/phab-anchor/README.md)
 - [shared/phab-comments](shared/phab-comments/README.md)
