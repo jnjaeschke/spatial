@@ -57,10 +57,10 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.deepEqual(setupResult.call?.mcpServers, { spatial: { type: "stdio", command: "spatial", args: [] } });
   assert.deepEqual(setupResult.call?.schema, selectorSchema(workflows));
   const schema = selectorSchema(workflows) as { properties: { workflow: { enum: string[] }; params: { anyOf: unknown[] } } };
-  assert.deepEqual(schema.properties.workflow.enum, ["review", "chat"]);
-  assert.equal(schema.properties.params.anyOf.length, 2);
+  assert.deepEqual(schema.properties.workflow.enum, ["review", "chat", "implement"]);
+  assert.equal(schema.properties.params.anyOf.length, 3);
   assert.ok(!("$schema" in schema));
-  for (const text of ["# Workflows", "- review:", "- chat:", "# Request", input]) assert.ok(setupResult.call?.prompt.includes(text), text);
+  for (const text of ["# Workflows", "- review:", "- chat:", "- implement:", "# Request", input]) assert.ok(setupResult.call?.prompt.includes(text), text);
   assert.ok(setupResult.call?.system?.includes("both `base` and `head` to null"));
   assert.ok(setupResult.call?.system?.includes("Repository instructions"));
   assert.ok(setupResult.call?.system?.includes("scm_log"));

@@ -119,7 +119,7 @@ test("reviewed marks validate narrative and change, then create a user artifact"
 
 test("workflow start routes support slash commands, selection, and validation", async () => {
   const infos = await (await fetch(`${base}/api/workflows`)).json();
-  assert.deepEqual(infos.map((info: { id: string }) => info.id), ["review", "chat"]);
+  assert.deepEqual(infos.map((info: { id: string }) => info.id), ["review", "chat", "implement"]);
   assert.ok(infos.every((info: { argHint?: string }) => info.argHint));
 
   const commandResponse = await post("/api/start", { path: repo.dir, text: "/chat hi there" });

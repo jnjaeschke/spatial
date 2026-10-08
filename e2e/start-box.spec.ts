@@ -31,11 +31,13 @@ test("typing / shows commands; filter, keyboard completion and Escape", async ({
   const box = page.getByLabel("start");
   await box.fill("/");
   const list = page.getByRole("listbox", { name: "commands" });
-  await expect(list.getByRole("option")).toHaveCount(2);
+  await expect(list.getByRole("option")).toHaveCount(3);
   await expect(list.getByRole("option").nth(0)).toContainText("/review");
   await expect(list.getByRole("option").nth(0)).toContainText("[D-number | base..head]");
   await expect(list.getByRole("option").nth(1)).toContainText("/chat");
   await expect(list.getByRole("option").nth(1)).toContainText("<message>");
+  await expect(list.getByRole("option").nth(2)).toContainText("/implement");
+  await expect(list.getByRole("option").nth(2)).toContainText("<what to fix or build>");
 
   await box.fill("/c");
   await expect(list.getByRole("option")).toHaveCount(1);
