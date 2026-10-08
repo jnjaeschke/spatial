@@ -98,8 +98,20 @@ JSON schema for structured output. Must be OpenAI-strict compatible (additionalP
 
 ### tools
 
-> **tools**: `"none"` \| `"read-only"`
+> **tools**: `"none"` \| `"read-only"` \| `"write"`
 
 #### Inherited from
 
 [`LlmPrompt`](LlmPrompt.md).[`tools`](LlmPrompt.md#tools)
+
+***
+
+### writeMode?
+
+> `optional` **writeMode?**: [`WriteMode`](../../../../shared/types/type-aliases/WriteMode.md)
+
+With `tools: "write"`: `auto` lets the CLI's own approval logic allow edits and commands, `full` skips approvals and sandboxing, `editsOnly` allows file edits without any shell. Default `auto`.
+
+#### Inherited from
+
+[`LlmPrompt`](LlmPrompt.md).[`writeMode`](LlmPrompt.md#writemode)

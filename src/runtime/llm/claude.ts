@@ -18,16 +18,21 @@ export class ClaudeBackend implements LlmBackend {
   }
 
   async run(req: LlmRequest): Promise<LlmResult> {
+    const write = req.tools === "write";
+    const mode = req.writeMode ?? "auto";
+    if (write && req.resumeProviderSession) throw new Error("claude: write runs do not resume provider sessions");
     const args = [
-      "-p", "--output-format", "json",
+      "-p", "--output-format", write ? "stream-json" : "json", ...(write ? ["--verbose"] : []),
       "--model", req.model,
       "--effort", req.effort,
       "--setting-sources", "",
-      "--tools", req.tools === "none" ? "" : "Read,Grep,Glob,Bash",
+      "--tools", req.tools === "none" ? "" : write ? (mode === "editsOnly" ? "Read,Edit,Write" : "Read,Edit,Write,Bash") : "Read,Grep,Glob,Bash",
     ];
-    if (req.tools === "read-only") {
+    if (write) args.push("--permission-mode", mode === "full" ? "bypassPermissions" : "auto");
+    if (req.tools !== "none") {
       const mcpTools = Object.keys(req.mcpServers ?? {}).map((name) => `mcp__${name}__*`);
-      args.push("--allowedTools", ["Bash(searchfox-cli:*)", ...mcpTools].join(" "));
+      const allowed = [...(req.tools === "read-only" ? ["Bash(searchfox-cli:*)"] : []), ...mcpTools];
+      if (allowed.length) args.push("--allowedTools", allowed.join(" "));
     }
     if (req.mcpServers && Object.keys(req.mcpServers).length) {
       args.push("--mcp-config", JSON.stringify({ mcpServers: req.mcpServers }), "--strict-mcp-config");
@@ -38,10 +43,14 @@ export class ClaudeBackend implements LlmBackend {
 
     const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: req.prompt, cwd: req.cwd, signal: req.signal });
     let out: Record<string, any> | undefined;
-    try {
-      out = JSON.parse(stdout);
-    } catch {
-      out = undefined;
+    if (write) {
+      for (const line of stdout.split("\n")) {
+        if (!line.startsWith("{")) continue;
+        try { const event = JSON.parse(line); if (event.type === "result") out = event; } catch { /* a partial line */ }
+      }
+      if (!out && code === 0) throw new Error("claude produced no result event");
+    } else {
+      try { out = JSON.parse(stdout); } catch { out = undefined; }
     }
     if (out?.is_error) throw new Error(`claude: ${out.result ?? out.subtype ?? "unknown error"}`);
     if (code !== 0 || !out) throw new Error(`claude exited with code ${code}: ${(stderr || stdout).trim().slice(-2000)}`);

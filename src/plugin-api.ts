@@ -58,3 +58,4 @@ export { prependRepoContext } from "./runtime/repo-context.ts";
 export { isGeckoRepo } from "./runtime/searchfox.ts";
 export { revisedText } from "./shared/revisions.ts";
 export type { GitWriter, PatchIdentity } from "./runtime/git.ts";
+export type { LlmPrompt } from "./runtime/llm/types.ts";

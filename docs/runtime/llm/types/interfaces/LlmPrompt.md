@@ -56,4 +56,12 @@ JSON schema for structured output. Must be OpenAI-strict compatible (additionalP
 
 ### tools
 
-> **tools**: `"none"` \| `"read-only"`
+> **tools**: `"none"` \| `"read-only"` \| `"write"`
+
+***
+
+### writeMode?
+
+> `optional` **writeMode?**: [`WriteMode`](../../../../shared/types/type-aliases/WriteMode.md)
+
+With `tools: "write"`: `auto` lets the CLI's own approval logic allow edits and commands, `full` skips approvals and sandboxing, `editsOnly` allows file edits without any shell. Default `auto`.

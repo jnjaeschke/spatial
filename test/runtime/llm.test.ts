@@ -258,3 +258,67 @@ test("manager: default vs explicit selection, unknown backend", async () => {
   const only = new LlmManager([fake("claude")], { backend: "claude", model: "s", effort: "low" });
   await assert.rejects(only.run({ backend: "codex", model: "x", effort: "low" }, { prompt: "p", tools: "none" }, signal), /Unknown LLM backend: codex/);
 });
+
+const claudeResult = JSON.stringify({ type: "result", is_error: false, result: "done", structured_output: { n: 1 }, session_id: "w1", usage: { input_tokens: 2, output_tokens: 3 } });
+
+test("claude write mode: auto uses the auto permission mode and edit, write and shell tools", async () => {
+  stdout([JSON.stringify({ type: "system", subtype: "init" }), claudeResult].join("\n") + "\n");
+  const r = await new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", schema: SCHEMA }));
+  assert.deepEqual(r.json, { n: 1 });
+  assert.equal(r.providerSessionId, "w1");
+  const a: string[] = calls()[0].argv;
+  const flag = (f: string) => a[a.indexOf(f) + 1];
+  assert.deepEqual(a.slice(0, 4), ["-p", "--output-format", "stream-json", "--verbose"]);
+  assert.equal(flag("--tools"), "Read,Edit,Write,Bash");
+  assert.equal(flag("--permission-mode"), "auto");
+  assert.equal(flag("--setting-sources"), "");
+  assert.ok(!a.includes("--allowedTools"));
+});
+
+test("claude write mode: full bypasses permissions, editsOnly drops the shell", async () => {
+  stdout(claudeResult);
+  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", writeMode: "full" }));
+  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", writeMode: "editsOnly" }));
+  const [full, edits] = calls().map((call) => call.argv as string[]);
+  assert.equal(full![full!.indexOf("--permission-mode") + 1], "bypassPermissions");
+  assert.equal(full![full!.indexOf("--tools") + 1], "Read,Edit,Write,Bash");
+  assert.equal(edits![edits!.indexOf("--tools") + 1], "Read,Edit,Write");
+});
+
+test("claude write mode allows MCP tools and refuses to resume a provider session", async () => {
+  stdout(claudeResult);
+  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", mcpServers: { spatial: { type: "http", url: "http://x" } } }));
+  const a: string[] = calls()[0].argv;
+  assert.equal(a[a.indexOf("--allowedTools") + 1], "mcp__spatial__*");
+  await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", resumeProviderSession: "s" })), /do not resume/);
+});
+
+test("claude write mode: a stream without a result event is an error", async () => {
+  stdout(JSON.stringify({ type: "system", subtype: "init" }) + "\n");
+  await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req({ tools: "write" })), /no result event/);
+});
+
+test("codex write mode flags per mode", async () => {
+  stdout(codexOut("ok"));
+  for (const writeMode of ["auto", "full", "editsOnly"] as const) await new CodexBackend({ bin: STUB }).run(req({ tools: "write", writeMode, cwd: dir }));
+  const [auto, full, edits] = calls().map((call) => call.argv as string[]);
+  assert.deepEqual(auto!.slice(auto!.indexOf("--approve-for-me")), ["--approve-for-me", "-C", dir]);
+  assert.ok(!auto!.includes("--sandbox"), "codex rejects --sandbox together with --approve-for-me");
+  assert.ok(full!.includes("--dangerously-bypass-approvals-and-sandbox") && !full!.includes("--sandbox"));
+  assert.deepEqual(edits!.slice(edits!.indexOf("--sandbox"), edits!.indexOf("--sandbox") + 6), ["--sandbox", "workspace-write", "--disable", "shell_tool", "--disable", "unified_exec"]);
+});
+
+test("codex write mode refuses to resume a provider session", async () => {
+  await assert.rejects(new CodexBackend({ bin: STUB }).run(req({ tools: "write", resumeProviderSession: "t" })), /do not resume/);
+});
+
+test("codex error events do not fail a finished turn", async () => {
+  stdout([
+    { type: "thread.started", thread_id: "th-1" },
+    { type: "error", message: "benign config warning" },
+    { type: "item.completed", item: { id: "i0", type: "error", message: "benign" } },
+    { type: "item.completed", item: { id: "i1", type: "agent_message", text: "fine" } },
+    { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+  ].map((event) => JSON.stringify(event)).join("\n") + "\n");
+  assert.equal((await new CodexBackend({ bin: STUB }).run(req())).text, "fine");
+});

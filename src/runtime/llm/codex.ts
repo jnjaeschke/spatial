@@ -30,14 +30,21 @@ export class CodexBackend implements LlmBackend {
   }
 
   async run(req: LlmRequest): Promise<LlmResult> {
+    const write = req.tools === "write";
+    const mode = req.writeMode ?? "auto";
+    if (write && req.resumeProviderSession) throw new Error("codex: write runs do not resume provider sessions");
     const common = [
       "--json", "--skip-git-repo-check", "--ignore-user-config",
       "-m", req.model,
       "-c", `model_reasoning_effort=${req.effort}`,
     ];
+    const sandbox = !write ? ["--sandbox", "read-only"]
+      : mode === "full" ? ["--dangerously-bypass-approvals-and-sandbox"]
+        : mode === "editsOnly" ? ["--sandbox", "workspace-write", "--disable", "shell_tool", "--disable", "unified_exec"]
+          : ["--approve-for-me"];
     const args = req.resumeProviderSession
       ? ["exec", "resume", ...common, "-c", 'sandbox_mode="read-only"']
-      : ["exec", ...common, "--sandbox", "read-only", ...(req.cwd ? ["-C", req.cwd] : [])];
+      : ["exec", ...common, ...sandbox, ...(req.cwd ? ["-C", req.cwd] : [])];
     for (const [name, server] of Object.entries(req.mcpServers ?? {})) {
       if (server.type === "http") {
         args.push("-c", `mcp_servers.${name}.url=${JSON.stringify(server.url)}`);
@@ -75,6 +82,7 @@ function parseCodexOutput(stdout: string, stderr: string, code: number, structur
   let text: string | undefined;
   let usage: LlmResult["usage"];
   let error: string | undefined;
+  let warning: string | undefined;
   for (const line of stdout.split("\n")) {
     if (!line.startsWith("{")) continue;
     const e = JSON.parse(line);
@@ -82,11 +90,11 @@ function parseCodexOutput(stdout: string, stderr: string, code: number, structur
     else if (e.type === "item.completed" && e.item?.type === "agent_message") text = e.item.text;
     else if (e.type === "turn.completed") usage = { inputTokens: e.usage?.input_tokens ?? 0, outputTokens: e.usage?.output_tokens ?? 0 };
     else if (e.type === "turn.failed") error = e.error?.message ?? "turn failed";
-    else if (e.type === "error") error = e.message ?? "error";
+    else if (e.type === "error") warning = e.message ?? "error";
   }
   if (error) throw new Error(`codex: ${error}`);
   if (code !== 0) throw new Error(`codex exited with code ${code}: ${stderr.trim().slice(-2000)}`);
-  if (text === undefined || threadId === undefined) throw new Error("codex produced no agent message");
+  if (text === undefined || threadId === undefined) throw new Error(`codex produced no agent message${warning ? `: ${warning}` : ""}`);
   const result: LlmResult = { text, providerSessionId: threadId };
   if (usage) result.usage = usage;
   if (structured) {

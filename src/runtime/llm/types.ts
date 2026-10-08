@@ -1,4 +1,4 @@
-import type { BackendModels, LlmBackendId, LlmSelection, ModelInfo } from "../../shared/types.ts";
+import type { BackendModels, LlmBackendId, LlmSelection, ModelInfo, WriteMode } from "../../shared/types.ts";
 
 /** What a task asks of an LLM; model/effort are resolved by the LLM manager. */
 export interface LlmPrompt {
@@ -7,7 +7,9 @@ export interface LlmPrompt {
   /** JSON schema for structured output. Must be OpenAI-strict compatible (additionalProperties: false, all properties required). */
   schema?: object;
   cwd?: string;
-  tools: "none" | "read-only";
+  tools: "none" | "read-only" | "write";
+  /** With `tools: "write"`: `auto` lets the CLI's own approval logic allow edits and commands, `full` skips approvals and sandboxing, `editsOnly` allows file edits without any shell. Default `auto`. */
+  writeMode?: WriteMode;
   /** Continue this provider session instead of starting a new one. */
   resumeProviderSession?: string;
   mcpServers?: Record<string, McpServerSpec>;
