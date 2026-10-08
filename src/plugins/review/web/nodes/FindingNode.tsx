@@ -16,7 +16,7 @@ export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   const decide = (decision: "accepted" | "dismissed") => {
     if (!actions) return;
     setError(null);
-    api.decide(actions.sessionId, data.findingId, decision, actions.models.default).catch((e: Error) => setError(e.message));
+    api.decideFinding(actions.sessionId, data.findingId, decision, actions.models.default).catch((e: Error) => setError(e.message));
   };
   return <div className={`node finding-node severity-${data.severity} level-${data.level}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`} data-testid={`finding-${data.findingId}`} data-anchor={data.findingId}>
     <Handle type="source" position={Position.Left} />

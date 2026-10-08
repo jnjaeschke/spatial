@@ -45,10 +45,10 @@ export const api = {
     post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),
   postDrafts: (sessionId: string) => post<{ posted: number; skipped: { finding: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/post-drafts`, {}),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
-  decide: (sessionId: string, decisionId: string, option: string, body?: { text?: string; llm?: LlmSelection } | LlmSelection) =>
-    body && "backend" in body || (!body && (option === "accepted" || option === "dismissed"))
-      ? post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${decisionId}/decide`, { decision: option, llm: body && "backend" in body ? body : undefined })
-      : post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
+  decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
+  decideFinding: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/decide`, { decision, llm }),
   retry: (sessionId: string) => post<{}>(`/api/sessions/${sessionId}/retry`, {}),
 };
 

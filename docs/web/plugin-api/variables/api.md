@@ -48,7 +48,7 @@
 
 ### decide
 
-> **decide**: (`sessionId`, `decisionId`, `option`, `body?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+> **decide**: (`sessionId`, `decisionId`, `option`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
 
 #### Parameters
 
@@ -66,7 +66,39 @@
 
 ##### body?
 
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md) \| \{ `llm?`: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md); `text?`: `string`; \}
+###### llm?
+
+[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+
+###### text?
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
+
+### decideFinding
+
+> **decideFinding**: (`sessionId`, `findingId`, `decision`, `llm?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### findingId
+
+`string`
+
+##### decision
+
+`"accepted"` \| `"dismissed"`
+
+##### llm?
+
+[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
 
 #### Returns
 
