@@ -1,0 +1,96 @@
+import { readFileSync } from "node:fs";
+import { type Artifact, type Id, type LlmEvent, type LlmSelection, type WriteMode, defineTask, makeGitWriter, prependRepoContext } from "../../../../plugin-api.ts";
+import type { CommandRunData, ImplementBranchData, ImplementResultData, InvestigationData } from "../../shared/types.ts";
+import { describeFinding, openHighFindings } from "../../runtime/findings.ts";
+import { feedbackSections } from "../../runtime/feedback.ts";
+import { verifyStack } from "../../runtime/verify-stack.ts";
+import { testFirstProblems, type CommandEvidence } from "../../runtime/test-first.ts";
+import type { FindingDecisionData } from "../../../review/api.ts";
+
+const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
+const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
+const MAX_RETRIES = 2;
+
+/** Input of the implement phase and task: the approved Investigation and what else the agent should address. */
+export interface ImplementInput { branchId: Id; investigationId: Id; bug: number | null; text: string | null; ignorePlanInvalid?: boolean; llm?: LlmSelection; writeMode: WriteMode }
+export interface AgentReply { summary: string; planChange: string | null; planInvalid: string | null; step: number | null }
+export const isAgentReply = (value: unknown): value is AgentReply => {
+  const r = value as Partial<AgentReply> | null | undefined;
+  return typeof r === "object" && r !== null && typeof r.summary === "string" && (r.planChange === null || typeof r.planChange === "string")
+    && (r.planInvalid === null || typeof r.planInvalid === "string") && (r.step === null || Number.isInteger(r.step));
+};
+/** The planned commit message with the real bug number in place of `Bug N`. */
+export const withBug = (message: string, bug: number | null) => bug === null ? message : message.replace(/^Bug N\b/, `Bug ${bug}`);
+
+export const implement = defineTask<ImplementInput, { resultId: Id }>({
+  kind: "implement",
+  async run(ctx, input) {
+    const branch = ctx.artifacts.get<ImplementBranchData>(input.branchId).data;
+    const profile = ctx.repoProfiles.get(branch.profile);
+    if (!profile) throw new Error(`Unknown repo profile: ${branch.profile}`);
+    if (profile.requiresBug && input.bug === null) throw new Error(`The ${profile.id} profile needs a bug number`);
+    if (input.writeMode === "editsOnly" && !profile.checkCommand) throw new Error(`Edits-only mode needs a check command and the ${profile.id} profile has none`);
+    const investigation = ctx.artifacts.get<InvestigationData>(input.investigationId).data;
+    const writer = makeGitWriter(ctx.repo);
+    const view = ctx.artifacts.view();
+    const previous = (view.artifacts.filter((a) => a.type === "ImplementResult") as Artifact<ImplementResultData>[]).at(-1);
+
+    const current = await writer.currentBranch();
+    if (current !== branch.branch) throw new Error(`The checkout is on ${current ?? "a detached HEAD"}, not on ${branch.branch}; spatial does not move the checkout back`);
+    const tip = await ctx.git.resolve("HEAD");
+    if (previous && !(await ctx.git.isAncestor(previous.data.head, tip))) throw new Error(`${branch.branch} moved away from ${previous.data.head.slice(0, 12)} since the last implement run; spatial does not move the checkout back`);
+
+    const open = openHighFindings(view);
+    for (const finding of open) {
+      const aboutIds = new Set(view.links.filter((link) => link.kind === "about" && link.to === finding.id).map((link) => link.from));
+      const accepted = view.artifacts.some((a) => a.type === "FindingDecision" && aboutIds.has(a.id) && (a.data as FindingDecisionData).decision === "accepted");
+      if (accepted) continue;
+      const decision = ctx.artifacts.put<FindingDecisionData>("FindingDecision", "verified", { finding: finding.id, decision: "accepted" });
+      ctx.links.put(decision.id, finding.id, "about");
+    }
+    const since = previous?.epoch ?? -1;
+    const fresh = (a: Artifact) => (a.epoch ?? 0) > since;
+    const feedback = feedbackSections({
+      text: input.text,
+      notes: view.artifacts.filter((a) => a.type === "Note" && fresh(a)).map((a) => (a.data as { body: string }).body),
+      threads: view.artifacts.filter((a) => a.type === "ChatThread" && fresh(a)).map((a) => ctx.artifacts.render(a.id)),
+      findings: open.map(describeFinding),
+    });
+    const prompt = [
+      "# Investigation", ctx.artifacts.render(input.investigationId),
+      "# Checkout", `Branch ${branch.branch}, base ${branch.baseSha}.${input.bug !== null ? ` Bug ${input.bug}.` : ""}\n${profile.description}`,
+      ...(await ctx.git.isDirty() ? ["# Uncommitted changes", "The work tree has uncommitted changes from an earlier run; they are yours to keep, adjust or revert."] : []),
+      ...(input.ignorePlanInvalid ? ["# Plan", "The user decided to continue with the plan anyway. Do not report the plan as invalid."] : []),
+      ...feedback,
+    ].join("\n\n");
+
+    const evidence: CommandEvidence[] = [];
+    const onEvent = (event: LlmEvent) => {
+      if (event.kind === "progress") ctx.progress({ kind: "indeterminate", message: event.message });
+      else {
+        evidence.push({ command: event.command, exitCode: event.exitCode });
+        ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
+      }
+    };
+    const call = async (text: string): Promise<AgentReply> => {
+      const r = await ctx.llm.run({ prompt: text, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
+      if (!isAgentReply(r.json)) throw new Error(`Implement reply is not valid: ${JSON.stringify(r.json)}`);
+      return r.json;
+    };
+    const done = async (head: string, reply: AgentReply, planChange: string | null, planInvalid: string | null) =>
+      ({ resultId: ctx.artifacts.put<ImplementResultData>("ImplementResult", "verified", { head, branch: branch.branch, summary: reply.summary, planChange, planInvalid }).id });
+
+    if (input.writeMode === "editsOnly") throw new Error("Edits-only mode is not available yet");
+    const plan = branch.checkout === "new-branch" ? investigation.steps.map((step) => ({ message: withBug(step.message, input.bug) })) : null;
+    let problems: string[] = [];
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const reply = await call(attempt === 0 ? prompt : [prompt, "# Problems to fix", problems.map((problem) => `- ${problem}`).join("\n")].join("\n\n"));
+      if (reply.planInvalid && !input.ignorePlanInvalid) return done(await ctx.git.resolve("HEAD"), reply, null, reply.planInvalid);
+      const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan, planChange: reply.planChange, profile });
+      const found = [...checked.problems, ...(previous ? [] : testFirstProblems(investigation.steps, evidence, profile))];
+      if (found.length === 0) return done(checked.head, reply, reply.planChange, null);
+      problems = found;
+    }
+    throw new Error(`The agent's stack still has problems after ${MAX_RETRIES} retries:\n${problems.join("\n")}`);
+  },
+});

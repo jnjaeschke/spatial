@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": { "type": "string" },
+    "planChange": { "type": ["string", "null"] },
+    "planInvalid": { "type": ["string", "null"] },
+    "step": { "type": ["integer", "null"] }
+  },
+  "required": ["summary", "planChange", "planInvalid", "step"],
+  "additionalProperties": false
+}
