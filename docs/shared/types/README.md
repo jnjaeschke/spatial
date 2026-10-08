@@ -12,6 +12,8 @@
 - [ChatMessageData](interfaces/ChatMessageData.md)
 - [ChatThreadData](interfaces/ChatThreadData.md)
 - [Commit](interfaces/Commit.md)
+- [DecisionData](interfaces/DecisionData.md)
+- [DecisionOption](interfaces/DecisionOption.md)
 - [DiagramCite](interfaces/DiagramCite.md)
 - [DiagramData](interfaces/DiagramData.md)
 - [DiffData](interfaces/DiffData.md)

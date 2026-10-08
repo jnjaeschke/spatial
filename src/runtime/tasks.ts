@@ -1,9 +1,9 @@
 import type {
-  Actor, Artifact, ArtifactStatus, Commit, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
+  Actor, Artifact, ArtifactStatus, Commit, DecisionData, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
-import { renderRef, searchDocs, sessionOverview, sessionView, type SessionView } from "./render-ref.ts";
+import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
 import { pluginRegistry, type Plugin, type PluginRegistry, type Workflow } from "./plugins.ts";
 
@@ -320,6 +320,30 @@ export class Runtime {
     const retry = this.#store.updateEpoch(sessionId, epoch.n, { status: "running", error: null });
     this.emit(sessionId, "runtime", "epoch.started", { n: retry.n, phase: retry.phase });
     return this.#executePhase(phase, sessionId, retry.input, retry);
+  }
+
+  /** Runs the steps `Workflow.next` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user. */
+  async advance(sessionId: Id): Promise<void> {
+    const session = this.#store.getSession(sessionId);
+    const workflow = session.workflow ? this.workflows.get(session.workflow) : undefined;
+    if (!workflow?.next) return;
+    for (;;) {
+      const step = workflow.next(workflowView(this.#store, sessionId));
+      if (step === null) return;
+      if ("run" in step) { await this.runPhase(sessionId, step.run, step.input); continue; }
+      const { question, options } = step.decide;
+      const epoch = this.#store.listEpochs(sessionId).at(-1)?.n ?? null;
+      const latest = this.#store.listArtifacts(sessionId, "Decision").at(-1) as Artifact<DecisionData> | undefined;
+      if (latest && latest.epoch === epoch && latest.data.question === question) {
+        if (latest.data.chosen) throw new Error(`Workflow ${workflow.id} asked "${question}" again after it was answered`);
+        return;
+      }
+      if (step.chosen && !options.some((option) => option.id === step.chosen!.option)) throw new Error(`Workflow ${workflow.id} chose unknown option ${step.chosen.option}`);
+      const chosen = step.chosen ? { option: step.chosen.option, by: "rule" as const, reason: step.chosen.reason } : null;
+      const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", data: { question, options, chosen }, provenance: { taskId: "runtime" } });
+      this.emit(sessionId, "runtime", "artifact.created", { artifactId: decision.id, type: "Decision" });
+      if (!chosen) return;
+    }
   }
 
   runningEpoch(sessionId: Id): Epoch | null {

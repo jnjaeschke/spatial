@@ -19,6 +19,7 @@
 ## Type Aliases
 
 - [ParseResult](type-aliases/ParseResult.md)
+- [Step](type-aliases/Step.md)
 
 ## Functions
 

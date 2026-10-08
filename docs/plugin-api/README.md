@@ -22,6 +22,11 @@ Everything a user works on is a plugin; review and chat are the standard library
   place with `Runtime.retryPhase`. One phase runs per session at a time (`PhaseBusyError`).
 - A **task** (`TaskDefinition`, built with `defineTask`) is a unit of work run by the runtime,
   usually one LLM call or one deterministic import, producing artifacts with provenance.
+- A workflow with `next` is driven by decisions: `Runtime.advance` calls `next(view)` over the stored
+  epochs and artifacts and either runs the returned phase or stores a **Decision** artifact (a question
+  with options, answered by a rule or by the user through `POST /api/sessions/:id/decisions/:artifactId`),
+  and repeats until `next` returns null (waiting for the user, or done). A failed epoch stops the loop;
+  Retry reruns it and advances again.
 - An **artifact kind** (`ArtifactKind`) tells core how to render, search and overview a
   plugin's artifact type without importing plugin code.
 
@@ -114,6 +119,18 @@ Re-exports [ChatThreadData](../shared/types/interfaces/ChatThreadData.md)
 ### Commit
 
 Re-exports [Commit](../shared/types/interfaces/Commit.md)
+
+***
+
+### DecisionData
+
+Re-exports [DecisionData](../shared/types/interfaces/DecisionData.md)
+
+***
+
+### DecisionOption
+
+Re-exports [DecisionOption](../shared/types/interfaces/DecisionOption.md)
 
 ***
 
@@ -513,6 +530,12 @@ Re-exports [StartInput](../runtime/plugins/interfaces/StartInput.md)
 
 ***
 
+### Step
+
+Re-exports [Step](../runtime/plugins/type-aliases/Step.md)
+
+***
+
 ### StepCommentCheck
 
 Re-exports [StepCommentCheck](../runtime/tasks/interfaces/StepCommentCheck.md)
@@ -582,3 +605,15 @@ Re-exports [WorkflowInfo](../shared/types/interfaces/WorkflowInfo.md)
 ### WorkflowStartData
 
 Re-exports [WorkflowStartData](../shared/types/interfaces/WorkflowStartData.md)
+
+***
+
+### workflowView
+
+Re-exports [workflowView](../runtime/render-ref/functions/workflowView.md)
+
+***
+
+### WorkflowView
+
+Re-exports [WorkflowView](../runtime/render-ref/interfaces/WorkflowView.md)

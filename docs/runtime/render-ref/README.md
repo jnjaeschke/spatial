@@ -10,6 +10,7 @@
 
 - [SearchDoc](interfaces/SearchDoc.md)
 - [SessionView](interfaces/SessionView.md)
+- [WorkflowView](interfaces/WorkflowView.md)
 
 ## Variables
 
@@ -21,3 +22,4 @@
 - [searchDocs](functions/searchDocs.md)
 - [sessionOverview](functions/sessionOverview.md)
 - [sessionView](functions/sessionView.md)
+- [workflowView](functions/workflowView.md)

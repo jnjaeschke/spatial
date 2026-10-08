@@ -1,13 +1,16 @@
-import type { Artifact, ChatMessageData, ChatThreadData, Id, Link, NoteData, Ref, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DecisionData, Epoch, Id, Link, NoteData, Ref, WorkflowStartData } from "../shared/types.ts";
 import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import type { ArtifactKind, PluginRegistry } from "./plugins.ts";
 
 /** What rendering needs from one session; built from Store lists. */
 export interface SessionView { artifacts: Artifact[]; links: Link[] }
+/** `SessionView` plus the session's epochs: what `Workflow.next` reads. */
+export interface WorkflowView extends SessionView { epochs: Epoch[] }
 export interface SearchDoc { ref: Ref; kind: string; body: string }
 
 export function sessionView(store: Store, sessionId: Id): SessionView { return { artifacts: store.listArtifacts(sessionId), links: store.listLinks(sessionId) }; }
+export function workflowView(store: Store, sessionId: Id): WorkflowView { return { ...sessionView(store, sessionId), epochs: store.listEpochs(sessionId) }; }
 
 const coreSearch: ArtifactKind["search"] = (view, artifact) => {
   if (artifact.type === "Note") return [{ ref: artifact.id, kind: "note", body: (artifact.data as NoteData).body }];
@@ -27,10 +30,15 @@ const coreRender: ArtifactKind["render"] = (view, artifact, subId, renderRef) =>
     return ["# Chat " + artifact.id, "Anchor: " + thread.anchor, ...messages.map((item) => ((item.data as ChatMessageData).role === "user" ? "User: " : "Assistant: ") + revisedText(view, item as Artifact<ChatMessageData>))].join("\n\n");
   }
   if (artifact.type === "ChatMessage") { const parent = view.links.find((link) => link.from === artifact.id && link.kind === "reply"); return parent ? renderRef(parent.to) : null; }
+  if (artifact.type === "Decision") {
+    const d = artifact.data as DecisionData;
+    const chosen = d.chosen && `Chosen: ${d.options.find((option) => option.id === d.chosen!.option)?.label ?? d.chosen.option} (${d.chosen.by})${d.chosen.text ? `: ${d.chosen.text}` : ""}${d.chosen.reason ? ` - ${d.chosen.reason}` : ""}`;
+    return `# Decision\n\n${d.question}\n\n${chosen ?? "Open"}`;
+  }
   return null;
 };
 export const coreArtifactKinds: Record<string, ArtifactKind> = {
-  Note: { search: coreSearch, render: coreRender }, WorkflowStart: { render: coreRender }, ChatThread: { render: coreRender }, ChatMessage: { search: coreSearch, render: coreRender },
+  Note: { search: coreSearch, render: coreRender }, WorkflowStart: { render: coreRender }, ChatThread: { render: coreRender }, ChatMessage: { search: coreSearch, render: coreRender }, Decision: { render: coreRender },
 };
 
 export function searchDocs(kinds: Record<string, ArtifactKind>, view: SessionView, artifact: Artifact): SearchDoc[] { return kinds[artifact.type]?.search?.(view, artifact) ?? []; }

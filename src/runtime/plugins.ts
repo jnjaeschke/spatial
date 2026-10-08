@@ -1,12 +1,16 @@
 import type { z } from "zod";
-import type { Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
+import type { DecisionOption, Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
 import type { Runtime, TaskContext, TaskDefinition, Phase } from "./tasks.ts";
 import type { Artifact, Ref } from "../shared/types.ts";
-import type { SearchDoc, SessionView } from "./render-ref.ts";
+import type { SearchDoc, SessionView, WorkflowView } from "./render-ref.ts";
 import type { Route } from "../server/http.ts";
 import { coreArtifactKinds } from "./render-ref.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
+/** What a workflow does next: run a phase, or take a decision. A decision with `chosen` is made by a rule and stored already answered; without it the user is asked. */
+export type Step =
+  | { run: string; input: unknown }
+  | { decide: { question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string } };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
 /** A kind of session; `start` runs it to completion by orchestrating phases with `rt.runPhase`. `description` is shown to the selector LLM and in the command popup; avoid e2e stub needles in it. */
 export interface Workflow<P> extends WorkflowInfo {
@@ -15,6 +19,8 @@ export interface Workflow<P> extends WorkflowInfo {
   /** Deterministic parser for slash-command arguments. */
   parseArgs(args: string): ParseResult<P>;
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
+  /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered. */
+  next?(view: WorkflowView): Step | null;
   /** Session overview sections for sessions of this workflow; markdown, each starting with a `# ` heading. */
   overview?(view: SessionView): string[];
 }

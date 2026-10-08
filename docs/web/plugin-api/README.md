@@ -140,6 +140,18 @@ Re-exports [Commit](../../shared/types/interfaces/Commit.md)
 
 ***
 
+### DecisionData
+
+Re-exports [DecisionData](../../shared/types/interfaces/DecisionData.md)
+
+***
+
+### DecisionOption
+
+Re-exports [DecisionOption](../../shared/types/interfaces/DecisionOption.md)
+
+***
+
 ### DiagramCite
 
 Re-exports [DiagramCite](../../shared/types/interfaces/DiagramCite.md)

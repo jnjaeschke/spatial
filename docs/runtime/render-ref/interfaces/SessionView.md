@@ -8,6 +8,10 @@
 
 What rendering needs from one session; built from Store lists.
 
+## Extended by
+
+- [`WorkflowView`](WorkflowView.md)
+
 ## Properties
 
 ### artifacts

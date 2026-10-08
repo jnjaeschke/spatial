@@ -72,6 +72,24 @@
 
 ## Methods
 
+### advance()
+
+> **advance**(`sessionId`): `Promise`\<`void`\>
+
+Runs the steps `Workflow.next` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### cancel()
 
 > **cancel**(`taskId`): `void`

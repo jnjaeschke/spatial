@@ -11,6 +11,7 @@ export async function runWorkflow(rt: Runtime, sessionId: Id, startId: Id, llm?:
   const workflow = rt.workflows.get(start.workflow);
   if (!workflow) throw new Error(`Unknown workflow: ${start.workflow}`);
   await workflow.start(rt, sessionId, { params: start.params, startId, prompt: start.prompt, llm });
+  if (workflow.next) await rt.advance(sessionId);
 }
 
 const inBackground = (sessionId: Id, work: Promise<unknown>) =>

@@ -15,6 +15,11 @@
  *   place with `Runtime.retryPhase`. One phase runs per session at a time (`PhaseBusyError`).
  * - A **task** (`TaskDefinition`, built with `defineTask`) is a unit of work run by the runtime,
  *   usually one LLM call or one deterministic import, producing artifacts with provenance.
+ * - A workflow with `next` is driven by decisions: `Runtime.advance` calls `next(view)` over the stored
+ *   epochs and artifacts and either runs the returned phase or stores a **Decision** artifact (a question
+ *   with options, answered by a rule or by the user through `POST /api/sessions/:id/decisions/:artifactId`),
+ *   and repeats until `next` returns null (waiting for the user, or done). A failed epoch stops the loop;
+ *   Retry reruns it and advances again.
  * - An **artifact kind** (`ArtifactKind`) tells core how to render, search and overview a
  *   plugin's artifact type without importing plugin code.
  *
@@ -30,11 +35,11 @@
  * composition roots.
  */
 export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(plugin: T): T => plugin;
-export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, StartInput, Workflow } from "./runtime/plugins.ts";
+export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, StartInput, Step, Workflow } from "./runtime/plugins.ts";
 export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";
-export type { SessionView, SearchDoc } from "./runtime/render-ref.ts";
+export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";
 export { HttpError, send, readJson, str, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
 /** Creates a session after resolving its repository path. */
 export { createSession } from "./runtime/git.ts";
@@ -42,7 +47,7 @@ export { createSession } from "./runtime/git.ts";
 export { runWorkflow } from "./workflows/start.ts";
 export type { Route, HttpRouteContext } from "./server/http.ts";
 export * from "./shared/types.ts";
-export { searchDocs, sessionView } from "./runtime/render-ref.ts";
+export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
 export { makeGitWriter } from "./runtime/git.ts";
 export { prependRepoContext } from "./runtime/repo-context.ts";
