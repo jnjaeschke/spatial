@@ -1,0 +1,18 @@
+/**
+ * The graph building blocks web plugins use to build their canvas graphs.
+ * Free of React and DOM, so plugin graph modules load under Node; `plugin-api.ts` re-exports it.
+ */
+export type { Draft } from "./chat-context.ts";
+export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, HostedThread, ZoomLevel } from "./graph.ts";
+/** Node width at each zoom level, and the width of satellites at every level. */
+export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";
+/** Dagre layout of sized nodes; and column placement of satellites beside their anchors. */
+export { layout, placeSatellites } from "./graph.ts";
+/** Whether a node hangs beside the node it is anchored on; adds to `gone` every node whose anchors are all gone. */
+export { isSatellite, cascade } from "./graph.ts";
+/** The latest WorkflowStart and the root chat thread anchored on it. */
+export { latestStart, rootThread } from "./graph.ts";
+/** Chat content of a thread; the conversation node of a session start; notes and chats added to a root graph. */
+export { threadContent, conversationNode, addNotes, addChats } from "./graph.ts";
+/** Estimated line count of text wrapped at a width in characters. */
+export { lines } from "./graph.ts";

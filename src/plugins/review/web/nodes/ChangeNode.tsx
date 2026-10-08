@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { type ChangeNodeData, type ZoomLevel, InlineText, AskContext, CollapseContext, ClosedContext, ReopenClosed, api, ChatActionsContext, Conversation } from "../../../../web/plugin-api.ts";
+import type { ChangeNodeData } from "../graph.ts";
+import { type ZoomLevel, InlineText, AskContext, CollapseContext, ClosedContext, ReopenClosed, api, ChatActionsContext, Conversation } from "../../../../web/plugin-api.ts";
 import { DiffView } from "../DiffView.tsx";
 import { commitColors } from "../commit-colors.ts";
 import { numberLines } from "../../shared/diff-lines.ts";

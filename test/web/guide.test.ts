@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { ChangeNodeData } from "../../src/web/graph.ts";
+import type { ChangeNodeData } from "../../src/plugins/review/web/graph.ts";
 import { moveStep, startStep, stepNodeId } from "../../src/web/guide.ts";
 
 const change = { id: "c3" } as ChangeNodeData["change"];

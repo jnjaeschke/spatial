@@ -1,4 +1,5 @@
-import { commitNodeId, type ChangeNodeData, type ZoomLevel } from "./graph.ts";
+import { commitNodeId, type ChangeNodeData } from "../plugins/review/web/graph.ts";
+import type { ZoomLevel } from "./graph.ts";
 
 /** "Start here": the first unreviewed step, or 0 when every step is reviewed. */
 export function startStep(reviewed: boolean[]): number {

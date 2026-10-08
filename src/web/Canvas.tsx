@@ -6,7 +6,8 @@ import {
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, layerGraph, LAYERS, diagramLayoutEdges, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type Layer, type ZoomLevel } from "./graph.ts";
+import { closeGraph, conversationGraph, fitMinZoom, hostedThreads, isCoreKind, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, type ChatNodeData, type ZoomLevel } from "./graph.ts";
+import { layerGraph, LAYERS, diagramLayoutEdges, levelGraph, stackLayout, phabCommentCollapseId, diagramStepTarget, latestNarrative, reviewGraph, isReviewKind, type Layer } from "../plugins/review/web/graph.ts";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
@@ -88,7 +89,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const { closed: closedIds, close, reopen } = useClosed(state.session.id);
   const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers();
   const { graph, closedOn } = useMemo(() => {
-    const g = sessionGraph(state, drafts, freePositions);
+    const g = sessionGraph(state.session.workflow === "review" ? reviewGraph : conversationGraph, state, drafts, freePositions);
     if (!g) throw new Error("Canvas needs a session graph");
     return closeGraph(layerGraph(g, hiddenLayers), closedIds);
   }, [state, drafts, freePositions, closedIds, hiddenLayers]);
@@ -98,7 +99,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
     knownDrafts.current = next;
     if (!added) return;
-    const host = graph.nodes.find((node) => node.data.kind === "change" && node.data.threads.some((thread) => thread.draftId === added.id));
+    const host = graph.nodes.find((node) => hostedThreads(node.data)?.some((thread) => thread.draftId === added.id));
     focusDraft.current = added.id;
     anchor.current = host?.id ?? (added.aside ? null : added.id);
   }, [drafts, graph]);
@@ -111,14 +112,14 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     }
   }, [drafts, state.artifacts, moveFreePosition]);
   const graphDiagramIds = useMemo(() => graph.nodes.filter((n) => n.data.kind === "diagram").map((n) => n.id), [graph]);
-  const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => n.data.kind === "finding" && n.data.collapsedByDefault ? [n.id]
-    : n.data.kind === "phab" ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
-      : n.data.kind === "summary" ? [
+  const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => isReviewKind(n.data, "finding") && n.data.collapsedByDefault ? [n.id]
+    : isReviewKind(n.data, "phab") ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
+      : isReviewKind(n.data, "summary") ? [
         ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
         ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : [])), [graph]);
   const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
-  const steps = useMemo(() => graph.nodes.flatMap((n) => n.data.kind === "change" ? [n.data] : []), [graph]);
+  const steps = useMemo(() => graph.nodes.flatMap((n) => isReviewKind(n.data, "change") ? [n.data] : []), [graph]);
   const [level, setLevel] = useState<ZoomLevel>(() => storedView.current?.level ?? "code");
   const levelRef = useRef(level);
   const open = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
@@ -134,8 +135,8 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const quoted = useMemo(() => {
     const entries: { id: string; anchors: string[]; data: { kind: "chat" | "finding"; anchor: string; quote: string; lines?: ChatNodeData["lines"] } }[] = [];
     for (const node of graph.nodes) {
-      if ((node.data.kind === "chat" || node.data.kind === "finding") && node.data.quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: { kind: node.data.kind, anchor: node.data.anchor, quote: node.data.quote, lines: node.data.lines } });
-      if (node.data.kind === "change") for (const thread of node.data.threads) if (thread.quote) entries.push({ id: thread.threadId ?? thread.draftId!, anchors: [node.id], data: { kind: "chat", anchor: thread.anchor, quote: thread.quote, lines: thread.lines } });
+      if ((isCoreKind(node.data, "chat") || isReviewKind(node.data, "finding")) && node.data.quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: { kind: node.data.kind, anchor: node.data.anchor, quote: node.data.quote, lines: node.data.lines } });
+      for (const thread of hostedThreads(node.data) ?? []) if (thread.quote) entries.push({ id: thread.threadId ?? thread.draftId!, anchors: [node.id], data: { kind: "chat", anchor: thread.anchor, quote: thread.quote, lines: thread.lines } });
     }
     return entries;
   }, [graph]);
@@ -336,12 +337,12 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
-    if (draftToFocus && (nodes.some((n) => n.id === draftToFocus) || graph.nodes.some((node) => node.data.kind === "change" && node.data.threads.some((thread) => thread.draftId === draftToFocus)))) {
+    if (draftToFocus && (nodes.some((n) => n.id === draftToFocus) || graph.nodes.some((node) => hostedThreads(node.data)?.some((thread) => thread.draftId === draftToFocus)))) {
       focusDraft.current = null;
       requestAnimationFrame(() => {
         const box = container.current?.querySelector<HTMLElement>(`[data-testid="chat-${CSS.escape(draftToFocus)}"]`);
         const textarea = box?.querySelector<HTMLTextAreaElement>("textarea");
-        if (box && graph.nodes.some((node) => node.data.kind === "change" && node.data.threads.some((thread) => thread.draftId === draftToFocus))) {
+        if (box && graph.nodes.some((node) => hostedThreads(node.data)?.some((thread) => thread.draftId === draftToFocus))) {
           const rect = box.getBoundingClientRect();
           const point = rf.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
           void rf.setCenter(point.x, point.y, { zoom: rf.getZoom() });
@@ -417,7 +418,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       if (!getSelection()?.isCollapsed) return;
       const id = quoteAt(event.clientX, event.clientY);
       if (!id || !collapsed.has(id)) return;
-      const host = graph.nodes.find((node) => node.data.kind === "change" && node.data.threads.some((thread) => (thread.threadId ?? thread.draftId) === id));
+      const host = graph.nodes.find((node) => hostedThreads(node.data)?.some((thread) => (thread.threadId ?? thread.draftId) === id));
       if (host) reveal(host.id, id);
       else {
         anchor.current = id;
@@ -621,14 +622,14 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   };
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
-    if (node?.data.kind !== "change") return;
+    if (!node || !isReviewKind(node.data, "change")) return;
     reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`);
     focusCentered.current = false;
     setFocusedRow({ anchor: `${node.data.diffId}#${hunkId}`, ...row });
   };
   useEffect(() => {
     if (!jump) return;
-    const change = graph.nodes.find((node) => node.data.kind === "change" && node.data.hunks.some(({ hunk }) => hunk.id === jump.hunkId));
+    const change = graph.nodes.find((node) => isReviewKind(node.data, "change") && node.data.hunks.some(({ hunk }) => hunk.id === jump.hunkId));
     if (change) revealStep(change.id, jump.hunkId, { side: jump.side, line: jump.line });
     // Only a new request jumps; graph updates must not re-reveal.
   }, [jump]);

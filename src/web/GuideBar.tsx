@@ -1,4 +1,4 @@
-import type { ChangeNodeData } from "./graph.ts";
+import type { ChangeNodeData } from "../plugins/review/web/graph.ts";
 import { InlineText } from "./InlineText.tsx";
 
 export function GuideBar({ steps, step, start, canToggle, onMove, onToggle }: {

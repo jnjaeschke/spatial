@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { LAYERS, type Layer } from "./graph.ts";
+import { LAYERS, type Layer } from "../plugins/review/web/graph.ts";
 
 const KEY = "spatial-ide:layers";
 

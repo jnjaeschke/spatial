@@ -25,7 +25,7 @@ export function checkPluginBoundary(files: Map<string, string>): string[] {
       const targetPlugin = target.match(/^src\/plugins\/([^/]+)(?:\/|$)/)?.[1];
       if (REGISTRIES.has(file.replace(/\.ts$/, ""))) continue;
       if (!importerPlugin && targetPlugin && !(COMPOSITION_ROOTS.has(file) && REGISTRIES.has(target))) errors.push(`${file} → ${specifier}`);
-      if (importerPlugin && targetPlugin !== importerPlugin && !["src/plugin-api", "src/web/plugin-api"].includes(target)) errors.push(`${file} → ${specifier}`);
+      if (importerPlugin && targetPlugin !== importerPlugin && !["src/plugin-api", "src/web/plugin-api", "src/web/graph-api"].includes(target)) errors.push(`${file} → ${specifier}`);
     }
   }
   return errors.sort();

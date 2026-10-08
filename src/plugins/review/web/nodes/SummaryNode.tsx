@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { type SummaryNodeData, type ZoomLevel, InlineText, CollapseContext, api, ChatActionsContext, ReopenClosed } from "../../../../web/plugin-api.ts";
+import type { SummaryNodeData } from "../graph.ts";
+import { type ZoomLevel, InlineText, CollapseContext, api, ChatActionsContext, ReopenClosed } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
 

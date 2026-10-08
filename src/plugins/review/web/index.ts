@@ -1,4 +1,5 @@
-import { type WebPlugin, latestNarrative, estimateSize, type GraphNodeData, type NodeKind } from "../../../web/plugin-api.ts";
+import type { WebPlugin, NodeKind } from "../../../web/plugin-api.ts";
+import { latestNarrative, reviewSize } from "./graph.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { isStaleNotice } from "./notices.ts";
 import { ReviewView } from "./ReviewView.tsx";
@@ -10,7 +11,6 @@ import { DiagramNode } from "./nodes/DiagramNode.tsx";
 import { FindingNode } from "./nodes/FindingNode.tsx";
 import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
 
-const reviewSize = (data: GraphNodeData, level: "patch" | "concept" | "code") => estimateSize(data, level);
 const reviewNodeKinds: Record<string, NodeKind> = {
   change: { component: ChangeNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
   commit: { component: CommitNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },

@@ -1,6 +1,7 @@
 import { useContext, useMemo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { type DiagramNodeData, type ZoomLevel, CollapseContext, ClosedContext } from "../../../../web/plugin-api.ts";
+import type { DiagramNodeData } from "../graph.ts";
+import { type ZoomLevel, CollapseContext, ClosedContext } from "../../../../web/plugin-api.ts";
 
 export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData & { level: ZoomLevel }, "diagram">;
 
