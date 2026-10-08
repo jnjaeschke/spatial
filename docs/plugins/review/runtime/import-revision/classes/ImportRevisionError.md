@@ -26,7 +26,7 @@
 
 ##### kind
 
-`"precondition"` \| `"remote"`
+`"remote"` \| `"precondition"`
 
 #### Returns
 
@@ -50,7 +50,7 @@
 
 ### kind
 
-> **kind**: `"precondition"` \| `"remote"`
+> **kind**: `"remote"` \| `"precondition"`
 
 ***
 

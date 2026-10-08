@@ -101,6 +101,17 @@ export interface PatchIdentity { name: string; email: string; /** Unix seconds. 
 
 /** Object-database writes for remote review. Not a `GitCapability`: tasks never get it. */
 export interface GitWriter {
+  /** Current branch name; null on a detached HEAD. */
+  currentBranch(): Promise<string | null>;
+  /** Number of paths with staged, unstaged or untracked (non-ignored) changes. */
+  changedFiles(): Promise<number>;
+  /** `git fetch <remote>`; rejects with git's message. */
+  fetch(remote: string): Promise<void>;
+  /** The commit new work starts from. With an `origin` remote: fetches it and resolves the target of `origin/HEAD`, or of `git ls-remote --symref origin HEAD` when that is unset. Without: the local `main`, else `master`. Rejects when none exists. */
+  defaultBase(): Promise<{ ref: string; sha: string }>;
+  branchExists(name: string): Promise<boolean>;
+  /** `git switch -c <name> <base>`; uncommitted changes move along. */
+  createBranch(name: string, base: string): Promise<void>;
   /** Applies `rawDiff` onto the tree of `parent` in a temporary index and commits the result on top of `parent`. Writes only objects: the work tree, the index, HEAD and all refs are untouched. Deterministic for equal inputs. Rejects when the patch does not apply. Returns the new commit sha. */
   commitPatch(parent: string, rawDiff: string, message: string, identity: PatchIdentity): Promise<string>;
   /** Commits the work tree as it is now (staged, unstaged and untracked non-ignored changes, deletions included) on top of HEAD, built in a temporary index copied from the real one. Writes only objects: work tree, real index, HEAD and all refs are untouched. Returns the commit sha, or null when the resulting tree equals HEAD's tree. Rejects when HEAD does not exist. */
@@ -111,6 +122,46 @@ export interface GitWriter {
 
 export function makeGitWriter(repo: string): GitWriter {
   return {
+    async currentBranch() {
+      try { return (await git(repo, ["symbolic-ref", "--quiet", "--short", "HEAD"])).trim(); }
+      catch { return null; }
+    },
+    async changedFiles() {
+      return (await git(repo, ["--no-optional-locks", "status", "--porcelain", "--untracked-files=normal"])).split("\n").filter(Boolean).length;
+    },
+    async fetch(remote) {
+      try { await git(repo, ["fetch", "--quiet", remote]); }
+      catch (e) { throw new Error(`git fetch ${remote} failed: ${((e as { stderr?: string }).stderr || (e as Error).message).trim()}`); }
+    },
+    async defaultBase() {
+      const remotes = (await git(repo, ["remote"])).split("\n").filter(Boolean);
+      if (remotes.includes("origin")) {
+        await this.fetch("origin");
+        let branch: string;
+        try { branch = (await git(repo, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])).trim().replace(/^origin\//, ""); }
+        catch {
+          const found = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(await git(repo, ["ls-remote", "--symref", "origin", "HEAD"]));
+          if (!found) throw new Error("Cannot determine the default branch of origin");
+          branch = found[1]!;
+        }
+        const ref = `origin/${branch}`;
+        return { ref, sha: (await git(repo, ["rev-parse", "--verify", `${ref}^{commit}`])).trim() };
+      }
+      for (const name of ["main", "master"]) {
+        try { return { ref: name, sha: (await git(repo, ["rev-parse", "--verify", `refs/heads/${name}^{commit}`])).trim() }; }
+        catch { /* try the next name */ }
+      }
+      throw new Error("no origin remote and no local main or master branch");
+    },
+    async branchExists(name) {
+      try { await git(repo, ["rev-parse", "--verify", "--quiet", `refs/heads/${name}`]); return true; }
+      catch { return false; }
+    },
+    async createBranch(name, base) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) || name.includes("..")) throw new Error(`Invalid branch name: ${name}`);
+      try { await git(repo, ["switch", "-c", name, base]); }
+      catch (e) { throw new Error(`git switch -c ${name} failed: ${((e as { stderr?: string }).stderr || (e as Error).message).trim()}`); }
+    },
     async snapshotWorktree(identity) {
       const dir = await mkdtemp(join(tmpdir(), "spatial-index-"));
       try {

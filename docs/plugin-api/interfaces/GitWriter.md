@@ -10,6 +10,34 @@ Object-database writes for remote review. Not a `GitCapability`: tasks never get
 
 ## Methods
 
+### branchExists()
+
+> **branchExists**(`name`): `Promise`\<`boolean`\>
+
+#### Parameters
+
+##### name
+
+`string`
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+***
+
+### changedFiles()
+
+> **changedFiles**(): `Promise`\<`number`\>
+
+Number of paths with staged, unstaged or untracked (non-ignored) changes.
+
+#### Returns
+
+`Promise`\<`number`\>
+
+***
+
 ### commitPatch()
 
 > **commitPatch**(`parent`, `rawDiff`, `message`, `identity`): `Promise`\<`string`\>
@@ -37,6 +65,70 @@ Applies `rawDiff` onto the tree of `parent` in a temporary index and commits the
 #### Returns
 
 `Promise`\<`string`\>
+
+***
+
+### createBranch()
+
+> **createBranch**(`name`, `base`): `Promise`\<`void`\>
+
+`git switch -c <name> <base>`; uncommitted changes move along.
+
+#### Parameters
+
+##### name
+
+`string`
+
+##### base
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### currentBranch()
+
+> **currentBranch**(): `Promise`\<`string` \| `null`\>
+
+Current branch name; null on a detached HEAD.
+
+#### Returns
+
+`Promise`\<`string` \| `null`\>
+
+***
+
+### defaultBase()
+
+> **defaultBase**(): `Promise`\<\{ `ref`: `string`; `sha`: `string`; \}\>
+
+The commit new work starts from. With an `origin` remote: fetches it and resolves the target of `origin/HEAD`, or of `git ls-remote --symref origin HEAD` when that is unset. Without: the local `main`, else `master`. Rejects when none exists.
+
+#### Returns
+
+`Promise`\<\{ `ref`: `string`; `sha`: `string`; \}\>
+
+***
+
+### fetch()
+
+> **fetch**(`remote`): `Promise`\<`void`\>
+
+`git fetch <remote>`; rejects with git's message.
+
+#### Parameters
+
+##### remote
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
 
 ***
 
