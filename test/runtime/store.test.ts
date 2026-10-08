@@ -139,3 +139,19 @@ test("listTasks and lastEventId", () => {
   const e = store.appendEvent({ sessionId: session.id, actor: "runtime", type: "x", payload: null });
   assert.equal(store.lastEventId(session.id), e.id);
 });
+
+test("failInterrupted fails running epochs and tasks left by a previous server process", () => {
+  const store = new Store(":memory:");
+  const session = store.createSession({ worktree: "/w", repoDir: "/r", title: "t" });
+  store.createEpoch(session.id, "review", {});
+  const task = store.createTask({ sessionId: session.id, kind: "narrate", input: {} });
+  store.updateTask(task.id, { status: "running" });
+  const done = store.createTask({ sessionId: session.id, kind: "importDiff", input: {} });
+  store.updateTask(done.id, { status: "succeeded", output: {} });
+  store.failInterrupted("Interrupted by a server restart");
+  const [epoch] = store.listEpochs(session.id);
+  assert.equal(epoch!.status, "failed");
+  assert.equal(epoch!.error, "Interrupted by a server restart");
+  assert.ok(epoch!.endedAt);
+  assert.deepEqual(store.listTasks(session.id).map((t) => [t.kind, t.status, t.error]), [["narrate", "failed", "Interrupted by a server restart"], ["importDiff", "succeeded", null]]);
+});

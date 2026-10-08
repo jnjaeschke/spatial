@@ -103,6 +103,13 @@ export class Store {
     return toEpoch(r);
   }
 
+  /** Fails every running epoch and pending or running task with `reason`. Only a server process that just started may call it: they belong to a process that died. */
+  failInterrupted(reason: string): void {
+    const at = now();
+    this.#db.prepare("UPDATE epochs SET status = 'failed', error = ?, ended_at = ? WHERE status = 'running'").run(reason, at);
+    this.#db.prepare("UPDATE tasks SET status = 'failed', error = ?, updated_at = ? WHERE status IN ('pending', 'running')").run(reason, at);
+  }
+
   listEpochs(sessionId: Id): Epoch[] {
     return (this.#db.prepare("SELECT * FROM epochs WHERE session_id = ? ORDER BY n").all(sessionId) as Row[]).map(toEpoch);
   }
