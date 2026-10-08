@@ -1,4 +1,5 @@
-import type { Artifact, Id, PhabCommentData } from "../../../plugin-api.ts";
+import type { PhabCommentData } from "./types.ts";
+import type { Artifact, Id } from "../../../plugin-api.ts";
 
 /** Latest artifact of every remote comment by `phid`: highest version, then newest. */
 export function latestByPhid(artifacts: Artifact[]): Map<string, Artifact<PhabCommentData>> {

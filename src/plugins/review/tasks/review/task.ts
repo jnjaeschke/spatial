@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
-import { type DiffData, type FindingVerdictData, type LlmSelection, type PatchNarrativeData, type PostedCommentData, type ReviewCommentData, type ReviewFindingData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
+import type { FindingVerdictData, ReviewCommentData, ReviewFindingData } from "../../shared/types.ts";
+import type { PostedCommentData } from "../../../../plugin-api.ts";
+import { type DiffData, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { diffNumber } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";

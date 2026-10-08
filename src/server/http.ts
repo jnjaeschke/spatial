@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChangeReviewData, DiffData, DirectoryListing, FindingDecisionData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, PatchNarrativeData, PostedCommentData, RecentRepo, RepoInfo, ReviewCommentData, ReviewFindingData, Session, WorkflowInfo } from "../shared/types.ts";
+import type { SelectorQuestionData, SelectorAnswerData, Artifact, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, RecentRepo, RepoInfo, Session, WorkflowInfo } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";

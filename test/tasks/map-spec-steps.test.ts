@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { DiffData, LlmSelection, PatchNarrativeData, ReviewFindingData, SpecReferenceData, SpecStepMapData } from "../../src/shared/types.ts";
+import type { ReviewFindingData, SpecReferenceData, SpecStepMapData } from "../../src/plugins/review/shared/types.ts";
+import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import { mappableSpecs, mapSpecSteps } from "../../src/plugins/review/tasks/map-spec-steps/task.ts";
 

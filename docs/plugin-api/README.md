@@ -58,12 +58,6 @@ Re-exports [BlameEntry](../runtime/tasks/interfaces/BlameEntry.md)
 
 ***
 
-### ChangeReviewData
-
-Re-exports [ChangeReviewData](../shared/types/interfaces/ChangeReviewData.md)
-
-***
-
 ### ChangeStatus
 
 Re-exports [ChangeStatus](../shared/types/type-aliases/ChangeStatus.md)
@@ -154,30 +148,6 @@ Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
 
 ***
 
-### FindingCarryData
-
-Re-exports [FindingCarryData](../shared/types/interfaces/FindingCarryData.md)
-
-***
-
-### FindingDecisionData
-
-Re-exports [FindingDecisionData](../shared/types/interfaces/FindingDecisionData.md)
-
-***
-
-### FindingVerdictData
-
-Re-exports [FindingVerdictData](../shared/types/interfaces/FindingVerdictData.md)
-
-***
-
-### FindingVerdictValue
-
-Re-exports [FindingVerdictValue](../shared/types/type-aliases/FindingVerdictValue.md)
-
-***
-
 ### GeckoSpecRef
 
 Re-exports [GeckoSpecRef](../shared/types/interfaces/GeckoSpecRef.md)
@@ -217,18 +187,6 @@ Re-exports [Hunk](../shared/types/interfaces/Hunk.md)
 ### Id
 
 Re-exports [Id](../shared/types/type-aliases/Id.md)
-
-***
-
-### InterdiffData
-
-Re-exports [InterdiffData](../shared/types/interfaces/InterdiffData.md)
-
-***
-
-### LineRange
-
-Re-exports [LineRange](../shared/types/interfaces/LineRange.md)
 
 ***
 
@@ -295,18 +253,6 @@ Re-exports [ParseResult](../runtime/plugins/type-aliases/ParseResult.md)
 ### PatchNarrativeData
 
 Re-exports [PatchNarrativeData](../shared/types/interfaces/PatchNarrativeData.md)
-
-***
-
-### PhabCommentData
-
-Re-exports [PhabCommentData](../shared/types/interfaces/PhabCommentData.md)
-
-***
-
-### PhabSyncData
-
-Re-exports [PhabSyncData](../shared/types/interfaces/PhabSyncData.md)
 
 ***
 
@@ -409,18 +355,6 @@ Re-exports [requireSession](../server/http/functions/requireSession.md)
 ### ResolvedSpec
 
 Re-exports [ResolvedSpec](../shared/types/interfaces/ResolvedSpec.md)
-
-***
-
-### ReviewCommentData
-
-Re-exports [ReviewCommentData](../shared/types/interfaces/ReviewCommentData.md)
-
-***
-
-### ReviewFindingData
-
-Re-exports [ReviewFindingData](../shared/types/interfaces/ReviewFindingData.md)
 
 ***
 
@@ -544,18 +478,6 @@ Re-exports [SessionView](../runtime/render-ref/interfaces/SessionView.md)
 
 ***
 
-### SpecReferenceData
-
-Re-exports [SpecReferenceData](../shared/types/interfaces/SpecReferenceData.md)
-
-***
-
-### SpecStepMapData
-
-Re-exports [SpecStepMapData](../shared/types/interfaces/SpecStepMapData.md)
-
-***
-
 ### StartInput
 
 Re-exports [StartInput](../runtime/plugins/interfaces/StartInput.md)
@@ -565,18 +487,6 @@ Re-exports [StartInput](../runtime/plugins/interfaces/StartInput.md)
 ### StepCommentCheck
 
 Re-exports [StepCommentCheck](../runtime/tasks/interfaces/StepCommentCheck.md)
-
-***
-
-### StepLink
-
-Re-exports [StepLink](../shared/types/interfaces/StepLink.md)
-
-***
-
-### StepLinkKind
-
-Re-exports [StepLinkKind](../shared/types/type-aliases/StepLinkKind.md)
 
 ***
 
@@ -613,18 +523,6 @@ Re-exports [TaskRecord](../shared/types/interfaces/TaskRecord.md)
 ### TaskStatus
 
 Re-exports [TaskStatus](../shared/types/type-aliases/TaskStatus.md)
-
-***
-
-### UnmappedLines
-
-Re-exports [UnmappedLines](../shared/types/interfaces/UnmappedLines.md)
-
-***
-
-### UnmappedReason
-
-Re-exports [UnmappedReason](../shared/types/type-aliases/UnmappedReason.md)
 
 ***
 

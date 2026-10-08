@@ -1,4 +1,6 @@
-import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, type PhabCommentData, type PhabSyncData, type PostedCommentData, type ReviewCommentData, type ReviewFindingData, sessionView, searchDocs, type Runtime } from "../../../plugin-api.ts";
+import type { PhabCommentData, PhabSyncData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
+import type { PostedCommentData } from "../../../plugin-api.ts";
+import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, sessionView, searchDocs, type Runtime } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { commitRevision, phabRevision } from "../shared/phabricator.ts";
 import { parseUnifiedDiff } from "./diff-parse.ts";

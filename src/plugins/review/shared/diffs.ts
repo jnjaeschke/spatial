@@ -1,4 +1,5 @@
-import type { Artifact, DiffData, Id, InterdiffData, Link, PatchNarrativeData, TaskRecord } from "../../../plugin-api.ts";
+import type { InterdiffData } from "./types.ts";
+import type { Artifact, DiffData, Id, Link, PatchNarrativeData, TaskRecord } from "../../../plugin-api.ts";
 
 /** Diff artifacts in creation order. */
 export function diffsOf(artifacts: Artifact[]): Artifact<DiffData>[] {

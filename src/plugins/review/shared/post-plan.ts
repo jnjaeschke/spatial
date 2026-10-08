@@ -1,4 +1,5 @@
-import type { Artifact, DiffData, Id, ReviewCommentData, ReviewFindingData } from "../../../plugin-api.ts";
+import type { ReviewCommentData, ReviewFindingData } from "./types.ts";
+import type { Artifact, DiffData, Id } from "../../../plugin-api.ts";
 import { numberLines } from "./diff-lines.ts";
 import { commitRevision } from "./phabricator.ts";
 import type { PostableComment } from "./postable-comments.ts";

@@ -40,7 +40,7 @@ Epoch the finding was raised in.
 
 ### finding
 
-> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewFindingData`](../../../../../shared/types/interfaces/ReviewFindingData.md)\>
+> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`ReviewFindingData`\>
 
 ***
 
@@ -86,4 +86,4 @@ Epoch the finding was raised in.
 
 ### verdict
 
-> **verdict**: [`FindingVerdictData`](../../../../../shared/types/interfaces/FindingVerdictData.md) \| `null`
+> **verdict**: `FindingVerdictData` \| `null`

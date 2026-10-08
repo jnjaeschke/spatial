@@ -6,7 +6,7 @@
 
 # Function: phabThread()
 
-> **phabThread**(`artifacts`, `anchorId`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+> **phabThread**(`artifacts`, `anchorId`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]
 
 Root comment followed by its visible replies in transaction order.
 
@@ -22,4 +22,4 @@ Root comment followed by its visible replies in transaction order.
 
 ## Returns
 
-[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]

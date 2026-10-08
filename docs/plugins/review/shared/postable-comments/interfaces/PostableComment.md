@@ -10,13 +10,13 @@
 
 ### comment
 
-> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewCommentData`](../../../../../shared/types/interfaces/ReviewCommentData.md)\>
+> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`ReviewCommentData`\>
 
 ***
 
 ### finding
 
-> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewFindingData`](../../../../../shared/types/interfaces/ReviewFindingData.md)\>
+> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`ReviewFindingData`\>
 
 ***
 

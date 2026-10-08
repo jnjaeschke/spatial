@@ -1,4 +1,5 @@
-import type { Artifact, InterdiffData } from "../../../web/plugin-api.ts";
+import type { InterdiffData } from "../shared/types.ts";
+import type { Artifact } from "../../../web/plugin-api.ts";
 import { numberLines } from "../shared/diff-lines.ts";
 import { DiffRows } from "./FilePanel.tsx";
 

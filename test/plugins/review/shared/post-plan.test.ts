@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { postPlan, postTarget } from "../../../../src/plugins/review/shared/post-plan.ts";
-import type { Artifact, DiffData, ReviewCommentData, ReviewFindingData } from "../../../../src/shared/types.ts";
+import type { ReviewCommentData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
+import type { Artifact, DiffData } from "../../../../src/shared/types.ts";
 import type { PostableComment } from "../../../../src/plugins/review/shared/postable-comments.ts";
 
 const commits = [

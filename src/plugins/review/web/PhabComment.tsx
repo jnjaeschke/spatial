@@ -1,5 +1,6 @@
 import { useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { type Artifact, type DiffFile, type Hunk, type Id, type PhabCommentData, AnswerMarkdown, CollapseContext } from "../../../web/plugin-api.ts";
+import type { PhabCommentData } from "../shared/types.ts";
+import { type Artifact, type DiffFile, type Hunk, type Id, AnswerMarkdown, CollapseContext } from "../../../web/plugin-api.ts";
 import { phabCommentCollapseId } from "./graph.ts";
 import { phabPreview } from "./phab-preview.ts";
 

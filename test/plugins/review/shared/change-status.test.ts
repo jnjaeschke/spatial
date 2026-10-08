@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { changeStatus, hunkStatuses } from "../../../../src/plugins/review/shared/change-status.ts";
-import type { DiffData, Hunk, InterdiffData } from "../../../../src/shared/types.ts";
+import type { InterdiffData } from "../../../../src/plugins/review/shared/types.ts";
+import type { DiffData, Hunk } from "../../../../src/shared/types.ts";
 
 const hunk = (id: string, oldStart: number, oldLines: number, newStart: number, newLines: number): Hunk => ({ id, header: "", oldStart, oldLines, newStart, newLines, lines: [] });
 const diff = (files: DiffData["files"]): DiffData => ({ baseSha: "b", headSha: "h", commits: [], files });

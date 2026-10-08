@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { type ChangeStatus, type DiffData, type InterdiffData, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
+import type { InterdiffData } from "../../shared/types.ts";
+import { type ChangeStatus, type DiffData, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
 import { renderDiffForPrompt, renderHunk } from "./render.ts";
 import { changeStatus, hunkStatuses } from "../../shared/change-status.ts";
 import { validateNarrative } from "./validate.ts";

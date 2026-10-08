@@ -16,7 +16,7 @@
 
 ### general
 
-> **general**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+> **general**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]
 
 ***
 
@@ -32,7 +32,7 @@
 
 #### comments
 
-> **comments**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+> **comments**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]
 
 #### diffId
 

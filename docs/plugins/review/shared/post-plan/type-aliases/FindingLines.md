@@ -6,4 +6,4 @@
 
 # Type Alias: FindingLines
 
-> **FindingLines** = `NonNullable`\<[`ReviewFindingData`](../../../../../shared/types/interfaces/ReviewFindingData.md)\[`"lines"`\]\>
+> **FindingLines** = `NonNullable`\<`ReviewFindingData`\[`"lines"`\]\>

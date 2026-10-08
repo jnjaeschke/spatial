@@ -6,7 +6,7 @@
 
 # Function: latestPhabComments()
 
-> **latestPhabComments**(`artifacts`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+> **latestPhabComments**(`artifacts`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]
 
 Latest artifact of every remote comment (highest version, then newest), not own, ascending `txId`.
 
@@ -18,4 +18,4 @@ Latest artifact of every remote comment (highest version, then newest), not own,
 
 ## Returns
 
-[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]

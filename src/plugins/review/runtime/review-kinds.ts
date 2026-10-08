@@ -1,4 +1,5 @@
-import type { Artifact, DiffData, PatchNarrativeData, PhabCommentData, ReviewFindingData, SpecReferenceData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
+import type { PhabCommentData, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
+import type { Artifact, DiffData, PatchNarrativeData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { findingStates } from "../shared/findings.ts";
 import { latestPhabComments, phabLatest, phabThread } from "../shared/phab-comments.ts";

@@ -1,4 +1,5 @@
-import { type DiffData, type PatchNarrativeData, type ResolvedSpec, type ReviewFindingData, type SpecReferenceData, isGeckoRepo, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
+import type { ReviewFindingData, SpecReferenceData } from "../../shared/types.ts";
+import { type DiffData, type PatchNarrativeData, type ResolvedSpec, isGeckoRepo, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
 import { numberLines } from "../../shared/diff-lines.ts";

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiagramData, DiffData, PatchNarrativeData, ReviewFindingData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
+import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
+import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
 import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData, type ZoomLevel } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";

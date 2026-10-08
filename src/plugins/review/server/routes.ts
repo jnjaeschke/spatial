@@ -7,7 +7,9 @@ import { latestDiff, narrativeOf, sessionRefs } from "../shared/diffs.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
-import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type ChangeReviewData, type DiffData, type FindingDecisionData, type LlmSelection, type PatchNarrativeData, type PostedCommentData, type ReviewCommentData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
+import type { ChangeReviewData, FindingDecisionData, ReviewCommentData } from "../shared/types.ts";
+import type { PostedCommentData } from "../../../plugin-api.ts";
+import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type DiffData, type LlmSelection, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
 const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();

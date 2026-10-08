@@ -22,7 +22,7 @@
 
 ### comments
 
-> **comments**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../../../shared/types/interfaces/PhabCommentData.md)\>[]
+> **comments**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>[]
 
 ***
 

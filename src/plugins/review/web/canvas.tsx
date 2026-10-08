@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo } from "react";
-import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type PhabCommentData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
+import type { PhabCommentData } from "../shared/types.ts";
+import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
 import { LAYERS, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, phabCommentCollapseId, reviewGraph, stackLayout, stepNodeId, type Layer } from "./graph.ts";
 
 /** A diff row to reveal and focus; a new object per request. */
