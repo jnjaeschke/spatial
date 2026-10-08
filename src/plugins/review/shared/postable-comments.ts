@@ -1,4 +1,4 @@
-import type { Artifact, ChatThreadData, Link, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../../../shared/types.ts";
+import type { Artifact, ChatThreadData, Link, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../../../plugin-api.ts";
 import { findingStates } from "./findings.ts";
 
 export interface PostableComment {

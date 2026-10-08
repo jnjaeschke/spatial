@@ -15,6 +15,9 @@ Standard plugins live in `src/plugins/` and are registered in `src/plugins/index
 ## Functions
 
 - [definePlugin](functions/definePlugin.md)
+- [isGeckoRepo](functions/isGeckoRepo.md)
+- [makeGitWriter](functions/makeGitWriter.md)
+- [revisedText](functions/revisedText.md)
 
 ## References
 
@@ -342,6 +345,12 @@ Re-exports [PostedCommentData](../shared/types/interfaces/PostedCommentData.md)
 
 ***
 
+### prependRepoContext
+
+Re-exports [prependRepoContext](../runtime/repo-context/functions/prependRepoContext.md)
+
+***
+
 ### Progress
 
 Re-exports [Progress](../shared/types/type-aliases/Progress.md)
@@ -450,6 +459,12 @@ Re-exports [SearchDoc](../runtime/render-ref/interfaces/SearchDoc.md)
 
 ***
 
+### searchDocs
+
+Re-exports [searchDocs](../runtime/render-ref/functions/searchDocs.md)
+
+***
+
 ### SearchfoxCapability
 
 Re-exports [SearchfoxCapability](../runtime/tasks/interfaces/SearchfoxCapability.md)
@@ -510,6 +525,12 @@ Re-exports [SessionState](../shared/types/interfaces/SessionState.md)
 
 ***
 
+### sessionView
+
+Re-exports [sessionView](../runtime/render-ref/functions/sessionView.md)
+
+***
+
 ### SessionView
 
 Re-exports [SessionView](../runtime/render-ref/interfaces/SessionView.md)
@@ -549,6 +570,12 @@ Re-exports [StepLink](../shared/types/interfaces/StepLink.md)
 ### StepLinkKind
 
 Re-exports [StepLinkKind](../shared/types/type-aliases/StepLinkKind.md)
+
+***
+
+### Store
+
+Re-exports [Store](../runtime/store/classes/Store.md)
 
 ***
 

@@ -1,4 +1,4 @@
-import { defineTask } from "../../../../runtime/tasks.ts";
+import { defineTask } from "../../../../plugin-api.ts";
 import { defaultReviewRange } from "../../workflow/review-range.ts";
 
 export const reviewRange = defineTask<Record<string, never>, { base: string; head: string }>({

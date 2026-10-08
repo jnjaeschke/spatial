@@ -1,10 +1,7 @@
-import type { Id } from "../../../shared/types.ts";
-import type { GitCapability } from "../../../runtime/tasks.ts";
+import { type Id, type GitCapability, type Runtime, makeGitWriter } from "../../../plugin-api.ts";
 import type { PhabRevision } from "../shared/phabricator.ts";
-import type { Runtime } from "../../../runtime/tasks.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
 import { fetchStack, readOnly, StackShapeError, type StackEntry, type Conduit } from "./phab-revision.ts";
-import { makeGitWriter } from "../../../runtime/git.ts";
 
 const IDENTITY = { name: "Spatial Review", email: "spatial-review@localhost" };
 

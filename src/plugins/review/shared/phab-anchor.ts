@@ -1,4 +1,4 @@
-import type { Artifact, DiffData, Id, PatchNarrativeData, PhabCommentData, PhabSyncData } from "../../../shared/types.ts";
+import type { Artifact, DiffData, Id, PatchNarrativeData, PhabCommentData, PhabSyncData } from "../../../plugin-api.ts";
 import { numberLines } from "./diff-lines.ts";
 import { diffNumber } from "./diffs.ts";
 import { latestPhabComments, phabAnchorId } from "./phab-comments.ts";

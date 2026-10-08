@@ -1,4 +1,4 @@
-import type { ChangeStatus, DiffData, Hunk, InterdiffData } from "../../../shared/types.ts";
+import type { ChangeStatus, DiffData, Hunk, InterdiffData } from "../../../plugin-api.ts";
 
 const overlaps = (aStart: number, aLength: number, bStart: number, bLength: number): boolean =>
   aStart < bStart + Math.max(bLength, 1) && bStart < aStart + Math.max(aLength, 1);

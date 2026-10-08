@@ -1,4 +1,4 @@
-import type { Hunk } from "../../../../shared/types.ts";
+import type { Hunk } from "../../../../plugin-api.ts";
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>()\[\]]+#[^\s"'<>()\[\]]+/g;
 

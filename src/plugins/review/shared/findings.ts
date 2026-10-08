@@ -1,5 +1,5 @@
 import { diffNumber, narrativeOf } from "./diffs.ts";
-import type { Artifact, ChatThreadData, FindingCarryData, FindingDecisionData, FindingVerdictData, Id, Link, PatchNarrativeData, Ref, ReviewFindingData } from "../../../shared/types.ts";
+import type { Artifact, ChatThreadData, FindingCarryData, FindingDecisionData, FindingVerdictData, Id, Link, PatchNarrativeData, Ref, ReviewFindingData } from "../../../plugin-api.ts";
 
 export type FindingStatus = "open" | "accepted" | "dismissed" | "addressed" | "partially" | "not_addressed";
 export interface FindingState {

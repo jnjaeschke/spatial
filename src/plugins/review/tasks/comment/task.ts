@@ -1,7 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { Artifact, ChatMessageData, LlmSelection, ReviewCommentData, ReviewFindingData } from "../../../../shared/types.ts";
-import { defineTask } from "../../../../runtime/tasks.ts";
-import { revisedText } from "../../../../shared/revisions.ts";
+import { type Artifact, type ChatMessageData, type LlmSelection, type ReviewCommentData, type ReviewFindingData, defineTask, revisedText } from "../../../../plugin-api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;

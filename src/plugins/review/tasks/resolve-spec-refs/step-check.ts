@@ -1,7 +1,6 @@
 import { basename } from "node:path";
 import type { SpecStep } from "../../shared/spec-text.ts";
-import type { ReviewFindingData, StepLink } from "../../../../shared/types.ts";
-import type { StepCommentCheck, WebspecCapability } from "../../../../runtime/tasks.ts";
+import type { ReviewFindingData, StepLink, StepCommentCheck, WebspecCapability } from "../../../../plugin-api.ts";
 
 const STOP_WORDS = new Set(["the", "and", "then", "this", "that", "with", "for", "from", "its", "are", "was", "has", "have", "into", "than", "which", "otherwise"]);
 const words = (text: string) => new Set(text.toLowerCase().split(/[^a-z]+/).filter((word) => word.length >= 3 && !STOP_WORDS.has(word)));

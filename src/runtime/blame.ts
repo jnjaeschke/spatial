@@ -1,4 +1,4 @@
-import type { BlameEntry } from "../../../runtime/tasks.ts";
+import type { BlameEntry } from "./tasks.ts";
 
 /** Parses `git blame --porcelain`; `fallbackPath` is used when porcelain omits a filename. */
 export function parseBlame(porcelain: string, fallbackPath = ""): BlameEntry[] {

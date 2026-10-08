@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import type { Commit, Session, WorkflowId } from "../shared/types.ts";
 import type { Store } from "./store.ts";
 import type { GitCapability } from "./tasks.ts";
-import { parseBlame } from "../plugins/review/runtime/blame.ts";
+import { parseBlame } from "./blame.ts";
 
 const run = promisify(execFile);
 const MAX_BUFFER = 512 * 1024 * 1024;

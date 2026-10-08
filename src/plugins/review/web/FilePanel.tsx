@@ -1,12 +1,8 @@
 import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Artifact, DiffData } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, loadFileLines, RowPainter, rowSegments, type HunkRow, FileViewContext } from "../../../web/plugin-api.ts";
 import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
-import { loadFileLines } from "../../../web/plugin-api.ts";
 import { StackContext } from "./stack-context.ts";
-import { RowPainter, rowSegments } from "../../../web/plugin-api.ts";
 import { commitColors, commitLabel } from "./commit-colors.ts";
-import type { HunkRow } from "../../../web/plugin-api.ts";
-import { FileViewContext } from "../../../web/plugin-api.ts";
 export { FileViewContext } from "../../../web/plugin-api.ts";
 
 export interface OpenFile {

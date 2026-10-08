@@ -1,8 +1,6 @@
 import { useCallback, useState } from "react";
-import type { Artifact, DiffData } from "../../../web/plugin-api.ts";
-import { latestNarrative } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, latestNarrative, Canvas, type HunkRow, FileViewContext, TopbarExtras, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
-import { Canvas, type HunkRow, FileViewContext, TopbarExtras, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
 import { FilePanel, type OpenFile } from "./FilePanel.tsx";
 import { RevisionView } from "./RevisionView.tsx";

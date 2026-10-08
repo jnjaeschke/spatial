@@ -1,8 +1,5 @@
 import { useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import type { Artifact, DiffFile, Hunk, Id, PhabCommentData } from "../../../web/plugin-api.ts";
-import { AnswerMarkdown } from "../../../web/plugin-api.ts";
-import { CollapseContext } from "../../../web/plugin-api.ts";
-import { phabCommentCollapseId } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffFile, type Hunk, type Id, type PhabCommentData, AnswerMarkdown, CollapseContext, phabCommentCollapseId } from "../../../web/plugin-api.ts";
 import { phabPreview } from "./phab-preview.ts";
 
 /** Rendered body that is clamped to a few lines, with a toggle, when it does not fit. */

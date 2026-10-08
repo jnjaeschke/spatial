@@ -1,7 +1,5 @@
-import type { DiffData } from "../../../../shared/types.ts";
+import { type DiffData, defineTask, isGeckoRepo } from "../../../../plugin-api.ts";
 import { parseUnifiedDiff } from "../../runtime/diff-parse.ts";
-import { defineTask } from "../../../../runtime/tasks.ts";
-import { isGeckoRepo } from "../../../../runtime/searchfox.ts";
 import { attribute, splitByCommit } from "../../runtime/attribution.ts";
 import { findRewrites } from "../../runtime/rewrites.ts";
 

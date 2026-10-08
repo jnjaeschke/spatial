@@ -1,8 +1,5 @@
 import { z } from "zod";
-import { definePlugin, type Workflow } from "../../plugin-api.ts";
-import type { Phase, Runtime } from "../../runtime/tasks.ts";
-import type { Id, LlmSelection } from "../../shared/types.ts";
-import type { SessionView } from "../../runtime/render-ref.ts";
+import { definePlugin, type Workflow, type Phase, type Runtime, type Id, type LlmSelection, type SessionView } from "../../plugin-api.ts";
 
 const params = z.strictObject({});
 interface ChatPhaseInput { anchor: Id; text: string; llm: LlmSelection }

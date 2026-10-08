@@ -1,10 +1,8 @@
 import { createContext, useEffect, useMemo, useRef, useState } from "react";
-import type { Artifact, DiffFile, Hunk, Id, LineRange, LlmSelection, SessionState, SpecReferenceData, StepLink } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffFile, type Hunk, type Id, type LineRange, type LlmSelection, type SessionState, type SpecReferenceData, type StepLink, latestNarrative, api } from "../../../web/plugin-api.ts";
 import { numberLines, type Row } from "../shared/diff-lines.ts";
 import { parseSteps } from "../shared/spec-text.ts";
 import { DiffRows } from "./FilePanel.tsx";
-import { latestNarrative } from "../../../web/plugin-api.ts";
-import { api } from "../../../web/plugin-api.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 
 /** Opens the spec view for a SpecReference; null where there is none (static export). */

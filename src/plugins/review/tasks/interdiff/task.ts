@@ -1,6 +1,5 @@
-import type { DiffData, InterdiffData } from "../../../../shared/types.ts";
+import { type DiffData, type InterdiffData, defineTask } from "../../../../plugin-api.ts";
 import { computeInterdiff } from "../../runtime/interdiff.ts";
-import { defineTask } from "../../../../runtime/tasks.ts";
 
 export const interdiff = defineTask<{ fromDiffId: string; toDiffId: string }, { interdiffId: string }>({
   kind: "interdiff",

@@ -1,5 +1,4 @@
-import type { Commit, DiffFile, DiffLine, Hunk } from "../../../shared/types.ts";
-import type { GitCapability } from "../../../runtime/tasks.ts";
+import type { Commit, DiffFile, DiffLine, Hunk, GitCapability } from "../../../plugin-api.ts";
 
 /** For stacks: splits every squashed hunk where the owning commit of its changed lines changes, so each hunk holds changed lines of one commit, then renumbers hunk ids per file (`f<file>h<n>`). Line order and numbering are kept, so the whole-file rows (`fileRows`) are unchanged. Context lines stay with the run before them; leading context stays with the first run; unattributed changed lines join the current run. A hunk with one run is kept as is. No-op for single-commit diffs. */
 export function splitByCommit(files: DiffFile[], commitCount: number): void {

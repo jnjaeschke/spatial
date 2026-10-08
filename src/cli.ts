@@ -4,12 +4,11 @@ import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import type { LlmBackendId, PatchNarrativeData, WorkflowStartData } from "./shared/types.ts";
+import type { Artifact, LlmBackendId, PatchNarrativeData, WorkflowStartData } from "./shared/types.ts";
 import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
 import { createSession, resolveRepo } from "./runtime/git.ts";
 import { parseCommand } from "./workflows/registry.ts";
 import { runWorkflow } from "./workflows/start.ts";
-import { latestDiff, narrativeOf } from "./plugins/review/shared/diffs.ts";
 import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl, staleServerMessage, stopServer } from "./cli/launch.ts";
 
 const USAGE = `usage:
@@ -124,14 +123,9 @@ try {
       data: { via: "command", workflow: "review", params: parsed.params, title, prompt: target },
     });
     await runWorkflow(rt, session.id, start.id, llm);
-    const diff = latestDiff(rt.store.listArtifacts(session.id));
-    if (!diff) throw new Error("Review completed without an imported diff");
-    const narrativeArtifact = narrativeOf(rt.store.listArtifacts(session.id), diff.id);
-    if (!narrativeArtifact) throw new Error("Review completed without analysis");
-    const diffId = diff.id;
-    const narrativeId = narrativeArtifact.id;
-    const narrative = rt.store.getArtifact<PatchNarrativeData>(narrativeId).data;
-    console.log(JSON.stringify({ sessionId: session.id, diffId, narrativeId, narrative }, null, 2));
+    const narrative = rt.store.listArtifacts(session.id, "PatchNarrative").at(-1) as Artifact<PatchNarrativeData> | undefined;
+    if (!narrative) throw new Error("Review completed without analysis");
+    console.log(JSON.stringify({ sessionId: session.id, diffId: narrative.data.diffId, narrativeId: narrative.id, narrative: narrative.data }, null, 2));
   } else {
     fail(USAGE);
   }

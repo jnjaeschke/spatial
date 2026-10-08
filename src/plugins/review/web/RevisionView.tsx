@@ -1,8 +1,6 @@
 import { useState } from "react";
-import type { Artifact, DiffData, DiffFile } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, type DiffFile, AskContext, type ModelsResponse, type SessionState } from "../../../web/plugin-api.ts";
 import { DiffView } from "./DiffView.tsx";
-import { AskContext } from "../../../web/plugin-api.ts";
-import type { ModelsResponse, SessionState } from "../../../web/plugin-api.ts";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
 
 /** Diff lines up to which every file starts open; larger diffs (a wrong range can hold thousands of files) mount a file's hunks only when it is opened. */

@@ -1,4 +1,4 @@
-import type { DiagramData, DiffData, SequenceLane, SequenceStep } from "../../../shared/types.ts";
+import type { DiagramData, DiffData, SequenceLane, SequenceStep } from "../../../plugin-api.ts";
 
 export type SequenceStepProposal = Omit<SequenceStep, "verified" | "text">;
 export type SequenceProposal = { commit: number; title: string; summary: string; lanes: SequenceLane[]; steps: SequenceStepProposal[]; before: SequenceStepProposal[] | null };

@@ -1,15 +1,10 @@
-import type { Artifact, DiffData, NotifyPayload } from "../shared/types.ts";
+import type { NotifyPayload } from "../shared/types.ts";
 
 export const DESKTOP_KEY = "spatial.desktopNotifications";
 
 /** Desktop notifications require opt-in, browser permission, and a hidden tab. */
 export function shouldDesktopNotify(i: { hidden: boolean; enabled: boolean; permission: NotificationPermission | "unsupported" }): boolean {
   return i.hidden && i.enabled && i.permission === "granted";
-}
-
-/** A revision notice is stale once its head is the latest imported Diff. */
-export function isStaleNotice(n: NotifyPayload, latest: Artifact<DiffData> | null): boolean {
-  return latest !== null && n.id === `revision:${latest.data.headSha}`;
 }
 
 export function desktopEnabled(): boolean {

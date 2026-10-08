@@ -1,5 +1,4 @@
-import type { GitCapability } from "../../../runtime/tasks.ts";
-import { makeGitWriter } from "../../../runtime/git.ts";
+import { type GitCapability, makeGitWriter } from "../../../plugin-api.ts";
 
 const IDENTITY = { name: "Spatial Review", email: "spatial-review@localhost" };
 

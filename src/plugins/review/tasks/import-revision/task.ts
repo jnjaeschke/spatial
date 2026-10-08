@@ -1,6 +1,6 @@
 import { importRevisionInto } from "../../runtime/import-revision.ts";
 import { resolveRevisionHost } from "../../runtime/revision-host.ts";
-import { defineTask } from "../../../../runtime/tasks.ts";
+import { defineTask } from "../../../../plugin-api.ts";
 
 export const importRevision = defineTask<{ host: string | null; id: number }, { base: string; head: string }>({
   kind: "importRevision",

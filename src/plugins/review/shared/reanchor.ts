@@ -1,5 +1,5 @@
 import { numberLines } from "./diff-lines.ts";
-import type { ChatThreadData, DiffData, Hunk } from "../../../shared/types.ts";
+import type { ChatThreadData, DiffData, Hunk } from "../../../plugin-api.ts";
 
 type Lines = NonNullable<ChatThreadData["lines"]>;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

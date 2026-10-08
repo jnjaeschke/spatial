@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
 const SKIP_WEB = true;
+/** The registries list the plugins; only they import plugin manifests. */
+const REGISTRIES = new Set(["src/plugins/index", "src/plugins/web"]);
 const COMPOSITION_ROOTS = new Set(["src/runtime/create.ts", "src/server/main.ts", "src/mcp/session-server.ts", "src/cli.ts", "src/web/App.tsx", "src/web/SessionView.tsx", "src/web/ExportView.tsx", "src/web/main.tsx"]);
 
 export function resolveImport(file: string, specifier: string): string {
@@ -21,7 +23,8 @@ export function checkPluginBoundary(files: Map<string, string>): string[] {
       const target = resolveImport(file, specifier).replace(/\.(?:tsx?|jsx?)$/, "");
       const importerPlugin = file.match(/^src\/plugins\/([^/]+)\//)?.[1];
       const targetPlugin = target.match(/^src\/plugins\/([^/]+)(?:\/|$)/)?.[1];
-      if (!importerPlugin && targetPlugin && !(COMPOSITION_ROOTS.has(file) && ["src/plugins/index", "src/plugins/web"].includes(target))) errors.push(`${file} → ${specifier}`);
+      if (REGISTRIES.has(file.replace(/\.ts$/, ""))) continue;
+      if (!importerPlugin && targetPlugin && !(COMPOSITION_ROOTS.has(file) && REGISTRIES.has(target))) errors.push(`${file} → ${specifier}`);
       if (importerPlugin && targetPlugin !== importerPlugin && !["src/plugin-api", "src/web/plugin-api"].includes(target)) errors.push(`${file} → ${specifier}`);
     }
   }

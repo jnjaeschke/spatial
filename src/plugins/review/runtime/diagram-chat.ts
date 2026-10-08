@@ -1,7 +1,6 @@
-import type { DiagramData, DiffData } from "../../../shared/types.ts";
+import type { DiagramData, DiffData, ChatReplyField } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { verifySequence, type SequenceProposal, type SequenceStepProposal } from "./diagram-verify.ts";
-import type { ChatReplyField } from "../../../runtime/plugins.ts";
 
 const sequenceStatuses = new Set(["new", "changed", "existing", "removed"]);
 function isDiagram(value: unknown): value is SequenceProposal {

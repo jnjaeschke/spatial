@@ -1,7 +1,6 @@
-import type { Artifact, DiffFile, Id, PhabCommentData } from "../../../shared/types.ts";
+import { type Artifact, type DiffFile, type Id, type PhabCommentData, Store } from "../../../plugin-api.ts";
 import { numberLines } from "../shared/diff-lines.ts";
 import { ConduitClient } from "./conduit.ts";
-import { Store } from "../../../runtime/store.ts";
 import { latestByPhid } from "../shared/phab-comments.ts";
 
 export interface RemoteComment {

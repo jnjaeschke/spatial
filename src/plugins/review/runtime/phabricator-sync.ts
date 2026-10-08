@@ -1,4 +1,4 @@
-import type { Artifact, DiffData, DiffFile, Id, NotifyPayload, PhabCommentData, PhabSyncData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../../../shared/types.ts";
+import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, type PhabCommentData, type PhabSyncData, type PostedCommentData, type ReviewCommentData, type ReviewFindingData, sessionView, searchDocs, type Runtime } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { commitRevision, phabRevision } from "../shared/phabricator.ts";
 import { parseUnifiedDiff } from "./diff-parse.ts";
@@ -6,8 +6,6 @@ import { latestPhabSync } from "../shared/phab-anchor.ts";
 import { checkDrift } from "./drift.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
 import { fetchTransactions, quoteLine, storeRemoteComments } from "./phab-transactions.ts";
-import { sessionView, searchDocs } from "../../../runtime/render-ref.ts";
-import type { Runtime } from "../../../runtime/tasks.ts";
 import type { RevisionWatcher } from "./revision-watcher.ts";
 
 type DiffInfo = { id: number; phid: string };

@@ -1,9 +1,7 @@
-import type { DiffData, PatchNarrativeData, ResolvedSpec, ReviewFindingData, SpecReferenceData } from "../../../../shared/types.ts";
+import { type DiffData, type PatchNarrativeData, type ResolvedSpec, type ReviewFindingData, type SpecReferenceData, isGeckoRepo, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
-import { isGeckoRepo } from "../../../../runtime/searchfox.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
-import { defineTask, type StepCommentCheck } from "../../../../runtime/tasks.ts";
 import { specUrlsNear } from "./cited.ts";
 import { checkStepComment, stepComments } from "./step-check.ts";
 

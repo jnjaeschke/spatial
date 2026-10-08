@@ -1,4 +1,4 @@
-import type { DiffFile, Hunk } from "../../../shared/types.ts";
+import type { DiffFile, Hunk } from "../../../plugin-api.ts";
 
 const HUNK_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 

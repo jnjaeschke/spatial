@@ -1,9 +1,7 @@
-import type { Artifact, DiffData, PatchNarrativeData, PhabCommentData, ReviewFindingData, SpecReferenceData } from "../../../shared/types.ts";
+import type { Artifact, DiffData, PatchNarrativeData, PhabCommentData, ReviewFindingData, SpecReferenceData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { findingStates } from "../shared/findings.ts";
 import { latestPhabComments, phabLatest, phabThread } from "../shared/phab-comments.ts";
-import type { ArtifactKind } from "../../../runtime/plugins.ts";
-import type { SessionView } from "../../../runtime/render-ref.ts";
 
 const linkedSpecs = (view: SessionView, narrativeId: string, changeId: string) => view.artifacts.filter((item) => item.type === "SpecReference" && view.links.some((link) => link.from === item.id && link.to === narrativeId + "#" + changeId && link.kind === "supports"));
 

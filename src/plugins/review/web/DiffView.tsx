@@ -1,11 +1,7 @@
 import { useContext, useState } from "react";
-import type { DiffFile, Hunk } from "../../../web/plugin-api.ts";
+import { type DiffFile, type Hunk, loadFileLines, AskContext, fileUrl, linkTitle, SearchfoxContext, type HostedThread } from "../../../web/plugin-api.ts";
 import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
-import { loadFileLines } from "../../../web/plugin-api.ts";
 import { DiffRows, FileViewContext } from "./FilePanel.tsx";
-import { AskContext } from "../../../web/plugin-api.ts";
-import { fileUrl, linkTitle, SearchfoxContext } from "../../../web/plugin-api.ts";
-import type { HostedThread } from "../../../web/plugin-api.ts";
 import type { ReactNode } from "react";
 
 const STEP = 20;

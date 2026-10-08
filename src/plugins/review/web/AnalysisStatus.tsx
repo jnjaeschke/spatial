@@ -1,7 +1,6 @@
 import { useState } from "react";
-import type { ModelsResponse, SessionState } from "../../../web/plugin-api.ts";
+import { type ModelsResponse, type SessionState, api } from "../../../web/plugin-api.ts";
 import { analysisStatus, retryBody } from "./analysis.ts";
-import { api } from "../../../web/plugin-api.ts";
 
 export function AnalysisStatus({ state, models }: { state: SessionState; models: ModelsResponse }) {
   const status = analysisStatus(state);

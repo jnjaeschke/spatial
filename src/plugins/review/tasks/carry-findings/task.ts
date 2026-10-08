@@ -1,8 +1,7 @@
 import { diffsOf, diffNumber, narrativeOf } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { reanchorFinding } from "../../shared/reanchor.ts";
-import type { DiffData, FindingCarryData, Hunk, PatchNarrativeData } from "../../../../shared/types.ts";
-import { defineTask } from "../../../../runtime/tasks.ts";
+import { type DiffData, type FindingCarryData, type Hunk, type PatchNarrativeData, defineTask } from "../../../../plugin-api.ts";
 
 export const carryFindings = defineTask<{ narrativeId: string }, { carried: number; outdated: number }>({
   kind: "carryFindings",

@@ -1,6 +1,4 @@
-import { definePlugin } from "../../plugin-api.ts";
-import type { Runtime } from "../../runtime/tasks.ts";
-import type { Id } from "../../shared/types.ts";
+import { definePlugin, type Runtime, type Id, type SessionView } from "../../plugin-api.ts";
 import { reviewPhase, reviewWorkflow } from "./workflow/review.ts";
 import { artifactKinds, searchKinds } from "./runtime/review-kinds.ts";
 import { importDiff } from "./tasks/import-diff/task.ts";
@@ -17,7 +15,7 @@ import { diagramField } from "./runtime/diagram-chat.ts";
 import { RevisionWatcher } from "./runtime/revision-watcher.ts";
 import { PhabricatorSyncer } from "./runtime/phabricator-sync.ts";
 
-function chatContext(view: import("../../runtime/render-ref.ts").SessionView): string | null {
+function chatContext(view: SessionView): string | null {
   const diff = [...view.artifacts].reverse().find((a) => a.type === "Diff");
   if (!diff) return null;
   const data = diff.data as { commits: { sha: string; subject: string }[] };

@@ -1,5 +1,4 @@
-import type { Id, LlmSelection } from "../../../shared/types.ts";
-import type { Runtime } from "../../../runtime/tasks.ts";
+import type { Id, LlmSelection, Runtime } from "../../../plugin-api.ts";
 import { diffsOf, diffNumber, interdiffOf, narrativeOf } from "../shared/diffs.ts";
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 

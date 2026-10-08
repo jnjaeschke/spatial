@@ -1,4 +1,4 @@
-import type { Commit, DiffData } from "../../../shared/types.ts";
+import type { Commit, DiffData } from "../../../plugin-api.ts";
 
 export interface PhabRevision { host: string; id: number }
 

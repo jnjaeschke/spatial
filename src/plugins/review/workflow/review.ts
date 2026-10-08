@@ -1,8 +1,5 @@
 import { z } from "zod";
-import type { Id, LlmSelection, Epoch } from "../../../shared/types.ts";
-import type { Runtime, Phase } from "../../../runtime/tasks.ts";
-import type { Workflow } from "../../../plugin-api.ts";
-import type { SessionView } from "../../../runtime/render-ref.ts";
+import type { Id, LlmSelection, Epoch, Runtime, Phase, Workflow, SessionView } from "../../../plugin-api.ts";
 import { parseRevisionRef } from "../shared/phabricator.ts";
 import { diffsOf, interdiffOf, narrativeOf } from "../shared/diffs.ts";
 import { narrateDiff } from "./narrate-patch.ts";

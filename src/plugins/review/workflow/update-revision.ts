@@ -1,6 +1,5 @@
-import type { Id, LlmSelection } from "../../../shared/types.ts";
+import type { Id, LlmSelection, Runtime } from "../../../plugin-api.ts";
 import { latestDiff, sessionRefs } from "../shared/diffs.ts";
-import type { Runtime } from "../../../runtime/tasks.ts";
 
 /** Starts an update review phase for the session's current refs. */
 export async function updateRevision(rt: Runtime, sessionId: Id, llm?: LlmSelection): Promise<void> {

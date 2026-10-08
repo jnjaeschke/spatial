@@ -1,6 +1,5 @@
 import { latestDiff, sessionRefs } from "../shared/diffs.ts";
-import type { Id, NotifyPayload } from "../../../shared/types.ts";
-import type { Runtime } from "../../../runtime/tasks.ts";
+import type { Id, NotifyPayload, Runtime } from "../../../plugin-api.ts";
 
 /** Announces new head SHAs of the refs a session imported. Polls only sessions with a live subscriber; never imports. */
 export class RevisionWatcher {

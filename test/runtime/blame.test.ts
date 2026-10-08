@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBlame } from "../../../../src/plugins/review/runtime/blame.ts";
+import { parseBlame } from "../../src/runtime/blame.ts";
 
 const a = "a".repeat(40), b = "b".repeat(40), base = "0".repeat(40);
 test("parses blame porcelain metadata once per sha and both header forms", () => {

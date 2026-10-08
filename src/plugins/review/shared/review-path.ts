@@ -1,4 +1,4 @@
-import type { Artifact, ChangeReviewData, DiffData, Hunk, Id, SemanticChange } from "../../../shared/types.ts";
+import type { Artifact, ChangeReviewData, DiffData, Hunk, Id, SemanticChange } from "../../../plugin-api.ts";
 
 /** Commit (index into `diff.commits`) that owns a hunk: the commit of its first attributed changed line. A hunk without attributed lines belongs to the last commit, as unattributed new-side lines do when posting (`postTarget`). 0 for single-commit diffs. */
 export function hunkCommit(diff: DiffData, hunk: Hunk): number {
