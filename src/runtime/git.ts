@@ -105,6 +105,12 @@ export interface GitWriter {
   currentBranch(): Promise<string | null>;
   /** Number of paths with staged, unstaged or untracked (non-ignored) changes. */
   changedFiles(): Promise<number>;
+  /** Paths with staged, unstaged or untracked changes (renames report the new path). */
+  changedPaths(): Promise<string[]>;
+  /** Stages everything and commits it with `message`; returns the new commit's sha. */
+  commitAll(message: string): Promise<string>;
+  /** Stages everything, commits it as `--fixup=<target>` and autosquashes `base..HEAD`; aborts the rebase and rejects on a conflict. */
+  fixup(target: string, base: string): Promise<string>;
   /** `git fetch <remote>`; rejects with git's message. */
   fetch(remote: string): Promise<void>;
   /** The commit new work starts from. With an `origin` remote: fetches it and resolves the target of `origin/HEAD`, or of `git ls-remote --symref origin HEAD` when that is unset. Without: the local `main`, else `master`. Rejects when none exists. */
@@ -128,6 +134,31 @@ export function makeGitWriter(repo: string): GitWriter {
     },
     async changedFiles() {
       return (await git(repo, ["--no-optional-locks", "status", "--porcelain", "--untracked-files=normal"])).split("\n").filter(Boolean).length;
+    },
+    async changedPaths() {
+      const entries = (await git(repo, ["--no-optional-locks", "status", "--porcelain=v1", "-z", "--untracked-files=all"])).split("\0").filter(Boolean);
+      const paths: string[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]!;
+        paths.push(entry.slice(3));
+        if (entry[0] === "R" || entry[0] === "C") i++;
+      }
+      return paths;
+    },
+    async commitAll(message) {
+      await git(repo, ["add", "-A"]);
+      await git(repo, ["commit", "-q", "-m", message]);
+      return (await git(repo, ["rev-parse", "HEAD"])).trim();
+    },
+    async fixup(target, base) {
+      await git(repo, ["add", "-A"]);
+      await git(repo, ["commit", "-q", `--fixup=${target}`]);
+      try { await git(repo, ["rebase", "-i", "--autosquash", base], { GIT_SEQUENCE_EDITOR: "true" }); }
+      catch (e) {
+        await git(repo, ["rebase", "--abort"]).catch(() => undefined);
+        throw new Error(`Autosquash failed: ${((e as { stderr?: string }).stderr || (e as Error).message).trim()}`);
+      }
+      return (await git(repo, ["rev-parse", "HEAD"])).trim();
     },
     async fetch(remote) {
       try { await git(repo, ["fetch", "--quiet", remote]); }

@@ -54,6 +54,8 @@ export * from "./shared/types.ts";
 export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
 export { makeGitWriter, makeGit } from "./runtime/git.ts";
+/** Runs a process, optionally streaming stdout lines. */
+export { runProcess } from "./runtime/process.ts";
 export { prependRepoContext } from "./runtime/repo-context.ts";
 export { isGeckoRepo } from "./runtime/searchfox.ts";
 export { revisedText } from "./shared/revisions.ts";

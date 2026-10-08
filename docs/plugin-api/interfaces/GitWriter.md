@@ -38,6 +38,36 @@ Number of paths with staged, unstaged or untracked (non-ignored) changes.
 
 ***
 
+### changedPaths()
+
+> **changedPaths**(): `Promise`\<`string`[]\>
+
+Paths with staged, unstaged or untracked changes (renames report the new path).
+
+#### Returns
+
+`Promise`\<`string`[]\>
+
+***
+
+### commitAll()
+
+> **commitAll**(`message`): `Promise`\<`string`\>
+
+Stages everything and commits it with `message`; returns the new commit's sha.
+
+#### Parameters
+
+##### message
+
+`string`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
 ### commitPatch()
 
 > **commitPatch**(`parent`, `rawDiff`, `message`, `identity`): `Promise`\<`string`\>
@@ -129,6 +159,28 @@ The commit new work starts from. With an `origin` remote: fetches it and resolve
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### fixup()
+
+> **fixup**(`target`, `base`): `Promise`\<`string`\>
+
+Stages everything, commits it as `--fixup=<target>` and autosquashes `base..HEAD`; aborts the rebase and rejects on a conflict.
+
+#### Parameters
+
+##### target
+
+`string`
+
+##### base
+
+`string`
+
+#### Returns
+
+`Promise`\<`string`\>
 
 ***
 

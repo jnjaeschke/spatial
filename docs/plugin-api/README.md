@@ -58,6 +58,7 @@ composition roots.
 - [makeGit](functions/makeGit.md)
 - [makeGitWriter](functions/makeGitWriter.md)
 - [revisedText](functions/revisedText.md)
+- [runProcess](functions/runProcess.md)
 
 ## References
 

@@ -78,3 +78,42 @@ test("fetch reports git's failure", async () => {
   repo.commit({ "a.txt": "1\n" }, "base");
   await assert.rejects(makeGitWriter(repo.dir).fetch("origin"), /git fetch origin failed/);
 });
+
+function configured() {
+  const repo = makeRepo();
+  repo.git("config", "user.name", "T");
+  repo.git("config", "user.email", "t@t");
+  repo.git("config", "commit.gpgsign", "false");
+  return repo;
+}
+
+test("changedPaths lists staged, unstaged and untracked paths, renames by their new path", async () => {
+  const repo = configured();
+  repo.commit({ "a.txt": "1\n", "b.txt": "2\n" }, "base");
+  writeFileSync(join(repo.dir, "a.txt"), "changed\n");
+  writeFileSync(join(repo.dir, "new.txt"), "n\n");
+  repo.git("mv", "b.txt", "c.txt");
+  assert.deepEqual((await makeGitWriter(repo.dir).changedPaths()).sort(), ["a.txt", "c.txt", "new.txt"]);
+});
+
+test("commitAll commits every change and returns the sha", async () => {
+  const repo = configured();
+  repo.commit({ "a.txt": "1\n" }, "base");
+  writeFileSync(join(repo.dir, "b.txt"), "b\n");
+  const sha = await makeGitWriter(repo.dir).commitAll("Add b\n\nbody");
+  assert.equal(sha, repo.git("rev-parse", "HEAD"));
+  assert.equal(repo.git("log", "-1", "--format=%s"), "Add b");
+  assert.equal(repo.git("status", "--porcelain"), "");
+});
+
+test("fixup squashes the change into the target commit and keeps the stack length", async () => {
+  const repo = configured();
+  const base = repo.commit({ "a.txt": "1\n" }, "base");
+  const first = repo.commit({ "b.txt": "b\n" }, "First");
+  repo.commit({ "c.txt": "c\n" }, "Second");
+  writeFileSync(join(repo.dir, "b.txt"), "b2\n");
+  const tip = await makeGitWriter(repo.dir).fixup(first, base);
+  assert.equal(tip, repo.git("rev-parse", "HEAD"));
+  assert.deepEqual(repo.git("log", "--format=%s", `${base}..HEAD`).split("\n"), ["Second", "First"]);
+  assert.equal(repo.git("show", "HEAD~1:b.txt"), "b2");
+});
