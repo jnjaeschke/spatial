@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { CommitNodeData, ZoomLevel } from "../graph.ts";
-import { commitColors } from "../commit-colors.ts";
+import { commitColors } from "../../plugins/review/web/commit-colors.ts";
 import { InlineText } from "../InlineText.tsx";
 import { AskContext, ChatActionsContext } from "../chat-context.ts";
 import { api } from "../api.ts";

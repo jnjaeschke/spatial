@@ -5,9 +5,9 @@ import { InlineText } from "../InlineText.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
-import { PhabComment } from "../PhabComment.tsx";
+import { PhabComment } from "../../plugins/review/web/PhabComment.tsx";
 import { ReopenClosed } from "../ReopenClosed.tsx";
-import { commitColors, commitLabel } from "../commit-colors.ts";
+import { commitColors, commitLabel } from "../../plugins/review/web/commit-colors.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
 

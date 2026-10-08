@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import type { DiffFile, Hunk } from "../shared/types.ts";
-import { FileViewContext } from "./FilePanel.tsx";
+import { FileViewContext } from "./plugin-api.ts";
 import { findInHunks } from "./inline-code.ts";
 import { SearchfoxContext, searchUrl } from "./searchfox-url.ts";
 

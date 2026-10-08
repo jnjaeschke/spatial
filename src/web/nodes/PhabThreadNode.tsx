@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { PhabNodeData, ZoomLevel } from "../graph.ts";
-import { PhabComment } from "../PhabComment.tsx";
+import { PhabComment } from "../../plugins/review/web/PhabComment.tsx";
 import { Conversation } from "./ChatNode.tsx";
 import { CollapseContext } from "../collapse.ts";
 

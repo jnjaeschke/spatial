@@ -9,7 +9,7 @@ import { makeGit } from "../../../../src/runtime/git.ts";
 import { importDiff } from "../../../../src/plugins/review/tasks/import-diff/task.ts";
 import { reviewRange } from "../../../../src/plugins/review/tasks/review-range/task.ts";
 import { MAX_DEFAULT_COMMITS, defaultReviewRange } from "../../../../src/plugins/review/workflow/review-range.ts";
-import { analysisStatus } from "../../../../src/web/analysis.ts";
+import { analysisStatus } from "../../../../src/plugins/review/web/analysis.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
 
 function runtimeFor(dir: string) {

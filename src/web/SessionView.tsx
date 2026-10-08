@@ -3,33 +3,23 @@ import type { Artifact, Ref, SelectorAnswerData, SelectorQuestionData } from "..
 import { repoName } from "../shared/repos.ts";
 import { useSessionState, useModels } from "./api.ts";
 import { ActivityStrip } from "./ActivityStrip.tsx";
-import { Canvas, type HunkRow } from "./Canvas.tsx";
-import { latestNarrative } from "./graph.ts";
-import { diffNumber, interdiffOf, latestDiff } from "../plugins/review/shared/diffs.ts";
-import { desktopEnabled, disableDesktop, enableDesktop, isStaleNotice } from "./notifications.ts";
+import { desktopEnabled, disableDesktop, enableDesktop } from "./notifications.ts";
 import { Toasts } from "./Toasts.tsx";
-import { AnalysisStatus } from "./AnalysisStatus.tsx";
-import { FilePanel, FileViewContext, type OpenFile } from "./FilePanel.tsx";
 import { AskContext, type Draft, type SelectionData } from "./chat-context.ts";
 import { AskOnSelect } from "./AskOnSelect.tsx";
-import { RevisionView } from "./RevisionView.tsx";
-import { InterdiffPanel } from "./InterdiffPanel.tsx";
-import { StackContext } from "./stack-context.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { SelectorQuestion } from "./SelectorQuestion.tsx";
-import { SpecView, SpecViewContext } from "./SpecView.tsx";
+import { TopbarSlot } from "./plugin-api.ts";
+import { activePhaseView } from "./phase-views.ts";
+import { webPlugins } from "../plugins/web.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
-  const [openFile, setOpenFile] = useState<OpenFile | null>(null);
-  const [aside, setAside] = useState<"file" | "interdiff" | null>(null);
-  const [jump, setJump] = useState<HunkRow | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [desktop, setDesktop] = useState(desktopEnabled);
   const [exporting, setExporting] = useState(false);
-  const [specView, setSpecView] = useState<string | null>(null);
-  const closeSpecView = useCallback(() => setSpecView(null), []);
+  const [topbarSlot, setTopbarSlot] = useState<HTMLElement | null>(null);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const models = useModels();
   useEffect(() => {
@@ -46,34 +36,23 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const onOpenAside = useCallback((draft: Draft) => setDrafts((current) => [...current, draft]), []);
   if (error) return <p className="empty failed">{error}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
-  const n = latestNarrative(state);
-  const diff = latestDiff(state.artifacts);
-  const stack = diff && diff.data.commits.length > 1 ? diff.data.commits : null;
-  const epoch = diff ? diffNumber(state.artifacts, diff.id) : null;
-  const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
-  const visible = notices.filter((notice) => !isStaleNotice(notice, diff));
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
   const question = state.artifacts.findLast((a) => a.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
   const openQuestion = question && selecting?.status === "succeeded" && !state.artifacts.some((a) => a.type === "SelectorAnswer" && (a.data as SelectorAnswerData).question === question.id) ? question : null;
+  const { phase, view } = activePhaseView(webPlugins, state);
   const body = state.session.workflow === null && openQuestion
     ? <SelectorQuestion sessionId={sessionId} question={openQuestion} llm={models.default} />
     : state.session.workflow === null
-    ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
-      : state.session.workflow === "chat" ? <Canvas jump={jump} state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
-      : n ? <Canvas jump={jump} state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} /> : diff && epoch !== null ? <RevisionView sessionId={sessionId} diff={diff} epoch={epoch} state={state} models={models} /> : <AnalysisStatus state={state} models={models} />;
+      ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
+      : view ? <view.Body state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
+        : <p className="empty failed">No view for phase {phase}</p>;
+  const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
   return <div className="app">
-    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code>{state.session.workflow === "review" && <>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}</>}<span className="spacer" />{(state.session.workflow === "chat" || n) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} /><span className="spacer" />{view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
-    <AskContext.Provider value={askContext}><FileViewContext.Provider value={(file) => { setOpenFile(file); setAside("file"); }}>
-      <StackContext.Provider value={stack}><SpecViewContext.Provider value={setSpecView}><div className="session-body">
-        {body}
-        {specView && n && <SpecView state={state} specId={specView} llm={models.default} onClose={closeSpecView} />}
-        {aside === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => setAside(null)} /> : aside === "file" && diff && openFile?.diffId === diff.id && <FilePanel sessionId={sessionId} diff={diff} open={openFile} onClose={() => { setOpenFile(null); setAside(null); }} onJump={setJump} />}
-      </div></SpecViewContext.Provider></StackContext.Provider>
-      <AskOnSelect />
-    </FileViewContext.Provider></AskContext.Provider>
+    <AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} onClose={() => setExporting(false)} />}
