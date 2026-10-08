@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type Workflow, type WorkflowStartData, makeGitWriter } from "../../../plugin-api.ts";
+import { implementNext, isActive } from "./next.ts";
 
 const params = z.strictObject({
   request: z.string().min(1).describe("The bug fix or feature request as the user wrote it."),
@@ -15,6 +16,7 @@ export const implementWorkflow: Workflow<Params> = {
   description: "Implement a bug fix or a feature: investigate the code, get the plan approved, write the change as commits on a new branch in this checkout, review it, and revise until the user accepts. Use it for requests like \"fix bug …\", \"implement …\", \"add …\" and \"resume …\".",
   argHint: "<what to fix or build>",
   params,
+  next: implementNext,
   parseArgs: (args) => args.trim() ? { ok: true, params: { request: args.trim(), profile: null, checkout: null } } : { ok: false, error: "Usage: /implement <what to fix or build>" },
   async precheck(repo, p) {
     if (p.checkout !== null) return null;
@@ -32,6 +34,13 @@ export const implementWorkflow: Workflow<Params> = {
     ] };
   },
   async start(rt, sessionId, { params: p, startId }) {
+    const worktree = rt.store.getSession(sessionId).worktree;
+    const busy = rt.store.listSessions().find((s) => s.id !== sessionId && s.worktree === worktree && s.workflow === "implement" && isActive(rt, s.id));
+    if (busy) {
+      const message = `Checkout ${worktree} is in use by the implement session ${busy.id}`;
+      rt.emit(sessionId, "runtime", "notify", { id: "implement-busy", title: "Checkout in use", body: message });
+      throw new Error(message);
+    }
     const writeMode = rt.store.getArtifact<WorkflowStartData>(startId).data.writeMode;
     await rt.run(sessionId, "implementStart", { request: p.request, profile: p.profile, checkout: p.checkout ?? "new-branch", ...(writeMode ? { writeMode } : {}) });
   },
