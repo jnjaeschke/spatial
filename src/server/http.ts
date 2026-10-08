@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { SelectorQuestionData, SelectorAnswerData, Artifact, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, RecentRepo, RepoInfo, Session, WorkflowInfo } from "../shared/types.ts";
+import type { SelectorQuestionData, SelectorAnswerData, Artifact, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, RecentRepo, RepoInfo, Session, WorkflowInfo } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
@@ -81,6 +81,33 @@ export function putUserArtifact(rt: Runtime, sessionId: string, type: string, da
   rt.emit(sessionId, "user", "artifact.created", { artifactId: artifact.id, type: artifact.type });
   rt.emit(sessionId, "user", "link.created", { linkId: link.id, from: artifact.id, to: about, kind: "about" });
   return artifact;
+}
+
+/** Stores the user's answer to an open `Decision` as a verified version linked `revises →` it. Throws `HttpError` for an unknown option, missing or malformed text, an answered or superseded decision, or a running epoch. */
+function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionData>, optionId: string, text: unknown, llm: unknown): Artifact<DecisionData> {
+  if (open.data.chosen) throw new HttpError(409, "Decision already answered");
+  if (rt.store.listArtifacts(sessionId, "Decision").at(-1)?.id !== open.id) throw new HttpError(409, "Not the latest decision");
+  const running = rt.runningEpoch(sessionId);
+  if (running) throw new HttpError(409, `Epoch ${running.n} (${running.phase}) is running`);
+  const option = open.data.options.find((candidate) => candidate.id === optionId);
+  if (!option) throw new HttpError(400, `Unknown option: ${optionId}`);
+  if (text !== undefined && typeof text !== "string") throw new HttpError(400, "text must be a string");
+  const trimmed = (text ?? "").trim();
+  if (trimmed && !option.takesText) throw new HttpError(400, `Option ${option.id} takes no text`);
+  if (option.requiresText && !trimmed) throw new HttpError(400, `Option ${option.id} requires text`);
+  if (trimmed && option.textPattern && !new RegExp(option.textPattern).test(trimmed)) throw new HttpError(400, `Text for ${option.id} must match ${option.textPattern}`);
+  let selection: LlmSelection | undefined;
+  if (llm !== undefined) {
+    const candidate = llm as Partial<LlmSelection> | null;
+    if (!option.takesModel) throw new HttpError(400, `Option ${option.id} takes no model`);
+    if (typeof candidate !== "object" || candidate === null || (candidate.backend !== "claude" && candidate.backend !== "codex") || typeof candidate.model !== "string" || typeof candidate.effort !== "string") throw new HttpError(400, "llm must be { backend, model, effort }");
+    selection = { backend: candidate.backend, model: candidate.model, effort: candidate.effort };
+  }
+  const answered = rt.store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: "verified", data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
+  const link = rt.store.putLink({ sessionId, from: answered.id, to: open.id, kind: "revises" });
+  rt.emit(sessionId, "user", "artifact.created", { artifactId: answered.id, type: "Decision" });
+  rt.emit(sessionId, "user", "link.created", { linkId: link.id, from: answered.id, to: open.id, kind: "revises" });
+  return answered;
 }
 
 export function createHttpServer(rt: Runtime, opts: { staticDir?: string; background?: { intervalMs?: number }; pid?: number; commit?: string | null; homeDir?: string } = {}): Server {
@@ -209,6 +236,22 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       if (!start) throw new HttpError(400, "Session has no start request");
       const note = putUserArtifact(rt, id, "Note", { body: body.body.trim() } satisfies NoteData, start.id);
       send(res, 201, { artifactId: note.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/decisions\/([^/]+)$/, async ({ req, res, params }) => {
+      const id = requireSession(rt, params[0]).id;
+      const open = requireArtifact(rt, id, params[1]!, "Decision", "decision") as Artifact<DecisionData>;
+      const body = await readJson(req);
+      const answered = answerDecision(rt, id, open, str(body.option, "option"), body.text, body.llm);
+      rt.advance(id).catch((e) => console.error(`advance failed in session ${id}: ${(e as Error).message}`));
+      send(res, 201, { artifactId: answered.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/retry$/, async ({ res, params }) => {
+      const id = requireSession(rt, params[0]!).id;
+      let retry: Promise<unknown>;
+      try { retry = rt.retryPhase(id); }
+      catch (e) { throw new HttpError(409, (e as Error).message); }
+      retry.then(() => rt.advance(id)).catch((e) => console.error(`retry failed in session ${id}: ${(e as Error).message}`));
+      send(res, 202, {});
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/turns$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;

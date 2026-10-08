@@ -227,7 +227,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
           let retry: Promise<unknown>;
           try { retry = rt.retryPhase(id); }
           catch (e) { if (e instanceof PhaseBusyError) throw new HttpError(409, e.message); throw e; }
-          retry.catch((e) => console.error(`phase retry failed in session ${id}: ${(e as Error).message}`));
+          retry.then(() => rt.advance(id)).catch((e) => console.error(`phase retry failed in session ${id}: ${(e as Error).message}`));
           send(res, 202, {});
           return;
         }
