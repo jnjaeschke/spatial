@@ -166,7 +166,7 @@ The commit new work starts from. With an `origin` remote: fetches it and resolve
 
 > **fixup**(`target`, `base`): `Promise`\<`string`\>
 
-Stages everything, commits it as `--fixup=<target>` and autosquashes `base..HEAD`; aborts the rebase and rejects on a conflict.
+Stages everything, commits it as `--fixup=<target>` and autosquashes `base..HEAD`. On a conflict it aborts the rebase, drops the fixup commit (the edits stay in the work tree) and rejects.
 
 #### Parameters
 

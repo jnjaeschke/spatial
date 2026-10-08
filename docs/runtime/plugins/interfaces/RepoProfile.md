@@ -74,7 +74,7 @@ Command that suggests reviewers for the changed files.
 
 > `optional` **checkCommand**(`paths`): `string`
 
-Shell command that builds and runs the tests covering `paths`; its presence makes edits-only mode available.
+Shell command that builds and runs the tests covering `paths`; its presence makes edits-only mode available. It runs through `sh -c` and the paths come from the agent, so implementations must shell-quote them.
 
 #### Parameters
 

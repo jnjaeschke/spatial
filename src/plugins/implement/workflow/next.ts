@@ -125,6 +125,5 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
 /** Whether an implement session still has work: an epoch is running or `next` has a step. Used to refuse a second session on the same checkout. */
 export function isActive(rt: Runtime, sessionId: Id): boolean {
   if (rt.runningEpoch(sessionId)) return true;
-  try { return implementNext(workflowView(rt.store, sessionId), { repoProfiles: rt.plugins.repoProfiles }) !== null; }
-  catch { return false; }
+  return implementNext(workflowView(rt.store, sessionId), { repoProfiles: rt.plugins.repoProfiles }) !== null;
 }

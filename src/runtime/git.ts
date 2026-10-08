@@ -109,7 +109,7 @@ export interface GitWriter {
   changedPaths(): Promise<string[]>;
   /** Stages everything and commits it with `message`; returns the new commit's sha. */
   commitAll(message: string): Promise<string>;
-  /** Stages everything, commits it as `--fixup=<target>` and autosquashes `base..HEAD`; aborts the rebase and rejects on a conflict. */
+  /** Stages everything, commits it as `--fixup=<target>` and autosquashes `base..HEAD`. On a conflict it aborts the rebase, drops the fixup commit (the edits stay in the work tree) and rejects. */
   fixup(target: string, base: string): Promise<string>;
   /** `git fetch <remote>`; rejects with git's message. */
   fetch(remote: string): Promise<void>;
@@ -156,6 +156,7 @@ export function makeGitWriter(repo: string): GitWriter {
       try { await git(repo, ["rebase", "-i", "--autosquash", base], { GIT_SEQUENCE_EDITOR: "true" }); }
       catch (e) {
         await git(repo, ["rebase", "--abort"]).catch(() => undefined);
+        await git(repo, ["reset", "-q", "HEAD~1"]);
         throw new Error(`Autosquash failed: ${((e as { stderr?: string }).stderr || (e as Error).message).trim()}`);
       }
       return (await git(repo, ["rev-parse", "HEAD"])).trim();

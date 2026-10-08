@@ -23,6 +23,7 @@ const investigation: InvestigationData = {
 const testProfilePlugin = { id: "tp", repoProfiles: [
   { id: "tp", description: "t", commitStyle: "single" as const, isTestCommand: (c: string) => c.startsWith("t ") },
   { id: "needs-bug", description: "b", commitStyle: "single" as const, requiresBug: true },
+  { id: "checked", description: "c", commitStyle: "single" as const, checkCommand: () => "true" },
 ] };
 
 function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation) {
@@ -166,4 +167,26 @@ test("the checkout must still be on the branch and descend from the last result"
   await assert.rejects(run(), /moved/);
   repo.git("switch", "main");
   await assert.rejects(run(), /not on spatial\/x/);
+});
+
+test("edits-only fix rounds feed the problems back to the agent", async () => {
+  const { repo, prompts, run } = setup((call, _, r) => {
+    if (call === 0) return ok;
+    writeFileSync(join(r.dir, "b.txt"), "fixed\n");
+    return { ...ok, step: 0 };
+  }, "checked");
+  repo.commit({ "b.txt": "b\n" }, "Add b");
+  await run({ writeMode: "editsOnly" });
+  assert.equal(prompts.length, 2);
+  assert.ok(prompts[1]!.prompt.includes("# Problems to fix") && prompts[1]!.prompt.includes("Name the commit"));
+  assert.equal(repo.git("log", "--format=%s", "-1"), "Add b");
+  assert.equal(repo.git("show", "HEAD:b.txt"), "fixed");
+});
+
+test("edits-only continues past a reported invalid plan when the user chose to continue", async () => {
+  const { repo, store, prompts, run } = setup((_, __, r) => { writeFileSync(join(r.dir, "b.txt"), "b\n"); return { ...ok, planInvalid: "still wrong" }; }, "checked");
+  const { resultId } = await run({ writeMode: "editsOnly", ignorePlanInvalid: true });
+  assert.equal(prompts.length, 1);
+  assert.equal(store.getArtifact<ImplementResultData>(resultId).data.planInvalid, null);
+  assert.equal(repo.git("log", "--format=%s", "-1"), "Add b");
 });

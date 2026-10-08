@@ -86,9 +86,10 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug) }));
       const existing = await ctx.git.log(branch.baseSha, "HEAD");
       const commitSubjects = existing.map((commit) => commit.subject);
-      const step = (index: number | null, problems: string[]) => index === null
+      const step = (index: number | null, problems: string[]) => (index === null
         ? "# Edits only\n\nYou cannot run commands. Edit the files that address the feedback and set `step` to the 0-based index of the commit (oldest first) the edits belong to:\n" + commitSubjects.map((subject, i) => `${i}: ${subject}`).join("\n")
-        : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}). The runtime runs the checks and commits.${problems.length ? `\n\n# Problems to fix\n${problems.map((problem) => `- ${problem}`).join("\n")}` : ""}`;
+        : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}). The runtime runs the checks and commits.`)
+        + (problems.length ? `\n\n# Problems to fix\n${problems.map((problem) => `- ${problem}`).join("\n")}` : "");
       const runCheck = async (command: string) => {
         const started = Date.now();
         const out = await runProcess("sh", ["-c", command], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
@@ -98,10 +99,13 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       };
       const outcome = await runEditsOnly({
         plan: planned, baseSha: branch.baseSha, bugfix: investigation.kind === "bugfix", maxRetries: MAX_RETRIES, checkCommand: profile.checkCommand!, runCheck,
-        agent: async ({ step: index, problems }) => call([prompt, step(index, problems)].join("\n\n")),
+        agent: async ({ step: index, problems }) => {
+          const reply = await call([prompt, step(index, problems)].join("\n\n"));
+          return input.ignorePlanInvalid ? { ...reply, planInvalid: null } : reply;
+        },
         git: { changedPaths: () => writer.changedPaths(), commitAll: (message) => writer.commitAll(message), fixup: (target, base) => writer.fixup(target, base), commits: async () => (await ctx.git.log(branch.baseSha, "HEAD")).map(({ sha, subject }) => ({ sha, subject })) },
       });
-      if (outcome.planInvalid && !input.ignorePlanInvalid) return done(await ctx.git.resolve("HEAD"), { summary: outcome.summary, planChange: null, planInvalid: outcome.planInvalid, step: null }, null, outcome.planInvalid);
+      if (outcome.planInvalid) return done(await ctx.git.resolve("HEAD"), { summary: outcome.summary, planChange: null, planInvalid: outcome.planInvalid, step: null }, null, outcome.planInvalid);
       const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan: branch.checkout === "new-branch" ? planned : null, planChange: outcome.planChange, profile });
       if (checked.problems.length) throw new Error(`The edits-only stack has problems:\n${checked.problems.join("\n")}`);
       return done(checked.head, { summary: outcome.summary, planChange: outcome.planChange, planInvalid: null, step: null }, outcome.planChange, null);

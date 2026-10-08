@@ -117,3 +117,14 @@ test("fixup squashes the change into the target commit and keeps the stack lengt
   assert.deepEqual(repo.git("log", "--format=%s", `${base}..HEAD`).split("\n"), ["Second", "First"]);
   assert.equal(repo.git("show", "HEAD~1:b.txt"), "b2");
 });
+
+test("a conflicting fixup rejects and leaves the stack as it was, with the edits uncommitted", async () => {
+  const repo = configured();
+  const base = repo.commit({ "a.txt": "1\n" }, "base");
+  const first = repo.commit({ "b.txt": "b\n" }, "First");
+  const second = repo.commit({ "b.txt": "b2\n" }, "Second");
+  writeFileSync(join(repo.dir, "b.txt"), "b3\n");
+  await assert.rejects(makeGitWriter(repo.dir).fixup(first, base), /Autosquash failed/);
+  assert.equal(repo.git("rev-parse", "HEAD"), second);
+  assert.equal(repo.git("status", "--porcelain"), "M b.txt");
+});
