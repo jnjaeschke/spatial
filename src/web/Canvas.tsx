@@ -1,14 +1,12 @@
 import { flushSync } from "react-dom";
-import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   Background, Controls, MiniMap, NodeResizeControl, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type Node, type NodeProps, type Viewport,
 } from "@xyflow/react";
-import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
+import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, conversationGraph, fitMinZoom, hostedThreads, isCoreKind, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, type ChatNodeData, type ZoomLevel } from "./graph.ts";
-import { layerGraph, LAYERS, diagramLayoutEdges, levelGraph, stackLayout, phabCommentCollapseId, diagramStepTarget, latestNarrative, reviewGraph, isReviewKind, type Layer } from "../plugins/review/web/graph.ts";
-import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
+import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode, type ZoomLevel } from "./graph.ts";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
@@ -16,15 +14,62 @@ import { useLayers } from "./layers.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
 import { GuideBar } from "./GuideBar.tsx";
-import { moveStep, startStep, stepNodeId } from "./guide.ts";
-import { api } from "./api.ts";
+import { moveStep, startStep } from "./guide.ts";
 import { useNodeSizes } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
 import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
 import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
 import { NodeKindsContext } from "./plugin-api.ts";
 
-const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
+/** A step of the guide bar's reading path. */
+export interface GuideStep {
+  title: string;
+  /** Short label before the title (the commit of a stack). */
+  tag?: string;
+  reviewed: boolean;
+  /** The node to center for this step at a zoom level. */
+  nodeId(level: ZoomLevel): string;
+  toggleReviewed(sessionId: string): Promise<unknown>;
+}
+/** A diff row to highlight and scroll to; `anchor` is the diff row anchor (`${diffId}#${hunkId}`). */
+export interface FocusedRow { anchor: string; side: "new" | "old"; line: number }
+export interface CanvasProviderProps {
+  state: SessionState;
+  /** The graph as shown: after layers and closed nodes, before collapsing and zoom level. */
+  graph: Graph;
+  /** Expands the collapse id, centers the node (leaving the zoom level for code), and records the jump in the view history. */
+  reveal(nodeId: string, collapseId: string): void;
+  /** Highlights a diff row and scrolls it into view. */
+  focusRow(row: FocusedRow): void;
+  children: ReactNode;
+}
+/** What the phase view tells the canvas about its graph; everything but `graph` is optional. */
+export interface CanvasModel {
+  /** Root graph (first node = root); null when there is nothing to show. Core adds notes, chats and free positions. */
+  graph(state: SessionState, drafts: Draft[]): Graph | null;
+  /** Collapse ids that start collapsed. */
+  collapsedByDefault?(graph: Graph): string[];
+  /** The reading path of the guide bar and its `n`/`p`/`r` keys; none or empty shows no bar. */
+  guide?(graph: Graph): GuideStep[];
+  /** Layers the user can hide ("Show on canvas"); `hide` removes the hidden layers' nodes and what hangs off them. */
+  layers?: { list: { id: string; label: string }[]; hide(graph: Graph, hidden: ReadonlySet<string>): Graph };
+  /** The graph at a zoom level, for kinds that fold at low zoom. */
+  levelGraph?(graph: Graph, level: ZoomLevel): Graph;
+  /** Stacks (parallel lanes) lay out with `layout` instead of dagre and need a taller fit at patch zoom. */
+  stack?: { is(graph: Graph): boolean; layout(nodes: PlacedNode[], edges: GraphEdge[]): Map<string, { x: number; y: number }> };
+  /** Edges that only steer the dagre layout; the displayed edges stay as they are. */
+  layoutEdges?(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[];
+  /** Nodes to center when they first appear after the canvas has loaded (a freshly generated diagram). */
+  revealWhenAdded?(node: GraphNode): boolean;
+  /** Wraps the canvas in the plugin's contexts. */
+  Provider?: ComponentType<CanvasProviderProps>;
+}
+const NO_STEPS: GuideStep[] = [];
+const NO_PROVIDER: ComponentType<CanvasProviderProps> = ({ children }) => <>{children}</>;
+
+/** The `quote` of a node, highlighted in the text of its `anchor`: chat threads, and plugin nodes (findings) that carry both. */
+const quoteOf = (data: GraphNodeData) => "quote" in data && typeof data.quote === "string" && data.quote && "anchor" in data && typeof data.anchor === "string"
+  ? { kind: data.kind, anchor: data.anchor, quote: data.quote, lines: ("lines" in data ? data.lines : undefined) as ChatNodeData["lines"] } : null;
 
 const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; setWidth(level: ZoomLevel, id: string, width: number): void } | null>(null);
 function ResizableNode(props: NodeProps) {
@@ -44,11 +89,8 @@ function ResizableNode(props: NodeProps) {
     />}
   </>;
 }
-interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void; jump?: HunkRow | null }
-/** A diff row to reveal and focus; a new object per request. */
-export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
+interface Props { state: SessionState; model: CanvasModel; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
 const NO_DRAFTS: Draft[] = [];
-const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -61,7 +103,7 @@ export function Canvas(props: Props) {
   );
 }
 
-function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {}, jump = null }: Props) {
+function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: Props) {
   const nodeKinds = useContext(NodeKindsContext);
   const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
@@ -69,10 +111,6 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(state.session.id);
   const paneHeight = useStore((s) => s.height);
   const colorMode = useResolvedTheme();
-  const searchfox = useMemo(() => {
-    const latest = latestNarrative(state);
-    return latest ? searchfoxLinks(state, latest.diff.data) : null;
-  }, [state]);
   const rf = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
   const anchor = useRef<string | null>(null);
@@ -83,16 +121,16 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   // and hidden elements cannot take focus).
   const focusDraft = useRef<string | null>(null);
   const knownDrafts = useRef(new Set<string>());
-  const knownDiagrams = useRef<Set<string> | null>(null);
+  const knownRevealed = useRef<Set<string> | null>(null);
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
     [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
   const { closed: closedIds, close, reopen } = useClosed(state.session.id);
-  const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers();
+  const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers(model.layers?.list.map((layer) => layer.id) ?? []);
   const { graph, closedOn } = useMemo(() => {
-    const g = sessionGraph(state.session.workflow === "review" ? reviewGraph : conversationGraph, state, drafts, freePositions);
+    const g = sessionGraph(model.graph, state, drafts, freePositions);
     if (!g) throw new Error("Canvas needs a session graph");
-    return closeGraph(layerGraph(g, hiddenLayers), closedIds);
-  }, [state, drafts, freePositions, closedIds, hiddenLayers]);
+    return closeGraph(model.layers && hiddenLayers.size ? model.layers.hide(g, hiddenLayers) : g, closedIds);
+  }, [model, state, drafts, freePositions, closedIds, hiddenLayers]);
   const closedValue = useMemo(() => ({ close, reopen, closedOn }), [close, reopen, closedOn]);
   useLayoutEffect(() => {
     const next = new Set(drafts.map((draft) => draft.id));
@@ -111,31 +149,27 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       if (thread) moveFreePosition(draft.id, thread.id);
     }
   }, [drafts, state.artifacts, moveFreePosition]);
-  const graphDiagramIds = useMemo(() => graph.nodes.filter((n) => n.data.kind === "diagram").map((n) => n.id), [graph]);
-  const defaults = useMemo(() => new Set(graph.nodes.flatMap((n) => isReviewKind(n.data, "finding") && n.data.collapsedByDefault ? [n.id]
-    : isReviewKind(n.data, "phab") ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
-      : isReviewKind(n.data, "summary") ? [
-        ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
-        ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
-      ] : [])), [graph]);
+  const revealedIds = useMemo(() => model.revealWhenAdded ? graph.nodes.filter(model.revealWhenAdded).map((n) => n.id) : [], [model, graph]);
+  const defaults = useMemo(() => new Set(model.collapsedByDefault?.(graph) ?? []), [model, graph]);
   const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
-  const steps = useMemo(() => graph.nodes.flatMap((n) => isReviewKind(n.data, "change") ? [n.data] : []), [graph]);
+  const steps = useMemo(() => model.guide?.(graph) ?? NO_STEPS, [model, graph]);
   const [level, setLevel] = useState<ZoomLevel>(() => storedView.current?.level ?? "code");
   const levelRef = useRef(level);
   const open = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
-  const shown = useMemo(() => levelGraph(open, level), [open, level]);
+  const shown = useMemo(() => model.levelGraph?.(open, level) ?? open, [model, open, level]);
   useLayoutEffect(() => {
-    const next = new Set(graphDiagramIds);
-    if (!knownDiagrams.current) { knownDiagrams.current = next; return; }
-    const added = graphDiagramIds.find((id) => !knownDiagrams.current!.has(id));
-    knownDiagrams.current = next;
+    const next = new Set(revealedIds);
+    if (!knownRevealed.current) { knownRevealed.current = next; return; }
+    const added = revealedIds.find((id) => !knownRevealed.current!.has(id));
+    knownRevealed.current = next;
     if (added && shown.nodes.some((n) => n.id === added)) anchor.current = added;
-  }, [graphDiagramIds, shown]);
+  }, [revealedIds, shown]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
   const quoted = useMemo(() => {
-    const entries: { id: string; anchors: string[]; data: { kind: "chat" | "finding"; anchor: string; quote: string; lines?: ChatNodeData["lines"] } }[] = [];
+    const entries: { id: string; anchors: string[]; data: { kind: string; anchor: string; quote: string; lines?: ChatNodeData["lines"] } }[] = [];
     for (const node of graph.nodes) {
-      if ((isCoreKind(node.data, "chat") || isReviewKind(node.data, "finding")) && node.data.quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: { kind: node.data.kind, anchor: node.data.anchor, quote: node.data.quote, lines: node.data.lines } });
+      const quote = quoteOf(node.data);
+      if (quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: quote });
       for (const thread of hostedThreads(node.data) ?? []) if (thread.quote) entries.push({ id: thread.threadId ?? thread.draftId!, anchors: [node.id], data: { kind: "chat", anchor: thread.anchor, quote: thread.quote, lines: thread.lines } });
     }
     return entries;
@@ -144,7 +178,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const [focusedChat, setFocusedChat] = useState<string | null>(null);
   const [hoveredQuote, setHoveredQuote] = useState<string | null>(null);
   // Open quoted boxes only: a box removed by collapsing gets no pointerout or focusout.
-  const quotedBoxIds = useMemo(() => new Set(quoted.filter((item) => item.data.kind === "finding" || !collapsed.has(item.id)).filter((item) => shown.nodes.some((node) => node.id === item.anchors[0])).map((item) => item.id)), [quoted, shown, collapsed]);
+  const quotedBoxIds = useMemo(() => new Set(quoted.filter((item) => item.data.kind !== "chat" || !collapsed.has(item.id)).filter((item) => shown.nodes.some((node) => node.id === item.anchors[0])).map((item) => item.id)), [quoted, shown, collapsed]);
   const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
     : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
@@ -169,7 +203,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     setGuideStep(null);
   }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [focusedRow, setFocusedRow] = useState<{ anchor: string; side: "new" | "old"; line: number } | null>(null);
+  const [focusedRow, setFocusedRow] = useState<FocusedRow | null>(null);
   const focusCentered = useRef(false);
   useLayoutEffect(() => {
     const root = container.current;
@@ -188,7 +222,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       void rf.setCenter(point.x, point.y, { zoom: rf.getZoom(), duration: 200 });
     });
   }, [focusedRow, nodes]);
-  const currentId = guideStep === null || !steps[guideStep] ? null : stepNodeId(steps[guideStep], level);
+  const currentId = guideStep === null || !steps[guideStep] ? null : steps[guideStep].nodeId(level);
   const currentRef = useRef<string | null>(currentId);
   currentRef.current = currentId;
   const focusNode = (id: string) => {
@@ -211,12 +245,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     pushJump(historyView());
     const next = moveStep(steps.length, guideStep, delta, start);
     setGuideStep(next);
-    focusNode(stepNodeId(steps[next]!, level));
+    focusNode(steps[next]!.nodeId(level));
   };
   const toggleReviewed = () => {
     if (guideStep === null || !chatActions) return;
-    const s = steps[guideStep]!;
-    void api.setReviewed(chatActions.sessionId, s.narrativeId, s.change.id, !s.reviewed).catch((error: Error) => console.error(error));
+    void steps[guideStep]!.toggleReviewed(chatActions.sessionId).catch((error: Error) => console.error(error));
   };
   const guideRef = useRef({ move: moveGuide, toggleReviewed });
   guideRef.current = { move: moveGuide, toggleReviewed };
@@ -239,7 +272,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   const measureQuoteDy = () => {
     let changed = false;
     for (const n of quoted) {
-      if (n.data.kind !== "finding") continue;
+      if (n.data.kind === "chat") continue;
       const range = rangeOf(n);
       const anchorEl = container.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(n.anchors![0]!)}"]`);
       if (!range || !anchorEl) continue;
@@ -271,12 +304,13 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       for (const [id, p] of placeSatellites(rects, satellites)) freePlaced.set(id, p);
     }
     const sized = all.filter((n) => !free.has(n.id) && !rootOf.has(n.id));
-    if (shown.nodes.some((n) => n.data.kind === "commit")) {
+    if (model.stack?.is(shown)) {
       const byId = new Map(shown.nodes.map((n) => [n.id, n]));
-      return new Map([...stackLayout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free, ...freePlaced]);
+      return new Map([...model.stack.layout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free, ...freePlaced]);
     }
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
-    const layoutEdges = diagramLayoutEdges(shown.nodes, shown.edges.filter((e) => !satelliteAnchors.has(e.source)));
+    const mainEdges = shown.edges.filter((e) => !satelliteAnchors.has(e.source));
+    const layoutEdges = model.layoutEdges?.(shown.nodes, mainEdges) ?? mainEdges;
     const mainPos = layout(main, layoutEdges);
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
     const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!, ...(dy?.has(n.id) ? { dy: dy.get(n.id)! } : {}) }));
@@ -287,7 +321,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
   // A layout effect, so the new node widths are committed before the frame's ResizeObserver delivery; a passive
   // effect would flush inside that delivery's callback and resize the nodes there.
   useLayoutEffect(() => {
-    if (anchor.current && graph.nodes.some((n) => n.id === anchor.current && n.data.kind === "diagram")
+    if (anchor.current && revealedIds.includes(anchor.current)
       && !shown.nodes.some((n) => n.id === anchor.current)) anchor.current = null;
     // A new graph object (every session event) keeps the measured sizes of unchanged zoom and text scale, so
     // the view does not jump to estimated positions until the next measurement.
@@ -333,7 +367,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
     measureQuoteDy();
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: n.type !== "diagram" && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: nodeKinds[n.type!]?.resizable !== false && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
@@ -368,7 +402,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         autoFit.current = false;
         void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
       } else {
-        const fitFloor = fitMinZoom(textScale, levelRef.current, shown.nodes.some((n) => n.data.kind === "commit"));
+        const fitFloor = fitMinZoom(textScale, levelRef.current, model.stack?.is(shown) ?? false);
         void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
       }
     }
@@ -620,26 +654,18 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     if (levelRef.current !== "code") setLevel("code");
     expandExplicitly(collapseId);
   };
-  const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
-    const node = graph.nodes.find((item) => item.id === nodeId);
-    if (!node || !isReviewKind(node.data, "change")) return;
-    reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`);
+  const focusRow = (row: FocusedRow) => {
     focusCentered.current = false;
-    setFocusedRow({ anchor: `${node.data.diffId}#${hunkId}`, ...row });
+    setFocusedRow(row);
   };
-  useEffect(() => {
-    if (!jump) return;
-    const change = graph.nodes.find((node) => isReviewKind(node.data, "change") && node.data.hunks.some(({ hunk }) => hunk.id === jump.hunkId));
-    if (change) revealStep(change.id, jump.hunkId, { side: jump.side, line: jump.line });
-    // Only a new request jumps; graph updates must not re-reveal.
-  }, [jump]);
+  const Provider = model.Provider ?? NO_PROVIDER;
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <SearchfoxContext.Provider value={searchfox}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
+    <Provider state={state} graph={graph} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
-    <CollapseContext.Provider value={{ collapsed, toggle, reveal, stepTarget: (diagram, step) => diagramStepTarget(graph.nodes, diagram, step), revealStep }}>
+    <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
       <ResizeContext.Provider value={{ level, textScale, setWidth }}>
       <div className="canvas-layout">
       <ReactFlow
@@ -671,7 +697,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       >
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
-        <Panel position="top-right">{state.session.workflow === "review" && <span className="layers" role="group" aria-label="Show on canvas">{LAYERS.map((layer) => <button key={layer} type="button" aria-pressed={!hiddenLayers.has(layer)} onClick={() => toggleLayer(layer)}>{LAYER_LABEL[layer]}</button>)}</span>}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
+        <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap
         position="top-right"
@@ -691,7 +717,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       </ResizeContext.Provider>
     </CollapseContext.Provider>
     </ClosedContext.Provider>
-    </div></SearchfoxContext.Provider>
+    </div></Provider>
     </ChatActionsContext.Provider>
   );
 }

@@ -59,6 +59,8 @@ export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData;
 export type PluginNodeData = { kind: string; [key: string]: unknown };
 export type GraphNodeData = CoreNodeData | PluginNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[]; position?: FreePosition }
+/** A node with its size, as a layout places it; `dy` offsets a satellite below its anchor's top. */
+export interface PlacedNode { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[]; dy?: number }
 export interface GraphEdge { id: string; source: string; target: string }
 export type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 

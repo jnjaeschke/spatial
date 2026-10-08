@@ -1,5 +1,6 @@
 import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { type Artifact, type DiffData, loadFileLines, RowPainter, rowSegments, type HunkRow, FileViewContext } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, loadFileLines, RowPainter, rowSegments, FileViewContext } from "../../../web/plugin-api.ts";
+import type { HunkRow } from "./canvas.tsx";
 import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
 import { StackContext } from "./stack-context.ts";
 import { commitColors, commitLabel } from "./commit-colors.ts";

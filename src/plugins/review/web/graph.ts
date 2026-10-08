@@ -1,5 +1,5 @@
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, ReviewFindingData, SemanticChange, SequenceStep, SessionState, SpecReferenceData } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type ZoomLevel } from "../../../web/graph-api.ts";
+import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode, type ZoomLevel } from "../../../web/graph-api.ts";
 import { numberLines } from "../shared/diff-lines.ts";
 import { postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
@@ -141,6 +141,11 @@ export function layerGraph(g: Graph, hidden: ReadonlySet<Layer>): Graph {
 }
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
+
+/** The visible node for a reading-path step, using its commit card at patch zoom in a stack. */
+export function stepNodeId(step: Pick<ChangeNodeData, "narrativeId" | "commit" | "change">, level: ZoomLevel): string {
+  return level === "patch" && step.commit !== null ? commitNodeId(step.narrativeId, step.commit) : `${step.narrativeId}#${step.change.id}`;
+}
 
 /** At patch zoom a stack shows its summary and commit cards only. */
 export function levelGraph(g: Graph, level: ZoomLevel): Graph {
@@ -375,10 +380,9 @@ export function diagramLayoutEdges(nodes: GraphNode[], edges: GraphEdge[]): Grap
 
 const LANE_GAP = 120;
 const LANE_TOP_GAP = 72;
-type Placed = { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[]; dy?: number };
 
 /** Stack layout: summary above commit lanes, with lane-local changes and satellites arranged independently. */
-export function stackLayout(nodes: Placed[], edges: { source: string; target: string }[]): Map<string, { x: number; y: number }> {
+export function stackLayout(nodes: PlacedNode[], edges: { source: string; target: string }[]): Map<string, { x: number; y: number }> {
   const root = nodes.find((n) => n.data.kind === "summary")!;
   const laneOf = new Map<string, number>();
   for (const n of nodes) {
@@ -395,7 +399,7 @@ export function stackLayout(nodes: Placed[], edges: { source: string; target: st
       if (lane !== undefined) { laneOf.set(s.id, lane); changed = true; }
     }
   }
-  const sized = (s: Placed, anchors: string[]) => ({ id: s.id, width: s.width, height: s.height, anchors, ...(s.dy === undefined ? {} : { dy: s.dy }) });
+  const sized = (s: PlacedNode, anchors: string[]) => ({ id: s.id, width: s.width, height: s.height, anchors, ...(s.dy === undefined ? {} : { dy: s.dy }) });
   const out = new Map<string, { x: number; y: number }>();
   const rootSats = satellites.filter((s) => !laneOf.has(s.id)).map((s) => sized(s, (s.anchors ?? []).filter((a) => !laneOf.has(a))));
   const rootPlaced = placeSatellites(new Map([[root.id, { x: 0, y: 0, width: root.width, height: root.height }]]), rootSats);

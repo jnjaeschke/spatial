@@ -2,6 +2,7 @@ import { useContext, useMemo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DiagramNodeData } from "../graph.ts";
 import { type ZoomLevel, CollapseContext, ClosedContext } from "../../../../web/plugin-api.ts";
+import { DiagramStepContext } from "../canvas.tsx";
 
 export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData & { level: ZoomLevel }, "diagram">;
 
@@ -13,6 +14,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
   const { diagram } = data;
   const collapse = useContext(CollapseContext);
   const closer = useContext(ClosedContext);
+  const diagramSteps = useContext(DiagramStepContext);
   const collapseId = `diagram:${diagram.id}`;
   const closed = collapse?.collapsed.has(collapseId) ?? true;
   const [showBefore, setShowBefore] = useState(false);
@@ -43,7 +45,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
           const x1 = from * LANE_W + LANE_W / 2, x2 = to * LANE_W + LANE_W / 2;
           const direction = from !== to ? x1 < x2 ? "right" : "left" : from === diagram.data.lanes.length - 1 ? "self last" : "self";
           const cite = `${step.cite.path}:${step.cite.line}`;
-          const target = !showBefore ? collapse?.stepTarget?.(diagram, step) ?? null : null;
+          const target = !showBefore ? diagramSteps?.stepTarget(diagram, step) ?? null : null;
           const stepProps = { className: `sequence-step ${direction}${target ? " clickable nodrag nopan" : ""}`, "data-status": step.status, "data-verified": String(step.verified), style: { top: rowTop, height: ROW_H - 14, left: Math.min(x1, x2), width: from === to ? 30 : Math.abs(x2 - x1) }, title: `${step.verified ? cite : `citation not found near ${cite}`}${step.text ? ` — ${step.text}` : ""}` };
           const label = <><div className="sequence-label">
                 {step.guard && <span className="sequence-guard">[{step.guard}]</span>}
@@ -55,7 +57,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
               <span className="sequence-arrow" /></>;
           return <div className="sequence-row" key={`${cite}:${index}`}>
             {startsPhase && step.phase && <div className="sequence-phase" style={{ top: rowTop }}>{step.phase}</div>}
-            {target ? <button {...stepProps} onClick={() => collapse?.revealStep?.(target.changeNodeId, target.hunkId, target.row)}>{label}</button> : <div {...stepProps}>{label}</div>}
+            {target ? <button {...stepProps} onClick={() => diagramSteps?.revealStep(target.changeNodeId, target.hunkId, target.row)}>{label}</button> : <div {...stepProps}>{label}</div>}
           </div>;
         })}
       </div>

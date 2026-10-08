@@ -4,7 +4,6 @@ import { dirname, join, normalize, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
-const SKIP_WEB = true;
 /** The registries list the plugins; only they import plugin manifests. */
 const REGISTRIES = new Set(["src/plugins/index", "src/plugins/web"]);
 const COMPOSITION_ROOTS = new Set(["src/runtime/create.ts", "src/server/main.ts", "src/mcp/session-server.ts", "src/cli.ts", "src/web/App.tsx", "src/web/SessionView.tsx", "src/web/ExportView.tsx", "src/web/main.tsx"]);
@@ -16,7 +15,6 @@ export function resolveImport(file: string, specifier: string): string {
 export function checkPluginBoundary(files: Map<string, string>): string[] {
   const errors: string[] = [];
   for (const [file, source] of files) {
-    if (SKIP_WEB && file.startsWith("src/web/")) continue;
     const imports = /(?:\bfrom\s*|\bimport\s*\(?\s*)(["'])(\.[^"']+)\1/g;
     for (const match of source.matchAll(imports)) {
       const specifier = match[2]!;

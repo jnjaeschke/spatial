@@ -4,7 +4,7 @@ import type { Artifact, DiagramData, DiffData, PatchNarrativeData, ReviewFinding
 import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData, type ZoomLevel } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
-import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, narrativeGraph, reviewGraph, reviewSize, stackLayout } from "../../../../src/plugins/review/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, narrativeGraph, reviewGraph, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, level: ZoomLevel, textScale = 1) => {
@@ -813,4 +813,12 @@ test("a review session shows notes as note nodes", () => {
   const reviewStart = { ...start, data: { ...start.data, workflow: "review" as const } };
   const review = sessionGraph(state([diff, narrative("N"), reviewStart, note], "review"))!;
   assert.equal(review.nodes.find((item) => item.id === "N1")?.data.kind, "note");
+});
+
+test("stepNodeId targets visible change or commit node by zoom level", () => {
+  const change = { id: "c3" } as ChangeNodeData["change"];
+  const step = { narrativeId: "N", commit: 1, change };
+  assert.equal(stepNodeId(step, "patch"), "N#commit-1");
+  assert.equal(stepNodeId(step, "concept"), "N#c3");
+  assert.equal(stepNodeId({ ...step, commit: null }, "patch"), "N#c3");
 });

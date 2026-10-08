@@ -11,7 +11,17 @@ import type { GraphNodeData, ZoomLevel } from "./graph-api.ts";
 import type { NodeProps } from "@xyflow/react";
 
 export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
-export interface PhaseView { Body: ComponentType<PhaseViewProps>; exportable?(state: SessionState): boolean; isStaleNotice?(state: SessionState, notice: NotifyPayload): boolean }
+/** What a static export embeds of the latest diff: its id, its commit shas, and the paths of files whose full text is included. */
+export interface ExportDiff { id: string; commits: string[]; files: string[] }
+export interface PhaseView {
+  Body: ComponentType<PhaseViewProps>;
+  /** Whether the Export button shows; default false. */
+  exportable?(state: SessionState): boolean;
+  /** The diff an export carries file texts of; none for views without diffs. */
+  exportDiff?(state: SessionState): ExportDiff | null;
+  /** Whether a notification is stale for this view and is not shown. */
+  isStaleNotice?(state: SessionState, notice: NotifyPayload): boolean;
+}
 export interface NodeKind {
   component: ComponentType<NodeProps>;
   minimapColor: string;
@@ -41,7 +51,7 @@ export { ClosedContext } from "./closed.ts";
 export { ReopenClosed } from "./ReopenClosed.tsx";
 export { api } from "./api.ts";
 export { Conversation } from "./nodes/ChatNode.tsx";
-export type { HunkRow } from "./Canvas.tsx";
+export type { CanvasModel, GuideStep, FocusedRow, CanvasProviderProps } from "./Canvas.tsx";
 export type { SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";
 export { SearchfoxContext, searchUrl, searchfoxLinks, fileUrl, linkTitle } from "./searchfox-url.ts";

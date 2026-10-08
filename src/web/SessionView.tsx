@@ -55,6 +55,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     <NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
-    {exporting && <ExportDialog state={state} onClose={() => setExporting(false)} />}
+    {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}
   </div>;
 }

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { type Artifact, type DiffData, Canvas, type HunkRow, FileViewContext, TopbarExtras, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, Canvas, FileViewContext, TopbarExtras, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import { latestNarrative } from "./graph.ts";
+import { JumpContext, reviewCanvas, type HunkRow } from "./canvas.tsx";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
 import { FilePanel, type OpenFile } from "./FilePanel.tsx";
@@ -20,7 +21,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   const stack = diff && diff.data.commits.length > 1 ? diff.data.commits : null;
   const epoch = diff ? diffNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
-  const body = narrative ? <Canvas jump={jump} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} />
+  const body = narrative ? <JumpContext.Provider value={jump}><Canvas model={reviewCanvas} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider>
     : diff && epoch !== null ? <RevisionView sessionId={state.session.id} diff={diff as Artifact<DiffData>} epoch={epoch} state={state} models={models} />
       : <AnalysisStatus state={state} models={models} />;
   return <>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Artifact, PostedCommentData, SessionState } from "../shared/types.ts";
-import { latestDiff } from "../plugins/review/shared/diffs.ts";
+import type { ExportDiff } from "./plugin-api.ts";
 import { exportHtml, exportState, type SessionExport } from "./export-state.ts";
 import { loadFileLines } from "./file-lines.ts";
 
@@ -20,14 +20,13 @@ async function bundleText(): Promise<{ css: string; js: string }> {
   return { css, js };
 }
 
-async function prepare(state: SessionState): Promise<{ data: SessionExport; css: string; js: string }> {
+async function prepare(state: SessionState, diff: ExportDiff | null): Promise<{ data: SessionExport; css: string; js: string }> {
   const sessionId = state.session.id;
   const closed = new Set(JSON.parse(localStorage.getItem(`spatial-ide:closed:${sessionId}`) ?? "[]") as string[]);
-  const diff = latestDiff(state.artifacts);
   const files: Record<string, string[] | null> = {};
-  if (diff) await Promise.all(diff.data.files.filter((file) => (file.status === "modified" || file.status === "renamed") && !file.binary).map(async (file) => {
-    const lines = await loadFileLines(sessionId, diff.id, file.path);
-    files[file.path] = lines.reduce((size, line) => size + line.length + 1, 0) > FILE_CAP ? null : lines;
+  if (diff) await Promise.all(diff.files.map(async (path) => {
+    const lines = await loadFileLines(sessionId, diff.id, path);
+    files[path] = lines.reduce((size, line) => size + line.length + 1, 0) > FILE_CAP ? null : lines;
   }));
   const view: Record<string, string> = {};
   for (const kind of VIEW_KEYS) {
@@ -36,7 +35,7 @@ async function prepare(state: SessionState): Promise<{ data: SessionExport; css:
     if (value !== null) view[key] = value;
   }
   const { css, js } = await bundleText();
-  return { data: { version: 1, exportedAt: new Date().toISOString(), state: exportState(state, closed), files, view }, css, js };
+  return { data: { version: 1, exportedAt: new Date().toISOString(), state: exportState(state, closed, diff?.commits ?? []), diffId: diff?.id ?? null, files, view }, css, js };
 }
 
 function contents(data: SessionExport): string[] {
@@ -54,14 +53,14 @@ function contents(data: SessionExport): string[] {
 }
 
 /** Prepares a read-only static copy of the session, lists what it contains, and saves it as one HTML file. */
-export function ExportDialog({ state, onClose }: { state: SessionState; onClose: () => void }) {
+export function ExportDialog({ state, diff, onClose }: { state: SessionState; diff: ExportDiff | null; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [prepared, setPrepared] = useState<Awaited<ReturnType<typeof prepare>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (dialog.current && !dialog.current.open) dialog.current.showModal();
     let cancelled = false;
-    prepare(state).then((value) => { if (!cancelled) setPrepared(value); }, (e: Error) => { if (!cancelled) setError(e.message); });
+    prepare(state, diff).then((value) => { if (!cancelled) setPrepared(value); }, (e: Error) => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
   }, [state]);
   const save = () => {

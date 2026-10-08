@@ -1,4 +1,4 @@
-import type { WebPlugin, NodeKind } from "../../../web/plugin-api.ts";
+import type { WebPlugin, NodeKind, ExportDiff, SessionState } from "../../../web/plugin-api.ts";
 import { latestNarrative, reviewSize } from "./graph.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { isStaleNotice } from "./notices.ts";
@@ -21,9 +21,14 @@ const reviewNodeKinds: Record<string, NodeKind> = {
   phab: { component: PhabThreadNode as NodeKind["component"], minimapColor: "var(--kind-phab)", size: reviewSize },
 };
 
+function exportDiff(state: SessionState): ExportDiff | null {
+  const diff = latestDiff(state.artifacts);
+  return diff ? { id: diff.id, commits: diff.data.commits.map((commit) => commit.sha), files: diff.data.files.filter((file) => (file.status === "modified" || file.status === "renamed") && !file.binary).map((file) => file.path) } : null;
+}
+
 export const reviewWeb: WebPlugin = {
   id: "review",
-  phaseViews: { review: { Body: ReviewView, exportable: (state) => !!latestNarrative(state), isStaleNotice: (state, notice) => isStaleNotice(notice, latestDiff(state.artifacts)) } },
+  phaseViews: { review: { Body: ReviewView, exportable: (state) => !!latestNarrative(state), exportDiff, isStaleNotice: (state, notice) => isStaleNotice(notice, latestDiff(state.artifacts)) } },
   workflowPhase: { review: "review" },
   nodeKinds: reviewNodeKinds,
 };

@@ -18,3 +18,12 @@ test("plugin imports stay within their plugin except for public APIs", () => {
   const files = new Map([["src/plugins/review/a.ts", 'import "../../runtime/tasks.ts"; import "../../plugin-api.ts";']]);
   assert.deepEqual(checkPluginBoundary(files), ["src/plugins/review/a.ts → ../../runtime/tasks.ts"]);
 });
+
+test("core web files must not import plugin modules", () => {
+  const files = new Map([
+    ["src/web/Canvas.tsx", 'import { reviewGraph } from "../plugins/review/web/graph.ts";'],
+    ["src/web/SessionView.tsx", 'import { webPlugins } from "../plugins/web.ts";'],
+    ["src/plugins/review/web/a.ts", 'import "../../../web/plugin-api.ts"; import "../../../web/graph-api.ts"; import "../../../web/Canvas.tsx";'],
+  ]);
+  assert.deepEqual(checkPluginBoundary(files), ["src/plugins/review/web/a.ts → ../../../web/Canvas.tsx", "src/web/Canvas.tsx → ../plugins/review/web/graph.ts"]);
+});

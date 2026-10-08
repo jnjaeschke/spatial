@@ -21,22 +21,22 @@ test("exportState drops closed items with their messages, replies, revisions and
   ], [
     link("M1", "T1", "reply"), link("R1", "M1", "revises"), link("D1", "M1", "derivedFrom"), link("M2", "T2", "reply"), link("M3", "T3", "reply"),
   ], [task("a", "resolveSpecRefs", "succeeded"), task("b", "chatTurn", "succeeded"), task("c", "resolveSpecRefs", "failed")]);
-  const out = exportState(st, new Set(["T1", "NOTE", "D2", "F", "unknown"]));
+  const out = exportState(st, new Set(["T1", "NOTE", "D2", "F", "unknown"]), []);
   assert.deepEqual(out.artifacts.map((a) => a.id), ["T3", "M3", "F"]);
   assert.deepEqual(out.links.map((l) => l.id), ["M3->T3"]);
   assert.deepEqual(out.tasks.map((t) => t.id), ["a"]);
-  assert.deepEqual(exportState(st, new Set()).artifacts.filter((a) => a.type !== "Diagram").length, st.artifacts.filter((a) => a.type !== "Diagram").length);
+  assert.deepEqual(exportState(st, new Set(), []).artifacts.filter((a) => a.type !== "Diagram").length, st.artifacts.filter((a) => a.type !== "Diagram").length);
 });
 
 test("exportState keeps only the diagram the canvas shows for each reviewed commit", () => {
   const diff = artifact("DIFF", "Diff", { baseSha: "b", headSha: "h", commits: [{ sha: "c1" }, { sha: "c2" }], files: [] });
   const sequence = (id: string, commit: string) => artifact(id, "Diagram", { kind: "sequence", commit });
   const st = state([diff, sequence("D-old", "c1"), sequence("D-new", "c1"), artifact("D-legacy", "Diagram", { kind: "flow", commit: "c2" }), sequence("D-other", "gone"), sequence("D-c2", "c2")], []);
-  assert.deepEqual(exportState(st, new Set()).artifacts.map((a) => a.id), ["DIFF", "D-new", "D-c2"]);
+  assert.deepEqual(exportState(st, new Set(), ["c1", "c2"]).artifacts.map((a) => a.id), ["DIFF", "D-new", "D-c2"]);
 });
 
 test("exportHtml embeds the data and bundle as HTML-safe JSON", () => {
-  const data = { version: 1, exportedAt: "now", state: state([artifact("M", "ChatMessage", { text: "</script><b>" })], []), files: { "a.cpp": ["x < y"] }, view: {} } satisfies SessionExport;
+  const data = { version: 1, exportedAt: "now", state: state([artifact("M", "ChatMessage", { text: "</script><b>" })], []), diffId: "DIFF", files: { "a.cpp": ["x < y"] }, view: {} } satisfies SessionExport;
   const js = 'console.log("</script>")';
   const html = exportHtml("A <title>", "a { color: red }", js, data);
   assert.equal(html.match(/<\/script>/g)!.length, 3);
