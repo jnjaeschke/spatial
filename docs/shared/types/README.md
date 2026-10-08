@@ -47,6 +47,7 @@
 - [SequenceStep](interfaces/SequenceStep.md)
 - [Session](interfaces/Session.md)
 - [SessionState](interfaces/SessionState.md)
+- [StartQuestion](interfaces/StartQuestion.md)
 - [TaskRecord](interfaces/TaskRecord.md)
 - [WorkflowInfo](interfaces/WorkflowInfo.md)
 - [WorkflowStartData](interfaces/WorkflowStartData.md)
@@ -67,3 +68,4 @@
 - [SequenceStatus](type-aliases/SequenceStatus.md)
 - [TaskStatus](type-aliases/TaskStatus.md)
 - [WorkflowId](type-aliases/WorkflowId.md)
+- [WriteMode](type-aliases/WriteMode.md)

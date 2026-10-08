@@ -15,7 +15,8 @@ Everything a user works on is a plugin; review and chat are the standard library
   definitions, artifact kinds, search kinds, chat context and reply fields, and a server part
   with HTTP routes and background services. Registered in `src/plugins/index.ts`.
 - A **workflow** (`Workflow`) is what a user starts from the start screen or a slash command.
-  It parses its arguments and runs phases.
+  It parses its arguments and runs phases. A workflow's optional `precheck` can ask the start box
+  one question about the work tree before any session exists.
 - A **phase** (`Phase`) is one step of a workflow. `Runtime.runPhase` runs it as a new
   **epoch**: a stored, numbered run of one phase in a session with its input, status and error.
   Tasks and artifacts created meanwhile carry that epoch. A failed or cancelled epoch reruns in
@@ -341,6 +342,12 @@ Re-exports [PostedCommentData](../shared/types/interfaces/PostedCommentData.md)
 
 ***
 
+### PrecheckQuestion
+
+Re-exports [PrecheckQuestion](../runtime/plugins/interfaces/PrecheckQuestion.md)
+
+***
+
 ### prependRepoContext
 
 Re-exports [prependRepoContext](../runtime/repo-context/functions/prependRepoContext.md)
@@ -539,6 +546,12 @@ Re-exports [StartInput](../runtime/plugins/interfaces/StartInput.md)
 
 ***
 
+### StartQuestion
+
+Re-exports [StartQuestion](../shared/types/interfaces/StartQuestion.md)
+
+***
+
 ### Step
 
 Re-exports [Step](../runtime/plugins/type-aliases/Step.md)
@@ -632,3 +645,9 @@ Re-exports [workflowView](../runtime/render-ref/functions/workflowView.md)
 ### WorkflowView
 
 Re-exports [WorkflowView](../runtime/render-ref/interfaces/WorkflowView.md)
+
+***
+
+### WriteMode
+
+Re-exports [WriteMode](../shared/types/type-aliases/WriteMode.md)

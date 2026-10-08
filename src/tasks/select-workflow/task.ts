@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import type { Id, LlmSelection, SelectorQuestionData, WorkflowStartData } from "../../shared/types.ts";
+import type { Id, LlmSelection, SelectorQuestionData, WorkflowStartData, WriteMode } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
 
@@ -26,9 +26,9 @@ export function selectorSchema(workflows: ReadonlyMap<string, import("../../runt
 export const MAX_SELECTOR_QUESTIONS = 2;
 
 /** Chooses a workflow for the request, or asks the user one question (`round` counts questions already asked). */
-export const selectWorkflow = defineTask<{ prompt: string; round?: number; llm?: LlmSelection }, { startId: Id } | { questionId: Id }>({
+export const selectWorkflow = defineTask<{ prompt: string; round?: number; llm?: LlmSelection; writeMode?: WriteMode }, { startId: Id } | { questionId: Id }>({
   kind: "selectWorkflow",
-  async run(ctx, { prompt, round = 0, llm }) {
+  async run(ctx, { prompt, round = 0, llm, writeMode }) {
     if (!prompt.trim()) throw new Error("Request is empty");
     const workflows = ctx.workflows;
     const all = [...workflows.values()];
@@ -39,7 +39,7 @@ export const selectWorkflow = defineTask<{ prompt: string; round?: number; llm?:
     const json = r.json as { question?: unknown; workflow?: unknown; title?: unknown; params?: unknown } | undefined;
     if (typeof json?.question === "string" && json.question.trim()) {
       if (round >= MAX_SELECTOR_QUESTIONS) throw new Error(`Selector still asks after ${round} answers: ${json.question}`);
-      const question = ctx.artifacts.put<SelectorQuestionData>("SelectorQuestion", "proposed", { prompt, question: json.question.trim(), round: round + 1 }, r.selection);
+      const question = ctx.artifacts.put<SelectorQuestionData>("SelectorQuestion", "proposed", { prompt, question: json.question.trim(), round: round + 1, ...(writeMode ? { writeMode } : {}) }, r.selection);
       return { questionId: question.id };
     }
     const id = json?.workflow;
@@ -49,7 +49,7 @@ export const selectWorkflow = defineTask<{ prompt: string; round?: number; llm?:
     if (!params.success) throw new Error(`Selector returned invalid params for ${id}: ${params.error.message}`);
     const title = typeof json!.title === "string" ? json!.title.trim().slice(0, 80) : "";
     if (!title) throw new Error("Selector returned no title");
-    const start = ctx.artifacts.put<WorkflowStartData>("WorkflowStart", "proposed", { via: "selector", workflow: workflow.id, params: params.data, title, prompt }, r.selection);
+    const start = ctx.artifacts.put<WorkflowStartData>("WorkflowStart", "proposed", { via: "selector", workflow: workflow.id, params: params.data, title, prompt, ...(llm ? { llm } : {}), ...(writeMode ? { writeMode } : {}) }, r.selection);
     return { startId: start.id };
   },
 });

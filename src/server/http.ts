@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { SelectorQuestionData, SelectorAnswerData, Artifact, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, RecentRepo, RepoInfo, Session, WorkflowInfo } from "../shared/types.ts";
+import type { SelectorQuestionData, SelectorAnswerData, Artifact, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
@@ -124,10 +124,14 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const path = str(body.path, "path");
       if (!isAbsolute(path)) throw new HttpError(400, "path must be absolute");
       const text = str(body.text, "text");
-      let session: Session;
-      try { session = await startSession(rt, path, text, body.llm as LlmSelection | undefined); }
+      const writeMode = body.writeMode;
+      if (writeMode !== undefined && writeMode !== "auto" && writeMode !== "full" && writeMode !== "editsOnly") throw new HttpError(400, "Invalid writeMode");
+      const answer = body.answer;
+      if (answer !== undefined && (!Number.isInteger(answer))) throw new HttpError(400, "Invalid answer");
+      let result: Session | StartQuestion;
+      try { result = await startSession(rt, path, text, body.llm as LlmSelection | undefined, { writeMode: writeMode as WriteMode | undefined, answer: answer as number | undefined }); }
       catch (e) { throw new HttpError(400, (e as Error).message); }
-      send(res, 201, session);
+      send(res, "question" in result ? 200 : 201, result);
     }],
     ["GET", /^\/api\/repo$/, async ({ url }): Promise<RepoInfo> => {
       const path = url.searchParams.get("path");

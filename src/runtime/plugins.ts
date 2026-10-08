@@ -12,6 +12,8 @@ export type Step =
   | { run: string; input: unknown }
   | { decide: { question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string } };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
+/** A question asked before the session exists; the chosen option's `params` are merged into the workflow params, an option without `params` cancels the start. */
+export interface PrecheckQuestion<P> { question: string; options: { label: string; params?: Partial<P> }[] }
 /** How to work in one kind of repository. Plugins contribute profiles; workflows pick one per session. */
 export interface RepoProfile {
   id: string;
@@ -45,6 +47,8 @@ export interface Workflow<P> extends WorkflowInfo {
   params: z.ZodType<P>;
   /** Deterministic parser for slash-command arguments. */
   parseArgs(args: string): ParseResult<P>;
+  /** Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box (slash commands) or stored as a selector question (selected workflows). */
+  precheck?(repo: string, params: P): Promise<PrecheckQuestion<P> | null>;
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
   /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered. */
   next?(view: WorkflowView, ctx: WorkflowContext): Step | null;

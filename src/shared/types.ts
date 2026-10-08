@@ -7,6 +7,10 @@ export type EpochStatus = "running" | "succeeded" | "failed" | "cancelled";
 export interface Epoch { sessionId: Id; n: number; phase: string; status: EpochStatus; input: unknown; error: string | null; startedAt: string; endedAt: string | null }
 
 export type WorkflowId = string;
+export type WriteMode = "auto" | "full" | "editsOnly";
+
+/** A question the start box shows before a session exists; send the start request again with `answer` set to the index of the chosen option. An option with `cancel` abandons the start. */
+export interface StartQuestion { question: string; options: { label: string; cancel?: true }[] }
 
 /** A registry entry as the start box shows it: `/<id> <argHint>`, `description`. */
 export interface WorkflowInfo { id: string; description: string; argHint: string }
@@ -18,6 +22,9 @@ export interface WorkflowStartData {
   params: unknown;
   title: string;
   prompt: string;
+  /** The start box selection later phases reuse: the model for investigate and review, and how much the implement agent may do. */
+  llm?: LlmSelection;
+  writeMode?: WriteMode;
 }
 
 /** One choice of a `Decision`. `takesText`: the user may add text; `requiresText`: the text is mandatory; `textPattern`: source of a regular expression the text must match; `defaultText`: text the UI prefills; `takesModel`: the answer carries the LLM selection to use for the work that follows (`chosen.llm`). */
@@ -31,6 +38,7 @@ export interface SelectorQuestionData {
   prompt: string;
   question: string;
   round: number;
+  writeMode?: WriteMode;
 }
 
 /** Data of a `SelectorAnswer` artifact: the user's answer to a `SelectorQuestion`. */

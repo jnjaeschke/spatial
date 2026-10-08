@@ -8,7 +8,8 @@
  *   definitions, artifact kinds, search kinds, chat context and reply fields, and a server part
  *   with HTTP routes and background services. Registered in `src/plugins/index.ts`.
  * - A **workflow** (`Workflow`) is what a user starts from the start screen or a slash command.
- *   It parses its arguments and runs phases.
+ *   It parses its arguments and runs phases. A workflow's optional `precheck` can ask the start box
+ *   one question about the work tree before any session exists.
  * - A **phase** (`Phase`) is one step of a workflow. `Runtime.runPhase` runs it as a new
  *   **epoch**: a stored, numbered run of one phase in a session with its input, status and error.
  *   Tasks and artifacts created meanwhile carry that epoch. A failed or cancelled epoch reruns in
@@ -38,7 +39,7 @@
  * composition roots.
  */
 export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(plugin: T): T => plugin;
-export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, RepoProfile, WorkflowContext, StartInput, Step, Workflow } from "./runtime/plugins.ts";
+export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, PrecheckQuestion, RepoProfile, WorkflowContext, StartInput, Step, Workflow } from "./runtime/plugins.ts";
 export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";

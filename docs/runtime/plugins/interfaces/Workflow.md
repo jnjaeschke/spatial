@@ -116,6 +116,28 @@ Deterministic parser for slash-command arguments.
 
 ***
 
+### precheck()?
+
+> `optional` **precheck**(`repo`, `params`): `Promise`\<[`PrecheckQuestion`](PrecheckQuestion.md)\<`P`\> \| `null`\>
+
+Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box (slash commands) or stored as a selector question (selected workflows).
+
+#### Parameters
+
+##### repo
+
+`string`
+
+##### params
+
+`P`
+
+#### Returns
+
+`Promise`\<[`PrecheckQuestion`](PrecheckQuestion.md)\<`P`\> \| `null`\>
+
+***
+
 ### start()
 
 > **start**(`rt`, `sessionId`, `input`): `Promise`\<`void`\>

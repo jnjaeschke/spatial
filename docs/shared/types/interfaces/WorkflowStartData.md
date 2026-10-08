@@ -10,6 +10,14 @@ Data of a `WorkflowStart` artifact: the request that started the session and the
 
 ## Properties
 
+### llm?
+
+> `optional` **llm?**: [`LlmSelection`](LlmSelection.md)
+
+The start box selection later phases reuse: the model for investigate and review, and how much the implement agent may do.
+
+***
+
 ### params
 
 > **params**: `unknown`
@@ -37,3 +45,9 @@ Data of a `WorkflowStart` artifact: the request that started the session and the
 ### workflow
 
 > **workflow**: `string`
+
+***
+
+### writeMode?
+
+> `optional` **writeMode?**: [`WriteMode`](../type-aliases/WriteMode.md)

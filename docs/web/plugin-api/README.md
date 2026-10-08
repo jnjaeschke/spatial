@@ -398,6 +398,12 @@ Re-exports [SessionState](../../shared/types/interfaces/SessionState.md)
 
 ***
 
+### StartQuestion
+
+Re-exports [StartQuestion](../../shared/types/interfaces/StartQuestion.md)
+
+***
+
 ### TaskRecord
 
 Re-exports [TaskRecord](../../shared/types/interfaces/TaskRecord.md)
@@ -425,3 +431,9 @@ Re-exports [WorkflowInfo](../../shared/types/interfaces/WorkflowInfo.md)
 ### WorkflowStartData
 
 Re-exports [WorkflowStartData](../../shared/types/interfaces/WorkflowStartData.md)
+
+***
+
+### WriteMode
+
+Re-exports [WriteMode](../../shared/types/type-aliases/WriteMode.md)

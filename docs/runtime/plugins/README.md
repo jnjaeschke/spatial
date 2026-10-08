@@ -13,6 +13,7 @@
 - [Plugin](interfaces/Plugin.md)
 - [PluginRegistry](interfaces/PluginRegistry.md)
 - [PluginServer](interfaces/PluginServer.md)
+- [PrecheckQuestion](interfaces/PrecheckQuestion.md)
 - [RepoProfile](interfaces/RepoProfile.md)
 - [StartInput](interfaces/StartInput.md)
 - [Workflow](interfaces/Workflow.md)

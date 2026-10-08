@@ -25,3 +25,9 @@ Data of a `SelectorQuestion` artifact: the workflow selector could not choose an
 ### round
 
 > **round**: `number`
+
+***
+
+### writeMode?
+
+> `optional` **writeMode?**: [`WriteMode`](../type-aliases/WriteMode.md)
