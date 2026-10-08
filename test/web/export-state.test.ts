@@ -10,7 +10,7 @@ const task = (id: string, kind: string, status: TaskRecord["status"]) => ({ id, 
 const state = (artifacts: Artifact[], links: Link[], tasks: TaskRecord[] = []): SessionState => ({
   session: { id: "S", worktree: "/w", repoDir: "/w/.git", title: "T", createdAt: "0", workflow: "review" },
   artifacts, links, tasks, lastEventId: 0, searchfox: null,
-});
+ epochs: [],});
 
 test("exportState drops closed items with their messages, replies, revisions and derived diagrams", () => {
   const st = state([

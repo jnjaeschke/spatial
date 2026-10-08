@@ -16,6 +16,12 @@ Full snapshot of one session; the web client's only data source besides events.
 
 ***
 
+### epochs
+
+> **epochs**: [`Epoch`](Epoch.md)[]
+
+***
+
 ### lastEventId
 
 > **lastEventId**: `number`

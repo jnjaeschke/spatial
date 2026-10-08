@@ -15,6 +15,7 @@ export async function buildSessionState(store: Store, searchfoxCapability: Searc
     artifacts: store.listArtifacts(sessionId),
     links: store.listLinks(sessionId),
     tasks: store.listTasks(sessionId),
+    epochs: store.listEpochs(sessionId),
     lastEventId: store.lastEventId(sessionId),
     searchfox,
   };

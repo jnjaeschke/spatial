@@ -72,6 +72,30 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ***
 
+### createEpoch()
+
+> **createEpoch**(`sessionId`, `phase`, `input`): [`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### phase
+
+`string`
+
+##### input
+
+`unknown`
+
+#### Returns
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+***
+
 ### createSession()
 
 > **createSession**(`fields`): [`Session`](../../../shared/types/interfaces/Session.md)
@@ -150,6 +174,26 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ***
 
+### getEpoch()
+
+> **getEpoch**(`sessionId`, `n`): [`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### n
+
+`number`
+
+#### Returns
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+***
+
 ### getSession()
 
 > **getSession**(`id`): [`Session`](../../../shared/types/interfaces/Session.md)
@@ -215,6 +259,22 @@ Dumb persistence. Emits no events; the Runtime does that.
 #### Returns
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`unknown`\>[]
+
+***
+
+### listEpochs()
+
+> **listEpochs**(`sessionId`): [`Epoch`](../../../shared/types/interfaces/Epoch.md)[]
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md)[]
 
 ***
 
@@ -437,6 +497,36 @@ Records the chosen workflow and the session title.
 #### Returns
 
 `string`[]
+
+***
+
+### updateEpoch()
+
+> **updateEpoch**(`sessionId`, `n`, `patch`): [`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### n
+
+`number`
+
+##### patch
+
+###### error?
+
+`string` \| `null`
+
+###### status
+
+[`EpochStatus`](../../../shared/types/type-aliases/EpochStatus.md)
+
+#### Returns
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md)
 
 ***
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Artifact, DiffData, PatchNarrativeData, PhabCommentData } from "../../src/shared/types.ts";
 import { phabView } from "../../src/shared/phab-anchor.ts";
 
-const make = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, data, status: "verified", provenance: { taskId: "runtime" }, createdAt: id });
+const make = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, data, status: "verified", provenance: { taskId: "runtime" }, createdAt: id, epoch: null});
 const diff = (id: string, newLines: { kind: "ctx" | "add" | "del"; text: string }[], oldStart = 28, commits = [{ sha: id, subject: "change", body: "Differential Revision: https://phab.example.com/D1" }]): Artifact<DiffData> => make(id, "Diff", {
   baseSha: "b", headSha: id, commits, files: [{ path: "a.txt", status: "modified", binary: false, hunks: [{ id: `${id}h0`, header: "@@", oldStart, oldLines: newLines.length, newStart: 28, newLines: newLines.filter((line) => line.kind !== "del").length, lines: newLines }] }],
 });

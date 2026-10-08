@@ -8,6 +8,7 @@
 
 ## Classes
 
+- [PhaseBusyError](classes/PhaseBusyError.md)
 - [Runtime](classes/Runtime.md)
 - [TaskCancelledError](classes/TaskCancelledError.md)
 - [TaskFailedError](classes/TaskFailedError.md)
@@ -16,6 +17,7 @@
 
 - [BlameEntry](interfaces/BlameEntry.md)
 - [GitCapability](interfaces/GitCapability.md)
+- [Phase](interfaces/Phase.md)
 - [RuntimeOptions](interfaces/RuntimeOptions.md)
 - [SearchfoxCapability](interfaces/SearchfoxCapability.md)
 - [StepCommentCheck](interfaces/StepCommentCheck.md)

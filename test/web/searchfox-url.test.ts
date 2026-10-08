@@ -5,7 +5,7 @@ import { fileUrl, linkTitle, searchUrl, searchfoxLinks } from "../../src/web/sea
 
 const state = (searchfox: SessionState["searchfox"]): SessionState => ({
   session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow: "review" }, artifacts: [], links: [], tasks: [], lastEventId: 0, searchfox,
-});
+ epochs: [],});
 const diff = (upstreamRev?: string) => ({ upstreamRev } as DiffData);
 
 test("searchfoxLinks selects upstream revision or current tip", () => {

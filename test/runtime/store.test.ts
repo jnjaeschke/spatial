@@ -73,6 +73,32 @@ test("tasks are created pending and updated", () => {
   assert.equal(t3.error, "boom");
 });
 
+test("epochs are numbered and stamped on tasks and artifacts", () => {
+  const { store, session } = fresh();
+  const before = store.putArtifact({ sessionId: session.id, type: "Before", status: "verified", data: {}, provenance: { taskId: "t" } });
+  const taskBefore = store.createTask({ sessionId: session.id, kind: "k", input: null });
+  assert.equal(before.epoch, null);
+  assert.equal(taskBefore.epoch, null);
+
+  const first = store.createEpoch(session.id, "review", { base: "a" });
+  assert.equal(first.n, 1);
+  assert.equal(first.status, "running");
+  assert.deepEqual(first.input, { base: "a" });
+  const after = store.putArtifact({ sessionId: session.id, type: "After", status: "verified", data: {}, provenance: { taskId: "t" } });
+  const taskAfter = store.createTask({ sessionId: session.id, kind: "k", input: null });
+  assert.equal(after.epoch, 1);
+  assert.equal(taskAfter.epoch, 1);
+
+  const ended = store.updateEpoch(session.id, 1, { status: "failed", error: "boom" });
+  assert.equal(ended.error, "boom");
+  assert.ok(ended.endedAt);
+  const second = store.createEpoch(session.id, "chat", null);
+  assert.equal(second.n, 2);
+  assert.equal(store.listEpochs(session.id).length, 2);
+  const running = store.updateEpoch(session.id, 2, { status: "running" });
+  assert.equal(running.endedAt, null);
+});
+
 test("data persists across Store instances on a file", async () => {
   const { mkdtempSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
@@ -90,6 +116,17 @@ test("old session schema is rejected", () => {
   const dir = mkdtempSync(join(tmpdir(), "store-old-schema-"));
   const path = join(dir, "db.sqlite");
   new DatabaseSync(path).exec("CREATE TABLE sessions (id TEXT PRIMARY KEY, repo TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL)");
+  assert.throws(() => new Store(path), /outdated schema/);
+});
+
+test("old task and artifact schemas are rejected", () => {
+  const dir = mkdtempSync(join(tmpdir(), "store-old-epochs-schema-"));
+  const path = join(dir, "db.sqlite");
+  const db = new DatabaseSync(path);
+  db.exec(`CREATE TABLE sessions (id TEXT PRIMARY KEY, worktree TEXT NOT NULL, repo_dir TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL, workflow TEXT);
+    CREATE TABLE tasks (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, input TEXT NOT NULL, output TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+    CREATE TABLE artifacts (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL);`);
+  db.close();
   assert.throws(() => new Store(path), /outdated schema/);
 });
 

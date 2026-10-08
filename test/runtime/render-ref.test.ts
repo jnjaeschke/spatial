@@ -5,7 +5,7 @@ import type { Artifact, Link } from "../../src/shared/types.ts";
 
 const artifact = <T,>(id: string, type: string, data: T): Artifact<T> => ({
   id, sessionId: "s", type, data, status: "proposed", provenance: { taskId: "task" }, createdAt: "now",
-});
+ epoch: null,});
 
 const hunk = (id: string) => ({ id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "add" as const, text: `line ${id}` }] });
 const diff = artifact("D", "Diff", {

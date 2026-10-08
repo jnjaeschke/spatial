@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type {
-  Actor, Artifact, ArtifactStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
+  Actor, Artifact, ArtifactStatus, Epoch, EpochStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
   RuntimeEvent, Session, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
 import type { SearchDoc } from "./render-ref.ts";
@@ -13,10 +13,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), kind TEXT NOT NULL,
   status TEXT NOT NULL, input TEXT NOT NULL, output TEXT, error TEXT,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, epoch INTEGER);
 CREATE TABLE IF NOT EXISTS artifacts (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), type TEXT NOT NULL,
-  status TEXT NOT NULL, data TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL);
+  status TEXT NOT NULL, data TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL, epoch INTEGER);
+CREATE TABLE IF NOT EXISTS epochs (
+  session_id TEXT NOT NULL REFERENCES sessions(id), n INTEGER NOT NULL, phase TEXT NOT NULL, status TEXT NOT NULL,
+  input TEXT NOT NULL, error TEXT, started_at TEXT NOT NULL, ended_at TEXT, PRIMARY KEY (session_id, n));
 CREATE TABLE IF NOT EXISTS links (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id),
   from_ref TEXT NOT NULL, to_ref TEXT NOT NULL, kind TEXT NOT NULL);
@@ -47,7 +50,9 @@ export class Store {
       if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
       this.#db.exec(SCHEMA);
       const columns = (this.#db.prepare("PRAGMA table_info(sessions)").all() as Row[]).map((r) => r.name).join(",");
-      if (columns !== SESSION_COLUMNS) throw new Error(`Database ${path} has an outdated schema (sessions are disposable): delete it and restart`);
+      const artifactColumns = (this.#db.prepare("PRAGMA table_info(artifacts)").all() as Row[]).map((r) => r.name).join(",");
+      const taskColumns = (this.#db.prepare("PRAGMA table_info(tasks)").all() as Row[]).map((r) => r.name).join(",");
+      if (columns !== SESSION_COLUMNS || artifactColumns !== "id,session_id,type,status,data,provenance,created_at,epoch" || taskColumns !== "id,session_id,kind,status,input,output,error,created_at,updated_at,epoch") throw new Error(`Database ${path} has an outdated schema (sessions are disposable): delete it and restart`);
     }
   }
 
@@ -77,11 +82,36 @@ export class Store {
     return (this.#db.prepare("SELECT * FROM sessions ORDER BY created_at, rowid").all() as Row[]).map(toSession);
   }
 
+  createEpoch(sessionId: Id, phase: string, input: unknown): Epoch {
+    const n = Number((this.#db.prepare("SELECT COALESCE(MAX(n), 0) + 1 AS n FROM epochs WHERE session_id = ?").get(sessionId) as Row).n);
+    const startedAt = now();
+    this.#db.prepare("INSERT INTO epochs VALUES (?, ?, ?, 'running', ?, NULL, ?, NULL)").run(sessionId, n, phase, JSON.stringify(input ?? null), startedAt);
+    return this.getEpoch(sessionId, n);
+  }
+
+  updateEpoch(sessionId: Id, n: number, patch: { status: EpochStatus; error?: string | null }): Epoch {
+    const cur = this.getEpoch(sessionId, n);
+    const endedAt = patch.status === "running" ? null : now();
+    const error = patch.error !== undefined ? patch.error : patch.status === "running" ? null : cur.error;
+    this.#db.prepare("UPDATE epochs SET status = ?, error = ?, ended_at = ? WHERE session_id = ? AND n = ?").run(patch.status, error, endedAt, sessionId, n);
+    return this.getEpoch(sessionId, n);
+  }
+
+  getEpoch(sessionId: Id, n: number): Epoch {
+    const r = this.#db.prepare("SELECT * FROM epochs WHERE session_id = ? AND n = ?").get(sessionId, n) as Row | undefined;
+    if (!r) throw new Error(`Unknown epoch: ${sessionId}/${n}`);
+    return toEpoch(r);
+  }
+
+  listEpochs(sessionId: Id): Epoch[] {
+    return (this.#db.prepare("SELECT * FROM epochs WHERE session_id = ? ORDER BY n").all(sessionId) as Row[]).map(toEpoch);
+  }
+
   putArtifact<T>(a: { sessionId: Id; type: string; status: ArtifactStatus; data: T; provenance: Provenance }): Artifact<T> {
-    const full: Artifact<T> = { id: randomUUID(), createdAt: now(), ...a };
+    const full: Artifact<T> = { id: randomUUID(), createdAt: now(), epoch: this.latestEpoch(a.sessionId), ...a };
     this.#db
-      .prepare("INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .run(full.id, full.sessionId, full.type, full.status, JSON.stringify(full.data), JSON.stringify(full.provenance), full.createdAt);
+      .prepare("INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(full.id, full.sessionId, full.type, full.status, JSON.stringify(full.data), JSON.stringify(full.provenance), full.createdAt, full.epoch);
     return full;
   }
 
@@ -159,8 +189,8 @@ export class Store {
     const ts = now();
     const id = randomUUID();
     this.#db
-      .prepare("INSERT INTO tasks VALUES (?, ?, ?, 'pending', ?, NULL, NULL, ?, ?)")
-      .run(id, t.sessionId, t.kind, JSON.stringify(t.input ?? null), ts, ts);
+      .prepare("INSERT INTO tasks VALUES (?, ?, ?, 'pending', ?, NULL, NULL, ?, ?, ?)")
+      .run(id, t.sessionId, t.kind, JSON.stringify(t.input ?? null), ts, ts, this.latestEpoch(t.sessionId));
     return this.getTask(id);
   }
 
@@ -187,6 +217,15 @@ export class Store {
   listTasks(sessionId: Id): TaskRecord[] {
     return (this.#db.prepare("SELECT * FROM tasks WHERE session_id = ? ORDER BY created_at, rowid").all(sessionId) as Row[]).map(toTask);
   }
+
+  private latestEpoch(sessionId: Id): number | null {
+    const r = this.#db.prepare("SELECT MAX(n) AS n FROM epochs WHERE session_id = ?").get(sessionId) as Row;
+    return r.n === null ? null : Number(r.n);
+  }
+}
+
+function toEpoch(r: Row): Epoch {
+  return { sessionId: r.session_id as string, n: Number(r.n), phase: r.phase as string, status: r.status as EpochStatus, input: JSON.parse(r.input as string), error: (r.error as string | null) ?? null, startedAt: r.started_at as string, endedAt: (r.ended_at as string | null) ?? null };
 }
 
 function toTask(r: Row): TaskRecord {
@@ -194,6 +233,7 @@ function toTask(r: Row): TaskRecord {
       id: r.id as string, sessionId: r.session_id as string, kind: r.kind as string, status: r.status as TaskStatus,
       input: JSON.parse(r.input as string), output: r.output === null ? null : JSON.parse(r.output as string),
       error: (r.error as string | null) ?? null, createdAt: r.created_at as string, updatedAt: r.updated_at as string,
+      epoch: r.epoch === null ? null : Number(r.epoch),
     };
 }
 
@@ -204,6 +244,6 @@ function toSession(r: Row): Session {
 function toArtifact<T>(r: Row): Artifact<T> {
   return {
     id: r.id as string, sessionId: r.session_id as string, type: r.type as string, status: r.status as ArtifactStatus,
-    data: JSON.parse(r.data as string), provenance: JSON.parse(r.provenance as string), createdAt: r.created_at as string,
+    data: JSON.parse(r.data as string), provenance: JSON.parse(r.provenance as string), createdAt: r.created_at as string, epoch: r.epoch === null ? null : Number(r.epoch),
   };
 }

@@ -32,7 +32,7 @@ test("reviewedChanges returns the latest reviewed marks for one narrative", () =
   const mark = (id: string, narrative: string, change: string, reviewed: boolean): Artifact => ({
     id, sessionId: "S", type: "ChangeReview", status: "verified", createdAt: id,
     provenance: { taskId: "user" }, data: { narrative, change, reviewed },
-  });
+    epoch: null,});
   assert.deepEqual(reviewedChanges([], "N"), new Set());
   assert.deepEqual(reviewedChanges([
     mark("1", "N", "c1", true), mark("2", "N", "c2", true), mark("3", "N", "c1", false),

@@ -6,10 +6,10 @@ import type { Artifact, Link } from "../../src/shared/types.ts";
 test("postableComments selects latest verified comments for accepted findings only", () => {
   const session = { id: "S" };
   const artifacts: Artifact[] = [
-    { id: "D1", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "0" },
-    { id: "N1", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D1", summary: "n", changes: [] }, provenance: { taskId: "t" }, createdAt: "1" },
-    { id: "D2", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h2", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "2" },
-    { id: "N2", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D2", summary: "n2", changes: [] }, provenance: { taskId: "t" }, createdAt: "3" },
+    { id: "D1", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "0", epoch: null},
+    { id: "N1", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D1", summary: "n", changes: [] }, provenance: { taskId: "t" }, createdAt: "1", epoch: null},
+    { id: "D2", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h2", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "2", epoch: null},
+    { id: "N2", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D2", summary: "n2", changes: [] }, provenance: { taskId: "t" }, createdAt: "3", epoch: null},
   ];
   const links: Link[] = [];
   const putArtifact = (type: string, status: "proposed" | "verified", data: unknown) => {
@@ -67,10 +67,10 @@ test("postableComments only considers findings from the requested narrative", ()
 
 test("postableComments uses carried lines and excludes outdated or addressed findings", () => {
   const artifacts: Artifact[] = [
-    { id: "D1", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "0" },
-    { id: "N1", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D1", summary: "n1", changes: [] }, provenance: { taskId: "t" }, createdAt: "1" },
-    { id: "D2", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h2", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "2" },
-    { id: "N2", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D2", summary: "n2", changes: [] }, provenance: { taskId: "t" }, createdAt: "3" },
+    { id: "D1", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "0", epoch: null},
+    { id: "N1", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D1", summary: "n1", changes: [] }, provenance: { taskId: "t" }, createdAt: "1", epoch: null},
+    { id: "D2", sessionId: "S", type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h2", commits: [], files: [] }, provenance: { taskId: "t" }, createdAt: "2", epoch: null},
+    { id: "N2", sessionId: "S", type: "PatchNarrative", status: "proposed", data: { diffId: "D2", summary: "n2", changes: [] }, provenance: { taskId: "t" }, createdAt: "3", epoch: null},
   ];
   const links: Link[] = [];
   const put = (id: string, type: string, status: "proposed" | "verified", data: unknown) => {

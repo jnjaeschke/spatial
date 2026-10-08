@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, defineTask, TaskFailedError, TaskCancelledError, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, defineTask, TaskFailedError, TaskCancelledError, PhaseBusyError, type Phase, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { RuntimeEvent } from "../../src/shared/types.ts";
 
@@ -111,4 +111,48 @@ test("unknown task kind and unknown session throw synchronously", () => {
 
 test("duplicate task kinds are rejected", () => {
   assert.throws(() => new Runtime({ store: new Store(":memory:"), tasks: [echo, echo], llm: fakeLlm, git: () => fakeGit, webspec, searchfox }), /Duplicate task kind: echo/);
+});
+
+test("phases stamp tasks and artifacts and each run opens a new epoch", async () => {
+  const store = new Store(":memory:");
+  const phase: Phase<null> = { id: "work", async run(rt, sessionId) { await rt.run(sessionId, "echo", { v: "phase" }); } };
+  const rt = new Runtime({ store, tasks: [echo], phases: [phase], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const first = await rt.runPhase(session.id, "work", null);
+  const firstTask = store.listTasks(session.id)[0];
+  assert.equal(first.n, 1);
+  assert.equal(firstTask.epoch, 1);
+  assert.equal(store.getArtifact((firstTask.output as { artifactId: string }).artifactId).epoch, 1);
+  assert.equal((await rt.runPhase(session.id, "work", null)).n, 2);
+});
+
+test("a session cannot start another phase while its epoch is running", async () => {
+  const store = new Store(":memory:");
+  let finish!: () => void;
+  const phase: Phase<null> = { id: "slow", run: async () => new Promise<void>((resolve) => { finish = resolve; }) };
+  const rt = new Runtime({ store, tasks: [], phases: [phase], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const pending = rt.runPhase(session.id, "slow", null);
+  assert.throws(() => rt.runPhase(session.id, "slow", null), (e: unknown) => e instanceof PhaseBusyError && e.message === `Session ${session.id} is running epoch 1 (slow)`);
+  assert.equal(rt.runningEpoch(session.id)?.n, 1);
+  finish();
+  await pending;
+  assert.equal(rt.runningEpoch(session.id), null);
+});
+
+test("failed phases retry in place and succeeded phases cannot retry", async () => {
+  const store = new Store(":memory:");
+  let calls = 0;
+  const phase: Phase<{ value: string }> = { id: "sometimes", async run() { calls++; if (calls === 1) throw new Error("kaput"); } };
+  const rt = new Runtime({ store, tasks: [], phases: [phase], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  await assert.rejects(rt.runPhase(session.id, "sometimes", { value: "saved" }), /kaput/);
+  const failed = store.listEpochs(session.id)[0];
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.error, "kaput");
+  const retried = await rt.retryPhase(session.id);
+  assert.equal(retried.n, failed.n);
+  assert.equal(retried.status, "succeeded");
+  assert.deepEqual(retried.input, { value: "saved" });
+  assert.throws(() => rt.retryPhase(session.id), /Latest epoch did not fail/);
 });

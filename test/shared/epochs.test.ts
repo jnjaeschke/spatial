@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { diffsOf, epochNumber, importRefs, interdiffOf, latestDiff, narrativeOf, sessionRefs } from "../../src/shared/epochs.ts";
 import type { Artifact, Link, TaskRecord } from "../../src/shared/types.ts";
 
-const artifact = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id });
+const artifact = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id, epoch: null});
 const d1 = artifact("D1", "Diff", { baseSha: "b", headSha: "h", commits: [], files: [] });
 const d2 = artifact("D2", "Diff", { baseSha: "b2", headSha: "h2", commits: [], files: [] });
 const n1 = artifact("N1", "PatchNarrative", { diffId: "D1", summary: "", changes: [] });
-const imp = (id: string, input: unknown, output: unknown, status: TaskRecord["status"] = "succeeded"): TaskRecord => ({ id, sessionId: "S", kind: "importDiff", status, input, output, error: null, createdAt: id, updatedAt: id });
+const imp = (id: string, input: unknown, output: unknown, status: TaskRecord["status"] = "succeeded"): TaskRecord => ({ id, sessionId: "S", kind: "importDiff", status, input, output, error: null, createdAt: id, updatedAt: id, epoch: null});
 
 test("epoch helpers derive Diff order, narratives, import refs, and latest interdiff", () => {
   const artifacts = [d1, n1, d2, artifact("I1", "Interdiff", {}), artifact("I2", "Interdiff", {}), artifact("I3", "Interdiff", {})];

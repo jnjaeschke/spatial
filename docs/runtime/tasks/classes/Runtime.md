@@ -138,6 +138,22 @@ Read-only git for server queries outside tasks.
 
 ***
 
+### retryPhase()
+
+> **retryPhase**(`sessionId`): `Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>
+
+***
+
 ### run()
 
 > **run**\<`O`\>(`sessionId`, `kind`, `input`): `Promise`\<`O`\>
@@ -165,6 +181,46 @@ Read-only git for server queries outside tasks.
 #### Returns
 
 `Promise`\<`O`\>
+
+***
+
+### runningEpoch()
+
+> **runningEpoch**(`sessionId`): [`Epoch`](../../../shared/types/interfaces/Epoch.md) \| `null`
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md) \| `null`
+
+***
+
+### runPhase()
+
+> **runPhase**(`sessionId`, `phaseId`, `input`): `Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### phaseId
+
+`string`
+
+##### input
+
+`unknown`
+
+#### Returns
+
+`Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>
 
 ***
 

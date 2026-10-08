@@ -30,6 +30,12 @@
 
 ***
 
+### phases?
+
+> `optional` **phases?**: [`Phase`](Phase.md)\<`any`\>[]
+
+***
+
 ### repoContext?
 
 > `optional` **repoContext?**: (`repo`) => [`RepoContext`](../../repo-context/interfaces/RepoContext.md)

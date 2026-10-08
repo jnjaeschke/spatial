@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { findingStates } from "../../src/shared/findings.ts";
 import type { Artifact, Link, PatchNarrativeData, ReviewFindingData } from "../../src/shared/types.ts";
 
-const a = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id });
+const a = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id, epoch: null});
 const link = (from: string, to: string, kind: Link["kind"]): Link => ({ id: `${from}-${to}-${kind}`, sessionId: "S", from, to, kind });
 const narrative = (id: string, diffId: string): Artifact<PatchNarrativeData> => a(id, "PatchNarrative", { diffId, summary: "", changes: [] });
 const finding = (id: string, narrativeId: string): Artifact<ReviewFindingData> => a(id, "ReviewFinding", { anchor: "D1#f0h0", quote: "code", lines: { path: "a", side: "new", start: 1, end: 1 }, category: "style", severity: "low", title: id, body: "body" });

@@ -22,7 +22,7 @@ test("revision notices are stale only when their SHA is the latest Diff head", (
     id: "diff-2", sessionId: "s", type: "Diff", status: "verified",
     data: { baseSha: "B", headSha: "H2", commits: [], files: [] },
     provenance: { taskId: "task" }, createdAt: "now",
-  };
+   epoch: null};
   assert.equal(isStaleNotice(notice("revision:H2"), latest), true);
   assert.equal(isStaleNotice(notice("revision:H3"), latest), false);
   assert.equal(isStaleNotice(notice("other"), latest), false);

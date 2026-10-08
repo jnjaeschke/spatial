@@ -1,5 +1,5 @@
 import type {
-  Actor, Artifact, ArtifactStatus, Commit, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
+  Actor, Artifact, ArtifactStatus, Commit, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -105,9 +105,20 @@ export class TaskCancelledError extends Error {
   }
 }
 
+/** A unit of work in a workflow; each run is one epoch. `run` orchestrates tasks; throwing fails the epoch. */
+export interface Phase<I> { id: string; run(rt: Runtime, sessionId: Id, input: I, epoch: Epoch): Promise<void> }
+
+export class PhaseBusyError extends Error {
+  constructor(id: Id, epoch: Epoch) {
+    super(`Session ${id} is running epoch ${epoch.n} (${epoch.phase})`);
+    this.name = "PhaseBusyError";
+  }
+}
+
 export interface RuntimeOptions {
   store: Store;
   tasks: TaskDefinition<any, any>[];
+  phases?: Phase<any>[];
   llm: LlmService;
   git: (repo: string) => GitCapability;
   webspec: WebspecCapability;
@@ -122,6 +133,7 @@ export type Listener = (e: RuntimeEvent) => void;
 export class Runtime {
   #store: Store;
   #tasks = new Map<string, TaskDefinition<unknown, unknown>>();
+  #phases = new Map<string, Phase<unknown>>();
   #llm: LlmService;
   #git: (repo: string) => GitCapability;
   #webspec: WebspecCapability;
@@ -146,6 +158,10 @@ export class Runtime {
     for (const t of opts.tasks) {
       if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
       this.#tasks.set(t.kind, t);
+    }
+    for (const p of opts.phases ?? []) {
+      if (this.#phases.has(p.id)) throw new Error(`Duplicate phase id: ${p.id}`);
+      this.#phases.set(p.id, p);
     }
   }
 
@@ -271,6 +287,51 @@ export class Runtime {
 
   run<O = unknown>(sessionId: Id, kind: string, input: unknown): Promise<O> {
     return this.start<O>(sessionId, kind, input).done;
+  }
+
+  runPhase(sessionId: Id, phaseId: string, input: unknown): Promise<Epoch> {
+    const phase = this.#phases.get(phaseId);
+    if (!phase) throw new Error(`Unknown phase: ${phaseId}`);
+    const running = this.runningEpoch(sessionId);
+    if (running) throw new PhaseBusyError(sessionId, running);
+    const epoch = this.#store.createEpoch(sessionId, phaseId, input);
+    this.emit(sessionId, "runtime", "epoch.started", { n: epoch.n, phase: epoch.phase });
+    return this.executePhase(phase, sessionId, input, epoch);
+  }
+
+  retryPhase(sessionId: Id): Promise<Epoch> {
+    const epoch = this.#store.listEpochs(sessionId).at(-1);
+    if (!epoch || (epoch.status !== "failed" && epoch.status !== "cancelled")) throw new Error("Latest epoch did not fail");
+    const phase = this.#phases.get(epoch.phase);
+    if (!phase) throw new Error(`Unknown phase: ${epoch.phase}`);
+    const running = this.runningEpoch(sessionId);
+    if (running) throw new PhaseBusyError(sessionId, running);
+    const retry = this.#store.updateEpoch(sessionId, epoch.n, { status: "running", error: null });
+    this.emit(sessionId, "runtime", "epoch.started", { n: retry.n, phase: retry.phase });
+    return this.executePhase(phase, sessionId, retry.input, retry);
+  }
+
+  runningEpoch(sessionId: Id): Epoch | null {
+    return this.#store.listEpochs(sessionId).filter((epoch) => epoch.status === "running").at(-1) ?? null;
+  }
+
+  private async executePhase(phase: Phase<unknown>, sessionId: Id, input: unknown, epoch: Epoch): Promise<Epoch> {
+    try {
+      await phase.run(this, sessionId, input, epoch);
+      const done = this.#store.updateEpoch(sessionId, epoch.n, { status: "succeeded", error: null });
+      this.emit(sessionId, "runtime", "epoch.succeeded", { n: done.n, phase: done.phase });
+      return done;
+    } catch (e) {
+      if (e instanceof TaskCancelledError) {
+        const done = this.#store.updateEpoch(sessionId, epoch.n, { status: "cancelled", error: e.message });
+        this.emit(sessionId, "runtime", "epoch.cancelled", { n: done.n, phase: done.phase });
+        return done;
+      }
+      const message = e instanceof Error ? e.message : String(e);
+      const done = this.#store.updateEpoch(sessionId, epoch.n, { status: "failed", error: message });
+      this.emit(sessionId, "runtime", "epoch.failed", { n: done.n, phase: done.phase, error: message });
+      throw e;
+    }
   }
 
   cancel(taskId: Id): void {

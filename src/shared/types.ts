@@ -2,6 +2,10 @@
 
 export type Id = string;
 
+export type EpochStatus = "running" | "succeeded" | "failed" | "cancelled";
+/** One run of a phase. `n` is 1-based and monotonic per session; artifacts and tasks record the epoch that was latest when they were created. */
+export interface Epoch { sessionId: Id; n: number; phase: string; status: EpochStatus; input: unknown; error: string | null; startedAt: string; endedAt: string | null }
+
 export type WorkflowId = "review" | "chat";
 
 /** A registry entry as the start box shows it: `/<id> <argHint>`, `description`. */
@@ -131,6 +135,7 @@ export interface SessionState {
   artifacts: Artifact[];
   links: Link[];
   tasks: TaskRecord[];
+  epochs: Epoch[];
   /** Subscribe to events after this id to miss nothing. */
   lastEventId: number;
   /** Searchfox repository base and indexed tip for Gecko repos, else null. */
@@ -150,6 +155,8 @@ export interface Artifact<T = unknown> {
   status: ArtifactStatus;
   data: T;
   provenance: Provenance;
+  /** Latest epoch of the session at creation; null before the first epoch. */
+  epoch: number | null;
   createdAt: string;
 }
 
@@ -256,6 +263,8 @@ export interface TaskRecord {
   input: unknown;
   output: unknown;
   error: string | null;
+  /** Latest epoch of the session at creation; null before the first epoch. */
+  epoch: number | null;
   createdAt: string;
   updatedAt: string;
 }

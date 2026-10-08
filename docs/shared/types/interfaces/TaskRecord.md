@@ -14,6 +14,14 @@
 
 ***
 
+### epoch
+
+> **epoch**: `number` \| `null`
+
+Latest epoch of the session at creation; null before the first epoch.
+
+***
+
 ### error
 
 > **error**: `string` \| `null`

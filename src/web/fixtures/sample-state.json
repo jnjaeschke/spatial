@@ -4,7 +4,7 @@
   "searchfox": { "repoBase": "https://searchfox.org/firefox-main/", "tipRev": "4444444444444444444444444444444444444444" },
   "artifacts": [
     {
-      "id": "D", "sessionId": "S", "type": "Diff", "status": "verified", "createdAt": "2026-10-05T00:00:01.000Z", "provenance": { "taskId": "t1" },
+      "id": "D", "sessionId": "S", "type": "Diff", "status": "verified", "createdAt": "2026-10-05T00:00:01.000Z", "provenance": { "taskId": "t1" }, "epoch": null,
       "data": {
         "baseSha": "1111111111111111111111111111111111111111", "headSha": "2222222222222222222222222222222222222222", "upstreamRev": "5555555555555555555555555555555555555555",
         "commits": [
@@ -49,7 +49,7 @@
     },
     {
       "id": "N", "sessionId": "S", "type": "PatchNarrative", "status": "proposed", "createdAt": "2026-10-05T00:00:02.000Z",
-      "provenance": { "taskId": "t2", "llm": { "backend": "claude", "model": "sonnet", "effort": "medium" } },
+      "provenance": { "taskId": "t2", "llm": { "backend": "claude", "model": "sonnet", "effort": "medium" } }, "epoch": null,
       "data": {
         "diffId": "D",
         "summary": "Navigation now tracks whether a commit is pending and defers navigatesuccess until the commit happened, matching the navigate algorithm.",
@@ -61,7 +61,7 @@
       }
     },
     {
-      "id": "R", "sessionId": "S", "type": "SpecReference", "status": "verified", "createdAt": "2026-10-05T00:00:03.000Z", "provenance": { "taskId": "t3" },
+      "id": "R", "sessionId": "S", "type": "SpecReference", "status": "verified", "createdAt": "2026-10-05T00:00:03.000Z", "provenance": { "taskId": "t3" }, "epoch": null,
       "data": {
         "url": "https://html.spec.whatwg.org/#navigate",
         "origin": "code",
@@ -71,6 +71,7 @@
     }
   ],
   "links": [{ "id": "L1", "sessionId": "S", "from": "R", "to": "N#c2", "kind": "supports" }],
-  "tasks": [{ "id": "t3", "sessionId": "S", "kind": "resolveSpecRefs", "status": "succeeded", "input": { "narrativeId": "N" }, "output": null, "error": null, "createdAt": "2026-10-05T00:00:03.000Z", "updatedAt": "2026-10-05T00:00:04.000Z" }],
+  "tasks": [{ "id": "t3", "sessionId": "S", "kind": "resolveSpecRefs", "status": "succeeded", "input": { "narrativeId": "N" }, "output": null, "error": null, "createdAt": "2026-10-05T00:00:03.000Z", "updatedAt": "2026-10-05T00:00:04.000Z", "epoch": null }],
+  "epochs": [],
   "lastEventId": 0
 }

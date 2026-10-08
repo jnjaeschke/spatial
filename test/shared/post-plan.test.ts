@@ -43,7 +43,7 @@ test("postTarget explains ranges that cannot map to one commit", () => {
 });
 
 function artifact<T>(id: string, type: string, data: T): Artifact<T> {
-  return { id, sessionId: "s", type, data, status: "verified", provenance: { taskId: "test" }, createdAt: "" };
+  return { id, sessionId: "s", type, data, status: "verified", provenance: { taskId: "test" }, createdAt: "" , epoch: null};
 }
 function candidate(id: string, range?: PostableComment["lines"]): PostableComment {
   const finding = artifact<ReviewFindingData>(`f${id}`, "ReviewFinding", { anchor: "x", ...(range ? { lines: range } : {}), category: "correctness", severity: "low", title: id, body: "" });
