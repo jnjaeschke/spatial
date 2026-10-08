@@ -114,7 +114,7 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ###### workflow?
 
-[`WorkflowId`](../../../shared/types/type-aliases/WorkflowId.md)
+`string`
 
 ###### worktree
 
@@ -452,7 +452,7 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ###### kinds?
 
-(`"chat"` \| `"spec"` \| `"change"` \| `"summary"` \| `"hunk"` \| `"commit"` \| `"finding"` \| `"comment"` \| `"note"`)[]
+`string`[]
 
 ###### limit?
 
@@ -478,7 +478,7 @@ Records the chosen workflow and the session title.
 
 ##### workflow
 
-[`WorkflowId`](../../../shared/types/type-aliases/WorkflowId.md)
+`string`
 
 ##### title
 

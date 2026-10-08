@@ -4,6 +4,9 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import type { Id } from "../shared/types.ts";
 import { renderRef, sessionOverview, sessionView } from "../runtime/render-ref.ts";
+import { pluginRegistry, type PluginRegistry } from "../runtime/plugins.ts";
+import { corePlugin } from "../runtime/create.ts";
+import { plugins } from "../plugins/index.ts";
 import { Store } from "../runtime/store.ts";
 import { readRepoSkill } from "../runtime/repo-context.ts";
 import { scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
@@ -24,16 +27,16 @@ async function answerAsync(produce: () => Promise<string>) {
   catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }], isError: true }; }
 }
 
-export function createSessionServer(store: Store, sessionId: Id, repoRoot: string): McpServer {
+export function createSessionServer(registry: PluginRegistry, store: Store, sessionId: Id, repoRoot: string): McpServer {
   const server = new McpServer({ name: "spatial", version: "1.0.0" });
-  server.registerTool("session_overview", { description: "Summarize this session", inputSchema: {}, annotations }, async () => answer(() => sessionOverview(sessionView(store, sessionId))));
-  server.registerTool("get", { description: "Render a session artifact or subref", inputSchema: { ref: z.string() }, annotations }, async ({ ref }) => answer(() => renderRef(sessionView(store, sessionId), ref)));
+  server.registerTool("session_overview", { description: "Summarize this session", inputSchema: {}, annotations }, async () => answer(() => sessionOverview(registry, sessionView(store, sessionId)).join("\n\n")));
+  server.registerTool("get", { description: "Render a session artifact or subref", inputSchema: { ref: z.string() }, annotations }, async ({ ref }) => answer(() => renderRef(registry.artifactKinds, sessionView(store, sessionId), ref)));
   server.registerTool("read_skill", { description: "Return the full content of a repo skill by name", inputSchema: { name: z.string() }, annotations }, async ({ name }) => answer(() => readRepoSkill(repoRoot, name)));
   server.registerTool("search", {
     description: "Search this session's artifacts",
     inputSchema: {
       query: z.string(),
-      kinds: z.array(z.enum(["change", "summary", "hunk", "commit", "spec", "chat", "finding", "comment", "note"])).optional(),
+      kinds: z.array(z.enum(registry.searchKinds as [string, ...string[]])).optional(),
       limit: z.number().int().min(1).max(50).optional(),
     }, annotations,
   }, async ({ query, kinds, limit }) => answer(() => {
@@ -58,7 +61,7 @@ async function main(args: string[]): Promise<void> {
   };
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
-  const server = createSessionServer(store, sessionId, store.getSession(sessionId).worktree);
+  const server = createSessionServer(pluginRegistry([corePlugin, ...plugins]), store, sessionId, store.getSession(sessionId).worktree);
   await server.connect(new StdioServerTransport());
 }
 

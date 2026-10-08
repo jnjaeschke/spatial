@@ -16,13 +16,12 @@ import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/epochs.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { updateRevision } from "../workflows/update-revision.ts";
-import type { RevisionWatcher } from "../runtime/revision-watcher.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { continueSelection, runWorkflow, startSession } from "../workflows/start.ts";
 import { importRevision, ImportRevisionError } from "../runtime/import-revision.ts";
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 
-class HttpError extends Error {
+export class HttpError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -38,15 +37,15 @@ const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1"]);
 const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();
 
-type Ctx = { req: IncomingMessage; res: ServerResponse; params: string[]; url: URL };
-type Route = [method: string, pattern: RegExp, handler: (c: Ctx) => Promise<unknown>];
+export type HttpRouteContext = { req: IncomingMessage; res: ServerResponse; params: string[]; url: URL };
+export type Route = [method: string, pattern: RegExp, handler: (c: HttpRouteContext) => Promise<unknown>];
 
-function send(res: ServerResponse, status: number, body?: unknown) {
+export function send(res: ServerResponse, status: number, body?: unknown) {
   if (body === undefined) res.writeHead(status).end();
   else res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+export async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   let raw = "";
   for await (const chunk of req) {
     raw += chunk;
@@ -61,12 +60,12 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   }
 }
 
-const str = (v: unknown, name: string): string => {
+export const str = (v: unknown, name: string): string => {
   if (typeof v !== "string" || v === "") throw new HttpError(400, `Missing string field: ${name}`);
   return v;
 };
 
-function requireSession(rt: Runtime, id: string) {
+export function requireSession(rt: Runtime, id: string) {
   try {
     return rt.store.getSession(id);
   } catch {
@@ -74,7 +73,7 @@ function requireSession(rt: Runtime, id: string) {
   }
 }
 
-function requireArtifact(rt: Runtime, sessionId: string, id: string, type: string, label: string) {
+export function requireArtifact(rt: Runtime, sessionId: string, id: string, type: string, label: string) {
   let artifact;
   try { artifact = rt.store.getArtifact(id); }
   catch { throw new HttpError(404, `Unknown ${label}: ${id}`); }
@@ -82,7 +81,7 @@ function requireArtifact(rt: Runtime, sessionId: string, id: string, type: strin
   return artifact;
 }
 
-function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unknown, about: string) {
+export function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unknown, about: string) {
   const artifact = rt.store.putArtifact({
     sessionId,
     type,
@@ -96,7 +95,9 @@ function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unk
   return artifact;
 }
 
-export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watcher?: RevisionWatcher; pid?: number; commit?: string | null; homeDir?: string } = {}): Server {
+export function createHttpServer(rt: Runtime, opts: { staticDir?: string; background?: { intervalMs?: number }; pid?: number; commit?: string | null; homeDir?: string } = {}): Server {
+  const pluginServers = rt.plugins.plugins.flatMap((plugin) => plugin.server ? [plugin.server(rt, { intervalMs: opts.background?.intervalMs })] : []);
+  if (opts.background) for (const plugin of pluginServers) plugin.start?.();
   const requireNarratable = (id: string) => {
     const artifacts = rt.store.listArtifacts(id);
     const latest = latestDiff(artifacts);
@@ -112,7 +113,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       app: "spatial-ide", ui: opts.staticDir !== undefined, pid: opts.pid ?? process.pid, commit: opts.commit ?? null,
       runningTasks: rt.store.listSessions().flatMap((session) => rt.store.listTasks(session.id)).filter((task) => task.status === "running").length,
     })],
-    ["GET", /^\/api\/workflows$/, async (): Promise<WorkflowInfo[]> => workflowInfo()],
+    ["GET", /^\/api\/workflows$/, async (): Promise<WorkflowInfo[]> => workflowInfo(rt.workflows.values())],
     ["POST", /^\/api\/start$/, async ({ req, res }) => {
       const body = await readJson(req);
       const path = str(body.path, "path");
@@ -391,12 +392,12 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       const after = Number(headerId ?? url.searchParams.get("after") ?? 0);
       if (!Number.isSafeInteger(after) || after < 0) throw new HttpError(400, "Invalid event id");
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
-      const unwatch = opts.watcher?.watch(id);
+      const unwatch = pluginServers.map((plugin) => plugin.watch?.(id)).filter((stop): stop is () => void => !!stop);
       const write = (e: { id: number }) => res.write(`id: ${e.id}\nevent: runtime\ndata: ${JSON.stringify(e)}\n\n`);
       for (const e of rt.store.listEvents(id, after)) write(e);
       const off = rt.onEvent((e) => { if (e.sessionId === id) write(e); });
       const ping = setInterval(() => res.write(": ping\n\n"), 15_000);
-      res.on("close", () => { off(); clearInterval(ping); unwatch?.(); });
+      res.on("close", () => { off(); clearInterval(ping); for (const stop of unwatch) stop(); });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
@@ -501,6 +502,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; watche
       send(res, 204);
     }],
   ];
+  routes.push(...pluginServers.flatMap((plugin) => plugin.routes ?? []));
 
   async function serveStatic(res: ServerResponse, pathname: string) {
     if (!opts.staticDir) throw new HttpError(404, "Not found");

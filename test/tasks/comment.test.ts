@@ -19,7 +19,7 @@ function setup(reply: unknown) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [comment], llm, git: () => ({}) as GitCapability,
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [comment] }], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const finding = store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed",

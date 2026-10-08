@@ -53,7 +53,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
       ]).join("\n");
     },
   };
-  const rt = new Runtime({ store, tasks: [resolveSpecRefs], llm: {} as LlmService, git: () => git, webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [resolveSpecRefs] }], llm: {} as LlmService, git: () => git, webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox });
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "t" });
   const change = (id: string, specUrls: string[]) => ({ id, title: id, explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls });
   const diff: DiffData = {

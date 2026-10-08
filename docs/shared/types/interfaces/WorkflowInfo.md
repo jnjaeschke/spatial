@@ -10,7 +10,7 @@ A registry entry as the start box shows it: `/<id> <argHint>`, `description`.
 
 ## Extended by
 
-- [`Workflow`](../../../workflows/registry/interfaces/Workflow.md)
+- [`Workflow`](../../../runtime/plugins/interfaces/Workflow.md)
 
 ## Properties
 
@@ -28,4 +28,4 @@ A registry entry as the start box shows it: `/<id> <argHint>`, `description`.
 
 ### id
 
-> **id**: [`WorkflowId`](../type-aliases/WorkflowId.md)
+> **id**: `string`

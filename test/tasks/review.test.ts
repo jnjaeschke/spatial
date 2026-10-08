@@ -5,7 +5,7 @@ import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapa
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, FindingVerdictData, LlmSelection, PatchNarrativeData, ReviewFindingData } from "../../src/shared/types.ts";
 import { findingStates } from "../../src/shared/findings.ts";
-import { review } from "../../src/tasks/review/task.ts";
+import { reviewPlugin } from "../../src/plugins/review/index.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const diffData: DiffData = {
@@ -30,7 +30,7 @@ function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [review], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
+  const rt = new Runtime({ store, plugins: [reviewPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       instructions: repoPrompt ? "Review by repo rules." : null,

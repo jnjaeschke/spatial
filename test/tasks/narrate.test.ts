@@ -126,7 +126,7 @@ function setup(responses: unknown[]) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [narrate], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   return { store, rt, session, diffId, prompts, sel };
@@ -176,7 +176,7 @@ test("narrate: passes session and repo MCP servers with read-only tools", async 
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({
-    store, tasks: [narrate], llm, git: () => ({}) as GitCapability,
+    store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: () => ({ spatial: { type: "stdio", command: "node", args: ["session-server"] } }),
     repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},

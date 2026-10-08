@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRuntime } from "../src/runtime/create.ts";
-import { RevisionWatcher } from "../src/runtime/revision-watcher.ts";
-import { PhabricatorSyncer } from "../src/runtime/phabricator-sync.ts";
 import { createSession, makeGit } from "../src/runtime/git.ts";
 import type { WorkflowStartData } from "../src/shared/types.ts";
 import { runWorkflow } from "../src/workflows/start.ts";
@@ -177,7 +175,4 @@ const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webs
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);
 const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
 await runWorkflow(rt, fixture.id, fixtureStart.id);
-const watcher = new RevisionWatcher(rt, { intervalMs: 300 });
-watcher.start();
-new PhabricatorSyncer(rt, watcher, { intervalMs: 300 }).start();
-createHttpServer(rt, { staticDir: "dist/web", watcher }).listen(PORT, "127.0.0.1", () => console.log(`e2e runtime on ${PORT}`));
+createHttpServer(rt, { staticDir: "dist/web", background: { intervalMs: 300 } }).listen(PORT, "127.0.0.1", () => console.log(`e2e runtime on ${PORT}`));

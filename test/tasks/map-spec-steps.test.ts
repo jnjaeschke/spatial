@@ -23,7 +23,7 @@ function setup(reply: unknown, opts: { head?: string; checks?: { line: number; s
     async analyze() { if (opts.analyzeFails) throw new Error("analysis failed"); return opts.checks ?? []; },
     async resolve(url: string) { return { found: true as const, spec: { spec: opts.otherSpec ? "OTHER" : "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: opts.otherSpec ? "https://example.com/#other" : url, content: STEPS } }; },
   } as WebspecCapability;
-  const rt = new Runtime({ store, tasks: [mapSpecSteps], llm, git: () => git, webspec, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [mapSpecSteps] }], llm, git: () => git, webspec, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = <T>(type: string, data: T, status: "verified" | "proposed" = "verified") => store.putArtifact({ sessionId: session.id, type, status, data, provenance: { taskId: "x" } });
   const diff = put<DiffData>("Diff", { baseSha: "B", headSha: "H", commits: [], files: [

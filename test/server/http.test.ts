@@ -10,9 +10,9 @@ import { basename, dirname, join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import { makeGit } from "../../src/runtime/git.ts";
-import { tasks } from "../../src/tasks/index.ts";
+import { corePlugin } from "../../src/runtime/create.ts";
+import { plugins } from "../../src/plugins/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
-import type { RevisionWatcher } from "../../src/runtime/revision-watcher.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, RecentRepo, Session, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
 import { commitRevision } from "../../src/shared/phabricator.ts";
@@ -34,7 +34,7 @@ repo.commit({ "a.txt": "1\n2\n" }, "base");
 repo.commit({ "a.txt": "1\nTWO\n", "c.txt": "c\n" }, "change");
 const staticDir = mkdtempSync(join(tmpdir(), "static-"));
 writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>app</title>");
-const rt = new Runtime({ store: new Store(":memory:"), tasks, llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
 const server = createHttpServer(rt, { staticDir });
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -410,7 +410,7 @@ test("narrate rejects a second request while narration is running", async () => 
       return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
-  const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const gatedRt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const gatedServer = createHttpServer(gatedRt, { staticDir });
   await new Promise<void>((resolve) => gatedServer.listen(0, "127.0.0.1", resolve));
   try {
@@ -460,7 +460,7 @@ test("turns: first turn creates thread; busy thread is 409", async () => {
       return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
-  const gatedRt = new Runtime({ store: new Store(":memory:"), tasks, llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const gatedRt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const gatedServer = createHttpServer(gatedRt, { staticDir });
   await new Promise<void>((resolve) => gatedServer.listen(0, "127.0.0.1", resolve));
   try {
@@ -798,10 +798,11 @@ test("SSE replays events after after and honors Last-Event-ID", async () => {
 test("SSE subscriptions watch the session until the connection closes", async () => {
   const calls: string[] = [];
   const released: string[] = [];
-  const watcher = { watch(id: string) { calls.push(id); return () => released.push(id); } } as unknown as RevisionWatcher;
-  const watchServer = createHttpServer(rt, { watcher });
+  const watchPlugin = { id: "watch-test", server() { return { watch(id: string) { calls.push(id); return () => released.push(id); } }; } };
+  const watchRuntime = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, watchPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const watchServer = createHttpServer(watchRuntime);
   await new Promise<void>((resolve) => watchServer.listen(0, "127.0.0.1", resolve));
-  const session = await newSession();
+  const session = watchRuntime.store.createSession({ worktree: repo.dir, repoDir: `${repo.dir}/.git`, title: "watch" });
   const controller = new AbortController();
   try {
     const response = await fetch(`http://127.0.0.1:${(watchServer.address() as AddressInfo).port}/api/sessions/${session.id}/events`, { signal: controller.signal });

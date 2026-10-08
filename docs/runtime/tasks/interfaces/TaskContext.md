@@ -52,6 +52,14 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`unknown`\>[]
 
+#### overview()
+
+> **overview**(): `string`
+
+##### Returns
+
+`string`
+
 #### put()
 
 > **put**\<`T`\>(`type`, `status`, `data`, `llm?`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
@@ -84,6 +92,20 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
 
+#### render()
+
+> **render**(`ref`): `string`
+
+##### Parameters
+
+###### ref
+
+`string`
+
+##### Returns
+
+`string`
+
 #### view()
 
 > **view**(): [`SessionView`](../../render-ref/interfaces/SessionView.md)
@@ -91,6 +113,30 @@ Everything a task may touch. Tasks get capabilities only through this.
 ##### Returns
 
 [`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+***
+
+### chat
+
+> **chat**: `object`
+
+#### replyFields
+
+> **replyFields**: [`ChatReplyField`](../../plugins/interfaces/ChatReplyField.md)[]
+
+#### context()
+
+> **context**(`view`): `string`[]
+
+##### Parameters
+
+###### view
+
+[`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+##### Returns
+
+`string`[]
 
 ***
 
@@ -223,6 +269,12 @@ Repo skills available through the session MCP server.
 ### webspec
 
 > **webspec**: [`WebspecCapability`](WebspecCapability.md)
+
+***
+
+### workflows
+
+> **workflows**: `ReadonlyMap`\<`string`, [`Workflow`](../../plugins/interfaces/Workflow.md)\<`any`\>\>
 
 ## Methods
 

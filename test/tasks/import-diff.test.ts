@@ -18,7 +18,7 @@ const noLlm = {
 async function setup() {
   const r = makeRepo();
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, tasks: [importDiff], llm: noLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff] }], llm: noLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = await createSession(store, r.dir, "t", "review");
   return { r, store, rt, session };
 }

@@ -6,7 +6,13 @@
 
 # Function: workflowInfo()
 
-> **workflowInfo**(): [`WorkflowInfo`](../../../shared/types/interfaces/WorkflowInfo.md)[]
+> **workflowInfo**(`workflows`): [`WorkflowInfo`](../../../shared/types/interfaces/WorkflowInfo.md)[]
+
+## Parameters
+
+### workflows
+
+`Iterable`\<[`Workflow`](../../../runtime/plugins/interfaces/Workflow.md)\<`any`\>\>
 
 ## Returns
 

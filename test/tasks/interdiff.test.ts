@@ -10,7 +10,7 @@ test("interdiff task records verified artifact and about link", async () => {
   const store = new Store(":memory:");
   const repo = "/repo";
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "test" });
-  const rt = new Runtime({ store, tasks: [interdiff], llm: {} as LlmService, git: () => ({ diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }) } as unknown as GitCapability), webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [interdiff] }], llm: {} as LlmService, git: () => ({ diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }) } as unknown as GitCapability), webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const data: DiffData = { baseSha: "B", headSha: "H", commits: [], files: [] };
   const from = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data, provenance: { taskId: "seed" } });
   const to = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { ...data, headSha: "H2" }, provenance: { taskId: "seed" } });

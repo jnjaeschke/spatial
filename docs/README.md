@@ -8,6 +8,7 @@
 
 - [cli/launch](cli/launch/README.md)
 - [mcp/session-server](mcp/session-server/README.md)
+- [plugin-api](plugin-api/README.md)
 - [runtime/attribution](runtime/attribution/README.md)
 - [runtime/blame](runtime/blame/README.md)
 - [runtime/conduit](runtime/conduit/README.md)
@@ -20,6 +21,7 @@
 - [runtime/phab-revision](runtime/phab-revision/README.md)
 - [runtime/phab-transactions](runtime/phab-transactions/README.md)
 - [runtime/phabricator-sync](runtime/phabricator-sync/README.md)
+- [runtime/plugins](runtime/plugins/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
 - [runtime/repo-context](runtime/repo-context/README.md)
 - [runtime/revision-host](runtime/revision-host/README.md)

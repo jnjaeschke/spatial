@@ -4,8 +4,12 @@ import { Store } from "../../src/runtime/store.ts";
 import { defineTask, Runtime, TaskCancelledError, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm/types.ts";
 import type { ChatMessageData, ChatThreadData, DiagramData, DiffData, LlmSelection, McpServerData, PatchNarrativeData } from "../../src/shared/types.ts";
-import { chatTurn } from "../../src/tasks/chat-turn/task.ts";
-import { renderRef, sessionView } from "../../src/runtime/render-ref.ts";
+import { renderRef as renderRefWith, sessionView } from "../../src/runtime/render-ref.ts";
+import { pluginRegistry } from "../../src/runtime/plugins.ts";
+import { plugins } from "../../src/plugins/index.ts";
+import { corePlugin } from "../../src/runtime/create.ts";
+const registry = pluginRegistry(plugins);
+const renderRef = (view: ReturnType<typeof sessionView>, ref: string) => renderRefWith(registry.artifactKinds, view, ref);
 
 const SONNET: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const LUNA: LlmSelection = { backend: "codex", model: "gpt-6-luna", effort: "medium" };
@@ -38,7 +42,7 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({
-    store, tasks: [chatTurn], llm, git: () => opts.git ?? ({} as GitCapability),
+    store, plugins: [corePlugin, ...plugins], llm, git: () => opts.git ?? ({} as GitCapability),
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
@@ -101,7 +105,7 @@ test("chat system prompt includes repo instructions and skill index on every tur
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [chatTurn], llm, git: () => ({}) as GitCapability,
+  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins], llm, git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, instructions: "Follow repo rules.", skills: [{ name: "review-skill", description: "Review changes." }] }),
   });
@@ -155,7 +159,7 @@ test("invalid diagrams are dropped with an error on the assistant message", asyn
   ]) {
     const { store, turn, narrativeId, session } = setup({ replies: [{ answer: "Kept", revisions: [], questions: [], diagram }] });
     const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Draw", llm: SONNET });
-    assert.equal(store.getArtifact<ChatMessageData>(messageId).data.diagramError !== undefined, true);
+    assert.equal(store.getArtifact<ChatMessageData>(messageId).data.replyErrors?.[0]?.label, "Diagram");
     assert.equal(store.listArtifacts(session.id, "Diagram").length, 0);
   }
 });
@@ -389,7 +393,7 @@ test("linkedTo returns matching source artifacts oldest first", async () => {
   // The runtime's task registry is fixed at construction, so probe the existing context contract
   // through a temporary runtime configured with the same store and capabilities.
   const probeRuntime = new Runtime({
-    store, tasks: [probe], llm: rt.llm,
+    store, plugins: [{ id: "test", tasks: [probe] }], llm: rt.llm,
     git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
   });

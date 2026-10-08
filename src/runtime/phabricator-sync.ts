@@ -179,7 +179,7 @@ export class PhabricatorSyncer {
     for (const artifact of created) {
       this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
       for (const link of newLinks.filter((item) => item.from === artifact.id)) this.#rt.emit(sessionId, "runtime", "link.created", { linkId: link.id, from: link.from, to: link.to, kind: link.kind });
-      this.#rt.store.putSearchDocs(sessionId, artifact.id, searchDocs(view, artifact));
+      this.#rt.store.putSearchDocs(sessionId, artifact.id, searchDocs(this.#rt.plugins.artifactKinds, view, artifact));
       const old = newLinks.find((item) => item.from === artifact.id && item.kind === "revises");
       if (old) this.#rt.store.putSearchDocs(sessionId, old.to, []);
     }

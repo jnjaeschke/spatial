@@ -30,9 +30,9 @@
 
 ***
 
-### phases?
+### plugins
 
-> `optional` **phases?**: [`Phase`](Phase.md)\<`any`\>[]
+> **plugins**: [`Plugin`](../../plugins/interfaces/Plugin.md)[]
 
 ***
 
@@ -79,12 +79,6 @@ Called once at task start to load repo MCP servers, skills, and instructions. De
 ### store
 
 > **store**: [`Store`](../../store/classes/Store.md)
-
-***
-
-### tasks
-
-> **tasks**: [`TaskDefinition`](TaskDefinition.md)\<`any`, `any`\>[]
 
 ***
 

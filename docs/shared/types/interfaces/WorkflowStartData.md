@@ -36,4 +36,4 @@ Data of a `WorkflowStart` artifact: the request that started the session and the
 
 ### workflow
 
-> **workflow**: [`WorkflowId`](../type-aliases/WorkflowId.md)
+> **workflow**: `string`

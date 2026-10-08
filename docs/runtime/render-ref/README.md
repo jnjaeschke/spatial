@@ -11,6 +11,10 @@
 - [SearchDoc](interfaces/SearchDoc.md)
 - [SessionView](interfaces/SessionView.md)
 
+## Variables
+
+- [coreArtifactKinds](variables/coreArtifactKinds.md)
+
 ## Functions
 
 - [renderRef](functions/renderRef.md)

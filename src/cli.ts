@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import type { LlmBackendId, PatchNarrativeData, WorkflowStartData } from "./shared/types.ts";
 import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
 import { createSession, resolveRepo } from "./runtime/git.ts";
-import { parseReviewArgs } from "./workflows/registry.ts";
+import { parseCommand } from "./workflows/registry.ts";
 import { runWorkflow } from "./workflows/start.ts";
 import { latestDiff, narrativeOf } from "./shared/epochs.ts";
 import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl, staleServerMessage, stopServer } from "./cli/launch.ts";
@@ -90,7 +90,8 @@ try {
     const rt = runtime();
     const [repo, target = ""] = rest;
     if (!repo) fail(USAGE);
-    const parsed = parseReviewArgs(target);
+    const command = parseCommand(rt.workflows.values(), "/review " + target);
+    const parsed = command.ok ? { ok: true as const, params: command.params } : command;
     if (!parsed.ok) fail(`Expected <base>..<head>, a revision (D123 or its URL) or nothing, got "${target}"\n${USAGE}`);
     const backend = (values.backend ?? DEFAULT_LLM.backend) as LlmBackendId;
     if (backend !== "claude" && backend !== "codex") fail(`Unknown backend: ${backend}`);

@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { parseCommand, parseReviewArgs, workflowInfo, workflows } from "../../src/workflows/registry.ts";
+import { parseCommand, workflowInfo } from "../../src/workflows/registry.ts";
+import { parseReviewArgs } from "../../src/plugins/review/index.ts";
+import { plugins } from "../../src/plugins/index.ts";
+const workflows = Object.fromEntries(plugins.flatMap((plugin) => plugin.workflows ?? []).map((workflow) => [workflow.id, workflow]));
+const workflowList = Object.values(workflows);
 
 test("parseReviewArgs accepts revision ids and local ref ranges", () => {
   assert.deepEqual(parseReviewArgs("D292469"), { ok: true, params: { base: null, head: null, revision: "D292469" } });
@@ -24,21 +28,21 @@ test("workflow parsers validate review and chat arguments", () => {
 });
 
 test("parseCommand handles workflow arguments and rejects unknown names", () => {
-  assert.deepEqual(parseCommand("/chat  explain this\nplease"), { ok: true, workflow: "chat", params: {}, prompt: "explain this\nplease" });
-  assert.deepEqual(parseCommand("/review main..f"), { ok: true, workflow: "review", params: { base: "main", head: "f", revision: null }, prompt: "main..f" });
-  assert.deepEqual(parseCommand("/review D5"), { ok: true, workflow: "review", params: { base: null, head: null, revision: "D5" }, prompt: "D5" });
-  for (const command of ["/review", "/review   "]) assert.deepEqual(parseCommand(command), { ok: true, workflow: "review", params: { base: null, head: null, revision: null }, prompt: "" });
-  const unknown = parseCommand("/nope x");
+  assert.deepEqual(parseCommand(workflowList, "/chat  explain this\nplease"), { ok: true, workflow: "chat", params: {}, prompt: "explain this\nplease" });
+  assert.deepEqual(parseCommand(workflowList, "/review main..f"), { ok: true, workflow: "review", params: { base: "main", head: "f", revision: null }, prompt: "main..f" });
+  assert.deepEqual(parseCommand(workflowList, "/review D5"), { ok: true, workflow: "review", params: { base: null, head: null, revision: "D5" }, prompt: "D5" });
+  for (const command of ["/review", "/review   "]) assert.deepEqual(parseCommand(workflowList, command), { ok: true, workflow: "review", params: { base: null, head: null, revision: null }, prompt: "" });
+  const unknown = parseCommand(workflowList, "/nope x");
   assert.equal(unknown.ok, false);
   if (!unknown.ok) assert.match(unknown.error, /Unknown command \/nope; available: \/review, \/chat/);
-  const constructor = parseCommand("/constructor");
+  const constructor = parseCommand(workflowList, "/constructor");
   assert.equal(constructor.ok, false);
   if (!constructor.ok) assert.match(constructor.error, /Unknown command/);
-  const slash = parseCommand("/");
+  const slash = parseCommand(workflowList, "/");
   assert.equal(slash.ok, false);
   if (!slash.ok) assert.match(slash.error, /Unknown command/);
-  assert.deepEqual(workflowInfo().map(({ id }) => id), ["review", "chat"]);
-  assert.ok(workflowInfo().every(({ argHint }) => argHint.length > 0));
+  assert.deepEqual(workflowInfo(workflowList).map(({ id }) => id), ["review", "chat"]);
+  assert.ok(workflowInfo(workflowList).every(({ argHint }) => argHint.length > 0));
 });
 
 test("workflow parameter schemas are OpenAI-strict objects", () => {

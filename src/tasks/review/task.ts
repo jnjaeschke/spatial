@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { DiffData, FindingVerdictData, LlmSelection, PatchNarrativeData, PostedCommentData, ReviewCommentData, ReviewFindingData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
-import { renderRef, sessionOverview } from "../../runtime/render-ref.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
 import { epochNumber } from "../../shared/epochs.ts";
@@ -60,10 +59,10 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
       ...(priors.length ? ["# Prior findings\n\n" + priorText.join("\n\n")] : []),
     ] : [];
     const prompt = [
-      "# Session", sessionOverview(view),
-      "# Changes", ...narrative.data.changes.map((c) => renderRef(view, `${narrativeId}#${c.id}`)),
+      "# Session", ctx.artifacts.overview(),
+      "# Changes", ...narrative.data.changes.map((c) => ctx.artifacts.render(`${narrativeId}#${c.id}`)),
       ...updateSections,
-      ...(specIds.length ? ["# Spec references", ...specIds.map((id) => renderRef(view, id))] : []),
+      ...(specIds.length ? ["# Spec references", ...specIds.map((id) => ctx.artifacts.render(id))] : []),
     ].join("\n\n");
     const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     if (!isReply(r.json)) throw new Error(`Review reply is not valid JSON: ${JSON.stringify(r.json)}`);

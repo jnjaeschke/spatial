@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [workflows/registry](../README.md) / StartInput
+[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / StartInput
 
 # Interface: StartInput\<P\>
 

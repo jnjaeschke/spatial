@@ -6,11 +6,15 @@
 
 # Function: renderRef()
 
-> **renderRef**(`view`, `ref`): `string`
+> **renderRef**(`kinds`, `view`, `ref`): `string`
 
 Markdown for a ref. Throws Unknown ref when nothing matches.
 
 ## Parameters
+
+### kinds
+
+`Record`\<`string`, [`ArtifactKind`](../../plugins/interfaces/ArtifactKind.md)\>
 
 ### view
 

@@ -1,0 +1,65 @@
+[**spatial-ide**](../../../README.md)
+
+***
+
+[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / PluginRegistry
+
+# Interface: PluginRegistry
+
+## Properties
+
+### artifactKinds
+
+> **artifactKinds**: `Record`\<`string`, [`ArtifactKind`](ArtifactKind.md)\>
+
+***
+
+### chatContext
+
+> **chatContext**: (`view`) => `string` \| `null`[]
+
+#### Parameters
+
+##### view
+
+[`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+#### Returns
+
+`string` \| `null`
+
+***
+
+### chatReplyFields
+
+> **chatReplyFields**: [`ChatReplyField`](ChatReplyField.md)[]
+
+***
+
+### phases
+
+> **phases**: `Map`\<`string`, [`Phase`](../../tasks/interfaces/Phase.md)\<`any`\>\>
+
+***
+
+### plugins
+
+> **plugins**: [`Plugin`](Plugin.md)[]
+
+***
+
+### searchKinds
+
+> **searchKinds**: `string`[]
+
+***
+
+### tasks
+
+> **tasks**: `Map`\<`string`, [`TaskDefinition`](../../tasks/interfaces/TaskDefinition.md)\<`any`, `any`\>\>
+
+***
+
+### workflows
+
+> **workflows**: `Map`\<`string`, [`Workflow`](Workflow.md)\<`any`\>\>

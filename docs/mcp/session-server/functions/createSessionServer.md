@@ -6,9 +6,13 @@
 
 # Function: createSessionServer()
 
-> **createSessionServer**(`store`, `sessionId`, `repoRoot`): `McpServer`
+> **createSessionServer**(`registry`, `store`, `sessionId`, `repoRoot`): `McpServer`
 
 ## Parameters
+
+### registry
+
+[`PluginRegistry`](../../../runtime/plugins/interfaces/PluginRegistry.md)
 
 ### store
 

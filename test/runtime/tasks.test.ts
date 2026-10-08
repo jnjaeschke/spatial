@@ -39,7 +39,7 @@ const slow = defineTask<null, string>({
 
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, tasks: [echo, boom, slow], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, boom, slow] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
@@ -74,7 +74,7 @@ test("failing task: status failed, TaskFailedError, task.failed event", async ()
 test("repo context errors fail the task and emit task.failed", async () => {
   const store = new Store(":memory:");
   const rt = new Runtime({
-    store, tasks: [echo], llm: fakeLlm, git: () => fakeGit, webspec, searchfox,
+    store, plugins: [{ id: "test", tasks: [echo] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox,
     repoContext: () => { throw new Error("bad repo context"); },
   });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
@@ -110,13 +110,13 @@ test("unknown task kind and unknown session throw synchronously", () => {
 });
 
 test("duplicate task kinds are rejected", () => {
-  assert.throws(() => new Runtime({ store: new Store(":memory:"), tasks: [echo, echo], llm: fakeLlm, git: () => fakeGit, webspec, searchfox }), /Duplicate task kind: echo/);
+  assert.throws(() => new Runtime({ store: new Store(":memory:"), plugins: [{ id: "test", tasks: [echo, echo] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox }), /Duplicate task kind: echo/);
 });
 
 test("phases stamp tasks and artifacts and each run opens a new epoch", async () => {
   const store = new Store(":memory:");
   const phase: Phase<null> = { id: "work", async run(rt, sessionId) { await rt.run(sessionId, "echo", { v: "phase" }); } };
-  const rt = new Runtime({ store, tasks: [echo], phases: [phase], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo], phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const first = await rt.runPhase(session.id, "work", null);
   const firstTask = store.listTasks(session.id)[0];
@@ -130,7 +130,7 @@ test("a session cannot start another phase while its epoch is running", async ()
   const store = new Store(":memory:");
   let finish!: () => void;
   const phase: Phase<null> = { id: "slow", run: async () => new Promise<void>((resolve) => { finish = resolve; }) };
-  const rt = new Runtime({ store, tasks: [], phases: [phase], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const pending = rt.runPhase(session.id, "slow", null);
   assert.throws(() => rt.runPhase(session.id, "slow", null), (e: unknown) => e instanceof PhaseBusyError && e.message === `Session ${session.id} is running epoch 1 (slow)`);
@@ -144,7 +144,7 @@ test("failed phases retry in place and succeeded phases cannot retry", async () 
   const store = new Store(":memory:");
   let calls = 0;
   const phase: Phase<{ value: string }> = { id: "sometimes", async run() { calls++; if (calls === 1) throw new Error("kaput"); } };
-  const rt = new Runtime({ store, tasks: [], phases: [phase], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   await assert.rejects(rt.runPhase(session.id, "sometimes", { value: "saved" }), /kaput/);
   const failed = store.listEpochs(session.id)[0];

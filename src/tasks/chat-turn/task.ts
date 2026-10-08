@@ -1,28 +1,13 @@
 import { readFileSync } from "node:fs";
-import type { Artifact, ChatMessageData, ChatThreadData, DiagramData, LlmSelection, McpServerData, RevisionData } from "../../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, McpServerData, RevisionData } from "../../shared/types.ts";
 import { defineTask } from "../../runtime/tasks.ts";
-import { verifySequence, type SequenceProposal, type SequenceStepProposal } from "../../runtime/diagram-verify.ts";
-import { latestDiff } from "../../shared/epochs.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
-interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[]; diagram?: unknown }
-const sequenceStatuses = new Set(["new", "changed", "existing", "removed"]);
-function isDiagram(j: unknown): j is SequenceProposal {
-  if (!j || typeof j !== "object") return false;
-  const d = j as Partial<SequenceProposal>;
-  const nullableString = (value: unknown) => value === null || typeof value === "string";
-  const cite = (value: unknown) => !!value && typeof value === "object" && typeof (value as { path?: unknown }).path === "string" && Number.isInteger((value as { line?: unknown }).line) && (value as { line: number }).line >= 1;
-  const step = (value: unknown) => {
-    if (!value || typeof value !== "object") return false;
-    const s = value as SequenceStepProposal;
-    return typeof s.from === "string" && typeof s.to === "string" && typeof s.symbol === "string" && typeof s.call === "string" && typeof s.what === "string" && nullableString(s.when) && nullableString(s.guard) && nullableString(s.phase) && sequenceStatuses.has(s.status) && cite(s.cite);
-  };
-  return Number.isInteger(d.commit) && d.commit! >= 1 && typeof d.title === "string" && typeof d.summary === "string" && Array.isArray(d.lanes) && d.lanes.every((lane) => !!lane && typeof lane.id === "string" && typeof lane.label === "string" && nullableString(lane.note)) && Array.isArray(d.steps) && d.steps.every(step) && (d.before === null || (Array.isArray(d.before) && d.before.every(step)));
-}
+interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[]; [field: string]: unknown }
 const isReply = (j: unknown): j is Reply => {
   const r = j as Partial<Reply> | undefined;
   return typeof r?.answer === "string" && Array.isArray(r.questions) && r.questions.every((q) => typeof q === "string") && Array.isArray(r.revisions) &&
@@ -43,7 +28,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       thread = ctx.artifacts.get<ChatThreadData>(threadId);
       if (thread.type !== "ChatThread") throw new Error(`Artifact ${threadId} is not a ChatThread`);
     } else {
-      buildAnchorContext(view, anchor!);
+      buildAnchorContext(view, anchor!, contextOptions());
       thread = ctx.artifacts.put<ChatThreadData>("ChatThread", "verified", { anchor: anchor!, ...(aside ? { aside: true } : {}), quote, lines });
       ctx.links.put(thread.id, anchor!, "about");
     }
@@ -57,7 +42,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
     const prompt = resume
       ? text
       : [
-          buildAnchorContext(view, thread.data.anchor, thread.data.quote === undefined ? undefined : { quote: thread.data.quote, lines: thread.data.lines }),
+          buildAnchorContext(view, thread.data.anchor, contextOptions(), thread.data.quote === undefined ? undefined : { quote: thread.data.quote, lines: thread.data.lines }),
           ...(history.length ? ["# Conversation so far", "", ...history.map((m) => `${m.data.role === "user" ? "User" : "Assistant"}: ${revisedText(view, m)}`), ""] : []),
           "# Question", "", text,
         ].join("\n");
@@ -67,10 +52,13 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       .map((artifact) => artifact.data.server);
     const enabledRepoMcp = Object.fromEntries([...new Set(enabledNames)].filter((name) => ctx.repoRequestableMcp[name]).map((name) => [name, ctx.repoRequestableMcp[name]!]));
     const requestableNames = Object.keys(ctx.repoRequestableMcp);
-    const system = prependRepoContext(SYSTEM, ctx) + (requestableNames.length
+    const systemBody = SYSTEM + ctx.chat.replyFields.map((field) => "\n\n" + field.prompt).join("");
+    const system = prependRepoContext(systemBody, ctx) + (requestableNames.length
       ? `\n\n# Repo MCP servers available on request\nThe following server(s) are not active but can be enabled by the user: ${requestableNames.join(", ")}.\nInclude the server name in \`requestMcpServers\` in your reply to request access.`
       : "");
-    const r = await ctx.llm.run({ prompt, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp, ...enabledRepoMcp } }, llm);
+    const schema = structuredClone(SCHEMA) as { properties: Record<string, unknown>; required: string[] };
+    for (const field of ctx.chat.replyFields) { schema.properties[field.name] = { anyOf: [field.schema, { type: "null" }] }; schema.required.push(field.name); }
+    const r = await ctx.llm.run({ prompt, system, schema, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp, ...enabledRepoMcp } }, llm);
     const json = r.json as Reply | undefined;
     if (!isReply(json)) throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
 
@@ -110,28 +98,26 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       }
       return `${label}: ${failures.find((f) => f !== "quote not found") ?? (revision.message === null ? "quote not found in this chat" : "quote not found")}`;
     }
-    let diagram: DiagramData | undefined;
-    let diagramError: string | undefined;
-    const diff = latestDiff(view.artifacts);
-    if (json.diagram !== null && json.diagram !== undefined) {
-      if (!isDiagram(json.diagram)) diagramError = "diagram has an invalid shape";
-      else if (!diff) diagramError = "there is no reviewed commit range";
-      else {
-        const result = await verifySequence(json.diagram, diff.data, (sha, path) => ctx.git.show(sha, path));
-        if (result.ok) diagram = result.data;
-        else diagramError = result.error;
-      }
+    const replyErrors: { label: string; error: string }[] = [];
+    const acceptedFields: { artifacts: { type: string; data: unknown }[] }[] = [];
+    for (const field of ctx.chat.replyFields) {
+      const value = json[field.name];
+      if (value === null || value === undefined) continue;
+      const accepted = await field.accept(ctx, value);
+      if (!accepted.ok) replyErrors.push({ label: field.label, error: accepted.error });
+      else acceptedFields.push({ artifacts: accepted.artifacts });
     }
-
     const reply = ctx.artifacts.put<ChatMessageData>(
       "ChatMessage", "proposed",
-      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), ...(diagramError ? { diagramError } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
+      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), ...(replyErrors.length ? { replyErrors } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
       r.selection,
     );
     ctx.links.put(reply.id, thread.id, "reply");
-    if (diagram) {
-      const artifact = ctx.artifacts.put<DiagramData>("Diagram", "proposed", diagram, r.selection);
-      ctx.links.put(artifact.id, reply.id, "derivedFrom");
+    for (const fieldResult of acceptedFields) {
+      for (const item of fieldResult.artifacts) {
+        const artifact = ctx.artifacts.put(item.type, "proposed", item.data, r.selection);
+        ctx.links.put(artifact.id, reply.id, "derivedFrom");
+      }
     }
     for (const { target, data } of accepted) {
       const revision = ctx.artifacts.put<RevisionData>("Revision", "proposed", data, r.selection);
@@ -139,5 +125,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       ctx.links.put(revision.id, reply.id, "derivedFrom");
     }
     return { threadId: thread.id, messageId: reply.id };
+
+    function contextOptions() { return { overview: [ctx.artifacts.overview()], context: ctx.chat.context(view), render: (ref: string) => ctx.artifacts.render(ref) }; }
   },
 });

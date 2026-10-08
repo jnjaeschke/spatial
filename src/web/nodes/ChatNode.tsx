@@ -68,7 +68,7 @@ export function Conversation(data: ConversationProps) {
               : m.data.text}
             {m.data.role === "assistant" && m.data.questions?.length ? <ul className="chat-questions">{m.data.questions.map((question, i) => <li key={i}>{question}</li>)}</ul> : null}
             {m.data.role === "assistant" && m.data.revisionErrors?.length ? <p className="revision-errors">{m.data.revisionErrors.map((revisionError, i) => <span key={i}>{i > 0 ? " " : ""}Could not apply revision: {revisionError}</span>)}</p> : null}
-            {m.data.role === "assistant" && m.data.diagramError && <p className="revision-errors">Diagram dropped: {m.data.diagramError}</p>}
+            {m.data.role === "assistant" && m.data.replyErrors?.map(({ label, error }) => <p className="revision-errors" key={label}>{label} dropped: {error}</p>)}
             {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <button key={diagramId} type="button" aria-label="Show diagram" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</button>)}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>

@@ -6,10 +6,10 @@ export type EpochStatus = "running" | "succeeded" | "failed" | "cancelled";
 /** One run of a phase. `n` is 1-based and monotonic per session; artifacts and tasks record the epoch that was latest when they were created. */
 export interface Epoch { sessionId: Id; n: number; phase: string; status: EpochStatus; input: unknown; error: string | null; startedAt: string; endedAt: string | null }
 
-export type WorkflowId = "review" | "chat";
+export type WorkflowId = string;
 
 /** A registry entry as the start box shows it: `/<id> <argHint>`, `description`. */
-export interface WorkflowInfo { id: WorkflowId; description: string; argHint: string }
+export interface WorkflowInfo { id: string; description: string; argHint: string }
 
 /** Data of a `WorkflowStart` artifact: the request that started the session and the workflow chosen for it. */
 export interface WorkflowStartData {
@@ -230,8 +230,8 @@ export interface ChatMessageData {
   questions?: string[];
   /** Revisions from this reply that were not applied, with the reason. */
   revisionErrors?: string[];
-  /** Why a proposed diagram was dropped during deterministic verification. */
-  diagramError?: string;
+  /** Why a plugin-proposed artifact was dropped during deterministic validation. */
+  replyErrors?: { label: string; error: string }[];
 }
 
 export interface Link {

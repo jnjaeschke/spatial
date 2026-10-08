@@ -2,11 +2,11 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [workflows/registry](../README.md) / Workflow
+[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / Workflow
 
 # Interface: Workflow\<P\>
 
-A kind of session. `description` is shown to the selector LLM and in the command popup; avoid e2e stub needles in it (see the F3 plan).
+A kind of session. `start` orchestrates phases with `rt.runPhase`.
 
 ## Extends
 
@@ -42,7 +42,7 @@ A kind of session. `description` is shown to the selector LLM and in the command
 
 ### id
 
-> **id**: [`WorkflowId`](../../../shared/types/type-aliases/WorkflowId.md)
+> **id**: `string`
 
 #### Inherited from
 
@@ -54,15 +54,33 @@ A kind of session. `description` is shown to the selector LLM and in the command
 
 > **params**: `ZodType`\<`P`\>
 
-Params the selector must produce; a `z.strictObject` so its JSON schema is OpenAI-strict. Validates selector output.
+Validated input produced by the selector or slash command.
 
 ## Methods
+
+### overview()?
+
+> `optional` **overview**(`view`): `string`[]
+
+Markdown sections for this workflow, each beginning with a heading.
+
+#### Parameters
+
+##### view
+
+[`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+#### Returns
+
+`string`[]
+
+***
 
 ### parseArgs()
 
 > **parseArgs**(`args`): [`ParseResult`](../type-aliases/ParseResult.md)\<`P`\>
 
-Deterministic parser of the slash command's argument text.
+Deterministic parser for slash-command arguments.
 
 #### Parameters
 
@@ -80,13 +98,13 @@ Deterministic parser of the slash command's argument text.
 
 > **start**(`rt`, `sessionId`, `input`): `Promise`\<`void`\>
 
-Runs the workflow to completion; may run LLM tasks.
+Runs the workflow to completion by orchestrating phases with rt.runPhase.
 
 #### Parameters
 
 ##### rt
 
-[`Runtime`](../../../runtime/tasks/classes/Runtime.md)
+[`Runtime`](../../tasks/classes/Runtime.md)
 
 ##### sessionId
 

@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
+import { plugins } from "../../src/plugins/index.ts";
+import { corePlugin } from "../../src/runtime/create.ts";
 
 const llm = { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService;
-const runtimeOptions = (store: Store) => ({ store, tasks: [], llm, git: () => ({} as never), webspec: {} as never, searchfox: {} as never });
+const runtimeOptions = (store: Store) => ({ store, plugins: [corePlugin, ...plugins], llm, git: () => ({} as never), webspec: {} as never, searchfox: {} as never });
 const provenance = { taskId: "task" };
 
 test("FTS search scopes to session, filters kinds, and reports syntax errors", () => {

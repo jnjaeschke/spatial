@@ -2,7 +2,7 @@
 
 ***
 
-[spatial-ide](../../../README.md) / [workflows/registry](../README.md) / ParseResult
+[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / ParseResult
 
 # Type Alias: ParseResult\<P\>
 

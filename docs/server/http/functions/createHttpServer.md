@@ -16,6 +16,14 @@
 
 ### opts?
 
+#### background?
+
+\{ `intervalMs?`: `number`; \}
+
+#### background.intervalMs?
+
+`number`
+
 #### commit?
 
 `string` \| `null`
@@ -31,10 +39,6 @@
 #### staticDir?
 
 `string`
-
-#### watcher?
-
-[`RevisionWatcher`](../../../runtime/revision-watcher/classes/RevisionWatcher.md)
 
 ## Returns
 

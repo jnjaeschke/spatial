@@ -14,7 +14,7 @@ test("host resolution failure is recorded as a failed importRevision task", asyn
     const store = new Store(":memory:");
     const session = store.createSession({ worktree: repo, repoDir: join(repo, ".git"), title: "Review", workflow: "review" });
     const llm = { defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" }, async run() { throw new Error("unexpected llm call"); }, async listModels() { return {}; } } as unknown as LlmService;
-    const rt = new Runtime({ store, tasks: [importRevision], llm, git: () => ({}) as GitCapability,
+    const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importRevision] }], llm, git: () => ({}) as GitCapability,
       webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
 
     await assert.rejects(rt.run(session.id, "importRevision", { host: null, id: 1 }));

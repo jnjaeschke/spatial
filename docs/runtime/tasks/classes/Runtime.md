@@ -22,6 +22,18 @@
 
 `Runtime`
 
+## Properties
+
+### plugins
+
+> `readonly` **plugins**: [`PluginRegistry`](../../plugins/interfaces/PluginRegistry.md)
+
+***
+
+### workflows
+
+> `readonly` **workflows**: `ReadonlyMap`\<`string`, [`Workflow`](../../plugins/interfaces/Workflow.md)\<`any`\>\>
+
 ## Accessors
 
 ### llm

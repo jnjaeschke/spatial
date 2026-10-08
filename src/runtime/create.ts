@@ -1,7 +1,9 @@
 import type { LlmSelection } from "../shared/types.ts";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { tasks } from "../tasks/index.ts";
+import { plugins } from "../plugins/index.ts";
+import { chatTurn } from "../tasks/chat-turn/task.ts";
+import { selectWorkflow } from "../tasks/select-workflow/task.ts";
 import { makeGit } from "./git.ts";
 import { ClaudeBackend } from "./llm/claude.ts";
 import { CodexBackend } from "./llm/codex.ts";
@@ -14,6 +16,7 @@ import { makeWebspec } from "./webspec.ts";
 import { fileURLToPath } from "node:url";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
+export const corePlugin = { id: "core", tasks: [chatTurn, selectWorkflow] };
 
 export function defaultDbPath(): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial-ide", "runtime.sqlite");
@@ -33,7 +36,7 @@ export function createRuntime(opts: {
     opts.defaultLlm ?? DEFAULT_LLM,
   );
   return new Runtime({
-    store: new Store(opts.dbPath), tasks, llm, git: makeGit,
+    store: new Store(opts.dbPath), plugins: [corePlugin, ...plugins], llm, git: makeGit,
     webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }),
     repoContext: loadRepoContext,
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: {

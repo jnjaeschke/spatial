@@ -5,8 +5,11 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import type { LlmSelection, SelectorQuestionData, WorkflowStartData } from "../../src/shared/types.ts";
-import { workflows } from "../../src/workflows/registry.ts";
-import { MAX_SELECTOR_QUESTIONS, selectWorkflow, selectorSchema } from "../../src/tasks/select-workflow/task.ts";
+import { MAX_SELECTOR_QUESTIONS, selectorSchema } from "../../src/tasks/select-workflow/task.ts";
+import { corePlugin } from "../../src/runtime/create.ts";
+import { plugins } from "../../src/plugins/index.ts";
+
+const workflows = new Map(plugins.flatMap((plugin) => plugin.workflows ?? []).map((workflow) => [workflow.id, workflow]));
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
@@ -21,7 +24,7 @@ function setup(json: unknown) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, tasks: [selectWorkflow], llm, sessionMcp: () => ({ spatial: { type: "stdio", command: "spatial", args: [] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
+  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins], llm, sessionMcp: () => ({ spatial: { type: "stdio", command: "spatial", args: [] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { store, rt, session, get call() { return call; } };
@@ -39,8 +42,8 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.deepEqual(start.data, { via: "selector", workflow: "chat", params: {}, title: "Explain X", prompt: input });
   assert.equal(setupResult.call?.tools, "read-only");
   assert.deepEqual(setupResult.call?.mcpServers, { spatial: { type: "stdio", command: "spatial", args: [] } });
-  assert.deepEqual(setupResult.call?.schema, selectorSchema());
-  const schema = selectorSchema() as { properties: { workflow: { enum: string[] }; params: { anyOf: unknown[] } } };
+  assert.deepEqual(setupResult.call?.schema, selectorSchema(workflows));
+  const schema = selectorSchema(workflows) as { properties: { workflow: { enum: string[] }; params: { anyOf: unknown[] } } };
   assert.deepEqual(schema.properties.workflow.enum, ["review", "chat"]);
   assert.equal(schema.properties.params.anyOf.length, 2);
   assert.ok(!("$schema" in schema));
@@ -102,6 +105,6 @@ for (const [label, json, prompt, error] of [
 
 test("selector prompt, schema, and workflow descriptions avoid e2e stub needles", () => {
   const needles = ["# Previous narrative", "# Hunks", "# Prior findings", "ROUTE-UPDATE-REVIEW", '"findings"', "THAT IS WRONG", "ENABLE-DEVTOOLS-PLEASE", '"revisions"'];
-  const sources = [readFileSync(new URL("../../src/tasks/select-workflow/prompt.md", import.meta.url), "utf8"), JSON.stringify(selectorSchema()), ...Object.values(workflows).map((workflow) => workflow.description)];
+  const sources = [readFileSync(new URL("../../src/tasks/select-workflow/prompt.md", import.meta.url), "utf8"), JSON.stringify(selectorSchema(workflows)), ...[...workflows.values()].map((workflow) => workflow.description)];
   for (const needle of needles) assert.ok(sources.every((source) => !source.includes(needle)), needle);
 });

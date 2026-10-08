@@ -1,14 +1,16 @@
 import type { Artifact, Id, LlmSelection, SelectorQuestionData, Session, WorkflowStartData } from "../shared/types.ts";
 import type { Runtime } from "../runtime/tasks.ts";
 import { createSession } from "../runtime/git.ts";
-import { parseCommand, workflows } from "./registry.ts";
+import { parseCommand } from "./registry.ts";
 
 /** Sets the session's workflow and title from its `WorkflowStart` artifact and runs the workflow. */
 export async function runWorkflow(rt: Runtime, sessionId: Id, startId: Id, llm?: LlmSelection): Promise<void> {
   const start = rt.store.getArtifact<WorkflowStartData>(startId).data;
   rt.store.setSessionStart(sessionId, start.workflow, start.title);
   rt.emit(sessionId, "runtime", "session.updated", { workflow: start.workflow, title: start.title });
-  await workflows[start.workflow].start(rt, sessionId, { params: start.params, startId, prompt: start.prompt, llm });
+  const workflow = rt.workflows.get(start.workflow);
+  if (!workflow) throw new Error(`Unknown workflow: ${start.workflow}`);
+  await workflow.start(rt, sessionId, { params: start.params, startId, prompt: start.prompt, llm });
 }
 
 const inBackground = (sessionId: Id, work: Promise<unknown>) =>
@@ -32,7 +34,7 @@ export async function startSession(rt: Runtime, path: string, text: string, llm?
   const input = text.trim();
   if (!input) throw new Error("Request is empty");
   if (input.startsWith("/")) {
-    const command = parseCommand(input);
+    const command = parseCommand(rt.workflows.values(), input);
     if (!command.ok) throw new Error(command.error);
     const title = input.slice(0, 80);
     const session = await createSession(rt.store, path, title, null);

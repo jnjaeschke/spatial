@@ -11,7 +11,7 @@ function setup() {
   let currentSha = "H1";
   let resolves = 0;
   const runtime = new Runtime({
-    store, tasks: [], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+    store, plugins: [{ id: "test", tasks: [] }], llm: {} as never, webspec: {} as never, searchfox: {} as never,
     git: () => ({ resolve: async () => { resolves++; return currentSha; } } as unknown as GitCapability),
   });
   const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: {
@@ -98,7 +98,7 @@ test("watchedSessions returns distinct ids until the last subscription is releas
 test("resolve errors are swallowed and logged once until the message changes", async () => {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
-  const runtime = new Runtime({ store, tasks: [], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+  const runtime = new Runtime({ store, plugins: [{ id: "test", tasks: [] }], llm: {} as never, webspec: {} as never, searchfox: {} as never,
     git: () => ({ resolve: async () => { throw new Error("missing ref"); } } as unknown as GitCapability) });
   const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: { baseSha: "B", headSha: "H1", commits: [], files: [] }, provenance: { taskId: "test" } });
   const task = store.createTask({ sessionId: session.id, kind: "importDiff", input: { base: "main", head: "feature" } });
@@ -122,7 +122,7 @@ test("snapshot sessions never announce a new revision", async () => {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "snapshot" });
   const resolved: string[] = [];
-  const runtime = new Runtime({ store, tasks: [], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+  const runtime = new Runtime({ store, plugins: [{ id: "test", tasks: [] }], llm: {} as never, webspec: {} as never, searchfox: {} as never,
     git: () => ({ resolve: async (ref: string) => { resolved.push(ref); return "S1"; } } as unknown as GitCapability) });
   const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: { baseSha: "B1", headSha: "S1", commits: [], files: [] }, provenance: { taskId: "test" } });
   const task = store.createTask({ sessionId: session.id, kind: "importDiff", input: { base: "B1", head: "refs/spatial/worktree/0123456789ab" } });

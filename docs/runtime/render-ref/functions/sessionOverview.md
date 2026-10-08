@@ -6,11 +6,15 @@
 
 # Function: sessionOverview()
 
-> **sessionOverview**(`view`): `string`
+> **sessionOverview**(`registry`, `view`): `string`[]
 
-Overview of the session for its workflow, including the request that started it.
+Overview in prompt order: request, notes, workflow-specific sections, then chat threads.
 
 ## Parameters
+
+### registry
+
+`Pick`\<[`PluginRegistry`](../../plugins/interfaces/PluginRegistry.md), `"workflows"`\>
 
 ### view
 
@@ -18,4 +22,4 @@ Overview of the session for its workflow, including the request that started it.
 
 ## Returns
 
-`string`
+`string`[]

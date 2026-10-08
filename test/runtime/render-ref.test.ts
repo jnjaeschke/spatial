@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderRef, searchDocs, sessionOverview, type SessionView } from "../../src/runtime/render-ref.ts";
+import { renderRef as renderRefWith, searchDocs as searchDocsWith, sessionOverview as sessionOverviewWith, type SessionView } from "../../src/runtime/render-ref.ts";
+import { pluginRegistry } from "../../src/runtime/plugins.ts";
+import { plugins } from "../../src/plugins/index.ts";
 import type { Artifact, Link } from "../../src/shared/types.ts";
+
+const registry = pluginRegistry(plugins);
+const renderRef = (view: SessionView, ref: string) => renderRefWith(registry.artifactKinds, view, ref);
+const searchDocs = (view: SessionView, item: Artifact) => searchDocsWith(registry.artifactKinds, view, item);
+const sessionOverview = (view: SessionView) => sessionOverviewWith(registry, view).join("\n\n");
 
 const artifact = <T,>(id: string, type: string, data: T): Artifact<T> => ({
   id, sessionId: "s", type, data, status: "proposed", provenance: { taskId: "task" }, createdAt: "now",
@@ -26,6 +33,7 @@ const thread = artifact("T", "ChatThread", { anchor: "N#c1" });
 const finding = artifact("F", "ReviewFinding", { anchor: "D#f0h0", quote: "line f0h0", lines: { path: "src/a.ts", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Check parser", body: "This is a finding body." });
 const otherFinding = artifact("F2", "ReviewFinding", { anchor: "D#f0h1", category: "style", severity: "low", title: "Old finding", body: "Old." });
 const findingThread = artifact("FT", "ChatThread", { anchor: "F" });
+const reviewStart = artifact("W-review", "WorkflowStart", { workflow: "review", title: "Review", prompt: "Review this" });
 const user = artifact("U", "ChatMessage", { role: "user" as const, text: "Why this change?" });
 const assistant = artifact("A", "ChatMessage", { role: "assistant" as const, text: "It fixes the parser." });
 const view: SessionView = {
@@ -99,7 +107,7 @@ test("notes render, search, and appear in the session overview", () => {
 });
 
 test("sessionOverview lists latest narrative changes, specs, and threads", () => {
-  const overview = sessionOverview(view);
+  const overview = sessionOverview({ ...view, artifacts: [...view.artifacts, reviewStart] });
   for (const expected of ["N#c1", "N#c2", "f0h0", "f0h1", "R", "T"]) assert.ok(overview.includes(expected));
   assert.ok(overview.includes("# Findings"));
   assert.ok(overview.includes("- F [high correctness] Check parser (D#f0h0)"));
@@ -110,14 +118,14 @@ test("sessionOverview reports no narrative when the latest Diff is not narrated"
   const oldDiff = { ...diff, id: "D1" };
   const oldNarrative = { ...narrative, id: "N1", data: { ...narrative.data, diffId: "D1" } };
   const newDiff = { ...diff, id: "D2", data: { ...diff.data, headSha: "head2" } };
-  assert.equal(sessionOverview({ artifacts: [oldDiff, oldNarrative, newDiff], links: [] }), "No narrative yet.");
+  assert.equal(sessionOverview({ artifacts: [oldDiff, oldNarrative, newDiff, reviewStart], links: [] }), "# Request\nReview this\n\nNo narrative yet.\n\n# Threads\nNone");
 });
 
 test("sessionOverview describes a chat workflow from its latest start artifact", () => {
   const start = artifact("W", "WorkflowStart", { workflow: "chat", title: "Explain X", prompt: "Explain X in detail" });
   const root = artifact("T0", "ChatThread", { anchor: "W" });
   const reply = artifact("T1", "ChatThread", { anchor: "T0" });
-  assert.equal(sessionOverview({ artifacts: [start, root, reply], links: [] }), "# Conversation\nExplain X\n\n# Request\nExplain X in detail\n\n# Threads\n2 threads");
+  assert.equal(sessionOverview({ artifacts: [start, root, reply], links: [] }), "# Request\nExplain X in detail\n\n# Conversation\nExplain X\n\n# Threads\n- T0 anchored at W: \n- T1 anchored at T0: ");
 });
 
 test("sessionOverview includes the request for a review session", () => {
@@ -131,7 +139,7 @@ test("sessionOverview lists carried findings and marks outdated locations", () =
   const newDiff = { ...diff, id: "D2", createdAt: "3" };
   const newNarrative = { ...narrative, id: "N2", createdAt: "4", data: { ...narrative.data, diffId: "D2" } };
   const carry = artifact("FC", "FindingCarry", { finding: "F", toDiff: "D2", hunkId: null });
-  const state = { artifacts: [oldDiff, oldNarrative, newDiff, newNarrative, finding, carry], links: [
+  const state = { artifacts: [oldDiff, oldNarrative, newDiff, newNarrative, finding, carry, reviewStart], links: [
     { id: "f-n1", sessionId: "s", from: "F", to: "N1", kind: "derivedFrom" },
     { id: "f-d1", sessionId: "s", from: "F", to: "D1#f0h0", kind: "about" },
     { id: "carry-f", sessionId: "s", from: "FC", to: "F", kind: "about" },
@@ -144,12 +152,12 @@ test("Phabricator comments render, search, and appear in session overview", () =
   const root = artifact("PC", "PhabComment", { revision: 1, phid: "PHID-XCMT-1", version: 2, author: "alice", bot: false, body: "updated root", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, own: false, done: true, txId: 10, dateCreated: 10 });
   const old = artifact("PC0", "PhabComment", { ...root.data, version: 1, body: "old root", done: false, txId: 8 });
   const reply = artifact("PCR", "PhabComment", { ...root.data, phid: "PHID-XCMT-2", version: 1, body: "reply", replyTo: "PHID-XCMT-1", done: false, txId: 11 });
-  const state: SessionView = { artifacts: [diff, narrative, old, root, reply], links: [] };
+  const state: SessionView = { artifacts: [diff, narrative, old, root, reply, reviewStart], links: [] };
   const rendered = renderRef(state, "PC");
   for (const expected of ["@alice", "D1", "a.txt:30 (new side", "Done: yes", "updated root", "Reply by @alice: reply"]) assert.ok(rendered.includes(expected), expected);
   assert.match(renderRef(state, "PCR"), /updated root/);
   assert.deepEqual(searchDocs(state, root), [{ ref: "PC", kind: "comment", body: "@alice a.txt\nupdated root" }]);
   assert.deepEqual(searchDocs(state, old), []);
   assert.match(sessionOverview(state), /# Remote comments[\s\S]*- PC @alice \(a.txt:30\), done : updated root/);
-  assert.ok(!sessionOverview({ artifacts: [diff, narrative], links: [] }).includes("# Remote comments"));
+  assert.ok(!sessionOverview({ artifacts: [diff, narrative, reviewStart], links: [] }).includes("# Remote comments"));
 });

@@ -10,14 +10,6 @@ Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages 
 
 ## Properties
 
-### diagramError?
-
-> `optional` **diagramError?**: `string`
-
-Why a proposed diagram was dropped during deterministic verification.
-
-***
-
 ### llm?
 
 > `optional` **llm?**: [`LlmSelection`](LlmSelection.md)
@@ -35,6 +27,22 @@ Why a proposed diagram was dropped during deterministic verification.
 > `optional` **questions?**: `string`[]
 
 Questions the assistant asks the user.
+
+***
+
+### replyErrors?
+
+> `optional` **replyErrors?**: `object`[]
+
+Why a plugin-proposed artifact was dropped during deterministic validation.
+
+#### error
+
+> **error**: `string`
+
+#### label
+
+> **label**: `string`
 
 ***
 

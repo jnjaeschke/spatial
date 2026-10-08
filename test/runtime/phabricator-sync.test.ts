@@ -6,6 +6,8 @@ import type { DiffData, RuntimeEvent } from "../../src/shared/types.ts";
 import type { ConduitClient } from "../../src/runtime/conduit.ts";
 import { PhabricatorSyncer } from "../../src/runtime/phabricator-sync.ts";
 import { latestPhabSync } from "../../src/shared/phab-anchor.ts";
+import { plugins } from "../../src/plugins/index.ts";
+import { corePlugin } from "../../src/runtime/create.ts";
 
 const local = "diff --git a/a.txt b/a.txt\n@@ -1 +1 @@\n-old\n+new\n";
 const remote = (id: number, text = local) => ({ id, phid: `PHID-DIFF-${id}`, text });
@@ -38,7 +40,7 @@ function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[];
     if (method === "user.search") return { data: [{ phid: "U1", fields: { username: "alice" } }] };
     throw new Error(`unexpected ${method}`);
   } } as unknown as ConduitClient;
-  const runtime = new Runtime({ store, tasks: [], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+  const runtime = new Runtime({ store, plugins: [corePlugin, ...plugins], llm: {} as never, webspec: {} as never, searchfox: {} as never,
     git: () => ({ diff: async (base: string, head: string) => opts.texts?.[`${base}..${head}`] ?? local } as unknown as GitCapability) });
   const watcher = { watchedSessions: () => [session.id] };
   const events: RuntimeEvent[] = [];

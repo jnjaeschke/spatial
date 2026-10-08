@@ -3,8 +3,9 @@ import type {
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
-import { searchDocs, sessionView, type SessionView } from "./render-ref.ts";
+import { renderRef, searchDocs, sessionOverview, sessionView, type SessionView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
+import { pluginRegistry, type Plugin, type PluginRegistry, type Workflow } from "./plugins.ts";
 
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
@@ -73,7 +74,11 @@ export interface TaskContext {
     get<T>(id: Id): Artifact<T>;
     linkedTo(to: Ref, kind: LinkKind): Artifact[];
     view(): SessionView;
+    render(ref: Ref): string;
+    overview(): string;
   };
+  workflows: ReadonlyMap<string, Workflow<any>>;
+  chat: { context(view: SessionView): string[]; replyFields: PluginRegistry["chatReplyFields"] };
   links: { put(from: Ref, to: Ref, kind: LinkKind): Link };
   progress(p: Progress): void;
 }
@@ -117,8 +122,7 @@ export class PhaseBusyError extends Error {
 
 export interface RuntimeOptions {
   store: Store;
-  tasks: TaskDefinition<any, any>[];
-  phases?: Phase<any>[];
+  plugins: Plugin[];
   llm: LlmService;
   git: (repo: string) => GitCapability;
   webspec: WebspecCapability;
@@ -132,8 +136,10 @@ export type Listener = (e: RuntimeEvent) => void;
 
 export class Runtime {
   #store: Store;
-  #tasks = new Map<string, TaskDefinition<unknown, unknown>>();
-  #phases = new Map<string, Phase<unknown>>();
+  #tasks: Map<string, TaskDefinition<any, any>>;
+  #phases: Map<string, Phase<any>>;
+  readonly plugins: PluginRegistry;
+  readonly workflows: ReadonlyMap<string, Workflow<any>>;
   #llm: LlmService;
   #git: (repo: string) => GitCapability;
   #webspec: WebspecCapability;
@@ -145,9 +151,13 @@ export class Runtime {
 
   constructor(opts: RuntimeOptions) {
     this.#store = opts.store;
+    this.plugins = pluginRegistry(opts.plugins);
+    this.workflows = this.plugins.workflows;
+    this.#tasks = this.plugins.tasks;
+    this.#phases = this.plugins.phases;
     for (const id of this.#store.unindexedArtifactIds()) {
       const artifact = this.#store.getArtifact(id);
-      this.#store.putSearchDocs(artifact.sessionId, artifact.id, searchDocs(sessionView(this.#store, artifact.sessionId), artifact));
+      this.#store.putSearchDocs(artifact.sessionId, artifact.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, artifact.sessionId), artifact));
     }
     this.#llm = opts.llm;
     this.#git = opts.git;
@@ -155,14 +165,6 @@ export class Runtime {
     this.#searchfox = opts.searchfox;
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
     this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: null }));
-    for (const t of opts.tasks) {
-      if (this.#tasks.has(t.kind)) throw new Error(`Duplicate task kind: ${t.kind}`);
-      this.#tasks.set(t.kind, t);
-    }
-    for (const p of opts.phases ?? []) {
-      if (this.#phases.has(p.id)) throw new Error(`Duplicate phase id: ${p.id}`);
-      this.#phases.set(p.id, p);
-    }
   }
 
   get store(): Store {
@@ -230,7 +232,7 @@ export class Runtime {
       artifacts: {
         put: (type, status, data, llm) => {
           const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
-          this.#store.putSearchDocs(sessionId, a.id, searchDocs(sessionView(this.#store, sessionId), a));
+          this.#store.putSearchDocs(sessionId, a.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, sessionId), a));
           emit("artifact.created", { artifactId: a.id, type });
           return a;
         },
@@ -238,13 +240,20 @@ export class Runtime {
         linkedTo: (to, linkKind) =>
           this.#store.listLinks(sessionId).filter((l) => l.to === to && l.kind === linkKind).map((l) => this.#store.getArtifact(l.from)),
         view: () => sessionView(this.#store, sessionId),
+        render: (ref) => renderRef(this.plugins.artifactKinds, sessionView(this.#store, sessionId), ref),
+        overview: () => sessionOverview(this.plugins, sessionView(this.#store, sessionId)).join("\n\n"),
+      },
+      workflows: this.workflows,
+      chat: {
+        context: (view) => this.plugins.chatContext.map((provide) => provide(view)).filter((value): value is string => Boolean(value)),
+        replyFields: this.plugins.chatReplyFields,
       },
       links: {
         put: (from, to, linkKind) => {
           const l = this.#store.putLink({ sessionId, from, to, kind: linkKind });
           if (linkKind === "revises") {
             const target = this.#store.getArtifact(to);
-            this.#store.putSearchDocs(sessionId, target.id, searchDocs(sessionView(this.#store, sessionId), target));
+            this.#store.putSearchDocs(sessionId, target.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, sessionId), target));
           }
           emit("link.created", { linkId: l.id, from, to, kind: linkKind });
           return l;

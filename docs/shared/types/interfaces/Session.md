@@ -38,7 +38,7 @@ Repo identity: absolute, symlink-resolved `git rev-parse --git-common-dir`, shar
 
 ### workflow
 
-> **workflow**: [`WorkflowId`](../type-aliases/WorkflowId.md) \| `null`
+> **workflow**: `string` \| `null`
 
 The workflow the session runs; null until the start request is interpreted.
 

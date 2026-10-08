@@ -6,4 +6,4 @@
 
 # Type Alias: WorkflowId
 
-> **WorkflowId** = `"review"` \| `"chat"`
+> **WorkflowId** = `string`

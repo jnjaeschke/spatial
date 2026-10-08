@@ -6,9 +6,13 @@
 
 # Function: searchDocs()
 
-> **searchDocs**(`view`, `artifact`): [`SearchDoc`](../interfaces/SearchDoc.md)[]
+> **searchDocs**(`kinds`, `view`, `artifact`): [`SearchDoc`](../interfaces/SearchDoc.md)[]
 
 ## Parameters
+
+### kinds
+
+`Record`\<`string`, [`ArtifactKind`](../../plugins/interfaces/ArtifactKind.md)\>
 
 ### view
 
