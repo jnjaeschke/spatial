@@ -16,11 +16,18 @@ const stepSchema = { type: "object", additionalProperties: false, required: ["fr
   when: { type: ["string", "null"] }, guard: { type: ["string", "null"] }, phase: { type: ["string", "null"] },
   status: { type: "string", enum: ["new", "changed", "existing", "removed"] }, cite: citeSchema,
 } };
-const diagramSchema = { type: "object", additionalProperties: false, required: ["commit", "title", "summary", "lanes", "steps", "before"], properties: {
+export const diagramSchema = { type: "object", additionalProperties: false, required: ["commit", "title", "summary", "lanes", "steps", "before"], properties: {
   commit: { type: "integer", minimum: 1 }, title: { type: "string" }, summary: { type: "string" },
   lanes: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "label", "note"], properties: { id: { type: "string" }, label: { type: "string" }, note: { type: ["string", "null"] } } } },
   steps: { type: "array", items: stepSchema }, before: { anyOf: [{ type: "null" }, { type: "array", items: stepSchema }] },
 } };
+
+/** Verifies a sequence proposal about code that exists at `baseSha` (a plan, not a commit range): the base is the only commit, so every citation is read at `baseSha` and `proposal.commit` must be 1. */
+export async function verifyDiagramAtBase(proposal: unknown, baseSha: string, show: (sha: string, path: string) => Promise<string>): Promise<{ ok: true; data: DiagramData } | { ok: false; error: string }> {
+  if (!isDiagram(proposal)) return { ok: false, error: "diagram has an invalid shape" };
+  return verifySequence(proposal, { baseSha, commits: [{ sha: baseSha, subject: "base", body: "" }] }, show);
+}
+
 export const diagramField: ChatReplyField = {
   name: "diagram", label: "Diagram", schema: diagramSchema,
   prompt: `## Sequence diagrams

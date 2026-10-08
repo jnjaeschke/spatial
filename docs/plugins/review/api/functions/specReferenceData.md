@@ -1,0 +1,33 @@
+[**spatial-ide**](../../../../README.md)
+
+***
+
+[spatial-ide](../../../../README.md) / [plugins/review/api](../README.md) / specReferenceData
+
+# Function: specReferenceData()
+
+> **specReferenceData**(`env`, `url`, `result`, `origin`): `Promise`\<[`SpecReferenceData`](../../shared/types/interfaces/SpecReferenceData.md)\>
+
+The `SpecReference` data of a looked-up URL; a found spec in a Gecko repo also gets the Searchfox lines that reference it.
+
+## Parameters
+
+### env
+
+`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"webspec"` \| `"searchfox"` \| `"repo"` \| `"signal"`\>
+
+### url
+
+`string`
+
+### result
+
+[`SpecLookup`](../type-aliases/SpecLookup.md)
+
+### origin
+
+`"llm"` \| `"code"`
+
+## Returns
+
+`Promise`\<[`SpecReferenceData`](../../shared/types/interfaces/SpecReferenceData.md)\>

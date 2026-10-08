@@ -5,6 +5,16 @@ const IDENTITY = { name: "Spatial Review", email: "spatial-review@localhost" };
 /** Most commits the default range may cover; more means the fork point is wrong (e.g. a stale local main), so the user names the range. */
 export const MAX_DEFAULT_COMMITS = 50;
 
+/** Merge-base of HEAD with the nearest local or remote-tracking main/master; null when there is none. */
+export async function nearestFork(git: GitCapability): Promise<string | null> {
+  let nearest: string | null = null;
+  for (const ref of await git.mainlineRefs()) {
+    const base = await git.mergeBase("HEAD", ref);
+    if (base && (nearest === null || await git.isAncestor(nearest, base))) nearest = base;
+  }
+  return nearest;
+}
+
 /** The range `/review` means without refs: uncommitted changes when present; otherwise commits since the nearest fork point from a local or remote-tracking main/master (a stale local main must not pull in upstream history), falling back to the latest commit on the default branch. Dirty worktrees are snapshotted under `refs/spatial/worktree/<sha12>`. */
 export async function defaultReviewRange(repo: string, git: GitCapability): Promise<{ base: string; head: string }> {
   if (await git.isDirty()) {
@@ -16,11 +26,7 @@ export async function defaultReviewRange(repo: string, git: GitCapability): Prom
       return { base: await git.resolve(`${snapshot}^`), head };
     }
   }
-  let nearest: string | null = null;
-  for (const ref of await git.mainlineRefs()) {
-    const base = await git.mergeBase("HEAD", ref);
-    if (base && (nearest === null || await git.isAncestor(nearest, base))) nearest = base;
-  }
+  const nearest = await nearestFork(git);
   if (nearest === null || nearest === await git.resolve("HEAD")) return { base: "HEAD~1", head: "HEAD" };
   const count = (await git.log(nearest, "HEAD")).length;
   if (count > MAX_DEFAULT_COMMITS) throw new Error(`The branch is ${count} commits ahead of its nearest main/master (${nearest.slice(0, 12)}); name the range to review, e.g. /review HEAD~3..HEAD`);

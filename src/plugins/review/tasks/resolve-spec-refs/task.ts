@@ -1,10 +1,11 @@
 import type { ReviewFindingData, SpecReferenceData } from "../../shared/types.ts";
-import { type DiffData, type PatchNarrativeData, type ResolvedSpec, isGeckoRepo, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
+import { type DiffData, type PatchNarrativeData, type ResolvedSpec, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
 import { specUrlsNear } from "./cited.ts";
 import { checkStepComment, stepComments } from "./step-check.ts";
+import { lookupSpec, specReferenceData } from "../../runtime/spec-ref.ts";
 
 /** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports Step comments on added lines that webspec-index finds do not match their algorithm as `ReviewFinding`s (no LLM). `stepCheckErrors` lists files whose check failed. */
 export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[]; stepCheckErrors: string[] }>({
@@ -56,7 +57,6 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       for (const url of change.specUrls) addCitation(url, [change.id], "llm");
     }
 
-    const gecko = isGeckoRepo(ctx.repo);
     const groups = new Map<string, { data: SpecReferenceData; changeIds: Set<string> }>();
     const resolvedByUrl = new Map<string, ResolvedSpec>();
     let i = 0;
@@ -64,10 +64,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       const changeIds = [...citation.changeIds];
       ctx.progress({ kind: "determinate", done: i++, total: citations.size, message: url });
       // One failing lookup (e.g. webspec-index crashing on one spec) must not drop every other reference.
-      const result = await ctx.webspec.resolve(url, ctx.signal).catch((error: Error) => {
-        if (ctx.signal.aborted) throw error;
-        return { found: false as const, reason: error.message };
-      });
+      const result = await lookupSpec(ctx, url);
       // Code comments link Bugzilla, MDN, GitHub etc.; only the LLM's unresolved proposals are worth an unverified card.
       if (result.found) resolvedByUrl.set(url, result.spec);
       if (!result.found && !citation.llm) continue;
@@ -79,17 +76,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
         if (citation.code) existing.data.origin = "code";
         continue;
       }
-      const data: SpecReferenceData = result.found
-        ? { url, resolved: result.spec, origin, geckoRefs: [] }
-        : { url, resolved: null, origin, reason: result.reason, geckoRefs: [] };
-      if (result.found && gecko) {
-        try {
-          data.geckoRefs = await ctx.searchfox.specRefs(result.spec.url, ctx.signal);
-        } catch (error) {
-          if (ctx.signal.aborted) throw error;
-          data.geckoRefsError = (error as Error).message;
-        }
-      }
+      const data = await specReferenceData(ctx, url, result, origin);
       groups.set(key, { data, changeIds: new Set(changeIds) });
     }
 
@@ -106,10 +93,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
     for (const { check, path, hunkId, quote } of stepCommentRecords) {
       if (check.result === "exact" || check.result === "fuzzy") continue;
       if (!resolvedByUrl.has(check.url)) {
-        const result = await ctx.webspec.resolve(check.url, ctx.signal).catch((error: Error) => {
-          if (ctx.signal.aborted) throw error;
-          return { found: false as const, reason: error.message };
-        });
+        const result = await lookupSpec(ctx, check.url);
         if (result.found) resolvedByUrl.set(check.url, result.spec);
       }
       const spec = resolvedByUrl.get(check.url);

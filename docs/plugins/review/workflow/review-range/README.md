@@ -13,3 +13,4 @@
 ## Functions
 
 - [defaultReviewRange](functions/defaultReviewRange.md)
+- [nearestFork](functions/nearestFork.md)

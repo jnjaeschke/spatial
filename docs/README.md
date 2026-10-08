@@ -9,6 +9,7 @@
 - [cli/launch](cli/launch/README.md)
 - [mcp/session-server](mcp/session-server/README.md)
 - [plugin-api](plugin-api/README.md)
+- [plugins/review/api](plugins/review/api/README.md)
 - [plugins/review/runtime/attribution](plugins/review/runtime/attribution/README.md)
 - [plugins/review/runtime/conduit](plugins/review/runtime/conduit/README.md)
 - [plugins/review/runtime/diagram-verify](plugins/review/runtime/diagram-verify/README.md)
