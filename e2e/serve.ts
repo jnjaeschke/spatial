@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -82,8 +82,35 @@ const specMapOut = stubOut("spec-map", { links: [
   { step: "2", kind: "implements", ranges: [{ path: "SpecViewFixture.cpp", side: "new", start: 8, end: 8 }], note: "Adds the file." },
 ], unmapped: [{ ranges: [{ path: "SpecViewFixture.cpp", side: "new", start: 9, end: 9 }], reason: "plumbing", note: "Logs the navigation." }] });
 const fileNavOut = stubOut("file-nav-narrative", { summary: "Edits two places.", changes: [{ id: "c1", title: "Edit two places", explanation: "Edits lines 20, 22 and 150.", rationale: "r", hunkIds: ["f0h0", "f0h1"], dependsOn: [], specUrls: [] }] });
+const implementDir = join(dir, "implement");
+mkdirSync(implementDir);
+const script = (name: string, body: string) => { const file = join(implementDir, `${name}.sh`); writeFileSync(file, body); return file; };
+const commit = "git -c user.name=T -c user.email=t@t -c commit.gpgsign=false commit -q";
+const implOne = script("one", `sed -i 's/^line 30$/THIRTY/' a.txt\nprintf 'c\\n' > c.txt\ngit add -A\n${commit} -m 'Fix the c thing'\n`);
+const implFix = script("fix", `printf 'd\\n' > d.txt\ngit add -A\n${commit} --amend --no-edit\n`);
+const implRevise = script("revise", `sed -i 's/^line 31$/THIRTY-ONE/' a.txt\ngit add -A\n${commit} --amend --no-edit\n`);
+const investigationOut = stubOut("implement-investigation", { kind: "bugfix", summary: "The c file is missing.", bug: null, locations: [
+  { path: "a.txt", line: 30, quote: "line 30", why: "The value to change." }, { path: "gone.txt", line: 1, quote: "x", why: "Does not exist." },
+], testCases: [{ description: "c exists", expected: "c.txt exists", actual: null, path: null }], architecture: null,
+steps: [{ title: "Add c", message: "Fix the c thing", intent: "Add c.txt and set line 30.", tests: [] }], openQuestions: ["Should d exist too?"], exploration: [{ tried: "grep for c", outcome: "no c.txt exists" }], specUrls: [], diagram: null });
+const agentEvents = [
+  { type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: "tu1", name: "Bash", input: { command: "echo hello-from-agent" } }] } },
+  { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "tu1", content: "hello-from-agent\n", is_error: false }] } },
+  { type: "result", is_error: false, result: "", structured_output: { summary: "Implemented the plan.", planChange: null, planInvalid: null, step: null }, session_id: "stub-implement", usage: { input_tokens: 1, output_tokens: 1 } },
+];
+const agentOut = join(implementDir, "agent.jsonl");
+writeFileSync(agentOut, agentEvents.map((event) => JSON.stringify(event)).join("\n") + "\n");
+const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
+const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The value is named." }] });
+// Implement routes come first: the review prompts of an implement session also contain the generic needles below.
+const implementRoutes = { "You investigate a bug report": investigationOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
 // Spec view and file navigation routes come first: their mapping and narration prompts also contain the generic needles below.
-process.env.FAKE_LLM_ROUTES = JSON.stringify({ "# Spec: HTML#navigate": specMapOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Hunks\n\n### f0h0 FileNav.txt": fileNavOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ ...implementRoutes, "# Spec: HTML#navigate": specMapOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Hunks\n\n### f0h0 FileNav.txt": fileNavOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
+process.env.FAKE_LLM_ACTIONS = JSON.stringify({
+  "You implement a planned code change&&# Revision request": implRevise,
+  "You implement a planned code change&&# Findings to fix": implFix,
+  "You implement a planned code change": implOne,
+});
 process.env.FAKE_LLM_FAIL_ON = "FAIL-THIS-TURN";
 
 const arcrc = join(dir, "arcrc");
