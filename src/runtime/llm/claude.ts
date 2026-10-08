@@ -1,5 +1,6 @@
 import type { ModelInfo } from "../../shared/types.ts";
 import { runProcess } from "../process.ts";
+import { claudeEventReader } from "./events.ts";
 import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
 
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
@@ -41,7 +42,7 @@ export class ClaudeBackend implements LlmBackend {
     if (req.system !== undefined) args.push("--system-prompt", req.system);
     if (req.schema) args.push("--json-schema", JSON.stringify(req.schema));
 
-    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: req.prompt, cwd: req.cwd, signal: req.signal });
+    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: req.prompt, cwd: req.cwd, signal: req.signal, onStdoutLine: write && req.onEvent ? claudeEventReader(req.onEvent) : undefined });
     let out: Record<string, any> | undefined;
     if (write) {
       for (const line of stdout.split("\n")) {

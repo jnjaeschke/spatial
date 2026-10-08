@@ -3,6 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelInfo } from "../../shared/types.ts";
 import { runProcess } from "../process.ts";
+import { codexEventReader } from "./events.ts";
 import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
 
 export class CodexBackend implements LlmBackend {
@@ -68,7 +69,7 @@ export class CodexBackend implements LlmBackend {
     if (req.resumeProviderSession) args.push(req.resumeProviderSession, "-");
     const stdin = req.system !== undefined && !req.resumeProviderSession ? `${req.system}\n\n${req.prompt}` : req.prompt;
     try {
-      const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin, cwd: req.cwd, signal: req.signal });
+      const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin, cwd: req.cwd, signal: req.signal, onStdoutLine: req.tools === "write" && req.onEvent ? codexEventReader(req.onEvent) : undefined });
       return parseCodexOutput(stdout, stderr, code, Boolean(req.schema));
     } finally {
       if (tmp) rmSync(tmp, { recursive: true, force: true });

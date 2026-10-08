@@ -46,6 +46,28 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ***
 
+### onEvent?
+
+> `optional` **onEvent?**: (`event`) => `void`
+
+Receives progress and finished shell commands during write-mode runs.
+
+#### Parameters
+
+##### event
+
+[`LlmEvent`](../type-aliases/LlmEvent.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`LlmPrompt`](LlmPrompt.md).[`onEvent`](LlmPrompt.md#onevent)
+
+***
+
 ### prompt
 
 > **prompt**: `string`

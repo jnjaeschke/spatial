@@ -10,10 +10,17 @@ export interface LlmPrompt {
   tools: "none" | "read-only" | "write";
   /** With `tools: "write"`: `auto` lets the CLI's own approval logic allow edits and commands, `full` skips approvals and sandboxing, `editsOnly` allows file edits without any shell. Default `auto`. */
   writeMode?: WriteMode;
+  /** Receives progress and finished shell commands during write-mode runs. */
+  onEvent?: (event: LlmEvent) => void;
   /** Continue this provider session instead of starting a new one. */
   resumeProviderSession?: string;
   mcpServers?: Record<string, McpServerSpec>;
 }
+
+/** Progress and finished shell commands of a write-mode run; `output` is capped at 256 KB. */
+export type LlmEvent =
+  | { kind: "progress"; message: string }
+  | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string };
 
 export type McpServerSpec =
   | { type: "stdio"; command: string; args: string[]; env?: Record<string, string> }

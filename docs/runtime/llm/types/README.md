@@ -18,4 +18,5 @@
 
 ## Type Aliases
 
+- [LlmEvent](type-aliases/LlmEvent.md)
 - [McpServerSpec](type-aliases/McpServerSpec.md)

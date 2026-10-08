@@ -40,6 +40,7 @@
 - [plugins/review/workflow/update-revision](plugins/review/workflow/update-revision/README.md)
 - [runtime/blame](runtime/blame/README.md)
 - [runtime/create](runtime/create/README.md)
+- [runtime/llm/events](runtime/llm/events/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
 - [runtime/plugins](runtime/plugins/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)

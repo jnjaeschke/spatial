@@ -258,6 +258,12 @@ Re-exports [LlmBackendId](../shared/types/type-aliases/LlmBackendId.md)
 
 ***
 
+### LlmEvent
+
+Re-exports [LlmEvent](../runtime/llm/types/type-aliases/LlmEvent.md)
+
+***
+
 ### LlmPrompt
 
 Re-exports [LlmPrompt](../runtime/llm/types/interfaces/LlmPrompt.md)
