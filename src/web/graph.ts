@@ -1,16 +1,16 @@
 import dagre from "@dagrejs/dagre";
 import type { Artifact, ChatMessageData, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, FindingDecisionData, FindingVerdictValue, Hunk, Id, McpServerData, NoteData, PatchNarrativeData, PhabCommentData, PostedCommentData, Ref, ReviewCommentData, RevisionData, ReviewFindingData, SemanticChange, SequenceStep, SessionState, SpecReferenceData, WorkflowId, WorkflowStartData } from "../shared/types.ts";
-import { numberLines } from "../shared/diff-lines.ts";
+import { numberLines } from "../plugins/review/shared/diff-lines.ts";
 import { revisionsOf } from "../shared/revisions.ts";
-import { postableComments } from "../shared/postable-comments.ts";
-import { postPlan } from "../shared/post-plan.ts";
-import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
-import { findingStates, type FindingStatus } from "../shared/findings.ts";
+import { postableComments } from "../plugins/review/shared/postable-comments.ts";
+import { postPlan } from "../plugins/review/shared/post-plan.ts";
+import { diffNumber, latestDiff, narrativeOf } from "../plugins/review/shared/diffs.ts";
+import { findingStates, type FindingStatus } from "../plugins/review/shared/findings.ts";
 import type { Draft } from "./chat-context.ts";
 import type { FreePosition } from "./free-positions.ts";
-import { phabView } from "../shared/phab-anchor.ts";
-import { phabAnchorId } from "../shared/phab-comments.ts";
-import { changeCommit, reviewedChanges } from "../shared/review-path.ts";
+import { phabView } from "../plugins/review/shared/phab-anchor.ts";
+import { phabAnchorId } from "../plugins/review/shared/phab-comments.ts";
+import { changeCommit, reviewedChanges } from "../plugins/review/shared/review-path.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 

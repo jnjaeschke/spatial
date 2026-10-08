@@ -1,6 +1,6 @@
 import { useContext, useState } from "react";
 import type { DiffFile, Hunk } from "../shared/types.ts";
-import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
+import { fileRows, numberLines, type Row } from "../plugins/review/shared/diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
 import { DiffRows, FileViewContext } from "./FilePanel.tsx";
 import { AskContext } from "./chat-context.ts";

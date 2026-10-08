@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import { makeGit, createSession } from "../../src/runtime/git.ts";
-import { importDiff } from "../../src/tasks/import-diff/task.ts";
+import { importDiff } from "../../src/plugins/review/tasks/import-diff/task.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData } from "../../src/shared/types.ts";
-import { hunkCommit } from "../../src/shared/review-path.ts";
+import { hunkCommit } from "../../src/plugins/review/shared/review-path.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const noLlm = {

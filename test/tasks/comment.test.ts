@@ -4,7 +4,7 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { ChatMessageData, LlmSelection, ReviewCommentData, ReviewFindingData } from "../../src/shared/types.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import { comment } from "../../src/tasks/comment/task.ts";
+import { comment } from "../../src/plugins/review/tasks/comment/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 

@@ -1,6 +1,6 @@
 import { createContext, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Artifact, DiffData } from "../shared/types.ts";
-import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
+import { fileRows, numberLines, type Row } from "../plugins/review/shared/diff-lines.ts";
 import { loadFileLines } from "./file-lines.ts";
 import { StackContext } from "./stack-context.ts";
 import { RowPainter, rowSegments } from "./syntax.ts";

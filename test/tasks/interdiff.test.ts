@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { DiffData } from "../../src/shared/types.ts";
-import { interdiff } from "../../src/tasks/interdiff/task.ts";
+import { interdiff } from "../../src/plugins/review/tasks/interdiff/task.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 
 test("interdiff task records verified artifact and about link", async () => {

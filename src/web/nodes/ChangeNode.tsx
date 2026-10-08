@@ -11,7 +11,7 @@ import { commitColors } from "../commit-colors.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext } from "../chat-context.ts";
 import { Conversation } from "./ChatNode.tsx";
-import { numberLines } from "../../shared/diff-lines.ts";
+import { numberLines } from "../../plugins/review/shared/diff-lines.ts";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 

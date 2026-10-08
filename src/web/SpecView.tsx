@@ -1,7 +1,7 @@
 import { createContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Artifact, DiffFile, Hunk, Id, LineRange, LlmSelection, SessionState, SpecReferenceData, StepLink } from "../shared/types.ts";
-import { numberLines, type Row } from "../shared/diff-lines.ts";
-import { parseSteps } from "../shared/spec-text.ts";
+import { numberLines, type Row } from "../plugins/review/shared/diff-lines.ts";
+import { parseSteps } from "../plugins/review/shared/spec-text.ts";
 import { DiffRows } from "./FilePanel.tsx";
 import { latestNarrative } from "./graph.ts";
 import { api } from "./api.ts";

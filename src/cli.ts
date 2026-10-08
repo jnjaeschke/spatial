@@ -9,7 +9,7 @@ import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
 import { createSession, resolveRepo } from "./runtime/git.ts";
 import { parseCommand } from "./workflows/registry.ts";
 import { runWorkflow } from "./workflows/start.ts";
-import { latestDiff, narrativeOf } from "./shared/diffs.ts";
+import { latestDiff, narrativeOf } from "./plugins/review/shared/diffs.ts";
 import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl, staleServerMessage, stopServer } from "./cli/launch.ts";
 
 const USAGE = `usage:

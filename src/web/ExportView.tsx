@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { repoName } from "../shared/repos.ts";
-import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
+import { diffNumber, interdiffOf, latestDiff } from "../plugins/review/shared/diffs.ts";
 import type { SessionExport } from "./export-state.ts";
 import { Canvas, type HunkRow } from "./Canvas.tsx";
 import { FilePanel, FileViewContext, type OpenFile } from "./FilePanel.tsx";

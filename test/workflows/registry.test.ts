@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import { parseCommand, workflowInfo } from "../../src/workflows/registry.ts";
-import { parseReviewArgs } from "../../src/workflows/review.ts";
+import { parseReviewArgs } from "../../src/plugins/review/workflow/review.ts";
 import { plugins } from "../../src/plugins/index.ts";
 const workflows = Object.fromEntries(plugins.flatMap((plugin) => plugin.workflows ?? []).map((workflow) => [workflow.id, workflow]));
 const workflowList = Object.values(workflows);

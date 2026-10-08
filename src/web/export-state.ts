@@ -1,5 +1,5 @@
 import type { ChatThreadData, DiagramData, SessionState } from "../shared/types.ts";
-import { latestDiff } from "../shared/diffs.ts";
+import { latestDiff } from "../plugins/review/shared/diffs.ts";
 
 /** A session snapshot embedded in a static export file. */
 export interface SessionExport {

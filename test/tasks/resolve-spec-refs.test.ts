@@ -7,7 +7,7 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type StepCommentCheck, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, DiffLine, PatchNarrativeData, ReviewFindingData, SpecReferenceData } from "../../src/shared/types.ts";
-import { resolveSpecRefs } from "../../src/tasks/resolve-spec-refs/task.ts";
+import { resolveSpecRefs } from "../../src/plugins/review/tasks/resolve-spec-refs/task.ts";
 
 const CANON = "https://html.spec.whatwg.org/#navigate";
 const webspecFor = (failing?: string, checks: StepCommentCheck[] = [], analyzed: string[] = []): WebspecCapability => ({

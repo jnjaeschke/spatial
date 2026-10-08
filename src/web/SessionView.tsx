@@ -5,7 +5,7 @@ import { useSessionState, useModels } from "./api.ts";
 import { ActivityStrip } from "./ActivityStrip.tsx";
 import { Canvas, type HunkRow } from "./Canvas.tsx";
 import { latestNarrative } from "./graph.ts";
-import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
+import { diffNumber, interdiffOf, latestDiff } from "../plugins/review/shared/diffs.ts";
 import { desktopEnabled, disableDesktop, enableDesktop, isStaleNotice } from "./notifications.ts";
 import { Toasts } from "./Toasts.tsx";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";

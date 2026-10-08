@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { specUrlsNear } from "../../src/tasks/resolve-spec-refs/cited.ts";
+import { specUrlsNear } from "../../src/plugins/review/tasks/resolve-spec-refs/cited.ts";
 import type { Hunk } from "../../src/shared/types.ts";
 
 const hunk = (newStart: number, newLines: number): Hunk => ({

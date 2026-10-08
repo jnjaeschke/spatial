@@ -1,5 +1,5 @@
 import type { Artifact, InterdiffData } from "../shared/types.ts";
-import { numberLines } from "../shared/diff-lines.ts";
+import { numberLines } from "../plugins/review/shared/diff-lines.ts";
 import { DiffRows } from "./FilePanel.tsx";
 
 export function InterdiffPanel({ interdiff, epoch, onClose }: { interdiff: Artifact<InterdiffData>; epoch: number; onClose(): void }) {

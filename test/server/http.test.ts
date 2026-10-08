@@ -15,7 +15,7 @@ import { plugins } from "../../src/plugins/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, RecentRepo, Session, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { commitRevision } from "../../src/shared/phabricator.ts";
+import { commitRevision } from "../../src/plugins/review/shared/phabricator.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };

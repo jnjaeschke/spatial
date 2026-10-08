@@ -1,5 +1,5 @@
 import { exported } from "./exported.ts";
-import { latestDiff } from "../shared/diffs.ts";
+import { latestDiff } from "../plugins/review/shared/diffs.ts";
 
 const cache = new Map<string, Promise<string[]>>();
 
