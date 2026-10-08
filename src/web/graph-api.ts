@@ -18,3 +18,4 @@ export { conversationGraph } from "./graph.ts";
 export { threadContent, conversationNode, addNotes, addChats } from "./graph.ts";
 /** Estimated line count of text wrapped at a width in characters. */
 export { lines } from "./graph.ts";
+export type { FreePosition } from "./free-positions.ts";

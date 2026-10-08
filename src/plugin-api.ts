@@ -1,9 +1,30 @@
 /** @packageDocumentation
- * Plugins package workflows, phases, tasks, artifact kinds and optional server services.
- * A workflow starts phases; each phase run is stored as an epoch, and its tasks and artifacts inherit that epoch.
- * Artifact kinds teach core how to search and render plugin artifacts without importing plugin code.
- * Plugin code should import core contracts from this module and otherwise stay inside its plugin directory.
- * Standard plugins live in `src/plugins/` and are registered in `src/plugins/index.ts`.
+ * The server-side contract between core and plugins.
+ *
+ * Core owns sessions, the artifact store, tasks, epochs, the LLM backends, chat and the HTTP shell.
+ * Everything a user works on is a plugin; review and chat are the standard library in `src/plugins/`.
+ *
+ * - A **plugin** (`Plugin`, built with `definePlugin`) bundles any of: workflows, phases, task
+ *   definitions, artifact kinds, search kinds, chat context and reply fields, and a server part
+ *   with HTTP routes and background services. Registered in `src/plugins/index.ts`.
+ * - A **workflow** (`Workflow`) is what a user starts from the start screen or a slash command.
+ *   It parses its arguments and runs phases.
+ * - A **phase** (`Phase`) is one step of a workflow. `Runtime.runPhase` runs it as a new
+ *   **epoch**: a stored, numbered run of one phase in a session with its input, status and error.
+ *   Tasks and artifacts created meanwhile carry that epoch. A failed or cancelled epoch reruns in
+ *   place with `Runtime.retryPhase`. One phase runs per session at a time (`PhaseBusyError`).
+ * - A **task** (`TaskDefinition`, built with `defineTask`) is a unit of work run by the runtime,
+ *   usually one LLM call or one deterministic import, producing artifacts with provenance.
+ * - An **artifact kind** (`ArtifactKind`) tells core how to render, search and overview a
+ *   plugin's artifact type without importing plugin code.
+ *
+ * The web side of a plugin registers phase views and canvas node kinds through
+ * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
+ * `src/plugins/web.ts`.
+ *
+ * Boundary, checked by `scripts/plugin-boundary.ts` in `npm run check`: plugin code imports only
+ * its own directory and these API modules; core imports no plugin code except the two registries,
+ * and only from composition roots.
  */
 export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(plugin: T): T => plugin;
 export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, StartInput, Workflow } from "./runtime/plugins.ts";
@@ -24,3 +45,4 @@ export { makeGitWriter } from "./runtime/git.ts";
 export { prependRepoContext } from "./runtime/repo-context.ts";
 export { isGeckoRepo } from "./runtime/searchfox.ts";
 export { revisedText } from "./shared/revisions.ts";
+export type { GitWriter, PatchIdentity } from "./runtime/git.ts";

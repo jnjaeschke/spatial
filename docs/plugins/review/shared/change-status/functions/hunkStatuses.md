@@ -22,7 +22,7 @@ Per-hunk status of `next` relative to the previous revision.
 
 ### interdiff
 
-`InterdiffData`
+[`InterdiffData`](../../types/interfaces/InterdiffData.md)
 
 ## Returns
 

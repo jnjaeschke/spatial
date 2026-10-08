@@ -20,11 +20,11 @@
 
 #### comment
 
-> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`ReviewCommentData`\>
+> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewCommentData`](../../types/interfaces/ReviewCommentData.md)\>
 
 #### finding
 
-> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`ReviewFindingData`\>
+> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewFindingData`](../../types/interfaces/ReviewFindingData.md)\>
 
 #### target
 

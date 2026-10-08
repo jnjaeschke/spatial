@@ -6,7 +6,7 @@
 
 # Function: makeGitWriter()
 
-> **makeGitWriter**(`repo`): `GitWriter`
+> **makeGitWriter**(`repo`): [`GitWriter`](../interfaces/GitWriter.md)
 
 ## Parameters
 
@@ -16,4 +16,4 @@
 
 ## Returns
 
-`GitWriter`
+[`GitWriter`](../interfaces/GitWriter.md)

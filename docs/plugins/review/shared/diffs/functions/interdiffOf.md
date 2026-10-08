@@ -6,7 +6,7 @@
 
 # Function: interdiffOf()
 
-> **interdiffOf**(`artifacts`, `links`, `diffId`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`InterdiffData`\> \| `null`
+> **interdiffOf**(`artifacts`, `links`, `diffId`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`InterdiffData`](../../types/interfaces/InterdiffData.md)\> \| `null`
 
 Latest Interdiff linked `about → diffId`, or null.
 
@@ -26,4 +26,4 @@ Latest Interdiff linked `about → diffId`, or null.
 
 ## Returns
 
-[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`InterdiffData`\> \| `null`
+[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`InterdiffData`](../../types/interfaces/InterdiffData.md)\> \| `null`

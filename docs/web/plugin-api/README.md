@@ -1,0 +1,415 @@
+[**spatial-ide**](../../README.md)
+
+***
+
+[spatial-ide](../../README.md) / web/plugin-api
+
+# web/plugin-api
+
+## Classes
+
+- [RowPainter](classes/RowPainter.md)
+
+## Interfaces
+
+- [CanvasModel](interfaces/CanvasModel.md)
+- [CanvasProps](interfaces/CanvasProps.md)
+- [CanvasProviderProps](interfaces/CanvasProviderProps.md)
+- [ChatActions](interfaces/ChatActions.md)
+- [ChatNodeData](interfaces/ChatNodeData.md)
+- [ClosedItem](interfaces/ClosedItem.md)
+- [CodeRow](interfaces/CodeRow.md)
+- [ConversationNodeData](interfaces/ConversationNodeData.md)
+- [Draft](interfaces/Draft.md)
+- [ExportDiff](interfaces/ExportDiff.md)
+- [FileViewRequest](interfaces/FileViewRequest.md)
+- [FocusedRow](interfaces/FocusedRow.md)
+- [FreePosition](interfaces/FreePosition.md)
+- [GraphEdge](interfaces/GraphEdge.md)
+- [GraphNode](interfaces/GraphNode.md)
+- [GuideStep](interfaces/GuideStep.md)
+- [NodeKind](interfaces/NodeKind.md)
+- [NoteNodeData](interfaces/NoteNodeData.md)
+- [PhaseView](interfaces/PhaseView.md)
+- [PhaseViewProps](interfaces/PhaseViewProps.md)
+- [PlacedNode](interfaces/PlacedNode.md)
+- [SearchfoxLinks](interfaces/SearchfoxLinks.md)
+- [Segment](interfaces/Segment.md)
+- [WebPlugin](interfaces/WebPlugin.md)
+
+## Type Aliases
+
+- [ConversationProps](type-aliases/ConversationProps.md)
+- [CoreNodeData](type-aliases/CoreNodeData.md)
+- [Graph](type-aliases/Graph.md)
+- [GraphNodeData](type-aliases/GraphNodeData.md)
+- [HostedThread](type-aliases/HostedThread.md)
+- [NodeProps](type-aliases/NodeProps.md)
+- [PluginNodeData](type-aliases/PluginNodeData.md)
+- [SelectionData](type-aliases/SelectionData.md)
+- [ZoomLevel](type-aliases/ZoomLevel.md)
+
+## Variables
+
+- [api](variables/api.md)
+- [AskContext](variables/AskContext.md)
+- [ChatActionsContext](variables/ChatActionsContext.md)
+- [ClosedContext](variables/ClosedContext.md)
+- [CollapseContext](variables/CollapseContext.md)
+- [FileViewContext](variables/FileViewContext.md)
+- [NODE\_WIDTH](variables/NODE_WIDTH.md)
+- [NodeKindsContext](variables/NodeKindsContext.md)
+- [SATELLITE\_WIDTH](variables/SATELLITE_WIDTH.md)
+- [SearchfoxContext](variables/SearchfoxContext.md)
+- [TopbarSlot](variables/TopbarSlot.md)
+
+## Functions
+
+- [addChats](functions/addChats.md)
+- [addNotes](functions/addNotes.md)
+- [AnswerMarkdown](functions/AnswerMarkdown.md)
+- [Canvas](functions/Canvas.md)
+- [cascade](functions/cascade.md)
+- [Conversation](functions/Conversation.md)
+- [conversationGraph](functions/conversationGraph.md)
+- [conversationNode](functions/conversationNode.md)
+- [fileUrl](functions/fileUrl.md)
+- [InlineText](functions/InlineText.md)
+- [isSatellite](functions/isSatellite.md)
+- [latestStart](functions/latestStart.md)
+- [layout](functions/layout.md)
+- [lines](functions/lines.md)
+- [linkTitle](functions/linkTitle.md)
+- [loadFileLines](functions/loadFileLines.md)
+- [placeSatellites](functions/placeSatellites.md)
+- [ReopenClosed](functions/ReopenClosed.md)
+- [rootThread](functions/rootThread.md)
+- [rowSegments](functions/rowSegments.md)
+- [searchfoxLinks](functions/searchfoxLinks.md)
+- [searchUrl](functions/searchUrl.md)
+- [threadContent](functions/threadContent.md)
+- [TopbarExtras](functions/TopbarExtras.md)
+
+## References
+
+### Actor
+
+Re-exports [Actor](../../shared/types/type-aliases/Actor.md)
+
+***
+
+### Artifact
+
+Re-exports [Artifact](../../shared/types/interfaces/Artifact.md)
+
+***
+
+### ArtifactStatus
+
+Re-exports [ArtifactStatus](../../shared/types/type-aliases/ArtifactStatus.md)
+
+***
+
+### BackendModels
+
+Re-exports [BackendModels](../../shared/types/type-aliases/BackendModels.md)
+
+***
+
+### ChangeStatus
+
+Re-exports [ChangeStatus](../../shared/types/type-aliases/ChangeStatus.md)
+
+***
+
+### ChatMessageData
+
+Re-exports [ChatMessageData](../../shared/types/interfaces/ChatMessageData.md)
+
+***
+
+### ChatThreadData
+
+Re-exports [ChatThreadData](../../shared/types/interfaces/ChatThreadData.md)
+
+***
+
+### Commit
+
+Re-exports [Commit](../../shared/types/interfaces/Commit.md)
+
+***
+
+### DiagramCite
+
+Re-exports [DiagramCite](../../shared/types/interfaces/DiagramCite.md)
+
+***
+
+### DiagramData
+
+Re-exports [DiagramData](../../shared/types/interfaces/DiagramData.md)
+
+***
+
+### DiffData
+
+Re-exports [DiffData](../../shared/types/interfaces/DiffData.md)
+
+***
+
+### DiffFile
+
+Re-exports [DiffFile](../../shared/types/interfaces/DiffFile.md)
+
+***
+
+### DiffLine
+
+Re-exports [DiffLine](../../shared/types/interfaces/DiffLine.md)
+
+***
+
+### DirectoryListing
+
+Re-exports [DirectoryListing](../../shared/types/interfaces/DirectoryListing.md)
+
+***
+
+### Epoch
+
+Re-exports [Epoch](../../shared/types/interfaces/Epoch.md)
+
+***
+
+### EpochStatus
+
+Re-exports [EpochStatus](../../shared/types/type-aliases/EpochStatus.md)
+
+***
+
+### FileStatus
+
+Re-exports [FileStatus](../../shared/types/type-aliases/FileStatus.md)
+
+***
+
+### GeckoSpecRef
+
+Re-exports [GeckoSpecRef](../../shared/types/interfaces/GeckoSpecRef.md)
+
+***
+
+### HealthResponse
+
+Re-exports [HealthResponse](../../shared/types/interfaces/HealthResponse.md)
+
+***
+
+### Hunk
+
+Re-exports [Hunk](../../shared/types/interfaces/Hunk.md)
+
+***
+
+### Id
+
+Re-exports [Id](../../shared/types/type-aliases/Id.md)
+
+***
+
+### Link
+
+Re-exports [Link](../../shared/types/interfaces/Link.md)
+
+***
+
+### LinkKind
+
+Re-exports [LinkKind](../../shared/types/type-aliases/LinkKind.md)
+
+***
+
+### LlmBackendId
+
+Re-exports [LlmBackendId](../../shared/types/type-aliases/LlmBackendId.md)
+
+***
+
+### LlmSelection
+
+Re-exports [LlmSelection](../../shared/types/interfaces/LlmSelection.md)
+
+***
+
+### McpServerData
+
+Re-exports [McpServerData](../../shared/types/interfaces/McpServerData.md)
+
+***
+
+### ModelInfo
+
+Re-exports [ModelInfo](../../shared/types/interfaces/ModelInfo.md)
+
+***
+
+### ModelsResponse
+
+Re-exports [ModelsResponse](../../shared/types/interfaces/ModelsResponse.md)
+
+***
+
+### NoteData
+
+Re-exports [NoteData](../../shared/types/interfaces/NoteData.md)
+
+***
+
+### NotifyPayload
+
+Re-exports [NotifyPayload](../../shared/types/interfaces/NotifyPayload.md)
+
+***
+
+### PatchNarrativeData
+
+Re-exports [PatchNarrativeData](../../shared/types/interfaces/PatchNarrativeData.md)
+
+***
+
+### PostedCommentData
+
+Re-exports [PostedCommentData](../../shared/types/interfaces/PostedCommentData.md)
+
+***
+
+### Progress
+
+Re-exports [Progress](../../shared/types/type-aliases/Progress.md)
+
+***
+
+### Provenance
+
+Re-exports [Provenance](../../shared/types/interfaces/Provenance.md)
+
+***
+
+### RecentRepo
+
+Re-exports [RecentRepo](../../shared/types/interfaces/RecentRepo.md)
+
+***
+
+### Ref
+
+Re-exports [Ref](../../shared/types/type-aliases/Ref.md)
+
+***
+
+### RepoInfo
+
+Re-exports [RepoInfo](../../shared/types/interfaces/RepoInfo.md)
+
+***
+
+### ResolvedSpec
+
+Re-exports [ResolvedSpec](../../shared/types/interfaces/ResolvedSpec.md)
+
+***
+
+### RevisionData
+
+Re-exports [RevisionData](../../shared/types/interfaces/RevisionData.md)
+
+***
+
+### Rewrite
+
+Re-exports [Rewrite](../../shared/types/interfaces/Rewrite.md)
+
+***
+
+### RuntimeEvent
+
+Re-exports [RuntimeEvent](../../shared/types/interfaces/RuntimeEvent.md)
+
+***
+
+### SelectorAnswerData
+
+Re-exports [SelectorAnswerData](../../shared/types/interfaces/SelectorAnswerData.md)
+
+***
+
+### SelectorQuestionData
+
+Re-exports [SelectorQuestionData](../../shared/types/interfaces/SelectorQuestionData.md)
+
+***
+
+### SemanticChange
+
+Re-exports [SemanticChange](../../shared/types/interfaces/SemanticChange.md)
+
+***
+
+### SequenceLane
+
+Re-exports [SequenceLane](../../shared/types/interfaces/SequenceLane.md)
+
+***
+
+### SequenceStatus
+
+Re-exports [SequenceStatus](../../shared/types/type-aliases/SequenceStatus.md)
+
+***
+
+### SequenceStep
+
+Re-exports [SequenceStep](../../shared/types/interfaces/SequenceStep.md)
+
+***
+
+### Session
+
+Re-exports [Session](../../shared/types/interfaces/Session.md)
+
+***
+
+### SessionState
+
+Re-exports [SessionState](../../shared/types/interfaces/SessionState.md)
+
+***
+
+### TaskRecord
+
+Re-exports [TaskRecord](../../shared/types/interfaces/TaskRecord.md)
+
+***
+
+### TaskStatus
+
+Re-exports [TaskStatus](../../shared/types/type-aliases/TaskStatus.md)
+
+***
+
+### WorkflowId
+
+Re-exports [WorkflowId](../../shared/types/type-aliases/WorkflowId.md)
+
+***
+
+### WorkflowInfo
+
+Re-exports [WorkflowInfo](../../shared/types/interfaces/WorkflowInfo.md)
+
+***
+
+### WorkflowStartData
+
+Re-exports [WorkflowStartData](../../shared/types/interfaces/WorkflowStartData.md)

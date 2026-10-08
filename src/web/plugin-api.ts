@@ -58,3 +58,9 @@ export { SearchfoxContext, searchUrl, searchfoxLinks, fileUrl, linkTitle } from 
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
 export { loadFileLines } from "./file-lines.ts";
 export * from "../shared/types.ts";
+export type { CanvasProps } from "./Canvas.tsx";
+export type { ConversationProps } from "./nodes/ChatNode.tsx";
+export type { ChatActions } from "./chat-context.ts";
+export type { SearchfoxLinks } from "./searchfox-url.ts";
+export type { Segment, CodeRow } from "./syntax.ts";
+export type { ClosedItem } from "./graph.ts";

@@ -6,7 +6,7 @@
 
 # Function: phabLatest()
 
-> **phabLatest**(`artifacts`, `anchorId`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\> \| `null`
+> **phabLatest**(`artifacts`, `anchorId`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../types/interfaces/PhabCommentData.md)\> \| `null`
 
 Latest artifact of the comment whose first artifact is `anchorId`.
 
@@ -22,4 +22,4 @@ Latest artifact of the comment whose first artifact is `anchorId`.
 
 ## Returns
 
-[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\> \| `null`
+[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../types/interfaces/PhabCommentData.md)\> \| `null`

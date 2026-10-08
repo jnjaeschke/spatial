@@ -6,7 +6,7 @@
 
 # Function: latestPhabSync()
 
-> **latestPhabSync**(`artifacts`, `diffArtifactId`, `revision`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabSyncData`\> \| `null`
+> **latestPhabSync**(`artifacts`, `diffArtifactId`, `revision`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabSyncData`](../../types/interfaces/PhabSyncData.md)\> \| `null`
 
 Latest PhabSync recorded for a local Diff and one revision, or null.
 
@@ -26,4 +26,4 @@ Latest PhabSync recorded for a local Diff and one revision, or null.
 
 ## Returns
 
-[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabSyncData`\> \| `null`
+[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabSyncData`](../../types/interfaces/PhabSyncData.md)\> \| `null`

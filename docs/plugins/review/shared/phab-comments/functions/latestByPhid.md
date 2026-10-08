@@ -6,7 +6,7 @@
 
 # Function: latestByPhid()
 
-> **latestByPhid**(`artifacts`): `Map`\<`string`, [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>\>
+> **latestByPhid**(`artifacts`): `Map`\<`string`, [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../types/interfaces/PhabCommentData.md)\>\>
 
 Latest artifact of every remote comment by `phid`: highest version, then newest.
 
@@ -18,4 +18,4 @@ Latest artifact of every remote comment by `phid`: highest version, then newest.
 
 ## Returns
 
-`Map`\<`string`, [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<`PhabCommentData`\>\>
+`Map`\<`string`, [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../types/interfaces/PhabCommentData.md)\>\>
