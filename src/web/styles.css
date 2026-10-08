@@ -631,3 +631,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .layers button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .layers button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .layers button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+.epoch-strip { display: flex; gap: 6px; padding: 4px 12px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.epoch-chip { font-size: 12px; white-space: nowrap; }
+.epoch-chip[aria-pressed="true"] { outline: 2px solid var(--accent); }
+.epoch-chip.failed { color: var(--danger, #c0392b); }

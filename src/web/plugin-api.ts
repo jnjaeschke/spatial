@@ -5,12 +5,12 @@
  */
 import { createContext, useContext, type ComponentType, type ReactNode, type ReactPortal } from "react";
 import { createPortal } from "react-dom";
-import type { SessionState, ModelsResponse, NotifyPayload } from "../shared/types.ts";
+import type { SessionState, ModelsResponse, NotifyPayload, Epoch } from "../shared/types.ts";
 import type { Draft } from "./chat-context.ts";
 import type { GraphNodeData, ZoomLevel } from "./graph-api.ts";
 import type { NodeProps } from "@xyflow/react";
 
-export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
+export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; /** The epoch being shown; null before the first epoch. A past epoch comes with the session state as it was then and `readOnly`. */ epoch: Epoch | null; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
 /** What a static export embeds of the latest diff: its id, its commit shas, and the paths of files whose full text is included. */
 export interface ExportDiff { id: string; commits: string[]; files: string[] }
 export interface PhaseView {

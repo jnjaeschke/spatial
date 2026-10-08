@@ -16,12 +16,15 @@ import { activePhaseView } from "./phase-views.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
 import { openDecision } from "./decisions.ts";
 import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
+import { EpochStrip } from "./EpochStrip.tsx";
+import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [desktop, setDesktop] = useState(desktopEnabled);
   const [exporting, setExporting] = useState(false);
   const [topbarSlot, setTopbarSlot] = useState<HTMLElement | null>(null);
+  const [viewed, setViewed] = useState<number | null>(null);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const models = useModels();
   useEffect(() => {
@@ -42,12 +45,15 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const question = state.artifacts.findLast((a) => a.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
   const openQuestion = question && selecting?.status === "succeeded" && !state.artifacts.some((a) => a.type === "SelectorAnswer" && (a.data as SelectorAnswerData).question === question.id) ? question : null;
   const decision = openDecision(state.artifacts);
-  const { phase, view } = activePhaseView(webPlugins, state);
+  const latestEpoch = state.epochs.at(-1) ?? null;
+  const past = viewed !== null && viewed !== latestEpoch?.n ? state.epochs.find((e) => e.n === viewed) ?? null : null;
+  const shown = past ? stateAtEpoch(state, past.n) : state;
+  const { phase, view } = activePhaseView(webPlugins, shown);
   const body = state.session.workflow === null && openQuestion
     ? <SelectorQuestion sessionId={sessionId} question={openQuestion} llm={models.default} />
     : state.session.workflow === null
       ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
-      : view ? <view.Body state={state} models={models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
+      : view ? <view.Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
         : <p className="empty failed">No view for phase {phase}</p>;
   const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
   return <div className="app">
@@ -55,6 +61,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
+    {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
     <ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />

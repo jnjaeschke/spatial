@@ -13,5 +13,5 @@ const NO_MODELS = { default: { backend: "claude", model: "", effort: "" }, backe
 
 /** Props for a phase view that renders a snapshot (fixture, static export): no models, no drafts, nothing to send. */
 export function readOnlyViewProps(state: SessionState): PhaseViewProps {
-  return { state, models: NO_MODELS, drafts: [], readOnly: true, onSent() {}, onDiscard() {}, onOpenAside() {} };
+  return { state, models: NO_MODELS, drafts: [], epoch: null, readOnly: true, onSent() {}, onDiscard() {}, onOpenAside() {} };
 }

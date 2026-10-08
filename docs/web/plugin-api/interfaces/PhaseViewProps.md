@@ -14,6 +14,12 @@
 
 ***
 
+### epoch
+
+> **epoch**: [`Epoch`](../../../shared/types/interfaces/Epoch.md) \| `null`
+
+***
+
 ### models
 
 > **models**: [`ModelsResponse`](../../../shared/types/interfaces/ModelsResponse.md)
