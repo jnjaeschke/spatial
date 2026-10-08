@@ -1,9 +1,8 @@
 import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { SpecNodeData, ZoomLevel } from "../graph.ts";
-import { parseSteps, plainSpecText } from "../../plugins/review/shared/spec-text.ts";
-import { SpecViewContext } from "../../plugins/review/web/SpecView.tsx";
-import { CollapseContext } from "../collapse.ts";
+import { type SpecNodeData, type ZoomLevel, CollapseContext } from "../../../../web/plugin-api.ts";
+import { parseSteps, plainSpecText } from "../../shared/spec-text.ts";
+import { SpecViewContext } from "../SpecView.tsx";
 
 export type SpecFlowNode = Node<Record<string, unknown> & SpecNodeData & { level: ZoomLevel }, "spec">;
 

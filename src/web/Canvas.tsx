@@ -1,23 +1,13 @@
 import { flushSync } from "react-dom";
-import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Background, Controls, MiniMap, NodeResizeControl, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type Node, type NodeProps, type Viewport,
 } from "@xyflow/react";
 import type { Artifact, ModelsResponse, PhabCommentData, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, layerGraph, LAYERS, diagramLayoutEdges, estimateSize, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type Layer, type ZoomLevel } from "./graph.ts";
-import { ChangeNode } from "./nodes/ChangeNode.tsx";
-import { CommitNode } from "./nodes/CommitNode.tsx";
-import { SummaryNode } from "./nodes/SummaryNode.tsx";
-import { SpecNode } from "./nodes/SpecNode.tsx";
+import { closeGraph, layerGraph, LAYERS, diagramLayoutEdges, fitMinZoom, layout, placeSatellites, sessionGraph, visibleGraph, levelGraph, isSatellite, stackLayout, phabCommentCollapseId, diagramStepTarget, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, latestNarrative, type ChatNodeData, type FindingNodeData, type GraphNode, type Layer, type ZoomLevel } from "./graph.ts";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
-import { ChatNode } from "./nodes/ChatNode.tsx";
-import { NoteNode } from "./nodes/NoteNode.tsx";
-import { FindingNode } from "./nodes/FindingNode.tsx";
-import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
-import { ConversationNode } from "./nodes/ConversationNode.tsx";
-import { DiagramNode } from "./nodes/DiagramNode.tsx";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
@@ -31,19 +21,20 @@ import { useNodeSizes } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
 import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
 import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
+import { NodeKindsContext } from "./plugin-api.ts";
 
 const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
-const nodeTypes = { change: ChangeNode, commit: CommitNode, summary: SummaryNode, spec: SpecNode, diagram: DiagramNode, chat: ChatNode, conversation: ConversationNode, finding: FindingNode, phab: PhabThreadNode, note: NoteNode };
-type NodeKind = keyof typeof nodeTypes;
 const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; setWidth(level: ZoomLevel, id: string, width: number): void } | null>(null);
 function ResizableNode(props: NodeProps) {
+  const kinds = useContext(NodeKindsContext);
   const resize = useContext(ResizeContext);
-  const Original = nodeTypes[props.type as NodeKind];
-  if (!Original) throw new Error(`Unknown node type: ${props.type}`);
-  if (props.type === "diagram") return createElement(Original as ComponentType<any>, props);
+  const kind = kinds[props.type];
+  if (!kind) throw new Error(`Unknown node type: ${props.type}`);
+  const Original = kind.component;
+  if (kind.resizable === false) return createElement(Original, props);
   return <>
-    {createElement(Original as ComponentType<any>, props)}
+    {createElement(Original, props)}
     {props.selected && resize && <NodeResizeControl
       position="right"
       resizeDirection="horizontal"
@@ -52,14 +43,11 @@ function ResizableNode(props: NodeProps) {
     />}
   </>;
 }
-const resizableNodeTypes = Object.fromEntries(Object.keys(nodeTypes).map((type) => [type, ResizableNode]));
-
 interface Props { state: SessionState; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void; jump?: HunkRow | null }
 /** A diff row to reveal and focus; a new object per request. */
 export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
 const NO_DRAFTS: Draft[] = [];
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
-const MINIMAP_COLOR: Record<keyof typeof nodeTypes, string> = { change: "var(--kind-change)", commit: "var(--kind-summary)", summary: "var(--kind-summary)", spec: "var(--kind-spec)", diagram: "var(--kind-diagram)", chat: "var(--kind-chat)", conversation: "var(--kind-chat)", finding: "var(--kind-finding)", phab: "var(--kind-phab)", note: "var(--kind-note)" };
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
 };
@@ -73,6 +61,8 @@ export function Canvas(props: Props) {
 }
 
 function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {}, jump = null }: Props) {
+  const nodeKinds = useContext(NodeKindsContext);
+  const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
   const { sizes, setWidth, clear: clearNodeSizes } = useNodeSizes(state.session.id);
   const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(state.session.id);
@@ -307,9 +297,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
     const selected = new Set(rf.getNodes().filter((n) => n.selected).map((n) => n.id));
     const sized = shown.nodes.map((n) => {
       const m = measured.get(n.id);
-      const estimate = estimateSize(n.data, level, textScale);
-      const width = isSatellite(n) ? SATELLITE_WIDTH * textScale : estimate.width;
-      return { id: n.id, width: n.data.kind !== "diagram" && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? width, height: m?.height ?? estimate.height };
+      const kind = nodeKinds[n.data.kind];
+      if (!kind) throw new Error(`Unknown node kind: ${n.data.kind}`);
+      const estimate = kind.size(n.data, level);
+      const width = isSatellite(n) ? SATELLITE_WIDTH : estimate.width;
+      return { id: n.id, width: kind.resizable !== false && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? width * textScale, height: m?.height ?? estimate.height * textScale };
     });
     const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
     basePos.current = pos;
@@ -320,7 +312,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
-      style: { width: n.data.kind === "diagram" ? estimateSize(n.data, level, textScale).width : (sizes[level]?.[n.id] ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
+      style: { width: (nodeKinds[n.data.kind]!.resizable === false ? nodeKinds[n.data.kind]!.size(n.data, level).width : sizes[level]?.[n.id] ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
       className: n.id === currentRef.current ? "guide-current" : undefined,
       selected: selected.has(n.id),
       draggable: true,
@@ -652,7 +644,7 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={resizableNodeTypes}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
@@ -686,7 +678,11 @@ function CanvasInner({ state, models = null, drafts = NO_DRAFTS, onSent = () => 
         style={{ position: "relative", width: 140, height: paneHeight, margin: 0, flexShrink: 0 }}
         pannable
         zoomable
-        nodeColor={(n) => MINIMAP_COLOR[n.type as keyof typeof nodeTypes]}
+        nodeColor={(n) => {
+          const kind = n.type ? nodeKinds[n.type] : null;
+          if (!kind) throw new Error(`Unknown node type: ${n.type}`);
+          return kind.minimapColor;
+        }}
         bgColor="var(--minimap-bg)"
         maskColor="var(--minimap-mask)"
       />

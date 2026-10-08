@@ -7,10 +7,21 @@ import { createContext, useContext, type ComponentType, type ReactNode, type Rea
 import { createPortal } from "react-dom";
 import type { SessionState, ModelsResponse, NotifyPayload } from "../shared/types.ts";
 import type { Draft } from "./chat-context.ts";
+import type { GraphNodeData, ZoomLevel } from "./graph.ts";
+import type { NodeProps } from "@xyflow/react";
 
 export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
 export interface PhaseView { Body: ComponentType<PhaseViewProps>; exportable?(state: SessionState): boolean; isStaleNotice?(state: SessionState, notice: NotifyPayload): boolean }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, unknown> }
+export interface NodeKind {
+  component: ComponentType<NodeProps>;
+  minimapColor: string;
+  /** First-paint size estimate before measurement, unscaled. */
+  size(data: GraphNodeData, level: ZoomLevel): { width: number; height: number };
+  /** False: no width handle and the width always comes from `size` (diagram). Default true. */
+  resizable?: boolean;
+}
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
 export interface FileViewRequest { diffId: string; path: string; hunkId: string; text?: string }
@@ -21,14 +32,21 @@ export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal
 }
 
 export { Canvas } from "./Canvas.tsx";
-export type { HunkRow } from "./Canvas.tsx";
+export type { NodeProps } from "@xyflow/react";
+export type { GraphNodeData, ZoomLevel, ChangeNodeData, CommitNodeData, SummaryNodeData, SpecNodeData, DiagramNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, FindingNodeData, PhabNodeData } from "./graph.ts";
+export { NODE_WIDTH, SATELLITE_WIDTH, estimateSize } from "./graph.ts";
+export { InlineText } from "./InlineText.tsx";
 export { AskContext, ChatActionsContext } from "./chat-context.ts";
-export type { Draft, SelectionData } from "./chat-context.ts";
+export { CollapseContext } from "./collapse.ts";
+export { ClosedContext } from "./closed.ts";
+export { ReopenClosed } from "./ReopenClosed.tsx";
 export { api } from "./api.ts";
+export { Conversation } from "./nodes/ChatNode.tsx";
+export type { HunkRow } from "./Canvas.tsx";
+export type { Draft, SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";
 export { SearchfoxContext, searchUrl, searchfoxLinks, fileUrl, linkTitle } from "./searchfox-url.ts";
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
-export { CollapseContext } from "./collapse.ts";
 export { loadFileLines } from "./file-lines.ts";
 export { latestNarrative, phabCommentCollapseId } from "./graph.ts";
 export type { HostedThread } from "./graph.ts";

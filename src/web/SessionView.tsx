@@ -11,9 +11,9 @@ import { ThemeToggle } from "./ThemeToggle.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { SelectorQuestion } from "./SelectorQuestion.tsx";
-import { TopbarSlot } from "./plugin-api.ts";
+import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
 import { activePhaseView } from "./phase-views.ts";
-import { webPlugins } from "../plugins/web.ts";
+import { webNodeKinds, webPlugins } from "../plugins/web.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -52,7 +52,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
-    <AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider>
+    <NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} onClose={() => setExporting(false)} />}

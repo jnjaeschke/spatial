@@ -1,11 +1,6 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { api } from "../api.ts";
-import { ChatActionsContext } from "../chat-context.ts";
-import { CollapseContext } from "../collapse.ts";
-import type { FindingNodeData, ZoomLevel } from "../graph.ts";
-import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
-import { Conversation } from "./ChatNode.tsx";
+import { api, ChatActionsContext, CollapseContext, type FindingNodeData, type ZoomLevel, AnswerMarkdown, Conversation } from "../../../../web/plugin-api.ts";
 
 export type FindingFlowNode = Node<FindingNodeData & { level: ZoomLevel } & Record<string, unknown>, "finding">;
 

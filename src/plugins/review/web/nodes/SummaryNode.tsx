@@ -1,13 +1,8 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { SummaryNodeData, ZoomLevel } from "../graph.ts";
-import { InlineText } from "../InlineText.tsx";
-import { CollapseContext } from "../collapse.ts";
-import { api } from "../api.ts";
-import { ChatActionsContext } from "../chat-context.ts";
-import { PhabComment } from "../../plugins/review/web/PhabComment.tsx";
-import { ReopenClosed } from "../ReopenClosed.tsx";
-import { commitColors, commitLabel } from "../../plugins/review/web/commit-colors.ts";
+import { type SummaryNodeData, type ZoomLevel, InlineText, CollapseContext, api, ChatActionsContext, ReopenClosed } from "../../../../web/plugin-api.ts";
+import { PhabComment } from "../PhabComment.tsx";
+import { commitColors, commitLabel } from "../commit-colors.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
 
