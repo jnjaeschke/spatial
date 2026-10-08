@@ -56,6 +56,12 @@ Re-exports [CoreNodeData](../plugin-api/type-aliases/CoreNodeData.md)
 
 ***
 
+### DecisionNodeData
+
+Re-exports [DecisionNodeData](../plugin-api/interfaces/DecisionNodeData.md)
+
+***
+
 ### Draft
 
 Re-exports [Draft](../plugin-api/interfaces/Draft.md)

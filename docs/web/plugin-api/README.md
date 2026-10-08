@@ -20,6 +20,7 @@
 - [ClosedItem](interfaces/ClosedItem.md)
 - [CodeRow](interfaces/CodeRow.md)
 - [ConversationNodeData](interfaces/ConversationNodeData.md)
+- [DecisionNodeData](interfaces/DecisionNodeData.md)
 - [Draft](interfaces/Draft.md)
 - [ExportDiff](interfaces/ExportDiff.md)
 - [FileViewRequest](interfaces/FileViewRequest.md)

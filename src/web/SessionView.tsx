@@ -14,6 +14,8 @@ import { SelectorQuestion } from "./SelectorQuestion.tsx";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
 import { activePhaseView } from "./phase-views.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
+import { openDecision } from "./decisions.ts";
+import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -39,6 +41,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
   const question = state.artifacts.findLast((a) => a.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
   const openQuestion = question && selecting?.status === "succeeded" && !state.artifacts.some((a) => a.type === "SelectorAnswer" && (a.data as SelectorAnswerData).question === question.id) ? question : null;
+  const decision = openDecision(state.artifacts);
   const { phase, view } = activePhaseView(webPlugins, state);
   const body = state.session.workflow === null && openQuestion
     ? <SelectorQuestion sessionId={sessionId} question={openQuestion} llm={models.default} />
@@ -48,11 +51,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         : <p className="empty failed">No view for phase {phase}</p>;
   const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
   return <div className="app">
-    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} /><span className="spacer" />{view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={`/?path=${encodeURIComponent(state.session.worktree)}`}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo">{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{decision && <DecisionControls sessionId={sessionId} repoDir={state.session.repoDir} decision={decision} testId="topbar-decision" />}<span className="spacer" />{view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
-    <NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider>
+    <ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}

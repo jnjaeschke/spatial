@@ -6,4 +6,4 @@
 
 # Type Alias: CoreNodeData
 
-> **CoreNodeData** = [`NoteNodeData`](../interfaces/NoteNodeData.md) \| [`ChatNodeData`](../interfaces/ChatNodeData.md) \| [`ConversationNodeData`](../interfaces/ConversationNodeData.md)
+> **CoreNodeData** = [`NoteNodeData`](../interfaces/NoteNodeData.md) \| [`ChatNodeData`](../interfaces/ChatNodeData.md) \| [`ConversationNodeData`](../interfaces/ConversationNodeData.md) \| [`DecisionNodeData`](../interfaces/DecisionNodeData.md)

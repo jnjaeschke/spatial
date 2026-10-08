@@ -1,11 +1,28 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { conversationGraph, estimateSize, fitMinZoom, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, zoomLevel, type GraphNode } from "../../src/web/graph.ts";
+import type { Artifact, DecisionData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
+import { addDecisions, conversationGraph, estimateSize, fitMinZoom, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, zoomLevel, type Graph, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(conversationGraph, st, drafts, freePositions);
+
+test("an open decision hangs beside the root node; an answered one is not drawn", () => {
+  const decision = (chosen: DecisionData["chosen"]) => ({ id: "d1", sessionId: "s", type: "Decision", status: "proposed", data: { question: "Q?", options: [{ id: "a", label: "A" }], chosen }, provenance: { taskId: "runtime" }, epoch: 1, createdAt: "" }) as Artifact;
+  const state = (artifacts: Artifact[]) => ({ session: { id: "s", repoDir: "/r/.git" }, artifacts }) as unknown as SessionState;
+  const graph = (): Graph => ({ nodes: [{ id: "root", data: { kind: "note", body: "" } }], edges: [] });
+  const open = graph();
+  addDecisions(open, state([decision(null)]));
+  assert.deepEqual(open.nodes.map((n) => n.id), ["root", "d1"]);
+  assert.deepEqual(open.nodes[1]!.anchors, ["root"]);
+  assert.deepEqual(open.edges, [{ id: "d1->root", source: "d1", target: "root" }]);
+  const answered = graph();
+  addDecisions(answered, state([decision({ option: "a", by: "user" })]));
+  assert.equal(answered.nodes.length, 1);
+  const empty: Graph = { nodes: [], edges: [] };
+  addDecisions(empty, state([decision(null)]));
+  assert.equal(empty.nodes.length, 0);
+});
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,

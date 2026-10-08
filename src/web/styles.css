@@ -144,6 +144,11 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .topbar .spacer { flex: 1; }
 .topbar :is(button, select, input:not([type="checkbox"])) { padding-block: 2px; }
 .topbar .desktop-toggle { color: var(--text-2); font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.decision { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.decision-question { font-weight: 600; }
+.decision-options { display: inline-flex; gap: 4px; }
+.decision-node { padding: 10px 12px; }
+.topbar .decision input { width: 14em; }
 .llm-picker { display: inline-flex; gap: 4px; }
 .theme-toggle, .text-size { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border); }
 .theme-toggle button, .text-size button { display: inline-grid; place-items: center; border: 0; box-shadow: none; background: transparent; border-radius: 999px; padding: 2px 7px; color: var(--text-3); }

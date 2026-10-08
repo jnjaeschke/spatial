@@ -48,7 +48,7 @@
 
 ### decide
 
-> **decide**: (`sessionId`, `findingId`, `decision`, `llm?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+> **decide**: (`sessionId`, `decisionId`, `option`, `body?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
 
 #### Parameters
 
@@ -56,17 +56,17 @@
 
 `string`
 
-##### findingId
+##### decisionId
 
 `string`
 
-##### decision
+##### option
 
-`"accepted"` \| `"dismissed"`
+`string`
 
-##### llm?
+##### body?
 
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md) \| \{ `llm?`: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md); `text?`: `string`; \}
 
 #### Returns
 
@@ -233,6 +233,20 @@
 #### Returns
 
 `Promise`\<[`RecentRepo`](../../../shared/types/interfaces/RecentRepo.md)[]\>
+
+### retry
+
+> **retry**: (`sessionId`) => `Promise`\<\{ \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ \}\>
 
 ### runAction
 

@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, DiffFile, Hunk, Id, McpServerData, NoteData, Ref, RevisionData, SessionState, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DecisionData, DiffFile, Hunk, Id, McpServerData, NoteData, Ref, RevisionData, SessionState, WorkflowStartData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 import type { FreePosition } from "./free-positions.ts";
@@ -50,7 +50,10 @@ export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "dif
   prompt: string;
 }
 
-export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData;
+/** The open decision of the session, drawn beside the root node. */
+export interface DecisionNodeData { kind: "decision"; sessionId: string; repoDir: string; decision: Artifact<DecisionData> }
+
+export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DecisionNodeData;
 /**
  * Data of a node kind a plugin registers. Core reads only the optional fields it documents:
  * `threads` (a `HostedThread[]` hosted inside the node), `quote` with `foldsToQuote`, and `closable`
@@ -152,6 +155,15 @@ export function addNotes(g: Graph, state: SessionState, nodeIds: Set<string>): v
   }
 }
 
+/** Adds the session's open decision as a satellite of the root node (the first node). */
+export function addDecisions(g: Graph, state: SessionState): void {
+  const decision = state.artifacts.findLast((artifact) => artifact.type === "Decision") as Artifact<DecisionData> | undefined;
+  const root = g.nodes[0];
+  if (!decision || decision.data.chosen !== null || !root) return;
+  g.nodes.push({ id: decision.id, anchors: [root.id], data: { kind: "decision", sessionId: state.session.id, repoDir: state.session.repoDir, decision } satisfies DecisionNodeData });
+  g.edges.push({ id: `${decision.id}->${root.id}`, source: decision.id, target: root.id });
+}
+
 /** Hosts threads anchored on a node with hosted threads inside that node and adds nodes for the remaining chats; unresolvable anchors are skipped. */
 export function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: Map<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"], diagramsByMessage?: Record<Id, Id[]>): void {
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
@@ -207,6 +219,7 @@ export function conversationGraph(state: SessionState, drafts: Draft[]): Graph |
 export function sessionGraph(root: (state: SessionState, drafts: Draft[]) => Graph | null, state: SessionState, drafts: Draft[] = [], freePositions: Record<string, FreePosition> = {}): Graph | null {
   const graph = state.session.workflow ? root(state, drafts) : null;
   if (graph) {
+    addDecisions(graph, state);
     for (const node of graph.nodes) if (node.data.kind === "chat" || node.data.kind === "note") node.position = freePositions[node.id];
   }
   return graph;
@@ -251,6 +264,7 @@ function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; heigh
   if (isCoreKind(data, "note")) return { width: SATELLITE_WIDTH, height: 100 + lines(data.body, 60) * 22 };
   if (isCoreKind(data, "conversation")) return { width: NODE_WIDTH[level], height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
   if (isCoreKind(data, "chat")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
+  if (isCoreKind(data, "decision")) return { width: SATELLITE_WIDTH, height: 150 + data.decision.data.options.length * 10 };
   throw new Error(`No core size for node kind: ${data.kind}`);
 }
 

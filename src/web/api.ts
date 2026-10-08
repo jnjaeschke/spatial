@@ -36,8 +36,6 @@ export const api = {
   note: (sessionId: string, body: string) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/notes`, { body }),
   enableMcpServer: (sessionId: string, threadId: string, server: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
-  decide: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/decide`, { decision, llm }),
   setReviewed: (sessionId: string, narrativeId: string, changeId: string, reviewed: boolean) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/narratives/${narrativeId}/changes/${changeId}/reviewed`, { reviewed }),
   saveComment: (sessionId: string, findingId: string, body: string) =>
@@ -47,6 +45,11 @@ export const api = {
     post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),
   postDrafts: (sessionId: string) => post<{ posted: number; skipped: { finding: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/post-drafts`, {}),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
+  decide: (sessionId: string, decisionId: string, option: string, body?: { text?: string; llm?: LlmSelection } | LlmSelection) =>
+    body && "backend" in body || (!body && (option === "accepted" || option === "dismissed"))
+      ? post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${decisionId}/decide`, { decision: option, llm: body && "backend" in body ? body : undefined })
+      : post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
+  retry: (sessionId: string) => post<{}>(`/api/sessions/${sessionId}/retry`, {}),
 };
 
 /** Snapshot plus refetch on events. Progress events are kept client-side only. */

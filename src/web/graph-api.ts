@@ -3,7 +3,7 @@
  * Free of React and DOM, so plugin graph modules load under Node; `plugin-api.ts` re-exports it.
  */
 export type { Draft } from "./chat-context.ts";
-export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, HostedThread, PlacedNode, ZoomLevel } from "./graph.ts";
+export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, HostedThread, PlacedNode, ZoomLevel } from "./graph.ts";
 /** Node width at each zoom level, and the width of satellites at every level. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";
 /** Dagre layout of sized nodes; and column placement of satellites beside their anchors. */
