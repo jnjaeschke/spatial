@@ -639,3 +639,12 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .epoch-chip { font-size: 12px; white-space: nowrap; }
 .epoch-chip[aria-pressed="true"] { outline: 2px solid var(--accent); }
 .epoch-chip.failed { color: var(--danger, #c0392b); }
+.command-strip { padding: 6px 12px; }
+.command-chip { font-family: var(--mono, monospace); font-size: 12px; margin: 0 4px 4px 0; }
+.command-chip.pass { border-color: var(--ok, #2e7d32); }
+.command-chip.fail { border-color: var(--danger, #c0392b); }
+.command-chip.test { font-weight: 600; }
+.terminal { background: #111; color: #ddd; border-radius: 6px; padding: 8px; }
+.terminal pre { margin: 4px 0 0; max-height: 240px; overflow: auto; white-space: pre-wrap; }
+.terminal-title { color: #9ad; font-family: var(--mono, monospace); font-size: 12px; }
+.implement-summary, .running { padding: 0 12px; margin: 4px 0; }
