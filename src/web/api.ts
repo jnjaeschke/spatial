@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ChatThreadData, DirectoryListing, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, WorkflowInfo } from "../shared/types.ts";
+import type { ChatThreadData, DirectoryListing, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 
 async function parse<T>(res: Response): Promise<T> {
@@ -22,7 +22,7 @@ export const api = {
   dirs: (path?: string) => get<DirectoryListing>(`/api/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
   workflows: () => get<WorkflowInfo[]>("/api/workflows"),
-  start: (path: string, text: string, llm: LlmSelection) => post<Session>("/api/start", { path, text, llm }),
+  start: (path: string, text: string, llm: LlmSelection, opts: { writeMode?: WriteMode; answer?: number } = {}) => post<Session | StartQuestion>("/api/start", { path, text, llm, ...opts }),
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
   narrate: (id: string, body: { llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
   runAction: (path: string) => {

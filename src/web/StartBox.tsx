@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import type { LlmSelection, ModelsResponse, WorkflowInfo } from "../shared/types.ts";
+import type { LlmSelection, ModelsResponse, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { LlmPicker } from "./LlmPicker.tsx";
 import { commandSuggestions, completeCommand } from "./slash.ts";
+import { readWriteMode, saveWriteMode, WRITE_MODES } from "./write-mode.ts";
 
-export function StartBox({ path, models }: { path: string; models: ModelsResponse }) {
+export function StartBox({ path, repoDir, models }: { path: string; repoDir: string; models: ModelsResponse }) {
   const [commands, setCommands] = useState<WorkflowInfo[]>([]);
   const [text, setText] = useState("");
   const [llm, setLlm] = useState<LlmSelection>(models.default);
+  const [writeMode, setWriteMode] = useState(() => readWriteMode(localStorage, repoDir));
+  const [question, setQuestion] = useState<StartQuestion | null>(null);
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -16,15 +19,18 @@ export function StartBox({ path, models }: { path: string; models: ModelsRespons
   const suggestions = dismissed ? [] : commandSuggestions(text, commands);
   const selected = Math.min(active, suggestions.length - 1);
   const complete = (command: WorkflowInfo) => { setText(completeCommand(command)); setActive(0); };
-  const submit = () => {
+  const submit = (answer?: number) => {
     if (busy || !text.trim()) return;
     setBusy(true); setError(null);
-    api.start(path, text, llm).then((s) => { location.search = `?session=${encodeURIComponent(s.id)}`; }, (e: Error) => { setError(e.message); setBusy(false); });
+    api.start(path, text, llm, { writeMode, ...(answer === undefined ? {} : { answer }) }).then((result) => {
+      if ("question" in result) { setQuestion(result); setBusy(false); return; }
+      location.search = `?session=${encodeURIComponent(result.id)}`;
+    }, (e: Error) => { setError(e.message); setBusy(false); });
   };
   return <form className="start-box" onSubmit={(e) => { e.preventDefault(); submit(); }}>
     <div className="start-input">
     <textarea aria-label="start" rows={3} value={text} placeholder="What do you want to do? Type / for commands — Enter to send, Ctrl+Enter for newline"
-      onChange={(e) => { setText(e.target.value); setDismissed(false); setActive(0); setError(null); }}
+      onChange={(e) => { setText(e.target.value); setDismissed(false); setActive(0); setError(null); setQuestion(null); }}
       onKeyDown={(e) => {
         if (suggestions.length) {
           if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -50,7 +56,14 @@ export function StartBox({ path, models }: { path: string; models: ModelsRespons
     </ul>}
     </div>
     <LlmPicker models={models} value={llm} onChange={setLlm} />
+    <select className="write-mode" aria-label="write mode" value={writeMode} onChange={(e) => { const mode = e.target.value as WriteMode; setWriteMode(mode); saveWriteMode(localStorage, repoDir, mode); }}>
+      {WRITE_MODES.map((mode) => <option key={mode.id} value={mode.id} title={mode.title}>{mode.label}</option>)}
+    </select>
     <button type="submit" disabled={busy || !text.trim()}>Start</button>
+    {question && <div className="start-question" data-testid="start-question">
+      <p>{question.question}</p>
+      {question.options.map((option, index) => <button key={option.label} type="button" onClick={() => option.cancel ? setQuestion(null) : submit(index)}>{option.label}</button>)}
+    </div>}
     {error && <p className="failed" data-testid="start-error">{error}</p>}
   </form>;
 }

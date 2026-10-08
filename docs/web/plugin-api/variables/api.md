@@ -306,7 +306,7 @@
 
 ### start
 
-> **start**: (`path`, `text`, `llm`) => `Promise`\<[`Session`](../../../shared/types/interfaces/Session.md)\>
+> **start**: (`path`, `text`, `llm`, `opts`) => `Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
 
 #### Parameters
 
@@ -322,9 +322,19 @@
 
 [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
 
+##### opts?
+
+###### answer?
+
+`number`
+
+###### writeMode?
+
+[`WriteMode`](../../../shared/types/type-aliases/WriteMode.md)
+
 #### Returns
 
-`Promise`\<[`Session`](../../../shared/types/interfaces/Session.md)\>
+`Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
 
 ### state
 

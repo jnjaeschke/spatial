@@ -27,7 +27,7 @@ export function StartScreen({ path }: { path: string }) {
     {pickerOpen && <FolderPicker onClose={() => setPickerOpen(false)} />}
     <RecentRepoSwitcher repos={repos} current={repo.worktree} />
     <p className="repo-paths"><code>{repo.repoDir}</code> · worktree <code>{repo.worktree}</code></p>
-    {models ? <StartBox path={repo.worktree} models={models} /> : <p className="empty">Loading…</p>}
+    {models ? <StartBox path={repo.worktree} repoDir={repo.repoDir} models={models} /> : <p className="empty">Loading…</p>}
     {error && <p className="failed">{error}</p>}
     <SessionList sessions={repo.sessions} />
   </div>;
