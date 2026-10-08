@@ -16,3 +16,11 @@ test("plugin registries reject duplicate ids and merge artifact/search kinds", (
   assert.throws(() => pluginRegistry([a, { ...b, artifactKinds: { Extra: {} } }]), /Duplicate artifact kind: Extra/);
   assert.throws(() => pluginRegistry([a, { ...b, chatReplyFields: [{ name: "field" } as never] }]), /Duplicate chat reply field: field/);
 });
+
+test("plugin dependencies must be registered and acyclic", () => {
+  const a: Plugin = { id: "a", dependsOn: ["b"] }, b: Plugin = { id: "b" }, c: Plugin = { id: "c", dependsOn: ["a", "b"] };
+  assert.doesNotThrow(() => pluginRegistry([c, a, b]));
+  assert.throws(() => pluginRegistry([a]), /Plugin a depends on b, which is not registered/);
+  assert.throws(() => pluginRegistry([{ id: "a", dependsOn: ["b"] }, { id: "b", dependsOn: ["c"] }, { id: "c", dependsOn: ["a"] }]), /Plugin dependency cycle: a -> b -> c -> a/);
+  assert.throws(() => pluginRegistry([{ id: "a", dependsOn: ["a"] }]), /Plugin dependency cycle: a -> a/);
+});

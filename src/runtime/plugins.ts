@@ -48,6 +48,8 @@ export interface ChatReplyField {
 /** A packaging unit; contributes any mix of these. Artifact kinds are keyed by artifact type. */
 export interface Plugin {
   id: string;
+  /** Ids of the plugins this one imports the public API of (`src/plugins/<id>/api.ts`, `src/plugins/<id>/web/api.ts`); each must be registered, and the graph must have no cycle. Write it as a literal array in the manifest: `scripts/plugin-boundary.ts` reads it statically. */
+  dependsOn?: string[];
   workflows?: Workflow<any>[];
   phases?: Phase<any>[];
   tasks?: TaskDefinition<any, any>[];
@@ -93,6 +95,18 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     for (const task of plugin.tasks ?? []) { if (tasks.has(task.kind)) throw new Error(`Duplicate task kind: ${task.kind}`); tasks.set(task.kind, task); }
     for (const field of plugin.chatReplyFields ?? []) { if (fields.has(field.name)) throw new Error(`Duplicate chat reply field: ${field.name}`); fields.set(field.name, field); }
   }
+  const ids = new Set(plugins.map((plugin) => plugin.id));
+  for (const plugin of plugins) for (const dependency of plugin.dependsOn ?? []) {
+    if (!ids.has(dependency)) throw new Error(`Plugin ${plugin.id} depends on ${dependency}, which is not registered`);
+  }
+  const byId = new Map(plugins.map((plugin) => [plugin.id, plugin]));
+  const done = new Set<string>();
+  const visit = (id: string, path: string[]) => {
+    if (path.includes(id)) throw new Error(`Plugin dependency cycle: ${[...path.slice(path.indexOf(id)), id].join(" -> ")}`);
+    if (done.has(id)) return;
+    for (const dependency of byId.get(id)!.dependsOn ?? []) visit(dependency, [...path, id]);
+    done.add(id);
+  };
+  for (const plugin of plugins) visit(plugin.id, []);
   return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()] };
 }
-

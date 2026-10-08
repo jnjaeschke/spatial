@@ -12,6 +12,12 @@ export function resolveImport(file: string, specifier: string): string {
   return normalize(join(dirname(file), specifier)).replaceAll("\\", "/");
 }
 
+/** The ids in the `dependsOn: [...]` literal of `src/plugins/<plugin>/index.ts`; none when the manifest is absent or declares none. */
+export function declaredDependencies(files: Map<string, string>, plugin: string): string[] {
+  const list = /\bdependsOn:\s*\[([^\]]*)\]/.exec(files.get(`src/plugins/${plugin}/index.ts`) ?? "")?.[1] ?? "";
+  return [...list.matchAll(/["']([\w-]+)["']/g)].map((match) => match[1]!);
+}
+
 export function checkPluginBoundary(files: Map<string, string>): string[] {
   const errors: string[] = [];
   for (const [file, source] of files) {
@@ -23,7 +29,11 @@ export function checkPluginBoundary(files: Map<string, string>): string[] {
       const targetPlugin = target.match(/^src\/plugins\/([^/]+)(?:\/|$)/)?.[1];
       if (REGISTRIES.has(file.replace(/\.ts$/, ""))) continue;
       if (!importerPlugin && targetPlugin && !(COMPOSITION_ROOTS.has(file) && REGISTRIES.has(target))) errors.push(`${file} → ${specifier}`);
-      if (importerPlugin && targetPlugin !== importerPlugin && !["src/plugin-api", "src/web/plugin-api", "src/web/graph-api"].includes(target)) errors.push(`${file} → ${specifier}`);
+      if (importerPlugin && targetPlugin !== importerPlugin) {
+        const core = ["src/plugin-api", "src/web/plugin-api", "src/web/graph-api"].includes(target);
+        const dependencyApi = targetPlugin !== undefined && declaredDependencies(files, importerPlugin).includes(targetPlugin) && [`src/plugins/${targetPlugin}/api`, `src/plugins/${targetPlugin}/web/api`].includes(target);
+        if (!core && !dependencyApi) errors.push(`${file} → ${specifier}`);
+      }
     }
   }
   return errors.sort();

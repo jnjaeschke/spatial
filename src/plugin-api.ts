@@ -22,9 +22,12 @@
  * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
  * `src/plugins/web.ts`.
  *
- * Boundary, checked by `scripts/plugin-boundary.ts` in `npm run check`: plugin code imports only
- * its own directory and these API modules; core imports no plugin code except the two registries,
- * and only from composition roots.
+ * Boundary, checked by `scripts/plugin-boundary.ts` in `npm run check`: plugin code imports only its own
+ * directory and these API modules. A plugin may also import the public API of another plugin it lists in
+ * `Plugin.dependsOn`: only `src/plugins/<dep>/api.ts` (server and shared code) and
+ * `src/plugins/<dep>/web/api.ts` (web code), never deeper modules; the registry rejects a missing
+ * dependency and a cycle. Core imports no plugin code except the two registries, and only from
+ * composition roots.
  */
 export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(plugin: T): T => plugin;
 export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, StartInput, Workflow } from "./runtime/plugins.ts";

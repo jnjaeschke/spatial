@@ -24,6 +24,14 @@ Extra fields of the structured chat reply.
 
 ***
 
+### dependsOn?
+
+> `optional` **dependsOn?**: `string`[]
+
+Ids of the plugins this one imports the public API of (`src/plugins/<id>/api.ts`, `src/plugins/<id>/web/api.ts`); each must be registered, and the graph must have no cycle. Write it as a literal array in the manifest: `scripts/plugin-boundary.ts` reads it statically.
+
+***
+
 ### id
 
 > **id**: `string`
