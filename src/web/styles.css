@@ -324,6 +324,10 @@ a.code-link code { background: transparent; padding: 0; color: inherit; }
 }
 .commit-node { --kind: var(--kind-summary); border-top-width: 4px; }
 .diagram-node { --kind: var(--kind-diagram); }
+.investigation-node .plan { padding-left: 1.2em; }
+.investigation-node h4 { margin: 8px 0 2px; }
+.location-node .quote { margin: 0; white-space: pre-wrap; }
+.run-status { padding: 6px 12px; }
 .diagram-node .title { display: flex; align-items: baseline; gap: 8px; }
 .diagram-counts { color: var(--text-2); font-size: 0.78em; font-weight: 500; }
 .diagram-counts { margin-left: auto; }
