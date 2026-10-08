@@ -27,8 +27,8 @@ test("workflow parsers validate review and chat arguments", () => {
   assert.deepEqual(workflows.chat.parseArgs("hi"), { ok: true, params: {} });
 });
 
-test("review and chat plugins register their initial phases", () => {
-  assert.deepEqual(plugins.flatMap((plugin) => plugin.phases?.map((phase) => phase.id) ?? []), ["review", "chat"]);
+test("plugins register their initial phases", () => {
+  assert.deepEqual(plugins.flatMap((plugin) => plugin.phases?.map((phase) => phase.id) ?? []), ["review", "chat", "investigate"]);
 });
 
 test("parseCommand handles workflow arguments and rejects unknown names", () => {

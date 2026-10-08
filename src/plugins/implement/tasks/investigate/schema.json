@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "summary", "bug", "locations", "testCases", "architecture", "steps", "openQuestions", "exploration", "specUrls"],
+  "properties": {
+    "kind": { "type": "string", "enum": ["bugfix", "feature", "spec", "perf"] },
+    "summary": { "type": "string" },
+    "bug": { "type": ["integer", "null"] },
+    "locations": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "line", "quote", "why"], "properties": { "path": { "type": "string" }, "line": { "type": "integer" }, "quote": { "type": "string" }, "why": { "type": "string" } } } },
+    "testCases": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["description", "expected", "actual", "path"], "properties": { "description": { "type": "string" }, "expected": { "type": "string" }, "actual": { "type": ["string", "null"] }, "path": { "type": ["string", "null"] } } } },
+    "architecture": { "type": ["string", "null"] },
+    "steps": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["title", "message", "intent", "tests"], "properties": { "title": { "type": "string" }, "message": { "type": "string" }, "intent": { "type": "string" }, "tests": { "type": "array", "items": { "type": "string" } } } } },
+    "openQuestions": { "type": "array", "items": { "type": "string" } },
+    "exploration": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["tried", "outcome"], "properties": { "tried": { "type": "string" }, "outcome": { "type": "string" } } } },
+    "specUrls": { "type": "array", "items": { "type": "string" } }
+  }
+}
