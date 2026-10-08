@@ -24,3 +24,8 @@ test("plugin dependencies must be registered and acyclic", () => {
   assert.throws(() => pluginRegistry([{ id: "a", dependsOn: ["b"] }, { id: "b", dependsOn: ["c"] }, { id: "c", dependsOn: ["a"] }]), /Plugin dependency cycle: a -> b -> c -> a/);
   assert.throws(() => pluginRegistry([{ id: "a", dependsOn: ["a"] }]), /Plugin dependency cycle: a -> a/);
 });
+
+test("duplicate repo profile across plugins throws", () => {
+  const p = { id: "x", description: "d", commitStyle: "single" as const };
+  assert.throws(() => pluginRegistry([{ id: "a", repoProfiles: [p] }, { id: "b", repoProfiles: [p] }]), /Duplicate repo profile: x/);
+});

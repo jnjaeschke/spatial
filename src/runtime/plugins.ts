@@ -12,6 +12,33 @@ export type Step =
   | { run: string; input: unknown }
   | { decide: { question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string } };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
+/** How to work in one kind of repository. Plugins contribute profiles; workflows pick one per session. */
+export interface RepoProfile {
+  id: string;
+  /** Shown to the workflow selector LLM. */
+  description: string;
+  /** Deterministic hint that the work tree root `repo` is this kind of repository. */
+  detect?(repo: string): Promise<boolean>;
+  commitStyle: "stack" | "single";
+  /** A bug number is given or asked for, never invented. */
+  requiresBug?: boolean;
+  /** Null when the commit subject is acceptable, else what is wrong. */
+  messageCheck?(message: string): string | null;
+  /** Shell command that builds and runs the tests covering `paths`; its presence makes edits-only mode available. */
+  checkCommand?(paths: string[]): string;
+  /** Whether a shell command runs tests (shown as a pass/fail chip). */
+  isTestCommand?(command: string): boolean;
+  /** Command that suggests reviewers for the changed files. */
+  suggestReviewers?: string;
+  /** Phase id that investigates; default `investigate`. */
+  investigatePhase?: string;
+  /** Automatic fix rounds before the user is asked; default 2, 0 always asks. */
+  autoFixRounds?: number;
+  /** Phase ids run in order after the user accepts, each behind its own decision. */
+  afterAccept?: string[];
+}
+/** What `Workflow.next` may consult besides the stored session state. */
+export interface WorkflowContext { repoProfiles: ReadonlyMap<string, RepoProfile> }
 /** A kind of session; `start` runs it to completion by orchestrating phases with `rt.runPhase`. `description` is shown to the selector LLM and in the command popup; avoid e2e stub needles in it. */
 export interface Workflow<P> extends WorkflowInfo {
   /** Params the selector must produce; a `z.strictObject` so its JSON schema is OpenAI-strict. Validates selector output. */
@@ -20,7 +47,7 @@ export interface Workflow<P> extends WorkflowInfo {
   parseArgs(args: string): ParseResult<P>;
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
   /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered. */
-  next?(view: WorkflowView): Step | null;
+  next?(view: WorkflowView, ctx: WorkflowContext): Step | null;
   /** Session overview sections for sessions of this workflow; markdown, each starting with a `# ` heading. */
   overview?(view: SessionView): string[];
 }
@@ -56,6 +83,8 @@ export interface Plugin {
   id: string;
   /** Ids of the plugins this one imports the public API of (`src/plugins/<id>/api.ts`, `src/plugins/<id>/web/api.ts`); each must be registered, and the graph must have no cycle. Write it as a literal array in the manifest: `scripts/plugin-boundary.ts` reads it statically. */
   dependsOn?: string[];
+  /** Repo profiles this plugin contributes; ids are unique across plugins. */
+  repoProfiles?: RepoProfile[];
   workflows?: Workflow<any>[];
   phases?: Phase<any>[];
   tasks?: TaskDefinition<any, any>[];
@@ -77,6 +106,7 @@ export interface PluginRegistry {
   searchKinds: string[];
   chatContext: ((view: SessionView) => string | null)[];
   chatReplyFields: ChatReplyField[];
+  repoProfiles: Map<string, RepoProfile>;
 }
 
 export function artifactKinds(plugins: Plugin[]): Record<string, ArtifactKind> {
@@ -94,8 +124,10 @@ export function searchKinds(plugins: Plugin[]): string[] {
 
 export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
   const workflows = new Map<string, Workflow<any>>(), phases = new Map<string, Phase<any>>(), tasks = new Map<string, TaskDefinition<any, any>>();
+  const repoProfiles = new Map<string, RepoProfile>();
   const fields = new Map<string, ChatReplyField>();
   for (const plugin of plugins) {
+    for (const profile of plugin.repoProfiles ?? []) { if (repoProfiles.has(profile.id)) throw new Error(`Duplicate repo profile: ${profile.id}`); repoProfiles.set(profile.id, profile); }
     for (const workflow of plugin.workflows ?? []) { if (workflows.has(workflow.id)) throw new Error(`Duplicate workflow id: ${workflow.id}`); workflows.set(workflow.id, workflow); }
     for (const phase of plugin.phases ?? []) { if (phases.has(phase.id)) throw new Error(`Duplicate phase id: ${phase.id}`); phases.set(phase.id, phase); }
     for (const task of plugin.tasks ?? []) { if (tasks.has(task.kind)) throw new Error(`Duplicate task kind: ${task.kind}`); tasks.set(task.kind, task); }
@@ -114,5 +146,5 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     done.add(id);
   };
   for (const plugin of plugins) visit(plugin.id, []);
-  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()] };
+  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], repoProfiles };
 }

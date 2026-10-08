@@ -220,6 +220,12 @@ Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json
 
 ***
 
+### repoProfiles
+
+> **repoProfiles**: `ReadonlyMap`\<`string`, [`RepoProfile`](../../plugins/interfaces/RepoProfile.md)\>
+
+***
+
 ### repoRequestableMcp
 
 > **repoRequestableMcp**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>

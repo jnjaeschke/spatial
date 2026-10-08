@@ -44,6 +44,14 @@ Ids of the plugins this one imports the public API of (`src/plugins/<id>/api.ts`
 
 ***
 
+### repoProfiles?
+
+> `optional` **repoProfiles?**: [`RepoProfile`](RepoProfile.md)[]
+
+Repo profiles this plugin contributes; ids are unique across plugins.
+
+***
+
 ### searchKinds?
 
 > `optional` **searchKinds?**: `string`[]

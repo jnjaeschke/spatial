@@ -33,8 +33,9 @@ export const selectWorkflow = defineTask<{ prompt: string; round?: number; llm?:
     const workflows = ctx.workflows;
     const all = [...workflows.values()];
     const list = all.map((w) => `- ${w.id}: ${w.description}\n  params: ${JSON.stringify(jsonSchema(w.params))}`).join("\n");
+    const profiles = await Promise.all([...ctx.repoProfiles.values()].map(async (profile) => `- ${profile.id}${await profile.detect?.(ctx.repo) ? " (detected in this repository)" : ""}: ${profile.description}`));
     const final = round >= MAX_SELECTOR_QUESTIONS ? ["", "You have asked enough; choose now and set `question` to null."] : [];
-    const r = await ctx.llm.run({ prompt: ["# Workflows", "", list, "", "# Request", "", prompt, ...final].join("\n"), system: prependRepoContext(SYSTEM, ctx), schema: selectorSchema(workflows), cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const r = await ctx.llm.run({ prompt: ["# Workflows", "", list, "", ...(profiles.length ? ["# Repo profiles", "", ...profiles, ""] : []), "# Request", "", prompt, ...final].join("\n"), system: prependRepoContext(SYSTEM, ctx), schema: selectorSchema(workflows), cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const json = r.json as { question?: unknown; workflow?: unknown; title?: unknown; params?: unknown } | undefined;
     if (typeof json?.question === "string" && json.question.trim()) {
       if (round >= MAX_SELECTOR_QUESTIONS) throw new Error(`Selector still asks after ${round} answers: ${json.question}`);

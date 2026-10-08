@@ -13,8 +13,10 @@
 - [Plugin](interfaces/Plugin.md)
 - [PluginRegistry](interfaces/PluginRegistry.md)
 - [PluginServer](interfaces/PluginServer.md)
+- [RepoProfile](interfaces/RepoProfile.md)
 - [StartInput](interfaces/StartInput.md)
 - [Workflow](interfaces/Workflow.md)
+- [WorkflowContext](interfaces/WorkflowContext.md)
 
 ## Type Aliases
 

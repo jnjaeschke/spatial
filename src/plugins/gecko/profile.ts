@@ -1,0 +1,26 @@
+import { isGeckoRepo, type RepoProfile } from "../../plugin-api.ts";
+
+const TEST_COMMAND = /^\.\/mach\s+(?:test|mochitest|wpt|gtest|xpcshell-test)(?:\s|$)/;
+const REVIEWERS = / r\?[\w.-]+(?:,[\w.-]+)*$/;
+const quote = (path: string) => `'${path.replaceAll("'", "'\\''")}'`;
+
+/** Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`. No after-accept phases until the try and submit phases exist. */
+export const geckoProfile: RepoProfile = {
+  id: "gecko",
+  description: "Firefox/Gecko source tree (mozilla-central): commit stacks with `Bug N - summary` messages, built and tested with ./mach, reviewed on Phabricator.",
+  detect: async (repo) => isGeckoRepo(repo),
+  commitStyle: "stack",
+  requiresBug: true,
+  messageCheck(message) {
+    const match = /^Bug (\d+) - (.*)$/.exec(message);
+    if (!match) return "The commit message must start with `Bug N - `";
+    const summary = match[2]!.replace(REVIEWERS, "").replace(/^r\?[\w.-]+(?:,[\w.-]+)*$/, "").trim();
+    if (!summary) return "The commit message needs a summary after `Bug N - `";
+    if (/ r\?\S*$/.test(summary)) return "Malformed reviewer list; end the message with ` r?name1,name2`";
+    return null;
+  },
+  checkCommand: (paths) => `./mach build && ./mach test ${paths.map(quote).join(" ")}`,
+  isTestCommand: (command) => TEST_COMMAND.test(command.trim()),
+  suggestReviewers: "./mach file-info reviewers",
+  afterAccept: [],
+};

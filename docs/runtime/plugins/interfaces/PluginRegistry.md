@@ -50,6 +50,12 @@ Contributions of a plugin list merged by `pluginRegistry`, which throws on dupli
 
 ***
 
+### repoProfiles
+
+> **repoProfiles**: `Map`\<`string`, [`RepoProfile`](RepoProfile.md)\>
+
+***
+
 ### searchKinds
 
 > **searchKinds**: `string`[]

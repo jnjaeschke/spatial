@@ -29,6 +29,9 @@ Everything a user works on is a plugin; review and chat are the standard library
   Retry reruns it and advances again.
 - An **artifact kind** (`ArtifactKind`) tells core how to render, search and overview a
   plugin's artifact type without importing plugin code.
+- A **repo profile** (`RepoProfile`, contributed through `Plugin.repoProfiles`) says how to work in a
+  kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
+  pick one per session; any plugin can add one.
 
 The web side of a plugin registers phase views and canvas node kinds through
 `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
@@ -386,6 +389,12 @@ Re-exports [RepoInfo](../shared/types/interfaces/RepoInfo.md)
 
 ***
 
+### RepoProfile
+
+Re-exports [RepoProfile](../runtime/plugins/interfaces/RepoProfile.md)
+
+***
+
 ### requireArtifact
 
 Re-exports [requireArtifact](../server/http/functions/requireArtifact.md)
@@ -587,6 +596,12 @@ Re-exports [WebspecCapability](../runtime/tasks/interfaces/WebspecCapability.md)
 ### Workflow
 
 Re-exports [Workflow](../runtime/plugins/interfaces/Workflow.md)
+
+***
+
+### WorkflowContext
+
+Re-exports [WorkflowContext](../runtime/plugins/interfaces/WorkflowContext.md)
 
 ***
 

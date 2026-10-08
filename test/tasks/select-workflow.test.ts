@@ -5,6 +5,7 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import type { LlmSelection, SelectorQuestionData, WorkflowStartData } from "../../src/shared/types.ts";
+import type { Plugin } from "../../src/runtime/plugins.ts";
 import { MAX_SELECTOR_QUESTIONS, selectorSchema } from "../../src/tasks/select-workflow/task.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { plugins } from "../../src/plugins/index.ts";
@@ -13,7 +14,7 @@ const workflows = new Map(plugins.flatMap((plugin) => plugin.workflows ?? []).ma
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
-function setup(json: unknown) {
+function setup(json: unknown, extra: Plugin[] = []) {
   const store = new Store(":memory:");
   let call: LlmPrompt | undefined;
   const llm: LlmService = {
@@ -24,11 +25,23 @@ function setup(json: unknown) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins], llm, sessionMcp: () => ({ spatial: { type: "stdio", command: "spatial", args: [] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
+  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins, ...extra], llm, sessionMcp: () => ({ spatial: { type: "stdio", command: "spatial", args: [] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { store, rt, session, get call() { return call; } };
 }
+
+test("selector prompt lists repo profiles and marks the detected ones", async () => {
+  const s = setup({ workflow: "chat", params: {}, title: "T" }, [{ id: "p", repoProfiles: [
+    { id: "yes", description: "Detected profile.", commitStyle: "single", detect: async () => true },
+    { id: "no", description: "Other profile.", commitStyle: "stack", detect: async () => false },
+  ] }]);
+  await s.rt.run(s.session.id, "selectWorkflow", { prompt: "do it" });
+  const prompt = s.call!.prompt;
+  assert.ok(prompt.includes("# Repo profiles"));
+  assert.ok(prompt.includes("- yes (detected in this repository): Detected profile."));
+  assert.ok(prompt.includes("- no: Other profile."));
+});
 
 test("selector stores a validated workflow start and sends workflow schemas", async () => {
   const input = "  Explain X\nwith detail  ";

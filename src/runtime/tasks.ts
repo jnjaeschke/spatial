@@ -5,7 +5,7 @@ import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/t
 import type { Store } from "./store.ts";
 import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
-import { pluginRegistry, type Plugin, type PluginRegistry, type Workflow } from "./plugins.ts";
+import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Workflow } from "./plugins.ts";
 
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
@@ -78,6 +78,7 @@ export interface TaskContext {
     overview(): string;
   };
   workflows: ReadonlyMap<string, Workflow<any>>;
+  repoProfiles: ReadonlyMap<string, RepoProfile>;
   chat: { context(view: SessionView): string[]; replyFields: PluginRegistry["chatReplyFields"] };
   links: { put(from: Ref, to: Ref, kind: LinkKind): Link };
   progress(p: Progress): void;
@@ -244,6 +245,7 @@ export class Runtime {
         overview: () => sessionOverview(this.plugins, sessionView(this.#store, sessionId)).join("\n\n"),
       },
       workflows: this.workflows,
+      repoProfiles: this.plugins.repoProfiles,
       chat: {
         context: (view) => this.plugins.chatContext.map((provide) => provide(view)).filter((value): value is string => Boolean(value)),
         replyFields: this.plugins.chatReplyFields,
@@ -328,7 +330,7 @@ export class Runtime {
     const workflow = session.workflow ? this.workflows.get(session.workflow) : undefined;
     if (!workflow?.next) return;
     for (;;) {
-      const step = workflow.next(workflowView(this.#store, sessionId));
+      const step = workflow.next(workflowView(this.#store, sessionId), { repoProfiles: this.plugins.repoProfiles });
       if (step === null) return;
       if ("run" in step) { await this.runPhase(sessionId, step.run, step.input); continue; }
       const { question, options } = step.decide;

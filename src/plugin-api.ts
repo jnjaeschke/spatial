@@ -22,6 +22,9 @@
  *   Retry reruns it and advances again.
  * - An **artifact kind** (`ArtifactKind`) tells core how to render, search and overview a
  *   plugin's artifact type without importing plugin code.
+ * - A **repo profile** (`RepoProfile`, contributed through `Plugin.repoProfiles`) says how to work in a
+ *   kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
+ *   pick one per session; any plugin can add one.
  *
  * The web side of a plugin registers phase views and canvas node kinds through
  * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
@@ -35,7 +38,7 @@
  * composition roots.
  */
 export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(plugin: T): T => plugin;
-export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, StartInput, Step, Workflow } from "./runtime/plugins.ts";
+export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, RepoProfile, WorkflowContext, StartInput, Step, Workflow } from "./runtime/plugins.ts";
 export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";

@@ -60,7 +60,7 @@ Params the selector must produce; a `z.strictObject` so its JSON schema is OpenA
 
 ### next()?
 
-> `optional` **next**(`view`): [`Step`](../type-aliases/Step.md) \| `null`
+> `optional` **next**(`view`, `ctx`): [`Step`](../type-aliases/Step.md) \| `null`
 
 Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered.
 
@@ -69,6 +69,10 @@ Reads only stored state and returns the next step; null means wait (an open deci
 ##### view
 
 [`WorkflowView`](../../render-ref/interfaces/WorkflowView.md)
+
+##### ctx
+
+[`WorkflowContext`](WorkflowContext.md)
 
 #### Returns
 
