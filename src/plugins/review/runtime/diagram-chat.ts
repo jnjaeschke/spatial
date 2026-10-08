@@ -16,6 +16,7 @@ const stepSchema = { type: "object", additionalProperties: false, required: ["fr
   when: { type: ["string", "null"] }, guard: { type: ["string", "null"] }, phase: { type: ["string", "null"] },
   status: { type: "string", enum: ["new", "changed", "existing", "removed"] }, cite: citeSchema,
 } };
+/** JSON schema of the `diagram` chat reply field: one commit's sequence diagram with cited steps. */
 export const diagramSchema = { type: "object", additionalProperties: false, required: ["commit", "title", "summary", "lanes", "steps", "before"], properties: {
   commit: { type: "integer", minimum: 1 }, title: { type: "string" }, summary: { type: "string" },
   lanes: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "label", "note"], properties: { id: { type: "string" }, label: { type: "string" }, note: { type: ["string", "null"] } } } },

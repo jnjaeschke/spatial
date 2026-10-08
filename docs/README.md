@@ -39,6 +39,7 @@
 - [plugins/review/shared/review-path](plugins/review/shared/review-path/README.md)
 - [plugins/review/shared/spec-text](plugins/review/shared/spec-text/README.md)
 - [plugins/review/shared/types](plugins/review/shared/types/README.md)
+- [plugins/review/web/api](plugins/review/web/api/README.md)
 - [plugins/review/workflow/narrate-patch](plugins/review/workflow/narrate-patch/README.md)
 - [plugins/review/workflow/review-range](plugins/review/workflow/review-range/README.md)
 - [plugins/review/workflow/update-revision](plugins/review/workflow/update-revision/README.md)

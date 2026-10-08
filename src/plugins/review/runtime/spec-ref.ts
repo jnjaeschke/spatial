@@ -1,6 +1,7 @@
 import { type ResolvedSpec, type TaskContext, isGeckoRepo } from "../../../plugin-api.ts";
 import type { SpecReferenceData } from "../shared/types.ts";
 
+/** Result of looking up a spec URL: the resolved spec, or why it could not be resolved. */
 export type SpecLookup = { found: true; spec: ResolvedSpec } | { found: false; reason: string };
 
 /** webspec-index lookup of one URL. One failing lookup (webspec-index can crash on a single spec) is a not-found result, not an error, unless the task was cancelled. */

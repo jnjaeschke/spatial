@@ -8,6 +8,8 @@
 
 > `const` **diagramSchema**: `object`
 
+JSON schema of the `diagram` chat reply field: one commit's sequence diagram with cited steps.
+
 ## Type Declaration
 
 ### additionalProperties

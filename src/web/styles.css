@@ -483,7 +483,6 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 @keyframes pulse { 50% { opacity: 0.45; } }
 .msg-llm { display: block; font-size: 0.7em; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }
 .node form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
-.node form textarea { flex: 0 0 100%; }
 .node form .llm-picker select { font-size: calc(11.5px * var(--text-scale, 1)); padding: 2px 4px; color: var(--text-2); background: var(--surface-2); }
 .node form button[type="submit"] { margin-left: auto; }
 .chat-node textarea, .finding-node textarea, .phab-node textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
