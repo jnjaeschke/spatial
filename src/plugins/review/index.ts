@@ -14,6 +14,7 @@ import { mapSpecSteps } from "./tasks/map-spec-steps/task.ts";
 import { diagramField } from "./runtime/diagram-chat.ts";
 import { RevisionWatcher } from "./runtime/revision-watcher.ts";
 import { PhabricatorSyncer } from "./runtime/phabricator-sync.ts";
+import { reviewRoutes } from "./server/routes.ts";
 
 function chatContext(view: SessionView): string | null {
   const diff = [...view.artifacts].reverse().find((a) => a.type === "Diff");
@@ -24,6 +25,6 @@ function chatContext(view: SessionView): string | null {
 function server(rt: Runtime, opts: { intervalMs?: number }) {
   const watcher = new RevisionWatcher(rt, { intervalMs: opts.intervalMs });
   const syncer = new PhabricatorSyncer(rt, watcher, { intervalMs: opts.intervalMs });
-  return { watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
+  return { routes: reviewRoutes(rt), watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
 }
 export const reviewPlugin = definePlugin({ id: "review", workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, review, comment, interdiff, carryFindings, mapSpecSteps], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });

@@ -14,6 +14,7 @@ Standard plugins live in `src/plugins/` and are registered in `src/plugins/index
 
 ## Functions
 
+- [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
 - [isGeckoRepo](functions/isGeckoRepo.md)
 - [makeGitWriter](functions/makeGitWriter.md)
@@ -450,6 +451,12 @@ Re-exports [Runtime](../runtime/tasks/classes/Runtime.md)
 ### RuntimeEvent
 
 Re-exports [RuntimeEvent](../shared/types/interfaces/RuntimeEvent.md)
+
+***
+
+### runWorkflow
+
+Re-exports [runWorkflow](../workflows/start/functions/runWorkflow.md)
 
 ***
 

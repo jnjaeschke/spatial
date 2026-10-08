@@ -12,6 +12,10 @@ export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapabili
 export type { Runtime } from "./runtime/tasks.ts";
 export type { SessionView, SearchDoc } from "./runtime/render-ref.ts";
 export { HttpError, send, readJson, str, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
+/** Creates a session after resolving its repository path. */
+export { createSession } from "./runtime/git.ts";
+/** Runs the workflow selected by a WorkflowStart artifact. */
+export { runWorkflow } from "./workflows/start.ts";
 export type { Route, HttpRouteContext } from "./server/http.ts";
 export * from "./shared/types.ts";
 export { searchDocs, sessionView } from "./runtime/render-ref.ts";

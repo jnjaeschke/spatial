@@ -13,7 +13,7 @@
     "typecheck": "tsc",
     "docs": "typedoc",
     "docs:check": "node scripts/docs-check.ts",
-    "check": "npm run typecheck && npm test && npm run docs:check",
+    "check": "npm run typecheck && npm test && npm run docs:check && node scripts/plugin-boundary.ts",
     "server": "node src/server/main.ts",
     "web": "vite",
     "build:web": "vite build",
