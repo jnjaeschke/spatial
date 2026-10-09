@@ -1,4 +1,4 @@
-import type { Artifact, ChatMessageData, ChatThreadData, DecisionData, Epoch, Id, Link, NoteData, Ref, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, CodeLinksData, DecisionData, Epoch, Id, Link, NoteData, Ref, WorkflowStartData } from "../shared/types.ts";
 import { revisedText } from "../shared/revisions.ts";
 import type { Store } from "./store.ts";
 import type { ArtifactKind, PluginRegistry } from "./plugins.ts";
@@ -35,10 +35,14 @@ const coreRender: ArtifactKind["render"] = (view, artifact, subId, renderRef) =>
     const chosen = d.chosen && `Chosen: ${d.options.find((option) => option.id === d.chosen!.option)?.label ?? d.chosen.option} (${d.chosen.by})${d.chosen.text ? `: ${d.chosen.text}` : ""}${d.chosen.reason ? ` - ${d.chosen.reason}` : ""}`;
     return `# Decision\n\n${d.question}\n\n${chosen ?? "Open"}`;
   }
+  if (artifact.type === "CodeLinks") {
+    const data = artifact.data as CodeLinksData;
+    return "# Code links\n\n" + Object.entries(data.links).map(([token, url]) => `- ${token} → ${url ?? "none"}`).join("\n");
+  }
   return null;
 };
 export const coreArtifactKinds: Record<string, ArtifactKind> = {
-  Note: { search: coreSearch, render: coreRender }, WorkflowStart: { render: coreRender }, ChatThread: { render: coreRender }, ChatMessage: { search: coreSearch, render: coreRender }, Decision: { render: coreRender },
+  Note: { search: coreSearch, render: coreRender }, WorkflowStart: { render: coreRender }, ChatThread: { render: coreRender }, ChatMessage: { search: coreSearch, render: coreRender }, Decision: { render: coreRender }, CodeLinks: { render: coreRender },
 };
 
 export function searchDocs(kinds: Record<string, ArtifactKind>, view: SessionView, artifact: Artifact): SearchDoc[] { return kinds[artifact.type]?.search?.(view, artifact) ?? []; }

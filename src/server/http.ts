@@ -1,8 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageData, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
@@ -10,6 +12,10 @@ import { loadRepoContext } from "../runtime/repo-context.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { continueSelection, startSession } from "../workflows/start.ts";
+import { isGeckoRepo } from "../runtime/searchfox.ts";
+import { resolveCodeLinks } from "../runtime/code-links.ts";
+
+const execFileAsync = promisify(execFile);
 
 export class HttpError extends Error {
   status: number;
@@ -194,6 +200,34 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
       return await buildSessionState(rt.store, rt.searchfox, params[0]);
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/code-links$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      if (!Array.isArray(body.tokens) || body.tokens.length < 1 || body.tokens.length > 50 || body.tokens.some((token) => typeof token !== "string" || token.length > 200)) throw new HttpError(400, "tokens must be 1–50 strings of at most 200 characters");
+      const diffs = rt.store.listArtifacts(session.id, "Diff");
+      const diff = diffs.findLast((artifact) => typeof (artifact.data as DiffData).upstreamRev === "string");
+      const rev = (diff?.data as DiffData | undefined)?.upstreamRev;
+      if (!diff || !rev || !isGeckoRepo(session.worktree)) throw new HttpError(409, "Code links require a Gecko Diff with upstreamRev");
+      const prior: Record<string, string | null> = {};
+      for (const artifact of rt.store.listArtifacts(session.id, "CodeLinks")) {
+        const data = artifact.data as CodeLinksData;
+        if (data.rev === rev) Object.assign(prior, data.links);
+      }
+      const missing = [...new Set(body.tokens as string[])].filter((token) => !Object.hasOwn(prior, token));
+      let added: Record<string, string | null> = {};
+      if (missing.length) {
+        const tip = await rt.searchfox.tip();
+        added = await resolveCodeLinks({
+          git: async (args) => (await execFileAsync("git", ["-C", session.worktree, ...args], { maxBuffer: args[0] === "ls-tree" ? 512 * 1024 * 1024 : undefined })).stdout,
+          searchfox: rt.searchfox, repoBase: tip.repoBase, rev,
+          diffPaths: (diff.data as DiffData).files.map((file) => file.path),
+        }, missing);
+        const artifact = rt.store.putArtifact<CodeLinksData>({ sessionId: session.id, type: "CodeLinks", status: "verified", data: { rev, links: added }, provenance: { taskId: "runtime" } });
+        rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+      }
+      const links = { ...prior, ...added };
+      send(res, 200, { links: Object.fromEntries((body.tokens as string[]).map((token) => [token, links[token] ?? null])) });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/threads\/([^/]+)\/enable-mcp-server$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]);

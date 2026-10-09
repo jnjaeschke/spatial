@@ -11,6 +11,7 @@
 - [Artifact](interfaces/Artifact.md)
 - [ChatMessageData](interfaces/ChatMessageData.md)
 - [ChatThreadData](interfaces/ChatThreadData.md)
+- [CodeLinksData](interfaces/CodeLinksData.md)
 - [Commit](interfaces/Commit.md)
 - [DecisionData](interfaces/DecisionData.md)
 - [DecisionOption](interfaces/DecisionOption.md)

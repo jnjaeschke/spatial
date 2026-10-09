@@ -112,6 +112,9 @@ export interface GeckoSpecRef {
   url: string;
 }
 
+/** Resolved inline code links pinned to a patch's upstream revision. */
+export interface CodeLinksData { rev: string; links: Record<string, string | null> }
+
 export type SequenceStatus = "new" | "changed" | "existing" | "removed";
 /** A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `before` steps). */
 export interface DiagramCite { path: string; line: number }

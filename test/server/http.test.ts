@@ -80,6 +80,37 @@ test("sessions: create, list, validation", async () => {
   assert.equal((await post("/api/sessions", { title: "t" })).status, 400);
 });
 
+// REQUIRES_REAL_GIT
+test("code-links validates requests, requires an upstream Gecko Diff, and caches resolved tokens", async () => {
+  const session = await newSession();
+  assert.equal((await post(`/api/sessions/${session.id}/code-links`, { tokens: [] })).status, 400);
+  assert.equal((await post(`/api/sessions/${session.id}/code-links`, { tokens: ["x".repeat(201)] })).status, 400);
+  assert.equal((await post(`/api/sessions/${session.id}/code-links`, { tokens: ["Foo::Bar"] })).status, 409);
+  writeFileSync(join(repo.dir, "mach"), "");
+  writeFileSync(join(repo.dir, "moz.build"), "");
+  const rev = repo.git("rev-parse", "HEAD");
+  rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { upstreamRev: rev, baseSha: rev, headSha: rev, commits: [], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [] }] } satisfies DiffData, provenance: { taskId: "test" } });
+  let definitions = 0;
+  const searchfox = rt.searchfox as unknown as {
+    tip: () => Promise<{ repoBase: string; rev: string }>;
+    define: () => Promise<{ path: string; line: number; text: string }>;
+  };
+  const originalTip = searchfox.tip;
+  const originalDefine = searchfox.define;
+  try {
+    searchfox.tip = async () => ({ repoBase: "https://searchfox.org/firefox-main/", rev });
+    searchfox.define = async () => { definitions++; return { path: "a.txt", line: 1, text: "1" }; };
+    const first = await post(`/api/sessions/${session.id}/code-links`, { tokens: ["Foo::Bar"] });
+    assert.equal(first.status, 200);
+    const second = await post(`/api/sessions/${session.id}/code-links`, { tokens: ["Foo::Bar"] });
+    assert.equal(second.status, 200);
+    assert.equal(definitions, 1);
+  } finally {
+    searchfox.tip = originalTip;
+    searchfox.define = originalDefine;
+  }
+});
+
 test("dirs lists directories, marks git roots, validates paths, and defaults to injected home", async () => {
   const home = mkdtempSync(join(tmpdir(), "dirs-home-"));
   const child = join(home, "child");

@@ -135,6 +135,12 @@ Re-exports [ChatThreadData](../../shared/types/interfaces/ChatThreadData.md)
 
 ***
 
+### CodeLinksData
+
+Re-exports [CodeLinksData](../../shared/types/interfaces/CodeLinksData.md)
+
+***
+
 ### Commit
 
 Re-exports [Commit](../../shared/types/interfaces/Commit.md)
