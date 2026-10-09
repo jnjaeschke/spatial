@@ -1,22 +1,21 @@
 import { useContext, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
-import { api, ChatActionsContext, type ZoomLevel, AnswerMarkdown, Conversation, Box, Composer } from "../../../../web/plugin-api.ts";
+import { api, ChatActionsContext, type ZoomLevel, AnswerMarkdown, Conversation, Box, Composer, ErrorText, useAction } from "../../../../web/plugin-api.ts";
 import type { FindingNodeData } from "../graph.ts";
 
 export type FindingFlowNode = Node<FindingNodeData & { level: ZoomLevel } & Record<string, unknown>, "finding">;
 
 export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   const actions = useContext(ChatActionsContext);
-  const [error, setError] = useState<string | null>(null);
+  const { error, run } = useAction();
   const dismissed = data.decision === "dismissed";
   const statusLabel = data.status === "partially" ? "partially addressed" : data.status === "not_addressed" ? "not addressed" : data.status;
   const finding = <div className="msg assistant finding-body"><AnswerMarkdown text={data.body} hunks={data.hunks} diffId={data.diffId} /></div>;
   const verdict = data.verdict && <div className="verdict-reason" data-testid="finding-verdict">{data.verdict.reason}</div>;
-  const errorText = error && <div className="failed">{error}</div>;
+  const errorText = <ErrorText error={error} />;
   const decide = (decision: "accepted" | "dismissed") => {
     if (!actions) return;
-    setError(null);
-    api.decideFinding(actions.sessionId, data.findingId, decision, actions.models.default).catch((e: Error) => setError(e.message));
+    void run(() => api.decideFinding(actions.sessionId, data.findingId, decision, actions.models.default));
   };
   return <Box
     kind="finding"
@@ -44,21 +43,17 @@ export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
 function CommentEditor({ findingId, comment, postedTo }: Pick<FindingNodeData, "findingId" | "comment" | "postedTo">) {
   const actions = useContext(ChatActionsContext);
   const [body, setBody] = useState(comment?.body ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { busy: saving, error, run } = useAction();
   const tasks = actions?.tasks.filter((task) => task.kind === "comment" && (task.input as { findingId?: string }).findingId === findingId) ?? [];
   const latestTask = tasks.at(-1);
   const busy = latestTask?.status === "running" || latestTask?.status === "pending";
   const save = () => {
     if (!actions) return;
-    setError(null);
-    setSaving(true);
-    api.saveComment(actions.sessionId, findingId, body).catch((e: Error) => setError(e.message)).finally(() => setSaving(false));
+    void run(() => api.saveComment(actions.sessionId, findingId, body));
   };
   const regenerate = () => {
     if (!actions) return;
-    setError(null);
-    api.regenerateComment(actions.sessionId, findingId, actions.models.default).catch((e: Error) => setError(e.message));
+    void run(() => api.regenerateComment(actions.sessionId, findingId, actions.models.default));
   };
   const taskError = latestTask?.status === "failed" ? latestTask.error : null;
   if (!comment && busy) return <div className="comment-draft">Generating comment…</div>;
@@ -67,6 +62,7 @@ function CommentEditor({ findingId, comment, postedTo }: Pick<FindingNodeData, "
     <Composer label="Comment" value={body} onChange={setBody} canSubmit={!!actions && !!body.trim() && !saving && !busy} onSubmit={save} />
     <div><button type="button" onClick={save} disabled={!actions || !body.trim() || saving || busy}>Save</button><button type="button" onClick={regenerate} disabled={!actions || busy || saving}>Regenerate</button></div>
     <div className="comment-status">{busy ? "Regenerating…" : comment?.status === "proposed" ? "Draft — save to make it postable" : postedTo !== null ? `Posted to D${postedTo}` : comment ? "Ready to post" : "No comment yet"}</div>
-    {(error ?? taskError) && <div className="failed">{error ?? taskError}</div>}
+    <ErrorText error={error} />
+    {taskError && <div className="failed">{taskError}</div>}
   </div>;
 }

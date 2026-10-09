@@ -7,6 +7,7 @@ import { commandSuggestions, completeCommand } from "./slash.ts";
 import { readWriteMode, saveWriteMode, WRITE_MODES } from "./write-mode.ts";
 import { Composer } from "./Composer.tsx";
 import { COMPOSER_HINT } from "./composer-key.ts";
+import { ErrorText, useAction } from "./action.tsx";
 
 export function StartBox({ path, repoDir, models }: { path: string; repoDir: string; models: ModelsResponse }) {
   const [commands, setCommands] = useState<WorkflowInfo[]>([]);
@@ -16,24 +17,23 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
   const [question, setQuestion] = useState<StartQuestion | null>(null);
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { api.workflows().then(setCommands, (e: Error) => setError(e.message)); }, []);
+  const { busy, error, run, fail, clear } = useAction();
+  useEffect(() => { api.workflows().then(setCommands, (e: Error) => fail(e.message)); }, []);
   const suggestions = dismissed ? [] : commandSuggestions(text, commands);
   const selected = Math.min(active, suggestions.length - 1);
   const complete = (command: WorkflowInfo) => { setText(completeCommand(command)); setActive(0); };
   const submit = (answer?: number) => {
     if (busy || !text.trim()) return;
-    setBusy(true); setError(null);
-    api.start(path, text, llm, { writeMode, ...(answer === undefined ? {} : { answer }) }).then((result) => {
-      if ("question" in result) { setQuestion(result); setBusy(false); return; }
+    void run(async () => {
+      const result = await api.start(path, text, llm, { writeMode, ...(answer === undefined ? {} : { answer }) });
+      if ("question" in result) { setQuestion(result); return; }
       location.search = `?session=${encodeURIComponent(result.id)}`;
-    }, (e: Error) => { setError(e.message); setBusy(false); });
+    });
   };
   return <form className="start-box" onSubmit={(e) => { e.preventDefault(); submit(); }}>
     <div className="start-input">
     <Composer label="start" rows={3} value={text} placeholder={`What do you want to do? Type / for commands — ${COMPOSER_HINT}`} canSubmit={!busy && !!text.trim()} onSubmit={() => submit()}
-      onChange={(value) => { setText(value); setDismissed(false); setActive(0); setError(null); setQuestion(null); }}
+      onChange={(value) => { setText(value); setDismissed(false); setActive(0); clear(); setQuestion(null); }}
       onKeyDown={(e) => {
         if (suggestions.length) {
           if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -64,6 +64,6 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
       <p>{question.question}</p>
       {question.options.map((option, index) => <button key={option.label} type="button" onClick={() => option.cancel ? setQuestion(null) : submit(index)}>{option.label}</button>)}
     </div>}
-    {error && <p className="failed" data-testid="start-error">{error}</p>}
+    <ErrorText error={error} testId="start-error" />
   </form>;
 }

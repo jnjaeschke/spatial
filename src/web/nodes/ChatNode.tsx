@@ -13,6 +13,7 @@ import { ReopenClosed } from "../ReopenClosed.tsx";
 import { Box } from "../Box.tsx";
 import { Composer, useDraftText } from "../Composer.tsx";
 import { COMPOSER_HINT } from "../composer-key.ts";
+import { ErrorText, useAction } from "../action.tsx";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
@@ -43,7 +44,7 @@ export function Conversation(data: ConversationProps) {
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
   const [text, setText] = useDraftText(data.draftId);
-  const [error, setError] = useState<string | null>(null);
+  const { error, run, fail, clear } = useAction();
   const textarea = useRef<HTMLTextAreaElement>(null);
   // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
   const turns = (actions?.tasks ?? []).filter((t) => {
@@ -77,30 +78,31 @@ export function Conversation(data: ConversationProps) {
       {actions && data.threadId !== null && data.mcpRequests.map((server) => (
         <div key={server} className="enable-mcp-request">
           <span>Enable <code>{server}</code> for this chat?</span>
-          <button className="enable-mcp nodrag" type="button" onClick={() => api.enableMcpServer(actions.sessionId, data.threadId!, server).catch((err: Error) => setError(err.message))}>Enable</button>
+          <button className="enable-mcp nodrag" type="button" onClick={() => void run(() => api.enableMcpServer(actions.sessionId, data.threadId!, server))}>Enable</button>
         </div>
       ))}
       {actions && <form className="nodrag nopan" onSubmit={(e) => {
         e.preventDefault();
-        setError(null);
+        clear();
         const note = data.aside && data.draftId ? /^\/note(?:\s+|$)([\s\S]*)$/.exec(text.trim()) : null;
         if (note) {
           const body = note[1]!.trim();
-          if (!body) { setError("A note needs a body"); return; }
-          api.note(actions.sessionId, body).then(({ artifactId }) => actions.onNote(data.draftId!, artifactId), (err: Error) => setError(err.message));
+          if (!body) { fail("A note needs a body"); return; }
+          void run(async () => { const { artifactId } = await api.note(actions.sessionId, body); actions.onNote(data.draftId!, artifactId); });
           return;
         }
         const selection = llm ?? actions.models.default;
         const body = data.threadId ? { threadId: data.threadId, text, llm: selection } : { anchor: data.anchor, text, llm: selection, ...(data.aside ? { aside: true } : {}), ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
-        api.turn(actions.sessionId, body).then(({ taskId }) => {
+        void run(async () => {
+          const { taskId } = await api.turn(actions.sessionId, body);
           setText("");
           if (data.draftId) actions.onSent(data.draftId, taskId);
-        }, (err: Error) => setError(err.message));
+        });
       }}>
         <Composer textareaRef={textarea} label="message" placeholder={`Ask AI — ${COMPOSER_HINT}`} value={text} onChange={setText} rows={2} canSubmit={canSend} onSubmit={() => textarea.current?.form?.requestSubmit()} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
-        {error && <span className="failed">{error}</span>}
+        <ErrorText error={error} />
       </form>}
   </>;
 }

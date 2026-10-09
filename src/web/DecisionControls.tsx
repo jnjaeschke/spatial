@@ -3,6 +3,7 @@ import type { Artifact, DecisionData, LlmSelection, ModelsResponse } from "../sh
 import { api } from "./api.ts";
 import { LlmPicker } from "./LlmPicker.tsx";
 import { optionProblem, readModelChoice, saveModelChoice } from "./decisions.ts";
+import { ErrorText, useAction } from "./action.tsx";
 
 /** The models the session shell loaded; decisions whose options take a model offer a picker when set. */
 export const ModelsContext = createContext<ModelsResponse | null>(null);
@@ -13,14 +14,11 @@ export function DecisionControls({ sessionId, repoDir, decision, testId }: { ses
   const { question, options } = decision.data;
   const [text, setText] = useState(() => options.find((option) => option.defaultText)?.defaultText ?? "");
   const [llm, setLlm] = useState<LlmSelection | null>(() => readModelChoice(localStorage, repoDir) ?? models?.default ?? null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, run } = useAction();
   const send = (optionId: string) => {
     const option = options.find((candidate) => candidate.id === optionId)!;
-    setBusy(true); setError(null);
     if (option.takesModel && llm) saveModelChoice(localStorage, repoDir, llm);
-    api.decide(sessionId, decision.id, option.id, { ...(option.takesText && text.trim() ? { text: text.trim() } : {}), ...(option.takesModel && llm ? { llm } : {}) })
-      .catch((e: Error) => { setError(e.message); setBusy(false); });
+    void run(() => api.decide(sessionId, decision.id, option.id, { ...(option.takesText && text.trim() ? { text: text.trim() } : {}), ...(option.takesModel && llm ? { llm } : {}) }));
   };
   return <div className="decision" data-testid={testId}>
     <span className="decision-question">{question}</span>
@@ -30,6 +28,6 @@ export function DecisionControls({ sessionId, repoDir, decision, testId }: { ses
       const problem = optionProblem(option, option.takesText ? text : "");
       return <button key={option.id} type="button" className="nodrag" disabled={busy || problem !== null} title={problem ?? undefined} onClick={() => send(option.id)}>{option.label}</button>;
     })}</span>
-    {error && <span className="failed">{error}</span>}
+    <ErrorText error={error} />
   </div>;
 }

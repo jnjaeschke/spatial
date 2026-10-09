@@ -50,6 +50,7 @@ export type { BoxProps } from "./Box.tsx";
 export { Composer, useDraftText } from "./Composer.tsx";
 export type { ComposerProps } from "./Composer.tsx";
 export { composerKey, COMPOSER_HINT } from "./composer-key.ts";
+export { useAction, ErrorText } from "./action.tsx";
 export type { NodeProps } from "@xyflow/react";
 export * from "./graph-api.ts";
 export { InlineText } from "./InlineText.tsx";

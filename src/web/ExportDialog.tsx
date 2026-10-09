@@ -3,6 +3,7 @@ import type { Artifact, PostedCommentData, SessionState } from "../shared/types.
 import type { ExportDiff } from "./plugin-api.ts";
 import { exportHtml, exportState, type SessionExport } from "./export-state.ts";
 import { loadFileLines } from "./file-lines.ts";
+import { ErrorText, useAction } from "./action.tsx";
 
 const FILE_CAP = 1_000_000;
 const VIEW_KEYS = ["collapse", "free", "sizes", "view"];
@@ -56,11 +57,11 @@ function contents(data: SessionExport): string[] {
 export function ExportDialog({ state, diff, onClose }: { state: SessionState; diff: ExportDiff | null; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [prepared, setPrepared] = useState<Awaited<ReturnType<typeof prepare>> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { error, fail } = useAction();
   useEffect(() => {
     if (dialog.current && !dialog.current.open) dialog.current.showModal();
     let cancelled = false;
-    prepare(state, diff).then((value) => { if (!cancelled) setPrepared(value); }, (e: Error) => { if (!cancelled) setError(e.message); });
+    prepare(state, diff).then((value) => { if (!cancelled) setPrepared(value); }, (e: Error) => { if (!cancelled) fail(e.message); });
     return () => { cancelled = true; };
   }, [state]);
   const save = () => {
@@ -75,7 +76,7 @@ export function ExportDialog({ state, diff, onClose }: { state: SessionState; di
   };
   return <dialog ref={dialog} className="export-dialog" aria-label="Export read-only copy" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <h2>Export read-only copy</h2>
-    {error ? <p className="failed" role="alert">{error}</p> : prepared ? <>
+    {error ? <ErrorText error={error} /> : prepared ? <>
       <p>One HTML file that opens offline. Anyone with the file sees:</p>
       <ul>{contents(prepared.data).map((line) => <li key={line}>{line}</li>)}</ul>
     </> : <p>Preparing…</p>}

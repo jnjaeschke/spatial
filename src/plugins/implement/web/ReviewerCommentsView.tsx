@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PhaseViewProps } from "../../../web/plugin-api.ts";
-import { api, Composer } from "../../../web/plugin-api.ts";
+import { api, Composer, ErrorText, useAction } from "../../../web/plugin-api.ts";
 import { commentPlan, type CommentPlanItem } from "../shared/comment-plan.ts";
 import type { CommentAction } from "../shared/types.ts";
 import { RunStatus } from "./RunStatus.tsx";
@@ -9,8 +9,8 @@ function CommentItem({ sessionId, item, readOnly }: { sessionId: string; item: C
   const c = item.comment.data;
   const [action, setAction] = useState<CommentAction>(item.action);
   const [text, setText] = useState(item.text ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const save = (next: CommentAction, value: string) => api.triageComment(sessionId, item.comment.id, next, value.trim() || undefined).then(() => setError(null), (e: Error) => setError(e.message));
+  const { error, run } = useAction();
+  const save = (next: CommentAction, value: string) => run(() => api.triageComment(sessionId, item.comment.id, next, value.trim() || undefined));
   return <li className="reviewer-comment" data-testid="reviewer-comment" data-action={item.action}>
     <div className="reviewer-comment-head"><strong>{c.author}</strong> on D{c.revision}{c.path !== undefined && c.line !== undefined ? <> · <code>{c.path}:{c.line}</code></> : " · general comment"}</div>
     {c.quote !== undefined && <pre className="reviewer-comment-quote">{c.quote}</pre>}
@@ -23,7 +23,7 @@ function CommentItem({ sessionId, item, readOnly }: { sessionId: string; item: C
       {(["address", "reply", "ignore"] as const).map((option) => <button key={option} type="button" aria-pressed={action === option} onClick={() => { setAction(option); void save(option, text); }}>{option[0]!.toUpperCase() + option.slice(1)}</button>)}
       {action !== "ignore" && <Composer label="comment text" placeholder={action === "reply" ? "Reply (posted as a draft inline)" : "Note for the implement agent"} value={text} onChange={setText} canSubmit={!!text.trim()} onSubmit={() => void save(action, text)} />}
       {action !== "ignore" && <button type="button" onClick={() => void save(action, text)}>Save</button>}
-      {error && <span className="failed">{error}</span>}
+      <ErrorText error={error} />
     </div>}
   </li>;
 }

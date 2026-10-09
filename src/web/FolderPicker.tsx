@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DirectoryListing, RecentRepo } from "../shared/types.ts";
 import { api } from "./api.ts";
+import { ErrorText, useAction } from "./action.tsx";
 
 const RECENT_LIMIT = 6;
 
@@ -8,7 +9,7 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
   const [listing, setListing] = useState<DirectoryListing | null>(null);
   const [selected, setSelected] = useState(0);
   const [input, setInput] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const { error, fail, clear } = useAction();
   const [canOpen, setCanOpen] = useState(false);
   // null while loading: the listing waits for it, so the recent folders do not push it down under the pointer.
   const [recents, setRecents] = useState<RecentRepo[] | null>(null);
@@ -25,7 +26,7 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
 
   async function navigate(path?: string) {
     const id = ++request.current, editsAtStart = edits.current;
-    setError(null);
+    clear();
     try {
       const value = await api.dirs(path);
       if (id !== request.current) return;
@@ -37,7 +38,7 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
       if (id === request.current) setCanOpen(open);
     } catch (e) {
       if (id !== request.current) return;
-      setError((e as Error).message);
+      fail((e as Error).message);
       setCanOpen(false);
     }
   }
@@ -71,7 +72,7 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
     {recents && <form onSubmit={(event) => { event.preventDefault(); void navigate(input); }}><label>Path <input aria-label="Path" value={input} onChange={(event) => { edits.current++; setInput(event.target.value); }} /></label><button type="submit">Go</button></form>}
     {recents && <ul className="folder-entries">{choices.map((item, index) => <li key={item.path}><button type="button" aria-current={index === selected ? "true" : undefined} onFocus={() => setSelected(index)} onDoubleClick={() => void navigate(item.path)} onClick={() => setSelected(index)}><span>{item.name}{item.repo ? " · repository" : ""}</span></button></li>)}</ul>}
     {listing?.truncated && <p>Showing the first 2000 directories.</p>}
-    {error && <p className="failed" role="alert">{error}</p>}
+    <ErrorText error={error} />
     <footer><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!target} onClick={() => { if (target) window.location.href = `?path=${encodeURIComponent(target)}`; }}>Open</button></footer>
   </dialog>;
 }

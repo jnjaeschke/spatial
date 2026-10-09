@@ -6,6 +6,7 @@ import { numberLines, type Row } from "../shared/diff-lines.ts";
 import { parseSteps } from "../shared/spec-text.ts";
 import { DiffRows } from "./FilePanel.tsx";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
+import { ErrorText, useAction } from "../../../web/plugin-api.ts";
 
 /** Opens the spec view for a SpecReference; null where there is none (static export). */
 export const SpecViewContext = createContext<((specId: Id) => void) | null>(null);
@@ -37,7 +38,7 @@ export function SpecView({ state, specId, llm, onClose }: { state: SessionState;
   const unexplainedAdds = hunks.reduce((sum, { file, rows }) => sum + rows.filter((row) => row.kind === "add" && !byLine.has(lineKey(file.path, "new", row.new!)) && [undefined, "unexplained"].includes(otherByLine.get(lineKey(file.path, "new", row.new!))?.reason)).length, 0);
   const [selected, setSelected] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const { error, run } = useAction();
   const code = useRef<HTMLDivElement>(null);
   const selectedRanges = useMemo(() => selected?.startsWith("other:") ? unmapped[Number(selected.slice(6))]?.ranges ?? [] : links.filter((link) => link.step === selected).flatMap((link) => link.ranges), [links, selected, unmapped]);
 
@@ -93,8 +94,8 @@ export function SpecView({ state, specId, llm, onClose }: { state: SessionState;
         {running ? "Mapping steps…" : task?.status === "failed" ? `Mapping failed: ${task.error}` : map ? `${mapped} of ${steps.length} steps mapped${deviates ? ` · ${deviates} deviate${deviates === 1 ? "s" : ""}` : ""} · ${unexplainedAdds} added line${unexplainedAdds === 1 ? "" : "s"} unexplained` : "Steps not mapped yet"}
         {map?.data.dropped.length ? <span className="badge muted" title={map.data.dropped.join("\n")}>{map.data.dropped.length} dropped</span> : null}
       </span>
-      {!running && <button onClick={() => { setError(null); api.mapSpecSteps(state.session.id, specId, llm).catch((e: Error) => setError(e.message)); }}>{map || task ? "Map again" : "Map steps"}</button>}
-      {error && <span className="failed">{error}</span>}
+      {!running && <button onClick={() => void run(() => api.mapSpecSteps(state.session.id, specId, llm))}>{map || task ? "Map again" : "Map steps"}</button>}
+      <ErrorText error={error} />
       <span className="spacer" />
       <span className="spec-legend">{(["implements", "partial", "structural", "deviates"] as const).map((kind) => <span key={kind} className={`legend map-${kind}`}>{kind}</span>)}{(["plumbing", "error-path", "test", "unexplained"] as const).map((reason) => <span key={reason} className={`legend map-${reason}`}>{reason}</span>)}<span className="legend map-none">not mapped</span></span>
       <button aria-label="Close spec view" onClick={onClose}>×</button>

@@ -360,7 +360,7 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   expect(driftUpdate.ok()).toBeTruthy();
   await post.click();
   await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
-  await expect(panel.locator(".review-error")).toContainText(`D${ids[0]!.revision}`);
+  await expect(panel.getByRole("alert")).toContainText(`D${ids[0]!.revision}`);
   expect(await inlines(request, ids[0]!.revision)).toEqual([]);
 
   const restore = await request.post(control, { data: { revision: ids[0]!.revision, diffs: [ids[0]!.diff], rawDiffs: { [ids[0]!.diff]: stack.rawDiffs[0] } } });

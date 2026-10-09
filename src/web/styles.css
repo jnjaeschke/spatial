@@ -267,6 +267,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .empty { padding: 32px; color: var(--text-2); }
 .analysis { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; color: var(--text-2); }
 .failed { color: var(--danger); }
+.error-text { margin: 4px 0 0; }
 .epoch, .epoch-marker { font-size: 11.5px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent); border-radius: 999px; padding: 1px 9px; }
 .range { font: 11px var(--font-mono); color: var(--text-2); white-space: nowrap; }
 .epoch-marker { font-size: 10.5px; padding: 0 7px; margin-right: 6px; }
@@ -463,7 +464,6 @@ button.code-link::after {
 .review-node .composer { min-height: 64px; }
 .review-submit { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; }
 .review-result { color: var(--success); }
-.review-error { color: var(--danger); }
 .review-confirmation { width: min(560px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
 .review-confirmation::backdrop { background: rgb(0 0 0 / 45%); }
 .review-confirmation footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }

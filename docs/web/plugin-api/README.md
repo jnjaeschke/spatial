@@ -82,6 +82,7 @@
 - [Conversation](functions/Conversation.md)
 - [conversationGraph](functions/conversationGraph.md)
 - [conversationNode](functions/conversationNode.md)
+- [ErrorText](functions/ErrorText.md)
 - [fileUrl](functions/fileUrl.md)
 - [InlineText](functions/InlineText.md)
 - [isSatellite](functions/isSatellite.md)
@@ -98,6 +99,7 @@
 - [searchfoxLinks](functions/searchfoxLinks.md)
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)
+- [useAction](functions/useAction.md)
 - [useDraftText](functions/useDraftText.md)
 
 ## References
