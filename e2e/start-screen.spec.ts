@@ -129,6 +129,7 @@ test("folder picker navigates to a repository", async ({ page }) => {
   const recent = dialog.getByRole("navigation", { name: "Recent folders" });
   const recentBox = (await recent.boundingBox())!, crumbsBox = (await dialog.getByRole("navigation", { name: "Folder breadcrumbs" }).boundingBox())!;
   expect(recentBox.y).toBeLessThan(crumbsBox.y);
-  await recent.getByRole("link", { name: new RegExp(realpathSync(dir)) }).click();
-  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(realpathSync(dir))}$`));
+  const checkout = realpathSync(join(parent, "picked-checkout"));
+  await recent.getByRole("link", { name: new RegExp(checkout) }).click();
+  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(checkout)}$`));
 });
