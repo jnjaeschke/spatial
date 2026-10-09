@@ -10,6 +10,7 @@
 - [mcp/session-server](mcp/session-server/README.md)
 - [plugin-api](plugin-api/README.md)
 - [plugins/gecko/profile](plugins/gecko/profile/README.md)
+- [plugins/gecko/runtime/try-watcher](plugins/gecko/runtime/try-watcher/README.md)
 - [plugins/gecko/shared/types](plugins/gecko/shared/types/README.md)
 - [plugins/implement/api](plugins/implement/api/README.md)
 - [plugins/implement/runtime/test-first](plugins/implement/runtime/test-first/README.md)
