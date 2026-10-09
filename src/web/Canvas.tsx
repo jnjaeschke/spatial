@@ -1,8 +1,8 @@
 import { flushSync } from "react-dom";
 import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
-  Background, Controls, MiniMap, NodeResizeControl, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
-  type Edge, type Node, type NodeProps, type Viewport,
+  Background, Controls, MiniMap, NodeResizer, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
+  type Edge, type Node, type NodeProps, type ResizeParams, type Viewport,
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
@@ -15,7 +15,7 @@ import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
 import { GuideBar } from "./GuideBar.tsx";
 import { moveStep, startStep } from "./guide.ts";
-import { useNodeSizes } from "./node-sizes.ts";
+import { useNodeSizes, type NodeSize } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
 import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
 import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
@@ -73,21 +73,22 @@ const NO_PROVIDER: ComponentType<CanvasProviderProps> = ({ children }) => <>{chi
 const quoteOf = (data: GraphNodeData) => "quote" in data && typeof data.quote === "string" && data.quote && "anchor" in data && typeof data.anchor === "string"
   ? { kind: data.kind, anchor: data.anchor, quote: data.quote, lines: ("lines" in data ? data.lines : undefined) as ChatNodeData["lines"] } : null;
 
-const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; setWidth(level: ZoomLevel, id: string, width: number): void } | null>(null);
+const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; resized(id: string, from: ResizeParams, to: ResizeParams): void } | null>(null);
 function ResizableNode(props: NodeProps) {
   const kinds = useContext(NodeKindsContext);
   const resize = useContext(ResizeContext);
+  const start = useRef<ResizeParams | null>(null);
   const kind = kinds[props.type];
   if (!kind) throw new Error(`Unknown node type: ${props.type}`);
   const Original = kind.component;
   if (kind.resizable === false) return createElement(Original, props);
   return <>
     {createElement(Original, props)}
-    {props.selected && resize && <NodeResizeControl
-      position="right"
-      resizeDirection="horizontal"
+    {resize && <NodeResizer
       minWidth={NODE_WIDTH[resize.level] * resize.textScale / 2}
-      onResizeEnd={(_, dimensions) => resize.setWidth(resize.level, props.id, dimensions.width / resize.textScale)}
+      minHeight={60 * resize.textScale}
+      onResizeStart={(_, params) => { start.current = params; }}
+      onResizeEnd={(_, params) => resize.resized(props.id, start.current!, params)}
     />}
   </>;
 }
@@ -109,7 +110,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   const nodeKinds = useContext(NodeKindsContext);
   const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
-  const { sizes, setWidth, clear: clearNodeSizes } = useNodeSizes(state.session.id);
+  const { sizes, setSize, clear: clearNodeSizes } = useNodeSizes(state.session.id);
   const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(state.session.id);
   const paneHeight = useStore((s) => s.height);
   const colorMode = useResolvedTheme();
@@ -259,6 +260,30 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   const offsets = useRef(new Map<string, { dx: number; dy: number }>());
   const basePos = useRef(new Map<string, { x: number; y: number }>());
 
+  const sizeOf = (kind: string, id: string): NodeSize => nodeKinds[kind]?.resizable === false ? {} : sizes[level]?.[id] ?? {};
+  // A node with a height of its own scrolls its content, and the wheel scrolls it instead of the canvas.
+  const nodeClass = (id: string, kind: string) => [id === currentRef.current && "guide-current", sizeOf(kind, id).height !== undefined && "fixed-height nowheel"].filter(Boolean).join(" ") || undefined;
+  const nodeStyle = (n: PlacedNode | GraphNode) => {
+    const kind = nodeKinds[n.data.kind]!;
+    const size = sizeOf(n.data.kind, n.id);
+    const width = kind.resizable === false ? kind.size(n.data, level).width : size.width ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level]);
+    return { width: width * textScale, ...(size.height !== undefined ? { height: size.height * textScale } : {}) };
+  };
+  const keepPosition = (id: string, position: { x: number; y: number }) => {
+    if (graph.nodes.find((item) => item.id === id)?.position) setFreePosition(id, position);
+    else {
+      const b = basePos.current.get(id);
+      if (b) offsets.current.set(id, { dx: position.x - b.x, dy: position.y - b.y });
+    }
+  };
+  const resized = (id: string, from: ResizeParams, to: ResizeParams) => {
+    const size: NodeSize = {};
+    if (Math.round(to.width) !== Math.round(from.width)) size.width = to.width / textScale;
+    if (Math.round(to.height) !== Math.round(from.height)) size.height = to.height / textScale;
+    if (to.x !== from.x || to.y !== from.y) keepPosition(id, { x: to.x, y: to.y });
+    if (size.width !== undefined || size.height !== undefined) setSize(level, id, size);
+  };
+
   const place = (id: string, p: { x: number; y: number }) => {
     const o = offsets.current.get(id);
     return o ? { x: p.x + o.dx, y: p.y + o.dy } : p;
@@ -338,7 +363,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       if (!kind) throw new Error(`Unknown node kind: ${n.data.kind}`);
       const estimate = kind.size(n.data, level);
       const width = isSatellite(n) ? SATELLITE_WIDTH : estimate.width;
-      return { id: n.id, width: kind.resizable !== false && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : m?.width ?? width * textScale, height: m?.height ?? estimate.height * textScale };
+      const size = sizeOf(n.data.kind, n.id);
+      return { id: n.id, width: size.width !== undefined ? size.width * textScale : m?.width ?? width * textScale, height: m?.height ?? (size.height ?? estimate.height) * textScale };
     });
     const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
     basePos.current = pos;
@@ -349,8 +375,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       data: { ...n.data, sessionId: state.session.id, level },
       position: place(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
-      style: { width: (nodeKinds[n.data.kind]!.resizable === false ? nodeKinds[n.data.kind]!.size(n.data, level).width : sizes[level]?.[n.id] ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level])) * textScale },
-      className: n.id === currentRef.current ? "guide-current" : undefined,
+      style: nodeStyle(n),
+      className: nodeClass(n.id, n.data.kind),
       selected: selected.has(n.id),
       draggable: true,
       dragHandle: ".title",
@@ -358,7 +384,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   }, [shown, level, textScale, setNodes, state.session.id, rf, sizes]);
 
   useEffect(() => {
-    setNodes((ns) => ns.map((n) => ({ ...n, className: n.id === currentId ? "guide-current" : undefined })));
+    setNodes((ns) => ns.map((n) => ({ ...n, className: nodeClass(n.id, n.type!) })));
   }, [currentId, setNodes]);
 
   const sizeKey = nodes.map((n) => `${n.id}:${n.measured?.width ?? 0}x${n.measured?.height ?? 0}`).join("|");
@@ -369,7 +395,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
     measureQuoteDy();
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: nodeKinds[n.type!]?.resizable !== false && sizes[level]?.[n.id] !== undefined ? sizes[level][n.id]! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizeOf(n.type!, n.id).width !== undefined ? sizeOf(n.type!, n.id).width! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
@@ -668,7 +694,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
-      <ResizeContext.Provider value={{ level, textScale, setWidth }}>
+      <ResizeContext.Provider value={{ level, textScale, resized }}>
       <div className="canvas-layout">
       <ReactFlow
         nodes={nodes}
@@ -683,14 +709,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
         selectNodesOnDrag
         nodeDragThreshold={1}
         elevateNodesOnSelect
-        onNodeDragStop={(_, node) => {
-          const graphNode = graph.nodes.find((item) => item.id === node.id);
-          if (graphNode?.position) setFreePosition(node.id, node.position);
-          else {
-            const b = basePos.current.get(node.id);
-            if (b) offsets.current.set(node.id, { dx: node.position.x - b.x, dy: node.position.y - b.y });
-          }
-        }}
+        onNodeDragStop={(_, node) => keepPosition(node.id, node.position)}
         panOnScroll
         disableKeyboardA11y
         minZoom={0.1}

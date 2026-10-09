@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { setLevel, waitForCanvasSettled } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
@@ -301,7 +301,7 @@ test("resizing a node persists width per zoom level and reset restores defaults"
   const second = page.getByTestId("change-c2").locator("..");
   await first.click();
   const beforeWidth = (await first.boundingBox())!.width;
-  const handle = first.locator(".react-flow__resize-control.right");
+  const handle = first.locator(".react-flow__resize-control.line.right");
   await expect(handle).toBeVisible();
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -326,4 +326,58 @@ test("resizing a node persists width per zoom level and reset restores defaults"
   await setLevel(page, "concept");
   await page.getByRole("button", { name: "Reset layout" }).click();
   await expect.poll(async () => (await reloadedFirst.boundingBox())!.width).toBeLessThan(resizedWidth - 100);
+});
+
+async function dragBy(page: Page, target: Locator, dx: number, dy: number) {
+  const box = (await target.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 10 });
+  await page.mouse.up();
+}
+
+test("a node resizes from every edge and corner like a window and keeps a height of its own", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "concept");
+  const node = page.getByTestId("change-c1").locator("..");
+  await expect(node.locator(".react-flow__resize-control.line.left")).toHaveCSS("cursor", "ew-resize");
+  await expect(node.locator(".react-flow__resize-control.line.bottom")).toHaveCSS("cursor", "ns-resize");
+  await expect(node.locator(".react-flow__resize-control.handle.bottom.right")).toHaveCSS("cursor", "nwse-resize");
+  await expect(node.locator(".react-flow__resize-control.handle.top.right")).toHaveCSS("cursor", "nesw-resize");
+
+  const before = (await node.boundingBox())!;
+  await dragBy(page, node.locator(".react-flow__resize-control.line.left"), -120, 0);
+  await waitForCanvasSettled(page);
+  const widened = (await node.boundingBox())!;
+  expect(widened.width).toBeGreaterThan(before.width + 80);
+  expect(Math.abs(widened.x + widened.width - (before.x + before.width))).toBeLessThan(4);
+
+  await dragBy(page, node.locator(".react-flow__resize-control.handle.bottom.right"), 0, -(before.height / 2));
+  await waitForCanvasSettled(page);
+  await expect(node).toHaveClass(/fixed-height/);
+  const shortened = (await node.boundingBox())!;
+  expect(shortened.height).toBeLessThan(before.height * 0.75);
+  expect(await page.getByTestId("change-c1").evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+
+  await page.reload();
+  await setLevel(page, "concept");
+  await expect.poll(async () => (await page.getByTestId("change-c1").locator("..").boundingBox())!.height).toBeCloseTo(shortened.height, -1);
+});
+
+test("a node drags from anywhere on its title bar, including the strip above the title text", async ({ page }) => {
+  await page.goto(URL);
+  await setLevel(page, "concept");
+  const node = page.getByTestId("change-c1").locator("..");
+  const before = (await node.boundingBox())!;
+  const title = page.getByTestId("change-c1").locator("> .title");
+  const bar = (await title.boundingBox())!;
+  expect(bar.y - before.y).toBeLessThan(3);
+  expect(bar.width).toBeGreaterThan(before.width - 4);
+  await page.mouse.move(before.x + before.width / 2, bar.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width / 2 + 150, bar.y + 66, { steps: 10 });
+  await page.mouse.up();
+  const after = (await node.boundingBox())!;
+  expect(after.x - before.x).toBeGreaterThan(100);
+  expect(after.y - before.y).toBeGreaterThan(40);
 });

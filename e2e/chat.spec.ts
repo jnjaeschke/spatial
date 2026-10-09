@@ -163,7 +163,7 @@ test("/note from an aside draft creates a positioned draft note without a chat t
   await revealNode(page, reopen);
   await reopen.click();
   await expect(note).toContainText("check the lifetime here");
-  await note.locator(".title").click({ position: { x: 5, y: 5 } });
+  await note.locator(".title").click({ position: { x: 30, y: 14 } });
   await note.getByRole("button", { name: "Ask about note" }).click();
   const noteDraft = page.locator('[data-testid^="chat-draft-"]');
   await noteDraft.getByLabel("message").fill("Is this lifetime right?");
