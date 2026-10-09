@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { LlmSelection, ModelsResponse, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { LlmPicker } from "./LlmPicker.tsx";
+import { DescribedOptions } from "./custom-select.tsx";
 import { commandSuggestions, completeCommand } from "./slash.ts";
 import { readWriteMode, saveWriteMode, WRITE_MODES } from "./write-mode.ts";
 
@@ -55,11 +56,15 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
       </li>)}
     </ul>}
     </div>
-    <LlmPicker models={models} value={llm} onChange={setLlm} />
-    <select className="write-mode" aria-label="write mode" value={writeMode} onChange={(e) => { const mode = e.target.value as WriteMode; setWriteMode(mode); saveWriteMode(localStorage, repoDir, mode); }}>
-      {WRITE_MODES.map((mode) => <option key={mode.id} value={mode.id} title={mode.title}>{mode.label}</option>)}
-    </select>
-    <button type="submit" disabled={busy || !text.trim()}>Start</button>
+    <div className="start-controls">
+      <LlmPicker models={models} value={llm} onChange={setLlm} labeled />
+      <label className="field"><span className="field-label">Agent access</span>
+        <select className="write-mode" aria-label="write mode" value={writeMode} onChange={(e) => { const mode = e.target.value as WriteMode; setWriteMode(mode); saveWriteMode(localStorage, repoDir, mode); }}>
+          <DescribedOptions options={WRITE_MODES.map((mode) => ({ value: mode.id, label: mode.label, description: mode.title }))} />
+        </select>
+      </label>
+      <button type="submit" className="start-submit" disabled={busy || !text.trim()}>Start</button>
+    </div>
     {question && <div className="start-question" data-testid="start-question">
       <p>{question.question}</p>
       {question.options.map((option, index) => <button key={option.label} type="button" onClick={() => option.cancel ? setQuestion(null) : submit(index)}>{option.label}</button>)}

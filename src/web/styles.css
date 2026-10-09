@@ -117,7 +117,44 @@ input, select, textarea {
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
   transition: border-color 120ms, box-shadow 120ms;
 }
-select { padding: 3px 6px; }
+select { padding: 3px 6px; cursor: pointer; }
+select:hover:not(:disabled) { border-color: color-mix(in oklab, var(--accent) 45%, var(--border-strong)); }
+/* Without customizable select: native picker, own chevron drawn from two gradients so it follows the theme colors. */
+@supports not (appearance: base-select) {
+  select {
+    appearance: none; padding-right: 22px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+    background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%; background-size: 4px 4px; background-repeat: no-repeat;
+  }
+}
+@supports (appearance: base-select) {
+  select, ::picker(select) { appearance: base-select; }
+  select { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; }
+  select > button { all: unset; display: flex; align-items: center; min-width: 0; }
+  select::picker-icon {
+    content: ""; width: 9px; height: 9px; background: var(--text-3); transition: rotate 150ms ease;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 3.5 5 7l3.5-3.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  select:open::picker-icon { rotate: 180deg; background: var(--accent); }
+  ::picker(select) {
+    margin-block: 4px; padding: 4px; min-width: anchor-size(width); max-height: 60vh;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: var(--shadow-3);
+    opacity: 0; translate: 0 -4px; transition: opacity 120ms ease, translate 120ms ease, display 120ms allow-discrete, overlay 120ms allow-discrete;
+  }
+  select:open::picker(select) { opacity: 1; translate: 0 0; }
+  @starting-style { select:open::picker(select) { opacity: 0; translate: 0 -4px; } }
+  option { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background 80ms; }
+  option:hover, option:focus-visible { background: var(--accent-soft); outline: none; }
+  option:checked { color: var(--accent); font-weight: 600; }
+  option::checkmark { order: 1; margin-left: auto; content: "✓"; color: var(--accent); }
+  option:disabled { opacity: 0.45; cursor: default; }
+  option:disabled:hover { background: none; }
+  .option-text { display: grid; gap: 1px; }
+  .option-desc { max-width: 40ch; font-size: 12px; font-weight: 400; color: var(--text-3); white-space: normal; }
+  selectedcontent .option-desc { display: none; }
+}
+.field { display: inline-flex; align-items: center; gap: 6px; }
+.field-label { font-size: 12px; color: var(--text-3); }
 textarea { line-height: 1.45; resize: vertical; }
 input::placeholder, textarea::placeholder { color: var(--text-3); }
 input[type="checkbox"] { padding: 0; margin: 0 2px 0 0; vertical-align: -2px; }
@@ -278,7 +315,9 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .start-input { position: relative; width: 100%; }
 .start-box textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }
-.start-box .write-mode { margin-left: 4px; }
+.start-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; width: 100%; }
+.start-controls .start-submit { margin-left: auto; }
+.start-controls .llm-picker { gap: 8px 16px; }
 .start-question { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex-basis: 100%; }
 .start-question p { margin: 0; flex-basis: 100%; }
 .command-popup { position: absolute; z-index: 5; top: calc(100% - 3px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-3); }

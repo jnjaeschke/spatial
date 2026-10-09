@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import type { LlmBackendId, LlmSelection, ModelsResponse } from "../shared/types.ts";
 
-export function LlmPicker({ models, value, onChange }: { models: ModelsResponse; value: LlmSelection; onChange: (s: LlmSelection) => void }) {
+/** Backend, model and effort selects; `labeled` adds visible labels (for roomy places like the start box). */
+export function LlmPicker({ models, value, onChange, labeled = false }: { models: ModelsResponse; value: LlmSelection; onChange: (s: LlmSelection) => void; labeled?: boolean }) {
   const backendModels = (b: LlmBackendId) => {
     const r = models.backends[b];
     return "models" in r ? r.models : [];
@@ -12,8 +14,9 @@ export function LlmPicker({ models, value, onChange }: { models: ModelsResponse;
     const effort = m?.efforts.includes(value.effort) ? value.effort : (m?.efforts.includes("medium") ? "medium" : (m?.efforts[0] ?? value.effort));
     onChange({ backend, model: modelId, effort });
   };
+  const field = (label: string, control: ReactNode) => labeled ? <label className="field"><span className="field-label">{label}</span>{control}</label> : control;
   return <span className="llm-picker">
-    <select aria-label="backend" value={value.backend} onChange={(e) => {
+    {field("Model", <><select aria-label="backend" value={value.backend} onChange={(e) => {
       const b = e.target.value as LlmBackendId;
       pickModel(b, backendModels(b)[0]?.id ?? "");
     }}>
@@ -24,9 +27,9 @@ export function LlmPicker({ models, value, onChange }: { models: ModelsResponse;
     </select>
     <select aria-label="model" value={value.model} onChange={(e) => pickModel(value.backend, e.target.value)}>
       {current.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}
-    </select>
-    <select aria-label="effort" value={value.effort} onChange={(e) => onChange({ ...value, effort: e.target.value })}>
+    </select></>)}
+    {field("Effort", <select aria-label="effort" value={value.effort} onChange={(e) => onChange({ ...value, effort: e.target.value })}>
       {efforts.map((x) => <option key={x} value={x}>{x}</option>)}
-    </select>
+    </select>)}
   </span>;
 }

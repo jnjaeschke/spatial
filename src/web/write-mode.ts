@@ -1,6 +1,6 @@
 import type { WriteMode } from "../shared/types.ts";
 
-/** What each write mode lets the implement agent do; shown as the picker's tooltip. */
+/** What each write mode lets the implement agent do; the title is the option's description. */
 export const WRITE_MODES: { id: WriteMode; label: string; title: string }[] = [
   { id: "auto", label: "Auto", title: "The agent edits files and runs commands; the CLI's own safety checks decide what needs approval." },
   { id: "full", label: "Full access", title: "The agent edits files and runs commands without approvals or sandboxing." },
