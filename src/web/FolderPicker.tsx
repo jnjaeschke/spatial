@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DirectoryListing, RecentRepo } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { ErrorText, useAction } from "./action.tsx";
+import { Dialog } from "./Dialog.tsx";
 
 const RECENT_LIMIT = 6;
 
@@ -13,13 +14,11 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
   const [canOpen, setCanOpen] = useState(false);
   // null while loading: the listing waits for it, so the recent folders do not push it down under the pointer.
   const [recents, setRecents] = useState<RecentRepo[] | null>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
   // Listings can resolve out of order (the initial home listing after a typed path); only the latest request counts.
   const request = useRef(0);
   // Typing in the path field while a listing loads must not be overwritten by that listing's path.
   const edits = useRef(0);
   useEffect(() => {
-    if (dialog.current && !dialog.current.open) dialog.current.showModal();
     void navigate();
     api.repos().then((repos) => setRecents(repos.toSorted((a, b) => b.lastActive.localeCompare(a.lastActive)).slice(0, RECENT_LIMIT)), () => setRecents([]));
   }, []);
@@ -50,17 +49,16 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
     const item = choices[selected];
     if (item) void navigate(item.path);
   }
-  function keyDown(event: React.KeyboardEvent<HTMLDialogElement>) {
-    if (event.key === "Escape") { event.preventDefault(); onClose(); }
-    else if (event.key === "ArrowDown" && choices.length) { event.preventDefault(); setSelected((selected + 1) % choices.length); }
+  function keyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowDown" && choices.length) { event.preventDefault(); setSelected((selected + 1) % choices.length); }
     else if (event.key === "ArrowUp" && choices.length) { event.preventDefault(); setSelected((selected + choices.length - 1) % choices.length); }
     else if (event.target instanceof HTMLElement && !event.target.matches("input, button[type=submit]")) {
       if (event.key === "Backspace" && listing?.parent) { event.preventDefault(); void navigate(listing.parent); }
-      else if (event.key === "Enter" && (event.target === dialog.current || event.target.closest(".folder-entries"))) { event.preventDefault(); goSelected(); }
+      else if (event.key === "Enter" && (event.target === event.currentTarget || event.target.closest(".folder-entries"))) { event.preventDefault(); goSelected(); }
     }
   }
-  return <dialog ref={dialog} className="folder-picker" aria-label="Open folder" onKeyDown={keyDown} onCancel={(event) => { event.preventDefault(); onClose(); }}>
-    <header><h2>Open folder</h2><button type="button" aria-label="Close" onClick={onClose}>×</button></header>
+  return <Dialog title="Open folder" onClose={onClose} className="folder-picker" footer={<><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!target} onClick={() => { if (target) window.location.href = `?path=${encodeURIComponent(target)}`; }}>Open</button></>}>
+    <div onKeyDown={keyDown}>
     {recents && recents.length > 0 && <nav aria-label="Recent folders" className="folder-recents"><h3>Recent</h3><ul>{recents.map((repo) => <li key={repo.worktree}>
       <a href={`?path=${encodeURIComponent(repo.worktree)}`}><b>{repo.name}</b> <code>{repo.worktree}</code></a>
     </li>)}</ul></nav>}
@@ -73,6 +71,6 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
     {recents && <ul className="folder-entries">{choices.map((item, index) => <li key={item.path}><button type="button" aria-current={index === selected ? "true" : undefined} onFocus={() => setSelected(index)} onDoubleClick={() => void navigate(item.path)} onClick={() => setSelected(index)}><span>{item.name}{item.repo ? " · repository" : ""}</span></button></li>)}</ul>}
     {listing?.truncated && <p>Showing the first 2000 directories.</p>}
     <ErrorText error={error} />
-    <footer><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!target} onClick={() => { if (target) window.location.href = `?path=${encodeURIComponent(target)}`; }}>Open</button></footer>
-  </dialog>;
+    </div>
+  </Dialog>;
 }

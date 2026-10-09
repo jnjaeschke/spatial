@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Artifact, PostedCommentData, SessionState } from "../shared/types.ts";
 import type { ExportDiff } from "./plugin-api.ts";
 import { exportHtml, exportState, type SessionExport } from "./export-state.ts";
 import { loadFileLines } from "./file-lines.ts";
 import { ErrorText, useAction } from "./action.tsx";
+import { Dialog } from "./Dialog.tsx";
 
 const FILE_CAP = 1_000_000;
 const VIEW_KEYS = ["collapse", "free", "sizes", "view"];
@@ -55,11 +56,9 @@ function contents(data: SessionExport): string[] {
 
 /** Prepares a read-only static copy of the session, lists what it contains, and saves it as one HTML file. */
 export function ExportDialog({ state, diff, onClose }: { state: SessionState; diff: ExportDiff | null; onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const [prepared, setPrepared] = useState<Awaited<ReturnType<typeof prepare>> | null>(null);
   const { error, fail } = useAction();
   useEffect(() => {
-    if (dialog.current && !dialog.current.open) dialog.current.showModal();
     let cancelled = false;
     prepare(state, diff).then((value) => { if (!cancelled) setPrepared(value); }, (e: Error) => { if (!cancelled) fail(e.message); });
     return () => { cancelled = true; };
@@ -74,12 +73,10 @@ export function ExportDialog({ state, diff, onClose }: { state: SessionState; di
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     onClose();
   };
-  return <dialog ref={dialog} className="export-dialog" aria-label="Export read-only copy" onCancel={(event) => { event.preventDefault(); onClose(); }}>
-    <h2>Export read-only copy</h2>
+  return <Dialog title="Export read-only copy" onClose={onClose} footer={<><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!prepared} onClick={save}>Save file</button></>}>
     {error ? <ErrorText error={error} /> : prepared ? <>
       <p>One HTML file that opens offline. Anyone with the file sees:</p>
       <ul>{contents(prepared.data).map((line) => <li key={line}>{line}</li>)}</ul>
     </> : <p>Preparing…</p>}
-    <footer><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!prepared} onClick={save}>Save file</button></footer>
-  </dialog>;
+  </Dialog>;
 }

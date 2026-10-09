@@ -82,6 +82,7 @@
 - [Conversation](functions/Conversation.md)
 - [conversationGraph](functions/conversationGraph.md)
 - [conversationNode](functions/conversationNode.md)
+- [Dialog](functions/Dialog.md)
 - [ErrorText](functions/ErrorText.md)
 - [fileUrl](functions/fileUrl.md)
 - [InlineText](functions/InlineText.md)

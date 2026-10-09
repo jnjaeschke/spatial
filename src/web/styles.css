@@ -303,10 +303,13 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .repo-switcher a[aria-current="page"] { border-color: var(--accent); background: var(--accent-soft); }
 .session-picker-heading { margin-top: 28px; }
 .start-screen > header > a { margin-left: auto; margin-right: 16px; }
-.folder-picker { width: min(720px, calc(100vw - 32px)); max-height: min(80vh, 760px); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
-.folder-picker::backdrop { background: rgb(0 0 0 / 55%); }
-.folder-picker > header, .folder-picker > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.folder-picker h2 { margin: 0; }
+.dialog { width: min(560px, calc(100vw - 32px)); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+.dialog::backdrop { background: rgb(0 0 0 / 50%); }
+.dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dialog > header h2 { margin: 0; }
+.dialog > header .close { margin-left: auto; font-size: 1em; }
+.dialog > footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.folder-picker { width: min(720px, calc(100vw - 32px)); max-height: min(80vh, 760px); }
 .folder-recents { margin-top: 14px; }
 .folder-recents h3 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
 .folder-recents ul { margin: 0; padding: 0; list-style: none; }
@@ -320,7 +323,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .folder-entries { max-height: 42vh; overflow: auto; padding: 0; list-style: none; }
 .folder-entry, .folder-entries button { width: 100%; text-align: left; padding: 8px 10px; }
 .folder-entries button[aria-current="true"] { outline: 2px solid var(--accent); }
-.folder-picker > footer { justify-content: flex-end; margin-top: 16px; }
+.folder-picker > footer { margin-top: 16px; }
 .start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .start-input { position: relative; width: 100%; }
 .start-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; width: 100%; }
@@ -464,10 +467,8 @@ button.code-link::after {
 .review-node .composer { min-height: 64px; }
 .review-submit { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; }
 .review-result { color: var(--success); }
-.review-confirmation { width: min(560px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
-.review-confirmation::backdrop { background: rgb(0 0 0 / 45%); }
-.review-confirmation footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .review-confirmation li { margin: 5px 0; overflow-wrap: anywhere; }
+.review-confirmation { max-height: 80vh; overflow: auto; }
 .phab-summary { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
 .phab-summary h4 { margin: 0; font-size: 0.85em; font-weight: 650; color: var(--text-2); }
 .summary-node .files .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
@@ -659,8 +660,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .phab-more { margin-top: 4px; padding: 0 4px; border: 0; background: transparent; font: inherit; font-size: 0.85em; color: var(--kind-phab); cursor: pointer; box-shadow: none; }
 .checkout-name { color: var(--text-2); font-weight: 500; }
 .export-badge { color: var(--text-2); font-size: 12.5px; }
-.export-dialog { width: min(560px, calc(100vw - 32px)); color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
-.export-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .file-panel tr.jumps { cursor: pointer; }
 .file-panel tr.jumps:hover td.ln, .file-panel tr.jumps:hover td.sign { text-decoration: underline; }
 .selector-question { max-width: 640px; margin: 48px auto; display: flex; flex-direction: column; gap: 8px; }
