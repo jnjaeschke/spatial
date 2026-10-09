@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
@@ -20,6 +20,16 @@ function makeRepo() {
   return dir;
 }
 const open = (path: string) => `http://127.0.0.1:4178/?path=${encodeURIComponent(path)}`;
+
+function makeGeckoRepo() {
+  const dir = makeRepo();
+  writeFileSync(join(dir, "mach"), `#!/bin/sh\nprintf '%s\\n' "$@" > .git/mach-args\necho "try submission success in 1.0s:"\necho " https://treeherder.mozilla.org/jobs?repo=try&landoInstance=lando-prod-2025&landoCommitID=42"\n`);
+  chmodSync(join(dir, "mach"), 0o755);
+  writeFileSync(join(dir, "moz.build"), "");
+  git(dir, "add", "-A");
+  git(dir, "commit", "-m", "gecko markers");
+  return dir;
+}
 
 test("implement: investigate, approve, implement, automatic fix round, revise, accept", async ({ page }) => {
   test.setTimeout(120_000);
@@ -93,4 +103,53 @@ test("the write mode is remembered per repository", async ({ page }) => {
   await mode.selectOption("editsOnly");
   await page.reload();
   await expect(page.getByLabel("write mode")).toHaveValue("editsOnly");
+});
+
+test("gecko: after Accept the try proposal is pushed on click and followed on Treeherder", async ({ page }) => {
+  test.setTimeout(120_000);
+  const dir = makeGeckoRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement TRY-E2E Bug 4242 make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const bar = page.getByTestId("topbar-decision");
+  await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Approve" }).click();
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await bar.getByRole("button", { name: "Accept" }).click();
+  await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
+  await expect(page.getByTestId("try-proposal")).toContainText("Runs the plain mochitests.");
+  await expect(bar.getByLabel("decision text")).toHaveValue("./mach try fuzzy --query 'mochitest-plain'");
+  expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
+  await bar.getByLabel("decision text").fill("./mach try fuzzy --query 'mochitest-plain' --artifact");
+  await bar.getByRole("button", { name: "Push" }).click();
+  await expect(page.getByTestId("try-failure")).toContainText("test-linux1804-64/opt-mochitest-plain-1", { timeout: 20_000 });
+  await expect(page.getByTestId("try-failure")).toContainText("c is missing");
+  await expect(page.getByTestId("try-headline")).toContainText("Finished: 3 done, 1 failing", { timeout: 20_000 });
+  expect(readFileSync(join(dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean)).toEqual(["try", "fuzzy", "--query", "mochitest-plain", "--artifact"]);
+  expect(git(dir, "log", "--format=%s", "-1")).toBe("Bug 4242 - Add c");
+});
+
+test("gecko: chat proposes a try push and nothing is pushed until the click", async ({ page }) => {
+  const dir = makeGeckoRepo();
+  writeFileSync(join(dir, "c.txt"), "c\n");
+  git(dir, "add", "-A");
+  git(dir, "commit", "-m", "Bug 1 - Add c");
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/review");
+  await page.getByLabel("start").press("Enter");
+  await expect(page).toHaveURL(/\?session=/);
+  const conversation = page.getByTestId("conversation");
+  const input = conversation.getByLabel("message");
+  await input.fill("PUSH-TRY-PLEASE");
+  await conversation.getByRole("button", { name: "Send" }).click();
+  const bar = page.getByTestId("topbar-decision");
+  await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
+  await expect(bar.getByLabel("decision text")).toHaveValue("./mach try auto");
+  await expect(page.getByTestId("try-proposal")).toContainText("You asked for try.");
+  expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
+  await bar.getByRole("button", { name: "Skip" }).click();
+  await expect(bar).toHaveCount(0);
+  expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
+  await page.getByTestId("epoch-chip-1").click();
+  await expect(conversation.locator(".msg.assistant")).toContainText("I will start a try push.");
 });

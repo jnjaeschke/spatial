@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -102,11 +102,22 @@ const agentOut = join(implementDir, "agent.jsonl");
 writeFileSync(agentOut, agentEvents.map((event) => JSON.stringify(event)).join("\n") + "\n");
 const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
 const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The value is named." }] });
+const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here." }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", tests: [] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });
+const tryCleanReviewOut = stubOut("try-clean-review", { findings: [], verdicts: [] });
+const tryProposalOut = stubOut("try-proposal", { command: "./mach try fuzzy --query 'mochitest-plain'", reason: "Runs the plain mochitests." });
+const tryChatOut = stubOut("try-chat", { answer: "I will start a try push.", questions: [], revisions: [], requestMcpServers: [], diagram: null, tryPush: { command: "./mach try auto", reason: "You asked for try." } });
+const tryNarrativeOut = stubOut("try-narrative", { summary: "Adds c.", changes: [{ id: "c1", title: "Add c", explanation: "Adds c.txt.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }] });
+const tryImpl = script("try-impl", `printf 'c\\n' > c.txt\ngit add -A\n${commit} -m 'Bug 4242 - Add c'\n`);
+const treeherderCli = join(implementDir, "treeherder-cli.sh");
+writeFileSync(treeherderCli, `#!/bin/sh\ncat <<'EOF'\n${JSON.stringify({ revision: "abc123", push_id: 7, matched_jobs: 3, jobs: [{ job: { id: 9, job_type_name: "test-linux1804-64/opt-mochitest-plain-1", job_type_symbol: "1", platform: "linux1804-64", platform_option: "opt", result: "testfailed", state: "completed", failure_classification_id: 1 }, errors: [{ action: "test_result", line: 1, test: "dom/base/test/test_c.html", status: "FAIL", message: "c is missing" }], log_matches: [] }] })}\nEOF\n`);
+chmodSync(treeherderCli, 0o755);
+process.env.SPATIAL_TREEHERDER_CLI = treeherderCli;
 // Implement routes come first: the review prompts of an implement session also contain the generic needles below.
-const implementRoutes = { "You investigate a bug report": investigationOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
+const implementRoutes = { "You investigate a bug report&&TRY-E2E": tryInvestigationOut, 'TRY-E2E&&"findings"': tryCleanReviewOut, "You propose a try push": tryProposalOut, "You investigate a bug report": investigationOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
 // Spec view and file navigation routes come first: their mapping and narration prompts also contain the generic needles below.
-process.env.FAKE_LLM_ROUTES = JSON.stringify({ ...implementRoutes, "# Spec: HTML#navigate": specMapOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Hunks\n\n### f0h0 FileNav.txt": fileNavOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ ...implementRoutes, "PUSH-TRY-PLEASE": tryChatOut, "# Spec: HTML#navigate": specMapOut, 'Bug 4242 - Add c&&"findings"': tryCleanReviewOut, 'Bug 1 - Add c&&"findings"': tryCleanReviewOut, "Bug 4242 - Add c&&### f0h0 c.txt (added)": tryNarrativeOut, "Bug 1 - Add c&&### f0h0 c.txt (added)": tryNarrativeOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Hunks\n\n### f0h0 FileNav.txt": fileNavOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
 process.env.FAKE_LLM_ACTIONS = JSON.stringify({
+  "You implement a planned code change&&Bug 4242": tryImpl,
   "You implement a planned code change&&# Revision request": implRevise,
   "You implement a planned code change&&# Findings to fix": implFix,
   "You implement a planned code change": implOne,
@@ -197,6 +208,16 @@ const conduit = createServer(async (req, res) => {
 });
 await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", resolve));
 process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
+
+const TREEHERDER_PORT = Number(process.env.E2E_TREEHERDER_PORT ?? 4180);
+let statusCalls = 0;
+const treeherder = createServer((req, res) => {
+  if (!/^\/api\/project\/try\/push\/\d+\/status\/$/.test(req.url ?? "")) { res.writeHead(404).end(); return; }
+  const done = ++statusCalls > 2;
+  res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(done ? { completed: 3, pending: 0, running: 0, success: 2, testfailed: 1 } : { completed: 1, pending: 1, running: 1, testfailed: 1 }));
+});
+await new Promise<void>((resolve) => treeherder.listen(TREEHERDER_PORT, "127.0.0.1", resolve));
+process.env.SPATIAL_TREEHERDER_URL = `http://127.0.0.1:${TREEHERDER_PORT}`;
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC });
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);
