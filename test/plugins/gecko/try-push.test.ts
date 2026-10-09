@@ -17,6 +17,7 @@ import { makeRepo } from "../../helpers/git-fixture.ts";
 
 const MACH = `#!/bin/sh
 printf '%s\\n' "$@" > .git/mach-args
+echo "$PYTHONUNBUFFERED" > .git/mach-unbuffered
 echo "2. Enter the following code: WXYZ-1234"
 if [ -n "$FAIL" ]; then echo "lando said no" >&2; exit 3; fi
 if [ -n "$NOLINK" ]; then echo "Pushing to try..."; exit 0; fi
@@ -44,6 +45,7 @@ test("a confirmed command runs mach without a shell, keeps its output and record
   const { repo, store, session, run, progress } = setup();
   const out = await run("./mach try fuzzy --query 'dom/base !win'");
   assert.deepEqual(readFileSync(join(repo.dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean), ["try", "fuzzy", "--query", "dom/base !win"]);
+  assert.equal(readFileSync(join(repo.dir, ".git/mach-unbuffered"), "utf8").trim(), "1", "Lando's device-code prompt is a plain print(); a pipe would buffer it until mach exits");
   const push = store.getArtifact<TryPushData>(out.pushId);
   assert.equal(push.type, "TryPush");
   assert.equal(push.data.url, "https://treeherder.mozilla.org/jobs?repo=try&landoInstance=lando-prod-2025&landoCommitID=42");

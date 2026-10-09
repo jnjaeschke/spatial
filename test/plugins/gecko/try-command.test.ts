@@ -18,6 +18,7 @@ test("splitCommand refuses shell operators outside quotes and unclosed quotes", 
 test("tryCommandProblem accepts the non-interactive forms only", () => {
   for (const ok of ["./mach try fuzzy --query 'dom/base mochitest'", "./mach try fuzzy -q 'a' -q 'b' --artifact", "./mach try fuzzy --query='x'", "./mach try fuzzy --preset dom", "./mach try --preset dom", "./mach try auto", "./mach try again"]) assert.equal(tryCommandProblem(ok), null, ok);
   assert.match(tryCommandProblem("./mach try fuzzy")!, /needs --query or --preset/);
+  for (const interactive of ["./mach try fuzzy -q 'a' -i", "./mach try fuzzy --query 'a' --interactive", "./mach try --preset dom -i"]) assert.match(tryCommandProblem(interactive)!, /interactive/, interactive);
   assert.match(tryCommandProblem("./mach try chooser")!, /runs `\.\/mach try fuzzy --query …`/);
   assert.match(tryCommandProblem("mach try auto")!, /starts with `\.\/mach try`/);
   assert.match(tryCommandProblem("./mach build")!, /starts with `\.\/mach try`/);

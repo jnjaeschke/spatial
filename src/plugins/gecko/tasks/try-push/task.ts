@@ -13,8 +13,8 @@ export const tryPush = defineTask<TryPushInput, { pushId: Id }>({
     if (await ctx.git.isDirty()) throw new Error("The work tree has uncommitted changes; commit or stash them before pushing to try");
     const [cmd, ...args] = splitCommand(command);
     const started = Date.now();
-    // Lando may print a device-code login and wait; progress is where the user sees it.
-    const out = await runProcess(cmd!, args, { stdin: "", cwd: ctx.repo, signal: ctx.signal, onStdoutLine: (line) => { if (line.trim()) ctx.progress({ kind: "indeterminate", message: line.trim() }); } });
+    // Lando may print a device-code login and wait; progress is where the user sees it. Its print() would sit in Python's pipe buffer without PYTHONUNBUFFERED.
+    const out = await runProcess(cmd!, args, { stdin: "", cwd: ctx.repo, signal: ctx.signal, env: { PYTHONUNBUFFERED: "1" }, onStdoutLine: (line) => { if (line.trim()) ctx.progress({ kind: "indeterminate", message: line.trim() }); } });
     const output = out.stderr ? `${out.stdout}\n${out.stderr}` : out.stdout;
     ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, false));
     if (out.code !== 0) throw new Error(`mach try exited ${out.code}; its output is in the command run`);

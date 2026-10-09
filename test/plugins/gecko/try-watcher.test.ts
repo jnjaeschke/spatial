@@ -40,7 +40,7 @@ test("isComplete needs finished jobs and nothing pending or running", () => {
   assert.equal(isComplete({}), false);
 });
 
-test("a TryRun is stored only on change; failures and completion notify once", async () => {
+test("a TryRun is stored only on change; finished counts complete the push once a second poll sees them unchanged; failures and completion notify once", async () => {
   const { watcher, runs, notices, created, push } = setup({
     out: [{ code: 0, stdout: failingJson(1) }, { code: 0, stdout: failingJson(1) }, { code: 0, stdout: failingJson(2) }],
     status: [{ completed: 3, running: 2, pending: 1 }, { completed: 3, running: 2, pending: 1 }, { completed: 6, running: 0, pending: 0 }],
@@ -51,11 +51,14 @@ test("a TryRun is stored only on change; failures and completion notify once", a
   assert.deepEqual({ ...runs()[0]!, failures: runs()[0]!.failures.length }, { push: push.id, url: push.data.url, revision: "abc", pushId: 7, counts: { completed: 3, running: 2, pending: 1 }, complete: false, failures: 1, error: null });
   await watcher.tick();
   assert.equal(runs().length, 2);
-  assert.equal(runs()[1]!.complete, true);
+  assert.equal(runs()[1]!.complete, false, "right after the decision task, Treeherder may not list the jobs it scheduled yet");
   await watcher.tick();
-  assert.equal(runs().length, 2, "a complete push is not polled again");
-  assert.deepEqual(notices.map((n) => n.title), ["Try: 1 failing job", "Try finished: 2 failing jobs"]);
-  assert.deepEqual(created, ["TryRun", "TryRun"]);
+  assert.equal(runs().length, 3);
+  assert.equal(runs()[2]!.complete, true);
+  await watcher.tick();
+  assert.equal(runs().length, 3, "a complete push is not polled again");
+  assert.deepEqual(notices.map((n) => n.title), ["Try: 1 failing job", "Try: 2 failing jobs", "Try finished: 2 failing jobs"]);
+  assert.deepEqual(created, ["TryRun", "TryRun", "TryRun"]);
 });
 
 test("an unreadable push is stored once as an error and replaced when Treeherder answers", async () => {
@@ -70,7 +73,8 @@ test("an unreadable push is stored once as an error and replaced when Treeherder
   await watcher.tick();
   assert.equal(runs().length, 2);
   assert.equal(runs()[1]!.error, null);
-  assert.equal(runs()[1]!.complete, true);
+  await watcher.tick();
+  assert.equal(runs()[2]!.complete, true);
 });
 
 test("a new watcher resumes pushes stored before it started", async () => {
@@ -81,5 +85,6 @@ test("a new watcher resumes pushes stored before it started", async () => {
     status: async () => ({ completed: 2, running: 0, pending: 0 }),
   });
   await restarted.tick();
-  assert.deepEqual(first.runs().map((run) => run.complete), [false, true]);
+  await restarted.tick();
+  assert.deepEqual(first.runs().map((run) => run.complete), [false, false, true]);
 });

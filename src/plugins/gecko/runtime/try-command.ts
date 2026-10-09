@@ -45,6 +45,7 @@ export function tryCommandProblem(command: string): string | null {
   try { argv = splitCommand(command); } catch (e) { return (e as Error).message; }
   if (argv[0] !== "./mach" || argv[1] !== "try") return "A try command starts with `./mach try`";
   const [selector, ...rest] = argv.slice(2);
+  if (hasOption(rest, "-i", "--interactive")) return "`-i`/`--interactive` opens an interactive selector";
   if (selector === "auto" || selector === "again") return null;
   if (selector === "--preset" || selector?.startsWith("--preset=")) return null;
   if (selector === "fuzzy") return hasOption(rest, "-q", "--query", "--preset") ? null : "`./mach try fuzzy` needs --query or --preset; without them it opens an interactive selector";

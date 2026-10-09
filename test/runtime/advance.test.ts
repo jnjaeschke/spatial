@@ -19,7 +19,7 @@ const OPTIONS = [{ id: "go", label: "Go" }, { id: "stop", label: "Stop" }];
 function setup(next?: (view: WorkflowView) => Step | null, follow?: Phase<unknown>["next"]) {
   const store = new Store(":memory:");
   const calls: string[] = [];
-  const phase = (id: string): Phase<unknown> => ({ id, async run() { calls.push(id); if (id === "boom") throw new Error("kaput"); }, ...(id === "a" && follow ? { next: follow } : {}) });
+  const phase = (id: string): Phase<unknown> => ({ id, async run() { calls.push(id); if (id === "boom") throw new Error("kaput"); }, ...((id === "a" || id === "boom") && follow ? { next: follow } : {}) });
   const flow: Workflow<Record<string, never>> = { id: "flow", description: "d", argHint: "", params: z.strictObject({}), parseArgs: () => ({ ok: true, params: {} }), async start() {}, ...(next ? { next } : {}) };
   const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [flow], phases: [phase("a"), phase("b"), phase("boom")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "flow" });
@@ -132,10 +132,14 @@ test("the latest epoch's phase follows up before the workflow's next, also in a 
   assert.deepEqual(store.listEpochs(session.id).at(-1)!.input, { after: 1 });
 });
 
-test("follow-ups are not asked after a failed epoch, and the workflow decides once the phase is done", async () => {
-  const { rt, session, calls } = setup((view) => view.epochs.length === 1 ? { run: "b", input: null } : null, () => null);
-  await rt.runPhase(session.id, "a", null);
-  await rt.advance(session.id);
-  assert.deepEqual(calls, ["a", "b"]);
-  assert.equal(rt.nextStep(session.id), null);
+test("a failed epoch gets no follow-up, and the workflow decides once the phase is done", async () => {
+  const follow = () => ({ decide: { question: "Follow?", options: OPTIONS } });
+  const failed = setup(undefined, follow);
+  await assert.rejects(failed.rt.runPhase(failed.session.id, "boom", null), /kaput/);
+  assert.equal(failed.rt.nextStep(failed.session.id), null);
+  const done = setup((view) => view.epochs.length === 1 ? { run: "b", input: null } : null, () => null);
+  await done.rt.runPhase(done.session.id, "a", null);
+  await done.rt.advance(done.session.id);
+  assert.deepEqual(done.calls, ["a", "b"]);
+  assert.equal(done.rt.nextStep(done.session.id), null);
 });

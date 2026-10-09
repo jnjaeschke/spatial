@@ -74,7 +74,9 @@ export class TryWatcher {
       if (out.code !== 0) throw new Error((out.stderr || out.stdout).trim().split("\n").filter((line) => !line.startsWith("Note:") && !line.includes("cargo binstall")).join(" ") || `treeherder-cli exited ${out.code}`);
       const parsed = parseTreeherderJson(out.stdout);
       const counts = await this.#status(parsed.pushId);
-      return { ...base, revision: parsed.revision, pushId: parsed.pushId, counts, complete: isComplete(counts), failures: parsed.failures, error: null };
+      // Right after the decision task, Treeherder may not list the jobs it scheduled yet; finished counts must hold for a second poll.
+      const complete = isComplete(counts) && JSON.stringify(counts) === JSON.stringify(last?.counts);
+      return { ...base, revision: parsed.revision, pushId: parsed.pushId, counts, complete, failures: parsed.failures, error: null };
     } catch (e) {
       return { ...base, revision: last?.revision ?? null, pushId: last?.pushId ?? null, counts: last?.counts ?? {}, complete: false, failures: last?.failures ?? [], error: (e as Error).message };
     }

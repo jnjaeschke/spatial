@@ -8,7 +8,7 @@
 
 > **runProcess**(`cmd`, `args`, `opts`): `Promise`\<\{ `code`: `number`; `stderr`: `string`; `stdout`: `string`; \}\>
 
-Spawns `cmd`, writes `stdin`, collects output. Abort kills the child (SIGTERM) and rejects.
+Spawns `cmd`, writes `stdin`, collects output. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects.
 
 ## Parameters
 
@@ -25,6 +25,10 @@ Spawns `cmd`, writes `stdin`, collects output. Abort kills the child (SIGTERM) a
 #### cwd?
 
 `string`
+
+#### env?
+
+`Record`\<`string`, `string`\>
 
 #### onStdoutLine?
 

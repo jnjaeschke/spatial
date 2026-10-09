@@ -1,14 +1,14 @@
 import { spawn } from "node:child_process";
 
-/** Spawns `cmd`, writes `stdin`, collects output. Abort kills the child (SIGTERM) and rejects. */
+/** Spawns `cmd`, writes `stdin`, collects output. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
 export function runProcess(
   cmd: string,
   args: string[],
-  opts: { stdin: string; cwd?: string; signal: AbortSignal; onStdoutLine?: (line: string) => void },
+  opts: { stdin: string; cwd?: string; signal: AbortSignal; env?: Record<string, string>; onStdoutLine?: (line: string) => void },
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   return new Promise((resolve, reject) => {
     if (opts.signal.aborted) return reject(new Error("aborted"));
-    const child = spawn(cmd, args, { cwd: opts.cwd, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(cmd, args, { cwd: opts.cwd, env: opts.env ? { ...process.env, ...opts.env } : undefined, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let pending = "";
