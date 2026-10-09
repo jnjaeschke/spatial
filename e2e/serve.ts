@@ -247,4 +247,4 @@ const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webs
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);
 const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
 await runWorkflow(rt, fixture.id, fixtureStart.id);
-createHttpServer(rt, { staticDir: "dist/web", background: { intervalMs: 300 } }).listen(PORT, "127.0.0.1", () => console.log(`e2e runtime on ${PORT}`));
+createHttpServer(rt, { staticDir: "dist/e2e-web", background: { intervalMs: 300 } }).listen(PORT, "127.0.0.1", () => console.log(`e2e runtime on ${PORT}`));
