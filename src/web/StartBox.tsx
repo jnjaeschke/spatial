@@ -51,7 +51,7 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
         } else submit();
       }} />
     {suggestions.length > 0 && <ul className="command-popup" role="listbox" aria-label="commands">
-      {suggestions.map((c, i) => <li key={c.id} role="option" aria-selected={i === selected} onMouseDown={(e) => { e.preventDefault(); complete(c); }}>
+      {suggestions.map((c, i) => <li key={c.id} role="option" aria-selected={i === selected} onMouseMove={() => setActive(i)} onMouseDown={(e) => { e.preventDefault(); complete(c); }}>
         <b>/{c.id}</b> <code>{c.argHint}</code> <span>{c.description}</span>
       </li>)}
     </ul>}

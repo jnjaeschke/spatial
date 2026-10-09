@@ -38,6 +38,14 @@ test("typing / shows commands; filter, keyboard completion and Escape", async ({
   await expect(list.getByRole("option").nth(1)).toContainText("<message>");
   await expect(list.getByRole("option").nth(2)).toContainText("/implement");
   await expect(list.getByRole("option").nth(2)).toContainText("<what to fix or build>");
+  const name = list.getByRole("option").nth(2).locator("b");
+  expect((await name.boundingBox())!.height).toBeLessThan(2 * await name.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)));
+
+  await list.getByRole("option").nth(2).hover();
+  await expect(list.getByRole("option").nth(2)).toHaveAttribute("aria-selected", "true");
+  await list.getByRole("option").nth(2).click();
+  await expect(box).toHaveValue("/implement ");
+  await expect(box).toBeFocused();
 
   await box.fill("/c");
   await expect(list.getByRole("option")).toHaveCount(1);

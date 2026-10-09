@@ -323,6 +323,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .command-popup { position: absolute; z-index: 5; top: calc(100% - 3px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-3); }
 .command-popup li { display: flex; gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; }
 .command-popup li[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+.command-popup :is(b, code) { flex: none; white-space: nowrap; }
 .command-popup code { color: var(--text-2); }
 .command-popup span { color: var(--text-3); font-size: 12px; }
 
