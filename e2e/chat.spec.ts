@@ -22,7 +22,12 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(assistant.locator("li strong", { hasText: "THIRTY" })).toBeVisible();
   await expect(assistant.locator(".chat-questions li")).toContainText("Should c2 really depend on c1?");
   await expect(assistant.locator("pre code", { hasText: "int x = 1;" })).toBeVisible();
-  await expect(assistant.locator("button.code-link", { hasText: "THIRTY" })).toBeVisible();
+  const codeLink = assistant.locator("button.code-link", { hasText: "THIRTY" });
+  await expect(codeLink).toBeVisible();
+  await revealNode(page, codeLink);
+  await codeLink.click();
+  await expect(page.getByTestId("file-panel")).toContainText("THIRTY");
+  await page.getByTestId("file-panel").getByRole("button", { name: "Close file" }).click();
   const userMessage = page.locator(".msg.user", { hasText: "Why this change?" });
   await expect(userMessage).toBeVisible();
   await expect(userMessage.locator("p")).toHaveCount(0);
