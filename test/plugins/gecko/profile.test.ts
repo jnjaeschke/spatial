@@ -16,9 +16,9 @@ test("gecko check command builds then tests the changed paths, quoted", () => {
   assert.equal(geckoProfile.checkCommand!(["dom/a.cpp", "it's.js"]), "./mach build && ./mach test 'dom/a.cpp' 'it'\\''s.js'");
 });
 
-test("gecko is a stack profile that requires a bug and has no after-accept phases yet", () => {
+test("gecko is a stack profile that requires a bug and runs try after Accept", () => {
   assert.equal(geckoProfile.commitStyle, "stack");
   assert.equal(geckoProfile.requiresBug, true);
-  assert.deepEqual(geckoProfile.afterAccept, []);
+  assert.deepEqual(geckoProfile.afterAccept, ["try"]);
   assert.equal(geckoProfile.suggestReviewers, "./mach file-info reviewers");
 });

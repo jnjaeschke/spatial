@@ -4,7 +4,7 @@ const TEST_COMMAND = /^\.\/mach\s+(?:test|mochitest|wpt|gtest|xpcshell-test)(?:\
 const REVIEWERS = / r\?[\w.-]+(?:,[\w.-]+)*$/;
 const quote = (path: string) => `'${path.replaceAll("'", "'\\''")}'`;
 
-/** Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`. No after-accept phases until the try and submit phases exist. */
+/** Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`; try runs after Accept. */
 export const geckoProfile: RepoProfile = {
   id: "gecko",
   description: "Firefox/Gecko source tree (mozilla-central): commit stacks with `Bug N - summary` messages, built and tested with ./mach, reviewed on Phabricator.",
@@ -22,5 +22,5 @@ export const geckoProfile: RepoProfile = {
   checkCommand: (paths) => `./mach build && ./mach test ${paths.map(quote).join(" ")}`,
   isTestCommand: (command) => TEST_COMMAND.test(command.trim()),
   suggestReviewers: "./mach file-info reviewers",
-  afterAccept: [],
+  afterAccept: ["try"],
 };

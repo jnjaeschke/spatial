@@ -1,0 +1,2 @@
+/** Public API of the implement plugin for plugins that depend on it. */
+export type { CommandRunData } from "./shared/types.ts";

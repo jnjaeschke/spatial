@@ -1,0 +1,4 @@
+{ "type": "object", "additionalProperties": false, "required": ["command", "reason"], "properties": {
+  "command": { "type": "string", "description": "One ./mach try command line." },
+  "reason": { "type": "string", "description": "Why these jobs cover the change, in one or two sentences." }
+} }

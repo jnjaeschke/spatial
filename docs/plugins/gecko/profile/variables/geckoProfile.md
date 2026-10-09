@@ -8,4 +8,4 @@
 
 > `const` **geckoProfile**: [`RepoProfile`](../../../../runtime/plugins/interfaces/RepoProfile.md)
 
-Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`. No after-accept phases until the try and submit phases exist.
+Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`; try runs after Accept.
