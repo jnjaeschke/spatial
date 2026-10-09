@@ -37,6 +37,8 @@ export interface CanvasProviderProps {
   state: SessionState;
   /** The graph as shown: after layers and closed nodes, before collapsing and zoom level. */
   graph: Graph;
+  /** No server behind the view (a past epoch or a static export): nothing may be requested. */
+  readOnly: boolean;
   /** Expands the collapse id, centers the node (leaving the zoom level for code), and records the jump in the view history. */
   reveal(nodeId: string, collapseId: string): void;
   /** Highlights a diff row and scrolls it into view. */
@@ -662,7 +664,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <Provider state={state} graph={graph} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
+    <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>

@@ -46,6 +46,24 @@
 
 `Promise`\<`void`\>
 
+### codeLinks
+
+> **codeLinks**: (`sessionId`, `tokens`) => `Promise`\<\{ `links`: `Record`\<`string`, `string` \| `null`\>; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### tokens
+
+`string`[]
+
+#### Returns
+
+`Promise`\<\{ `links`: `Record`\<`string`, `string` \| `null`\>; \}\>
+
 ### decide
 
 > **decide**: (`sessionId`, `decisionId`, `option`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>

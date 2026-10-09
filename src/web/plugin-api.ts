@@ -55,7 +55,7 @@ export { Conversation } from "./nodes/ChatNode.tsx";
 export type { CanvasModel, GuideStep, FocusedRow, CanvasProviderProps } from "./Canvas.tsx";
 export type { SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";
-export { SearchfoxContext, searchUrl, searchfoxLinks, fileUrl, linkTitle } from "./searchfox-url.ts";
+export { SearchfoxContext, searchfoxLinks, mergedCodeLinks, fileUrl, linkTitle } from "./searchfox-url.ts";
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
 export { loadFileLines } from "./file-lines.ts";
 export * from "../shared/types.ts";

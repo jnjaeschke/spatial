@@ -16,6 +16,12 @@ Where Searchfox links point. `exact` false means the patch's upstream revision i
 
 ***
 
+### links
+
+> **links**: `Record`\<`string`, `string` \| `null`\>
+
+***
+
 ### repoBase
 
 > **repoBase**: `string`
@@ -25,3 +31,19 @@ Where Searchfox links point. `exact` false means the patch's upstream revision i
 ### rev
 
 > **rev**: `string`
+
+## Methods
+
+### request()
+
+> **request**(`token`): `void`
+
+#### Parameters
+
+##### token
+
+`string`
+
+#### Returns
+
+`void`

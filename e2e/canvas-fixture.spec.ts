@@ -140,8 +140,7 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
     await page.mouse.up();
   }
   await expect(spec.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
-  await expect(page.getByTestId("change-c1").locator(".explanation a.code-link").first())
-    .toHaveAttribute("href", /^https:\/\/searchfox\.org\/firefox-main\/search\?q=/);
+  await expect(page.getByTestId("change-c1").locator(".explanation a.code-link")).toHaveCount(0);
 });
 
 test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {

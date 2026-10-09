@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
 import { LAYERS, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, phabCommentCollapseId, reviewGraph, stackLayout, stepNodeId, type Layer } from "./graph.ts";
@@ -18,11 +18,29 @@ const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<st
 
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
-function ReviewCanvasProvider({ state, graph, reveal, focusRow, children }: CanvasProviderProps) {
+function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, children }: CanvasProviderProps) {
+  const [resolvedLinks, setResolvedLinks] = useState<Record<string, string | null>>({});
+  const requested = useRef(new Set<string>());
+  const pending = useRef(new Set<string>());
+  const scheduled = useRef(false);
+  const request = useCallback((token: string) => {
+    if (readOnly || requested.current.has(token)) return;
+    requested.current.add(token);
+    pending.current.add(token);
+    if (scheduled.current) return;
+    scheduled.current = true;
+    queueMicrotask(() => {
+      scheduled.current = false;
+      const tokens = [...pending.current];
+      pending.current.clear();
+      void api.codeLinks(state.session.id, tokens).then(({ links }) => setResolvedLinks((current) => ({ ...current, ...links })), (error: unknown) => console.error(error));
+    });
+  }, [state.session.id, readOnly]);
   const searchfox = useMemo(() => {
     const latest = latestNarrative(state);
-    return latest ? searchfoxLinks(state, latest.diff.data) : null;
-  }, [state]);
+    const links = latest ? searchfoxLinks(state, latest.diff.data, request) : null;
+    return links ? { ...links, links: { ...links.links, ...resolvedLinks } } : null;
+  }, [state, request, resolvedLinks]);
   const jump = useContext(JumpContext);
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);

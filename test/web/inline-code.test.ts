@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findInHunks, splitInlineCode } from "../../src/web/inline-code.ts";
-import { searchUrl } from "../../src/web/searchfox-url.ts";
 import type { DiffFile, Hunk } from "../../src/shared/types.ts";
 
 test("splitInlineCode", () => {
@@ -11,10 +10,6 @@ test("splitInlineCode", () => {
   assert.deepEqual(splitInlineCode("no code"), [{ code: false, text: "no code" }]);
   assert.deepEqual(splitInlineCode("odd ` tick"), [{ code: false, text: "odd ` tick" }]);
   assert.deepEqual(splitInlineCode("``"), [{ code: false, text: "``" }]);
-});
-
-test("searchUrl", () => {
-  assert.equal(searchUrl({ repoBase: "https://searchfox.org/firefox-main/", rev: "x", exact: true }, "Foo::Bar()"), "https://searchfox.org/firefox-main/search?q=Foo%3A%3ABar");
 });
 
 const hunk = (id: string, lines: Hunk["lines"]): Hunk => ({ id, header: "", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines });

@@ -38,6 +38,7 @@ export const api = {
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
   setReviewed: (sessionId: string, narrativeId: string, changeId: string, reviewed: boolean) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/narratives/${narrativeId}/changes/${changeId}/reviewed`, { reviewed }),
+  codeLinks: (sessionId: string, tokens: string[]) => post<{ links: Record<string, string | null> }>(`/api/sessions/${sessionId}/code-links`, { tokens }),
   saveComment: (sessionId: string, findingId: string, body: string) =>
     put<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),
   mapSpecSteps: (sessionId: string, specId: string, llm: LlmSelection) => post<{ taskId: string }>(`/api/sessions/${sessionId}/specs/${specId}/map`, { llm }),

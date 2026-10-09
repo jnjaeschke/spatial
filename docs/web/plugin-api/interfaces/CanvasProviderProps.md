@@ -22,6 +22,14 @@ The graph as shown: after layers and closed nodes, before collapsing and zoom le
 
 ***
 
+### readOnly
+
+> **readOnly**: `boolean`
+
+No server behind the view (a past epoch or a static export): nothing may be requested.
+
+***
+
 ### state
 
 > **state**: [`SessionState`](../../../shared/types/interfaces/SessionState.md)

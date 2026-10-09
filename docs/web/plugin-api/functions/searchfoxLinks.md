@@ -6,7 +6,7 @@
 
 # Function: searchfoxLinks()
 
-> **searchfoxLinks**(`state`, `diff`): [`SearchfoxLinks`](../interfaces/SearchfoxLinks.md) \| `null`
+> **searchfoxLinks**(`state`, `diff`, `request`): [`SearchfoxLinks`](../interfaces/SearchfoxLinks.md) \| `null`
 
 ## Parameters
 
@@ -17,6 +17,10 @@
 ### diff
 
 [`DiffData`](../../../shared/types/interfaces/DiffData.md)
+
+### request
+
+(`token`) => `void`
 
 ## Returns
 

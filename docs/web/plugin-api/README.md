@@ -82,12 +82,12 @@
 - [lines](functions/lines.md)
 - [linkTitle](functions/linkTitle.md)
 - [loadFileLines](functions/loadFileLines.md)
+- [mergedCodeLinks](functions/mergedCodeLinks.md)
 - [placeSatellites](functions/placeSatellites.md)
 - [ReopenClosed](functions/ReopenClosed.md)
 - [rootThread](functions/rootThread.md)
 - [rowSegments](functions/rowSegments.md)
 - [searchfoxLinks](functions/searchfoxLinks.md)
-- [searchUrl](functions/searchUrl.md)
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)
 
