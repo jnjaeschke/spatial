@@ -179,6 +179,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .reviewer-comment-ai { opacity: .85; border-left: 3px solid var(--accent); padding-left: 8px; }
 .reviewer-comment-controls { display: flex; gap: 6px; align-items: start; flex-wrap: wrap; }
 .reviewer-comment-controls textarea { flex: 1 1 100%; min-height: 3em; }
+.reviewer-comment-controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 
 .react-flow {
   --xy-background-color: transparent;
