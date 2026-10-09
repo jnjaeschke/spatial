@@ -9,7 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.ts\"",
+    "test": "node scripts/with-tmpdir.ts node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc",
     "docs": "typedoc",
     "docs:check": "node scripts/docs-check.ts",
@@ -17,7 +17,7 @@
     "server": "node src/server/main.ts",
     "web": "vite",
     "build:web": "vite build",
-    "e2e": "playwright test"
+    "e2e": "node scripts/with-tmpdir.ts playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
