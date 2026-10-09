@@ -37,7 +37,8 @@ export function ReviewerCommentsView({ state, epoch, readOnly = false }: PhaseVi
   return <div className="session-body"><div className="reviewer-comments-panel">
     <RunStatus sessionId={state.session.id} epoch={epoch} readOnly={readOnly} />
     {epoch.status === "running" && <p className="running">Reading the reviewer comments…</p>}
-    <ul className="reviewer-comments">{items.map((item) => <CommentItem key={item.comment.data.phid} sessionId={state.session.id} item={item} readOnly={readOnly} />)}</ul>
+    {/* The text box is seeded from the interpretation, which can arrive after the comment shows: remount then. */}
+    <ul className="reviewer-comments">{items.map((item) => <CommentItem key={`${item.comment.data.phid}:${item.interpretation?.id ?? ""}`} sessionId={state.session.id} item={item} readOnly={readOnly} />)}</ul>
     {!readOnly && replies > 0 && <button type="button" data-testid="post-replies" onClick={() => api.postReplies(state.session.id).then((r) => setResult(`Posted ${r.posted} draft repl${r.posted === 1 ? "y" : "ies"}${r.skipped.length ? `; skipped ${r.skipped.length}: ${r.skipped.map((s) => s.reason).join("; ")}` : ""}`), (e: Error) => setResult(e.message))}>Post {replies} repl{replies === 1 ? "y" : "ies"} as Phabricator drafts</button>}
     {result && <p data-testid="post-replies-result">{result}</p>}
   </div></div>;
