@@ -15,3 +15,9 @@
 ### CommandRunData
 
 Re-exports [CommandRunData](../shared/types/interfaces/CommandRunData.md)
+
+***
+
+### ImplementBranchData
+
+Re-exports [ImplementBranchData](../shared/types/interfaces/ImplementBranchData.md)
