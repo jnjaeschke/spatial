@@ -549,7 +549,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .node form .llm-picker select { font-size: calc(11.5px * var(--text-scale, 1)); padding: 2px 20px 2px 4px; color: var(--text-2); background-color: var(--surface-2); }
 @supports (appearance: base-select) { .node form .llm-picker select { padding: 2px 6px; } }
 .node form button[type="submit"] { margin-left: auto; }
-.chat-node textarea, .finding-node textarea, .phab-node textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
+.node form textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
 .ask { margin-left: 8px; font-size: 0.75em; padding: 1px 8px; font-weight: 500; color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); background: var(--accent-soft); }
 button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 18%, var(--surface)); }
 
