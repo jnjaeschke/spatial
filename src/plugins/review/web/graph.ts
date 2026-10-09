@@ -1,4 +1,4 @@
-import type { FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
+import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
 import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode, type ZoomLevel } from "../../../web/graph-api.ts";
@@ -52,6 +52,9 @@ export type SummaryNodeData = {
   /** First artifact id of every comment listed here, by `phid`; keys the comment's collapse state. */
   phabAnchors: Record<string, Id>;
   phabUnanchored: { diffId: number | null; oldSide: boolean; outdatedEpoch: number | null; comments: Artifact<PhabCommentData>[] }[];
+  bugs: { report: Artifact<BugReportData>; summary: Artifact<BugSummaryData> | null; summarizing: boolean }[];
+  bugHunks: { file: DiffFile; hunk: Hunk }[];
+  bugDiffId: string;
 };
 
 export type SpecNodeData = { kind: "spec"; ref: Artifact<SpecReferenceData> };
@@ -174,7 +177,8 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const nodes: GraphNode[] = [{
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, sessionId: narrative.sessionId,
-      sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [] } satisfies SummaryNodeData,
+      sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [], bugs: [],
+      bugHunks: [...new Set(narrative.data.changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId } satisfies SummaryNodeData,
   }];
   const edges: GraphEdge[] = [];
   const stack = diff.data.commits.length > 1;
@@ -250,6 +254,13 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     if (link.kind === "derivedFrom" && diagramIds.has(link.from)) (diagramsByMessage[link.to] ??= []).push(link.from);
   }
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
+  const bugNumbers = new Set(latest.diff.data.commits.flatMap((commit) => [...commit.subject.matchAll(/\bBug (\d+)\b/gi)].map((match) => Number(match[1]))));
+  const reports = state.artifacts.filter((a): a is Artifact<BugReportData> => a.type === "BugReport" && bugNumbers.has((a.data as BugReportData).bug));
+  summary.bugs = reports.map((report) => ({
+    report,
+    summary: state.artifacts.filter((a): a is Artifact<BugSummaryData> => a.type === "BugSummary" && (a.data as BugSummaryData).bug === report.data.bug).at(-1) ?? null,
+    summarizing: state.tasks.some((task) => task.kind === "summarizeBug" && task.status === "running" && (task.input as { reportId?: string }).reportId === report.id),
+  }));
   const plan = postPlan(latest.diff.data, postableComments(state, latest.narrative.id));
   summary.drafts = plan.revisions.map((r) => ({ commit: r.commit, revision: r.revision.id, count: r.items.length }));
   summary.skipped = plan.skipped.length;

@@ -441,6 +441,10 @@ button.code-link::after {
 .summary-node.level-patch > .title { font-size: 0.6em; }
 .summary-node .since-epoch { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-2); margin-top: 4px; }
 .summary-node .spec-status { font-size: 0.85em; color: var(--text-2); }
+.bug-summary { margin-top: 8px; font-size: 0.9em; }
+.bug-summary > summary { cursor: pointer; }
+.bug-summary > summary a { color: var(--accent); }
+.bug-summary .bug-error { color: var(--danger); }
 .summary-node .post-drafts-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .summary-node .post-drafts { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; font-size: calc(12px * var(--text-scale, 1)); }
 .summary-node .post-drafts:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); }

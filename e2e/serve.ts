@@ -9,9 +9,13 @@ import type { WorkflowStartData } from "../src/shared/types.ts";
 import { runWorkflow } from "../src/workflows/start.ts";
 import { createHttpServer } from "../src/server/http.ts";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { z } from "zod";
 
 const PORT = Number(process.env.E2E_PORT ?? 4178);
 const CONDUIT_PORT = Number(process.env.E2E_CONDUIT_PORT ?? 4179);
+const MOZ_PORT = Number(process.env.E2E_MOZ_PORT ?? 4180);
 const STUB = fileURLToPath(new URL("../test/stubs/fake-llm.mjs", import.meta.url));
 const WEBSPEC = fileURLToPath(new URL("../test/stubs/fake-webspec.mjs", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "e2e-"));
@@ -107,6 +111,7 @@ const tryCleanReviewOut = stubOut("try-clean-review", { findings: [], verdicts: 
 const tryProposalOut = stubOut("try-proposal", { command: "./mach try fuzzy --query 'mochitest-plain'", reason: "Runs the plain mochitests." });
 const tryChatOut = stubOut("try-chat", { answer: "I will start a try push.", questions: [], revisions: [], requestMcpServers: [], diagram: null, tryPush: { command: "./mach try auto", reason: "You asked for try." } });
 const tryNarrativeOut = stubOut("try-narrative", { summary: "Adds c.", changes: [{ id: "c1", title: "Add c", explanation: "Adds c.txt.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }] });
+const bugSummaryOut = stubOut("bug-summary", { summary: "The bug reports that c.txt is missing. Create or request the file to reproduce it. The reporter provides no additional decisions, and the open question is why the file is absent." });
 const tryImpl = script("try-impl", `printf 'c\\n' > c.txt\ngit add -A\n${commit} -m 'Bug 4242 - Add c'\n`);
 const treeherderCli = join(implementDir, "treeherder-cli.sh");
 writeFileSync(treeherderCli, `#!/bin/sh\ncat <<'EOF'\n${JSON.stringify({ revision: "abc123", push_id: 7, matched_jobs: 3, jobs: [{ job: { id: 9, job_type_name: "test-linux1804-64/opt-mochitest-plain-1", job_type_symbol: "1", platform: "linux1804-64", platform_option: "opt", result: "testfailed", state: "completed", failure_classification_id: 1 }, errors: [{ action: "test_result", line: 1, test: "dom/base/test/test_c.html", status: "FAIL", message: "c is missing" }], log_matches: [] }] })}\nEOF\n`);
@@ -121,7 +126,7 @@ const reviewerInterpretOut = stubOut("reviewer-comment-interpretation", { commen
 const reviewerAddress = script("reviewer-address", `printf 'kept\\n' >> c.txt\ngit add -A\n${commit} --amend --no-edit\n`);
 const implementRoutes = { "You interpret reviewer comments": reviewerInterpretOut, "You investigate a bug report&&TRY-E2E": tryInvestigationOut, 'TRY-E2E&&"findings"': tryCleanReviewOut, "You propose a try push": tryProposalOut, "You investigate a bug report": investigationOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
 // Spec view and file navigation routes come first: their mapping and narration prompts also contain the generic needles below.
-process.env.FAKE_LLM_ROUTES = JSON.stringify({ ...implementRoutes, "PUSH-TRY-PLEASE": tryChatOut, "# Spec: HTML#navigate": specMapOut, 'Bug 4242 - Add c&&"findings"': tryCleanReviewOut, 'Bug 1 - Add c&&"findings"': tryCleanReviewOut, 'Address these reviewer comments&&"findings"': tryCleanReviewOut, "Bug 4242 - Add c&&### f0h0 c.txt (added)": tryNarrativeOut, "Bug 1 - Add c&&### f0h0 c.txt (added)": tryNarrativeOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Hunks\n\n### f0h0 FileNav.txt": fileNavOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
+process.env.FAKE_LLM_ROUTES = JSON.stringify({ ...implementRoutes, "You summarize a Bugzilla bug": bugSummaryOut, "PUSH-TRY-PLEASE": tryChatOut, "# Spec: HTML#navigate": specMapOut, 'Bug 4242 - Add c&&"findings"': tryCleanReviewOut, 'Bug 1 - Add c&&"findings"': tryCleanReviewOut, 'Address these reviewer comments&&"findings"': tryCleanReviewOut, "Bug 4242 - Add c&&### f0h0 c.txt (added)": tryNarrativeOut, "Bug 1 - Add c&&### f0h0 c.txt (added)": tryNarrativeOut, "# Hunks\n\n### f0h0 SpecViewFixture.cpp": specNarrativeOut, "# Hunks\n\n### f0h0 FileNav.txt": fileNavOut, "# Previous narrative": updateNarrateOut, "c.txt (added) [C1]": stackRewriteOut, "c.txt (added) [C2]": stackAddOut, "# Hunks": out, "# Prior findings\n\nF1 [": updateReviewOut, "Write a review comment as a human reviewer would.": commentOut, "ROUTE-UPDATE-REVIEW": updateReview1Out, '"findings"': reviewOut, "THAT IS WRONG": revisedOut, "ENABLE-DEVTOOLS-PLEASE": mcpRequestOut, "DIAGRAM-PLEASE": diagramOut, "Draw a sequence diagram of": diagramOut, '"revisions"': chatOut, "SELECT-ROUTE-REVIEW": selectReviewOut, "SELECT-ROUTE-CHAT": selectChatOut, "Answer: just chat": selectChatOut, "SELECT-ROUTE-ASK": selectAskOut });
 process.env.FAKE_LLM_ACTIONS = JSON.stringify({
   "You implement a planned code change&&Address these reviewer comments": reviewerAddress,
   "You implement a planned code change&&Bug 4242": tryImpl,
@@ -216,7 +221,7 @@ const conduit = createServer(async (req, res) => {
 await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", resolve));
 process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
 
-const TREEHERDER_PORT = Number(process.env.E2E_TREEHERDER_PORT ?? 4180);
+const TREEHERDER_PORT = Number(process.env.E2E_TREEHERDER_PORT ?? 4181);
 let statusCalls = 0;
 const treeherder = createServer((req, res) => {
   if (!/^\/api\/project\/try\/push\/\d+\/status\/$/.test(req.url ?? "")) { res.writeHead(404).end(); return; }
@@ -225,6 +230,18 @@ const treeherder = createServer((req, res) => {
 });
 await new Promise<void>((resolve) => treeherder.listen(TREEHERDER_PORT, "127.0.0.1", resolve));
 process.env.SPATIAL_TREEHERDER_URL = `http://127.0.0.1:${TREEHERDER_PORT}`;
+
+const moz = createServer(async (req, res) => {
+  if (req.url !== "/mcp") { res.writeHead(404).end(); return; }
+  const server = new McpServer({ name: "moz-fixture", version: "1.0.0" });
+  server.registerTool("get_bugzilla_bug", { inputSchema: { bug_id: z.number() } }, async ({ bug_id }) => bug_id === 4242
+    ? { content: [{ type: "text", text: "# Bug 4242 - c.txt is missing\n\n## Basic Information\n- **Status**: ASSIGNED\n- **Product**: Core\n- **Component**: DOM: Core & HTML\n\n## Comments\n### Comment 0\nc.txt should exist." }] }
+    : { content: [{ type: "text", text: `Bug ${bug_id} not found` }], isError: true });
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  await server.connect(transport);
+  await transport.handleRequest(req, res);
+});
+await new Promise<void>((resolve) => moz.listen(MOZ_PORT, "127.0.0.1", resolve));
 
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC });
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);

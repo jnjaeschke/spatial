@@ -8,6 +8,8 @@
 
 ## Interfaces
 
+- [BugReportData](interfaces/BugReportData.md)
+- [BugSummaryData](interfaces/BugSummaryData.md)
 - [ChangeReviewData](interfaces/ChangeReviewData.md)
 - [FindingCarryData](interfaces/FindingCarryData.md)
 - [FindingDecisionData](interfaces/FindingDecisionData.md)

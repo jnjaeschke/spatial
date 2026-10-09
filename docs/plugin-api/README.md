@@ -55,6 +55,7 @@ composition roots.
 
 - [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
+- [fetchBugMarkdown](functions/fetchBugMarkdown.md)
 - [isGeckoRepo](functions/isGeckoRepo.md)
 - [makeGit](functions/makeGit.md)
 - [makeGitWriter](functions/makeGitWriter.md)

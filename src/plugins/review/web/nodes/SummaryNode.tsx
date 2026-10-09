@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
-import { type ZoomLevel, InlineText, CollapseContext, api, ChatActionsContext, ReopenClosed } from "../../../../web/plugin-api.ts";
+import { type ZoomLevel, InlineText, CollapseContext, api, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
 
@@ -34,6 +34,12 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
       {!closed && <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>
         {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}
+        {data.level !== "patch" && data.bugs.map(({ report, summary, summarizing }) => <details className="bug-summary" data-testid="bug-summary" key={report.id}>
+          <summary><a href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${report.data.bug}`} target="_blank" rel="noreferrer">Bug {report.data.bug}</a>{report.data.title && ` — ${report.data.title}`}{report.data.status && ` · ${report.data.status}`}{report.data.component && ` · ${report.data.component}`}</summary>
+          {report.data.error ? <p className="bug-error">{report.data.error}</p> : summary
+            ? <AnswerMarkdown text={summary.data.summary} hunks={data.bugHunks} diffId={data.bugDiffId} />
+            : summarizing ? <p>Summarizing…</p> : <p>Summary unavailable.</p>}
+        </details>)}
         {data.level !== "patch" && data.phabGeneral.length > 0 && <section className="phab-summary">
           <h4>Phabricator comments</h4>
           <ul className="phab-comments">{data.phabGeneral.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} /></li>)}</ul>

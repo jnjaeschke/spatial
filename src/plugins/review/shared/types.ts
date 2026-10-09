@@ -69,3 +69,5 @@ export interface InterdiffData { fromDiff: Id; toDiff: Id; files: DiffFile[]; co
 
 /** A reviewer's mark on a change of a narrative; the latest per (narrative, change) wins. Linked `about → <narrative>#<change>`. Provenance: user. */
 export interface ChangeReviewData { narrative: Id; change: string; reviewed: boolean }
+export interface BugReportData { bug: number; title: string; status: string; component: string; markdown: string; error: string | null }
+export interface BugSummaryData { bug: number; summary: string }
