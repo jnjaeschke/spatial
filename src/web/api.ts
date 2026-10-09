@@ -49,6 +49,10 @@ export const api = {
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
   decideFinding: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/decide`, { decision, llm }),
+  triageComment: (sessionId: string, commentId: string, action: "address" | "reply" | "ignore", text?: string) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/reviewer-comments/${commentId}/triage`, { action, ...(text ? { text } : {}) }),
+  postReplies: (sessionId: string) =>
+    post<{ posted: number; skipped: { comment: string; reason: string }[] }>(`/api/sessions/${sessionId}/reviewer-comments/post-replies`, {}),
   retry: (sessionId: string) => post<{}>(`/api/sessions/${sessionId}/retry`, {}),
 };
 

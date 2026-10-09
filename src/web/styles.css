@@ -171,6 +171,12 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .canvas-minimap { box-sizing: border-box; border-left: 1px solid var(--border); }
 .session-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; }
 .session-body > .canvas { min-width: 0; }
+.reviewer-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
+.reviewer-comment { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.reviewer-comment-quote { margin: 4px 0; }
+.reviewer-comment-ai { opacity: .85; border-left: 3px solid var(--accent); padding-left: 8px; }
+.reviewer-comment-controls { display: flex; gap: 6px; align-items: start; flex-wrap: wrap; }
+.reviewer-comment-controls textarea { flex: 1 1 100%; min-height: 3em; }
 
 .react-flow {
   --xy-background-color: transparent;

@@ -222,6 +222,20 @@
 
 `Promise`\<\{ `posted`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
 
+### postReplies
+
+> **postReplies**: (`sessionId`) => `Promise`\<\{ `posted`: `number`; `skipped`: `object`[]; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `posted`: `number`; `skipped`: `object`[]; \}\>
+
 ### regenerateComment
 
 > **regenerateComment**: (`sessionId`, `findingId`, `llm?`) => `Promise`\<\{ `taskId`: `string`; \}\>
@@ -395,6 +409,32 @@
 #### Returns
 
 `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
+
+### triageComment
+
+> **triageComment**: (`sessionId`, `commentId`, `action`, `text?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### commentId
+
+`string`
+
+##### action
+
+`"reply"` \| `"ignore"` \| `"address"`
+
+##### text?
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
 
 ### turn
 
