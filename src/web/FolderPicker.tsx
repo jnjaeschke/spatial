@@ -10,7 +10,8 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [canOpen, setCanOpen] = useState(false);
-  const [recents, setRecents] = useState<RecentRepo[]>([]);
+  // null while loading: the listing waits for it, so the recent folders do not push it down under the pointer.
+  const [recents, setRecents] = useState<RecentRepo[] | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   // Listings can resolve out of order (the initial home listing after a typed path); only the latest request counts.
   const request = useRef(0);
@@ -59,16 +60,16 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
   }
   return <dialog ref={dialog} className="folder-picker" aria-label="Open folder" onKeyDown={keyDown} onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <header><h2>Open folder</h2><button type="button" aria-label="Close" onClick={onClose}>×</button></header>
-    {recents.length > 0 && <nav aria-label="Recent folders" className="folder-recents"><h3>Recent</h3><ul>{recents.map((repo) => <li key={repo.worktree}>
+    {recents && recents.length > 0 && <nav aria-label="Recent folders" className="folder-recents"><h3>Recent</h3><ul>{recents.map((repo) => <li key={repo.worktree}>
       <a href={`?path=${encodeURIComponent(repo.worktree)}`}><b>{repo.name}</b> <code>{repo.worktree}</code></a>
     </li>)}</ul></nav>}
-    {listing && <nav aria-label="Folder breadcrumbs" className="folder-breadcrumbs">{listing.path.split(/[\\/]/).filter(Boolean).map((part, index, parts) => {
+    {recents && listing && <nav aria-label="Folder breadcrumbs" className="folder-breadcrumbs">{listing.path.split(/[\\/]/).filter(Boolean).map((part, index, parts) => {
       const root = listing.path.startsWith("/") ? "/" : "";
       const path = root + parts.slice(0, index + 1).join(listing.path.includes("\\") ? "\\" : "/");
       return <button type="button" key={path} onClick={() => void navigate(path)}>{part}</button>;
     })}</nav>}
-    <form onSubmit={(event) => { event.preventDefault(); void navigate(input); }}><label>Path <input aria-label="Path" value={input} onChange={(event) => { edits.current++; setInput(event.target.value); }} /></label><button type="submit">Go</button></form>
-    <ul className="folder-entries">{choices.map((item, index) => <li key={item.path}><button type="button" aria-current={index === selected ? "true" : undefined} onFocus={() => setSelected(index)} onDoubleClick={() => void navigate(item.path)} onClick={() => setSelected(index)}><span>{item.name}{item.repo ? " · repository" : ""}</span></button></li>)}</ul>
+    {recents && <form onSubmit={(event) => { event.preventDefault(); void navigate(input); }}><label>Path <input aria-label="Path" value={input} onChange={(event) => { edits.current++; setInput(event.target.value); }} /></label><button type="submit">Go</button></form>}
+    {recents && <ul className="folder-entries">{choices.map((item, index) => <li key={item.path}><button type="button" aria-current={index === selected ? "true" : undefined} onFocus={() => setSelected(index)} onDoubleClick={() => void navigate(item.path)} onClick={() => setSelected(index)}><span>{item.name}{item.repo ? " · repository" : ""}</span></button></li>)}</ul>}
     {listing?.truncated && <p>Showing the first 2000 directories.</p>}
     {error && <p className="failed" role="alert">{error}</p>}
     <footer><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!target} onClick={() => { if (target) window.location.href = `?path=${encodeURIComponent(target)}`; }}>Open</button></footer>
