@@ -223,8 +223,10 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
           searchfox: rt.searchfox, repoBase: tip.repoBase, rev,
           diffPaths: (diff.data as DiffData).files.map((file) => file.path),
         }, missing);
-        const artifact = rt.store.putArtifact<CodeLinksData>({ sessionId: session.id, type: "CodeLinks", status: "verified", data: { rev, links: added }, provenance: { taskId: "runtime" } });
-        rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+        if (Object.keys(added).length) {
+          const artifact = rt.store.putArtifact<CodeLinksData>({ sessionId: session.id, type: "CodeLinks", status: "verified", data: { rev, links: added }, provenance: { taskId: "runtime" } });
+          rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+        }
       }
       const links = { ...prior, ...added };
       send(res, 200, { links: Object.fromEntries((body.tokens as string[]).map((token) => [token, links[token] ?? null])) });
