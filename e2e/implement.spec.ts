@@ -31,6 +31,10 @@ function makeGeckoRepo() {
   return dir;
 }
 
+function inlineTx(id: number, path: string, line: number, body: string) {
+  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: "PHID-USER-alice", objectPHID: "PHID-DREV-4242", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: 42421, phid: "PHID-DIFF-42421" }, path, line, length: 1, isNewFile: true, replyToCommentPHID: null, isDone: false, hasSuggestion: false, suggestionText: null } };
+}
+
 test("implement: investigate, approve, implement, automatic fix round, revise, accept", async ({ page }) => {
   test.setTimeout(120_000);
   const dir = makeRepo();
@@ -140,8 +144,46 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await page.getByTestId("epoch-chip-7").click();
   await expect(page.getByTestId("phab-revision")).toContainText("D4242", { timeout: 20_000 });
   expect(readFileSync(join(dir, ".git/moz-phab-args"), "utf8").split("\n").filter(Boolean)).toEqual(["submit", "--yes", "--reviewer", "#dom-core,smaug", base, "HEAD"]);
-  expect(git(dir, "log", "-1", "--format=%B")).toContain("Differential Revision: https://phabricator.services.mozilla.com/D4242");
+  expect(git(dir, "log", "-1", "--format=%B")).toContain("Differential Revision: https://phab.example.com/D4242");
   expect(git(dir, "log", "--format=%s", "-1")).toBe("Bug 4242 - Add c");
+});
+
+test("gecko: reviewer comments are interpreted, marked, replied to as drafts and worked in", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const dir = makeGeckoRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement TRY-E2E Bug 4242 make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const bar = page.getByTestId("topbar-decision");
+  await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Approve" }).click();
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await bar.getByRole("button", { name: "Accept" }).click();
+  await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Skip" }).click();
+  await expect(bar).toContainText(/Submit 1 commit \([0-9a-f]{12}\) to Phabricator\?/, { timeout: 20_000 });
+  await bar.getByLabel("decision text").fill("#dom-core");
+  await bar.getByRole("button", { name: "Submit", exact: true }).click();
+
+  await page.getByTestId("epoch-chip-6").waitFor({ timeout: 20_000 });
+  await request.post("http://127.0.0.1:4179/control", { data: { revision: 4242, transactions: [inlineTx(4301, "c.txt", 1, "Magic value?"), inlineTx(4302, "c.txt", 1, "Why a new file?")] } });
+  await expect(bar).toContainText("Work in 2 reviewer comments?", { timeout: 30_000 });
+  const comments = page.getByTestId("reviewer-comment");
+  await expect(comments).toHaveCount(2);
+  await expect(comments.nth(0)).toHaveAttribute("data-action", "address");
+  await expect(comments.nth(0).getByTestId("comment-asks")).toContainText("Name the magic value");
+  await expect(comments.nth(1)).toHaveAttribute("data-action", "reply");
+  await expect(comments.nth(1).getByLabel("comment text")).toHaveValue("A new file keeps the change small.");
+  await comments.nth(1).getByLabel("comment text").fill("Smaller diff this way.");
+  await comments.nth(1).getByRole("button", { name: "Save" }).click();
+  await page.getByTestId("post-replies").click();
+  await expect(page.getByTestId("post-replies-result")).toContainText("Posted 1 draft reply");
+  const inlines = await (await request.get("http://127.0.0.1:4179/control/inlines?revision=4242")).json();
+  expect(inlines.map((i: { content: string; filePath: string }) => [i.filePath, i.content])).toEqual([["c.txt", "Smaller diff this way."]]);
+  await bar.getByRole("button", { name: "Work in" }).click();
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  expect(readFileSync(join(dir, "c.txt"), "utf8")).toContain("kept");
+  expect(git(dir, "log", "-1", "--format=%B")).toContain("Differential Revision: https://phab.example.com/D4242");
 });
 
 test("gecko: chat proposes a try push and nothing is pushed until the click", async ({ page }) => {
