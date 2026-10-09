@@ -126,6 +126,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 
 /* Shell */
 .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+.app:has(> .epoch-strip) { grid-template-rows: auto auto 1fr auto; }
 .topbar {
   position: relative; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 7px 16px;
   border-bottom: 1px solid var(--border); font-size: 13px;
@@ -171,6 +172,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .canvas-minimap { box-sizing: border-box; border-left: 1px solid var(--border); }
 .session-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; }
 .session-body > .canvas { min-width: 0; }
+.reviewer-comments-panel { position: absolute; inset: 0; overflow: auto; padding: 0 12px 12px; }
 .reviewer-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
 .reviewer-comment { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
 .reviewer-comment-quote { margin: 4px 0; }

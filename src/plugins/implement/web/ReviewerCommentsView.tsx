@@ -34,11 +34,11 @@ export function ReviewerCommentsView({ state, epoch, readOnly = false }: PhaseVi
   if (!epoch) return null;
   const items = commentPlan(state, epoch);
   const replies = items.filter((item) => item.action === "reply" && item.text).length;
-  return <div className="session-body">
+  return <div className="session-body"><div className="reviewer-comments-panel">
     <RunStatus sessionId={state.session.id} epoch={epoch} readOnly={readOnly} />
     {epoch.status === "running" && <p className="running">Reading the reviewer comments…</p>}
     <ul className="reviewer-comments">{items.map((item) => <CommentItem key={item.comment.data.phid} sessionId={state.session.id} item={item} readOnly={readOnly} />)}</ul>
     {!readOnly && replies > 0 && <button type="button" data-testid="post-replies" onClick={() => api.postReplies(state.session.id).then((r) => setResult(`Posted ${r.posted} draft repl${r.posted === 1 ? "y" : "ies"}${r.skipped.length ? `; skipped ${r.skipped.length}: ${r.skipped.map((s) => s.reason).join("; ")}` : ""}`), (e: Error) => setResult(e.message))}>Post {replies} repl{replies === 1 ? "y" : "ies"} as Phabricator drafts</button>}
     {result && <p data-testid="post-replies-result">{result}</p>}
-  </div>;
+  </div></div>;
 }

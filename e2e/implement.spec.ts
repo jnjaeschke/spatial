@@ -170,6 +170,8 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await expect(bar).toContainText("Work in 2 reviewer comments?", { timeout: 30_000 });
   const comments = page.getByTestId("reviewer-comment");
   await expect(comments).toHaveCount(2);
+  expect((await page.getByTestId("epoch-strip").boundingBox())!.height).toBeLessThan(100);
+  await expect(comments.nth(1)).toBeInViewport();
   await expect(comments.nth(0)).toHaveAttribute("data-action", "address");
   await expect(comments.nth(0).getByTestId("comment-asks")).toContainText("Name the magic value");
   await expect(comments.nth(1)).toHaveAttribute("data-action", "reply");
