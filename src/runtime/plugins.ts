@@ -30,8 +30,6 @@ export interface RepoProfile {
   checkCommand?(paths: string[]): string;
   /** Whether a shell command runs tests (shown as a pass/fail chip). */
   isTestCommand?(command: string): boolean;
-  /** Command that suggests reviewers for the changed files. */
-  suggestReviewers?: string;
   /** Phase id that investigates; default `investigate`. */
   investigatePhase?: string;
   /** Automatic fix rounds before the user is asked; default 2, 0 always asks. */

@@ -8,4 +8,4 @@
 
 > `const` **geckoProfile**: [`RepoProfile`](../../../../runtime/plugins/interfaces/RepoProfile.md)
 
-Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`; try runs after Accept.
+Firefox/Gecko: stacks of `Bug N - summary` commits built and tested with `./mach`; try and Phabricator submit run after Accept.

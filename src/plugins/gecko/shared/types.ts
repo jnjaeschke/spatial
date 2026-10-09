@@ -12,3 +12,9 @@ export interface TryPushData { command: string; url: string; head: string }
 export interface TryFailure { jobId: number; name: string; platform: string; result: string; errors: { test: string | null; message: string }[] }
 /** One observed state of a push (artifact `TryRun`, verified), stored only when it changed. `counts` are Treeherder's job state counts; `error` is set when Treeherder could not be read. */
 export interface TryRunData { push: Id; url: string; revision: string | null; pushId: number | null; counts: Record<string, number>; complete: boolean; failures: TryFailure[]; error: string | null }
+/** Input of the `submit` phase: the stack `base..head` to submit. */
+export interface SubmitInput { base: string; head: string }
+/** Reviewers suggested for the changed files (artifact `ReviewerSuggestion`, verified). */
+export interface ReviewerSuggestionData { files: string[]; commits: number; suggested: string[]; candidates: { name: string; count: number }[]; error: string | null }
+/** Input of the `phabSubmit` phase: what the user confirmed. */
+export interface PhabSubmitInput { base: string; head: string; reviewers: string; wip: boolean }

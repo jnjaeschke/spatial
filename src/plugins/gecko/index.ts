@@ -6,6 +6,8 @@ import { tryPush } from "./tasks/try-push/task.ts";
 import { artifactKinds } from "./runtime/kinds.ts";
 import { TryWatcher } from "./runtime/try-watcher.ts";
 import { tryField } from "./runtime/try-chat.ts";
+import { submitPhase } from "./workflow/submit.ts";
+import { suggestReviewers } from "./tasks/suggest-reviewers/task.ts";
 
 function server(rt: Runtime, opts: { intervalMs?: number }) {
   const watcher = new TryWatcher(rt, { intervalMs: opts.intervalMs });
@@ -13,4 +15,4 @@ function server(rt: Runtime, opts: { intervalMs?: number }) {
 }
 
 /** Gecko repo profile and try phases. */
-export const geckoPlugin = definePlugin({ id: "gecko", dependsOn: ["implement"], repoProfiles: [geckoProfile], phases: [tryPhase, tryPushPhase], tasks: [proposeTry, tryPush], artifactKinds, chatReplyFields: [tryField], server });
+export const geckoPlugin = definePlugin({ id: "gecko", dependsOn: ["implement"], repoProfiles: [geckoProfile], phases: [tryPhase, tryPushPhase, submitPhase], tasks: [proposeTry, tryPush, suggestReviewers], artifactKinds, chatReplyFields: [tryField], server });

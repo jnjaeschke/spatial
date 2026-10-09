@@ -60,14 +60,6 @@ Phase id that investigates; default `investigate`.
 
 A bug number is given or asked for, never invented.
 
-***
-
-### suggestReviewers?
-
-> `optional` **suggestReviewers?**: `string`
-
-Command that suggests reviewers for the changed files.
-
 ## Methods
 
 ### checkCommand()?

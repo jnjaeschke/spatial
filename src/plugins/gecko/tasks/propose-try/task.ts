@@ -3,6 +3,7 @@ import { defineTask, prependRepoContext, type Id } from "../../../../plugin-api.
 import type { CommandRunData } from "../../../implement/api.ts";
 import type { TryInput, TryProposalData, TryPushData } from "../../shared/types.ts";
 import { tryCommandProblem } from "../../runtime/try-command.ts";
+import { changedFiles } from "../../runtime/changed-files.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
@@ -12,7 +13,6 @@ const isReply = (value: unknown): value is TryProposalData => {
   const r = value as Partial<TryProposalData> | null | undefined;
   return typeof r === "object" && r !== null && typeof r.command === "string" && typeof r.reason === "string";
 };
-const changedFiles = (diff: string) => [...new Set([...diff.matchAll(/^diff --git a\/.+ b\/(.+)$/gm)].map((m) => m[1]!))];
 
 export const proposeTry = defineTask<TryInput, { proposalId: Id }>({
   kind: "proposeTry",

@@ -8,6 +8,9 @@
 
 ## Interfaces
 
+- [PhabSubmitInput](interfaces/PhabSubmitInput.md)
+- [ReviewerSuggestionData](interfaces/ReviewerSuggestionData.md)
+- [SubmitInput](interfaces/SubmitInput.md)
 - [TryFailure](interfaces/TryFailure.md)
 - [TryProposalData](interfaces/TryProposalData.md)
 - [TryPushData](interfaces/TryPushData.md)

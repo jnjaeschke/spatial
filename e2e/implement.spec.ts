@@ -23,7 +23,7 @@ const open = (path: string) => `http://127.0.0.1:4178/?path=${encodeURIComponent
 
 function makeGeckoRepo() {
   const dir = makeRepo();
-  writeFileSync(join(dir, "mach"), `#!/bin/sh\nprintf '%s\\n' "$@" > .git/mach-args\necho "try submission success in 1.0s:"\necho " https://treeherder.mozilla.org/jobs?repo=try&landoInstance=lando-prod-2025&landoCommitID=42"\n`);
+  writeFileSync(join(dir, "mach"), `#!/bin/sh\nif [ "$1" = file-info ]; then echo '{"files":["c.txt"],"herald_groups":[{"name":"dom-core","blocking":false}],"herald_individuals":[]}'; exit 0; fi\nprintf '%s\\n' "$@" > .git/mach-args\necho "try submission success in 1.0s:"\necho " https://treeherder.mozilla.org/jobs?repo=try&landoInstance=lando-prod-2025&landoCommitID=42"\n`);
   chmodSync(join(dir, "mach"), 0o755);
   writeFileSync(join(dir, "moz.build"), "");
   git(dir, "add", "-A");
@@ -122,6 +122,8 @@ test("gecko: after Accept the try proposal is pushed on click and followed on Tr
   expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
   await bar.getByLabel("decision text").fill("./mach try fuzzy --query 'mochitest-plain' --artifact");
   await bar.getByRole("button", { name: "Push" }).click();
+  await expect(bar).toContainText("to Phabricator?", { timeout: 20_000 });
+  await page.getByTestId("epoch-chip-5").click();
   await expect(page.getByTestId("try-failure")).toContainText("test-linux1804-64/opt-mochitest-plain-1", { timeout: 20_000 });
   await expect(page.getByTestId("try-failure")).toContainText("c is missing");
   await expect(page.getByTestId("try-headline")).toContainText("Finished: 3 done, 1 failing", { timeout: 20_000 });

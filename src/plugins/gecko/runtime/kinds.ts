@@ -1,7 +1,12 @@
 import type { ArtifactKind } from "../../../plugin-api.ts";
-import type { TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
+import type { ReviewerSuggestionData, TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
 
 export const artifactKinds: Record<string, ArtifactKind> = {
+  ReviewerSuggestion: { render: (_view, artifact, subId) => {
+    if (subId !== undefined) return null;
+    const d = artifact.data as ReviewerSuggestionData;
+    return [`# Reviewer suggestion`, `Suggested: ${d.suggested.join(", ") || "none"}`, d.candidates.length ? `Recent reviewers: ${d.candidates.map((c) => `${c.name} (${c.count})`).join(", ")}` : "", d.error ? `Error: ${d.error}` : ""].filter(Boolean).join("\n\n");
+  } },
   TryProposal: { render: (_view, artifact, subId) => {
     if (subId !== undefined) return null;
     const d = artifact.data as TryProposalData;
