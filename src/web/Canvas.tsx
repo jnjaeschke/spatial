@@ -6,7 +6,7 @@ import {
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, LEVEL_MAX_ZOOM, SATELLITE_WIDTH, zoomLevel, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode, type ZoomLevel } from "./graph.ts";
+import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, LEVEL_MAX_ZOOM, LEVEL_MIN_ZOOM, SATELLITE_WIDTH, zoomLevel, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode, type ZoomLevel } from "./graph.ts";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
@@ -394,7 +394,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
     if (a) {
       const p = place(a.id, pos.get(a.id)!);
-      rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
+      rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: Math.max(rf.getZoom(), LEVEL_MIN_ZOOM[levelRef.current]) });
       anchor.current = null;
       autoFit.current = false;
     } else if (autoFit.current) {

@@ -16,6 +16,8 @@ export function zoomLevel(zoom: number, current: ZoomLevel): ZoomLevel {
 
 /** Highest zoom that still shows each level. Fitting the view stays below it, so a fit never switches to a level with wider nodes. */
 export const LEVEL_MAX_ZOOM: Record<ZoomLevel, number> = { patch: 0.59, concept: 1.19, code: 2 };
+/** Lowest zoom that keeps each level once it is shown. A level set without zooming (reveal) must zoom to at least this, or the next move drops back. */
+export const LEVEL_MIN_ZOOM: Record<ZoomLevel, number> = { patch: 0, concept: ZOOM_THRESHOLDS.conceptToPatch, code: ZOOM_THRESHOLDS.codeToConcept };
 
 export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
 /** Width of spec and chat satellites at every zoom level. */
