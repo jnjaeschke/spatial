@@ -46,7 +46,8 @@ export class RevisionWatcher {
         const artifacts = this.#rt.store.listArtifacts(id);
         const diff = latestDiff(artifacts);
         const refs = sessionRefs(artifacts, tasks);
-        if (!diff || !refs) continue;
+        // A commit SHA never moves; sessions that import by SHA (implement) re-import themselves.
+        if (!diff || !refs || /^[0-9a-f]{40}$/.test(refs.head)) continue;
         try {
           const sha = await this.#rt.gitFor(id).resolve(refs.head);
           this.#errors.delete(id);

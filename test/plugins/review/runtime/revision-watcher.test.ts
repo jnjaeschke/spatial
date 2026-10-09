@@ -136,3 +136,23 @@ test("snapshot sessions never announce a new revision", async () => {
   assert.ok(resolved.includes("refs/spatial/worktree/0123456789ab"));
   store.close();
 });
+
+test("a session imported by commit SHA never announces a new revision", async () => {
+  const store = new Store(":memory:");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "implement" });
+  const sha = (c: string) => c.repeat(40);
+  const runtime = new Runtime({ store, plugins: [{ id: "test", tasks: [] }], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+    git: () => ({ resolve: async (ref: string) => ref } as unknown as GitCapability) });
+  for (const head of [sha("a"), sha("c")]) {
+    const diff = store.putArtifact<DiffData>({ sessionId: session.id, type: "Diff", status: "verified", data: { baseSha: sha("b"), headSha: head, commits: [], files: [] }, provenance: { taskId: "test" } });
+    const task = store.createTask({ sessionId: session.id, kind: "importDiff", input: { base: sha("b"), head } });
+    store.updateTask(task.id, { status: "succeeded", output: { diffId: diff.id } });
+  }
+  const watcher = new RevisionWatcher(runtime);
+  const events: RuntimeEvent[] = [];
+  runtime.onEvent((event) => events.push(event));
+  watcher.watch(session.id);
+  await watcher.tick();
+  assert.deepEqual(events, []);
+  store.close();
+});
