@@ -362,6 +362,12 @@ button.collapse:hover:not(:disabled) { background: var(--surface-3); color: var(
 button.code-link:hover:not(:disabled) { background: color-mix(in oklab, var(--link) 16%, var(--code-bg)); }
 a.code-link { text-decoration: none; }
 a.code-link code { background: transparent; padding: 0; color: inherit; }
+.code-link::after { content: ""; display: inline-block; width: 0.85em; height: 0.85em; margin-left: 0.3em; vertical-align: -0.08em; }
+a.code-link::after { background: url("./icons/searchfox.png") center / contain no-repeat; }
+button.code-link::after {
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.5v5M3.5 4h5M3.5 10h5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 .level-patch { font-size: calc(28px * var(--text-scale, 1)); }
 .level-concept { font-size: calc(16px * var(--text-scale, 1)); }
 .level-code { font-size: calc(13px * var(--text-scale, 1)); }
