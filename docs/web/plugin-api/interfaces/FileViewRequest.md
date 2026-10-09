@@ -6,6 +6,8 @@
 
 # Interface: FileViewRequest
 
+A location in a diff to show; with `row` the view jumps to that row where the diff is shown, without it the view opens the file.
+
 ## Properties
 
 ### diffId
@@ -23,6 +25,20 @@
 ### path
 
 > **path**: `string`
+
+***
+
+### row?
+
+> `optional` **row?**: `object`
+
+#### line
+
+> **line**: `number`
+
+#### side
+
+> **side**: `"new"` \| `"old"`
 
 ***
 

@@ -34,7 +34,8 @@ export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; 
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
-export interface FileViewRequest { diffId: string; path: string; hunkId: string; text?: string }
+/** A location in a diff to show; with `row` the view jumps to that row where the diff is shown, without it the view opens the file. */
+export interface FileViewRequest { diffId: string; path: string; hunkId: string; text?: string; row?: { side: "new" | "old"; line: number } }
 export const FileViewContext = createContext<((file: FileViewRequest) => void) | null>(null);
 export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal | null {
   const slot = useContext(TopbarSlot);

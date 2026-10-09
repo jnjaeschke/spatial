@@ -26,7 +26,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
       : <AnalysisStatus state={state} models={models} />;
   return <>
     <TopbarExtras>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => { setAside(aside === "interdiff" ? null : "interdiff"); setOpenFile(null); }}>Interdiff</button>}</TopbarExtras>
-    {readOnly ? <StackContext.Provider value={stack}><SpecViewContext.Provider value={setSpecView}><div className="session-body">{body}</div></SpecViewContext.Provider></StackContext.Provider> : <FileViewContext.Provider value={(file) => { setOpenFile(file); setAside("file"); }}>
+    {readOnly ? <StackContext.Provider value={stack}><SpecViewContext.Provider value={setSpecView}><div className="session-body">{body}</div></SpecViewContext.Provider></StackContext.Provider> : <FileViewContext.Provider value={(file) => { if (file.row && narrative) setJump({ hunkId: file.hunkId, ...file.row }); else { setOpenFile(file); setAside("file"); } }}>
       <StackContext.Provider value={stack}><SpecViewContext.Provider value={setSpecView}><div className="session-body">
         {body}
         {specView && narrative && <SpecView state={state} specId={specView} llm={models.default} onClose={closeSpecView} />}

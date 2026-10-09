@@ -26,8 +26,11 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(codeLink).toBeVisible();
   await revealNode(page, codeLink);
   await codeLink.click();
-  await expect(page.getByTestId("file-panel")).toContainText("THIRTY");
-  await page.getByTestId("file-panel").getByRole("button", { name: "Close file" }).click();
+  const focused = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
+  await expect(focused).toBeInViewport();
+  await expect(focused).toContainText("THIRTY");
+  await expect(page.getByTestId("file-panel")).toHaveCount(0);
+  await setLevel(page, "concept");
   const userMessage = page.locator(".msg.user", { hasText: "Why this change?" });
   await expect(userMessage).toBeVisible();
   await expect(userMessage.locator("p")).toHaveCount(0);
@@ -94,8 +97,7 @@ test("double-clicking empty canvas opens a persistent chat at that spot", async 
   expect(point.y).toBeLessThanOrEqual(persistedBox.y + persistedBox.height);
 
   const before = await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"));
-  const nodeBox = (await page.locator("[data-testid='change-c1']").boundingBox())!;
-  await page.mouse.dblclick(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
+  await page.getByTestId("change-c1").locator(".rationale b").dblclick();
   await expect(page.locator('[data-testid^="chat-draft-"]')).toHaveCount(0);
   expect(await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"))).toBe(before);
 });

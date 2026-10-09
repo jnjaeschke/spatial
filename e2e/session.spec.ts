@@ -96,14 +96,15 @@ test("open the whole file in the side panel", async ({ page }) => {
   await expect(panel).toHaveCount(0);
 });
 
-test("code span in an explanation opens the file at the matching line", async ({ page }) => {
+test("code span in an explanation jumps to the matching row of its change", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
   await setLevel(page, "concept");
   await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
-  const focus = page.getByTestId("file-panel").locator("tr.focus");
+  const focus = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
   await expect(focus).toHaveText(/THIRTY/);
   await expect(focus).toBeInViewport();
+  await expect(page.getByTestId("file-panel")).toHaveCount(0);
 });
 
 test("the canvas works without the Navigation API", async ({ page }) => {

@@ -10,7 +10,7 @@ export function CodeSpan({ text, hunks, diffId }: { text: string; hunks?: { file
   const match = open && hunks && diffId ? findInHunks(text, hunks) : null;
   if (match && open && diffId) {
     const openFile = open;
-    return <button className="code-link" title="Show in diff" onClick={() => openFile({ diffId, ...match })}>{text}</button>;
+    return <button className="code-link" title="Show in diff" onClick={() => openFile({ diffId, path: match.path, hunkId: match.hunkId, text: match.text, row: { side: match.side, line: match.line } })}>{text}</button>;
   }
   return sf
     ? <a className="code-link nodrag" href={searchUrl(sf, text)} target="_blank" rel="noreferrer" title="Search on Searchfox"><code>{text}</code></a>
