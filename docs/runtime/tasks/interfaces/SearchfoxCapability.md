@@ -14,6 +14,28 @@
 
 ## Methods
 
+### define()
+
+> **define**(`symbol`, `signal`): `Promise`\<\{ `line`: `number`; `path`: `string`; `text`: `string`; \} \| `null`\>
+
+Resolve a symbol to its definition at Searchfox's current indexed revision. Network.
+
+#### Parameters
+
+##### symbol
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<\{ `line`: `number`; `path`: `string`; `text`: `string`; \} \| `null`\>
+
+***
+
 ### specRefs()
 
 > **specRefs**(`url`, `signal`): `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>

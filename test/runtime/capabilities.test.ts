@@ -72,6 +72,32 @@ test("searchfox: specRefs args and failure", async () => {
   await assert.rejects(sf.specRefs("u", signal), /searchfox-cli failed: network unreachable/);
 });
 
+test("searchfox: define parses a permalink and matching source line", async () => {
+  const rev = "0123456789012345678901234567890123456789";
+  stdout(`https://searchfox.org/firefox-main/rev/${rev}/dom/base/nsGlobalWindowOuter.cpp#5482-5528\n>>> 5482: void nsGlobalWindowOuter::SizeToContentOuter(\n    5483: …\n`);
+  const sf = makeSearchfox({ bin: STUB });
+  assert.deepEqual(await sf.define("nsGlobalWindowOuter::SizeToContentOuter", signal), {
+    path: "dom/base/nsGlobalWindowOuter.cpp", line: 5482,
+    text: "void nsGlobalWindowOuter::SizeToContentOuter(",
+  });
+  assert.deepEqual(argv().sort((a, b) => a.join(" ").localeCompare(b.join(" "))), [
+    ["--define", "nsGlobalWindowOuter::SizeToContentOuter"],
+    ["--define", "nsGlobalWindowOuter::SizeToContentOuter", "--permalink"],
+  ]);
+});
+
+test("searchfox: define returns null when either result is absent and throws on failure", async () => {
+  stdout("");
+  const sf = makeSearchfox({ bin: STUB });
+  assert.equal(await sf.define("missing", signal), null);
+  stdout(">>> 5482: source line\n");
+  assert.equal(await sf.define("missing", signal), null);
+  stdout("");
+  process.env.FAKE_LLM_EXIT = "1";
+  process.env.FAKE_LLM_STDERR = "network unreachable";
+  await assert.rejects(sf.define("broken", signal), /searchfox-cli failed: network unreachable/);
+});
+
 test("searchfox: tip parsed and cached; bad output throws and is not cached", async () => {
   stdout("https://searchfox.org/firefox-main/rev/b4b9efb6ee130740a94caf46ffff0625af1d51db/moz.build#1\n");
   const sf = makeSearchfox({ bin: STUB });

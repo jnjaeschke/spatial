@@ -33,6 +33,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
   const showCalls: string[] = [];
   const searchfox: SearchfoxCapability = {
     effect: "read-only",
+    async define() { return null; },
     async specRefs(url) {
       searchfoxCalls.push(url);
       if (opts.searchfoxFails) throw new Error("searchfox-cli failed: offline");

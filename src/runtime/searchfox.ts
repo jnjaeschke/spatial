@@ -30,6 +30,16 @@ export function makeSearchfox(opts: { bin?: string } = {}): SearchfoxCapability 
   };
   return {
     effect: "read-only",
+    async define(symbol, signal) {
+      const [permalinks, source] = await Promise.all([
+        run(["--define", symbol, "--permalink"], signal),
+        run(["--define", symbol], signal),
+      ]);
+      const permalink = /^https:\/\/\S+\/rev\/[0-9a-f]{40}\/(\S+?)#(\d+)/m.exec(permalinks);
+      const definition = /^>>> (\d+): (.*)$/m.exec(source);
+      if (!permalink || !definition || Number(definition[1]) !== Number(permalink[2])) return null;
+      return { path: permalink[1], line: Number(permalink[2]), text: definition[2] };
+    },
     async specRefs(url, signal) {
       return parseSpecRefs(await run(["--spec-refs", url, "-l", "30"], signal));
     },

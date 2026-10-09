@@ -19,6 +19,8 @@ export interface WebspecCapability {
 
 export interface SearchfoxCapability {
   readonly effect: "read-only";
+  /** Resolve a symbol to its definition at Searchfox's current indexed revision. Network. */
+  define(symbol: string, signal: AbortSignal): Promise<{ path: string; line: number; text: string } | null>;
   /** Existing Gecko lines referencing a spec section. Network. */
   specRefs(url: string, signal: AbortSignal): Promise<GeckoSpecRef[]>;
   /** Searchfox repository base and indexed revision; cached after first success. Network. */
