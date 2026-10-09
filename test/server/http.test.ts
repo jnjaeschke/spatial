@@ -388,9 +388,9 @@ test("narrate reuses the latest Diff and rejects narrating it twice", async () =
   assert.deepEqual(await repeated.json(), { error: "Session already has a narrative" });
   const trailered: DiffData = { ...(original.data as DiffData), headSha: "third-head", commits: [{ sha: "third-head", subject: "change", body: "Differential Revision: https://phab.example.com/D1" }] };
   rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: trailered, provenance: { taskId: "test" } });
-  const drafts = await post(`/api/sessions/${session.id}/post-drafts`, {});
-  assert.equal(drafts.status, 409);
-  assert.deepEqual(await drafts.json(), { error: "The latest revision has no narrative" });
+  const drafts = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "comment", body: "" });
+  assert.equal(drafts.status, 400);
+  assert.deepEqual(await drafts.json(), { error: "Nothing to submit" });
 });
 
 // REQUIRES_REAL_GIT
@@ -693,17 +693,17 @@ test("editing a finding comment appends verified user artifacts", async () => {
   assert.equal((await put(`/api/sessions/${session.id}/findings/missing/comment`, { body: "x" })).status, 404);
 });
 
-test("post-drafts reports a missing Differential Revision trailer", async () => {
+test("review-submit rejects a revision without a Differential Revision trailer", async () => {
   const session = await newSession();
   rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: {
     baseSha: "base", headSha: "head", commits: [{ sha: "head", subject: "change", body: "No trailer" }], files: [],
   }, provenance: { taskId: "test" } });
-  const response = await post(`/api/sessions/${session.id}/post-drafts`, {});
+  const response = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "comment", body: "" });
   assert.equal(response.status, 409);
-  assert.match((await response.json()).error, /No commit of the stack has a Differential Revision trailer/);
+  assert.match((await response.json()).error, /No commit of the stack is D1/);
 });
 
-test("post-drafts submits verified comments as Conduit drafts", async () => {
+test("review-submit posts inline drafts then submits the review action", async () => {
   const testRepo = makeRepo();
   const baseSha = testRepo.commit({ "a.txt": "before\n" }, "base");
   const headSha = testRepo.commit({ "a.txt": "after\n" }, "change\n\nDifferential Revision: https://phab.example.com/D1");
@@ -723,19 +723,20 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
   rt.store.putLink({ sessionId: session.id, from: decision.id, to: finding.id, kind: "about" });
   const comment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this." }, provenance: { taskId: "user" } });
   rt.store.putLink({ sessionId: session.id, from: comment.id, to: finding.id, kind: "about" });
+  const userComment = rt.store.putArtifact({ sessionId: session.id, type: "UserComment", status: "verified", data: { diffId: diff.id, lines: { path: "a.txt", side: "new", start: 1, end: 1 }, body: "Check this too.", replaces: null, deleted: false }, provenance: { taskId: "user" } });
 
   const remote = await makeGit(testRepo.dir).diff(baseSha, headSha);
-  const calls: string[] = [];
-  let inlineLine: number | undefined;
+  const calls: { method: string; params: Record<string, unknown> }[] = [];
+  const inlineLines: number[] = [];
   let mode: "normal" | "drift" | "http-error" = "normal";
   const conduitServer = createNetServer(async (req, res) => {
     let body = "";
     for await (const chunk of req) body += chunk;
     const form = new URLSearchParams(body);
     const method = req.url!.slice("/api/".length);
-    calls.push(method);
     const params = JSON.parse(form.get("params")!);
-    if (method === "differential.createinline") inlineLine = params.lineNumber;
+    calls.push({ method, params });
+    if (method === "differential.createinline") inlineLines.push(params.lineNumber);
     if (mode === "http-error") {
       res.writeHead(500).end("failure");
       return;
@@ -743,7 +744,8 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
     const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1" }] }
       : method === "differential.diff.search" ? { data: [{ id: 7 }] }
         : method === "differential.getrawdiff" ? mode === "drift" ? remote.replace("+after", "+different") : remote
-          : method === "differential.createinline" ? { id: 9 }
+      : method === "differential.createinline" ? { id: calls.filter((call) => call.method === method).length + 8 }
+        : method === "differential.createcomment" ? { id: 10 }
             : null;
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
   });
@@ -755,26 +757,40 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
   process.env.SPATIAL_ARCRC_PATH = arcrc;
   process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${(conduitServer.address() as AddressInfo).port}`;
   try {
-    const response = await post(`/api/sessions/${session.id}/post-drafts`, {});
+    const response = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "request-changes", body: "Please revise." });
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { posted: 1, skipped: [], revision: "D1" });
-    assert.deepEqual(calls, ["differential.revision.search", "differential.diff.search", "differential.getrawdiff", "differential.createinline"]);
-    assert.equal(inlineLine, 8);
+    assert.deepEqual(await response.json(), { inlines: 2, skipped: [], revision: "D1" });
+    assert.deepEqual(calls.map((call) => call.method), ["differential.revision.search", "differential.diff.search", "differential.getrawdiff", "differential.createinline", "differential.createinline", "differential.createcomment"]);
+    const { __conduit__: _token, ...submitted } = calls.at(-1)!.params;
+    assert.deepEqual(submitted, { revision_id: 1, message: "Please revise.", action: "reject", attach_inlines: true });
+    assert.deepEqual(inlineLines, [8, 1]);
     const posted = rt.store.listArtifacts(session.id, "PostedComment");
-    assert.equal(posted.length, 1);
+    assert.equal(posted.length, 2);
     assert.deepEqual(posted[0]!.data, { comment: comment.id, source: finding.id, revision: 1, diff: 7, inlineId: 9 });
     assert.deepEqual(posted[0]!.provenance, { taskId: "runtime" });
+    assert.deepEqual(posted[1]!.data, { comment: userComment.id, source: userComment.id, revision: 1, diff: 7, inlineId: 10 });
+    assert.deepEqual(rt.store.listArtifacts(session.id, "ReviewSubmission").at(-1)!.data, { revision: 1, action: "request-changes", body: "Please revise.", inlines: 2 });
 
-    const nextComment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this too." }, provenance: { taskId: "user" } });
-    rt.store.putLink({ sessionId: session.id, from: nextComment.id, to: finding.id, kind: "about" });
+    mode = "normal";
+    const repeat = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "accept", body: "" });
+    assert.equal(repeat.status, 200);
+    assert.deepEqual(await repeat.json(), { inlines: 0, skipped: [], revision: "D1" });
+    assert.equal(calls.filter((call) => call.method === "differential.createinline").length, 2);
+
     mode = "drift";
-    const drifted = await post(`/api/sessions/${session.id}/post-drafts`, {});
+    const beforeDriftWrites = calls.length;
+    const drifted = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "accept", body: "" });
     assert.equal(drifted.status, 409);
     assert.match((await drifted.json()).error, /a.txt/);
+    assert.equal(calls.length, beforeDriftWrites + 3);
 
     mode = "http-error";
-    const upstreamFailure = await post(`/api/sessions/${session.id}/post-drafts`, {});
+    const upstreamFailure = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "comment", body: "Second submit." });
     assert.equal(upstreamFailure.status, 502);
+    const beforeEmpty = calls.length;
+    const empty = await post(`/api/sessions/${session.id}/review-submit`, { revision: 1, action: "comment", body: "" });
+    assert.equal(empty.status, 400);
+    assert.equal(calls.length, beforeEmpty);
   } finally {
     if (oldArcrc === undefined) delete process.env.SPATIAL_ARCRC_PATH;
     else process.env.SPATIAL_ARCRC_PATH = oldArcrc;

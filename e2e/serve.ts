@@ -140,13 +140,14 @@ const arcrc = join(dir, "arcrc");
 writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
 process.env.SPATIAL_ARCRC_PATH = arcrc;
 type ConduitInline = { revisionID: number; diffID: number; filePath: string; isNewFile: number; lineNumber: number; lineLength: number; content: string };
-type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; inlines: ConduitInline[]; title?: string; base?: string; parents?: number[]; closed?: boolean };
-const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] }]]);
+type ConduitSubmission = { revision_id: number; message: string; action: "none" | "accept" | "reject"; attach_inlines: boolean };
+type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; inlines: ConduitInline[]; submissions: ConduitSubmission[]; title?: string; base?: string; parents?: number[]; closed?: boolean };
+const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {}, inlines: [], submissions: [] }]]);
 const phidOf = (revision: number) => `PHID-DREV-${revision}`;
 const state = (revision: number) => {
   const existing = conduitStates.get(revision);
   if (existing) return existing;
-  const created: ConduitState = { diffs: [1], transactions: [], rawDiffs: {}, inlines: [] };
+  const created: ConduitState = { diffs: [1], transactions: [], rawDiffs: {}, inlines: [], submissions: [] };
   conduitStates.set(revision, created);
   return created;
 };
@@ -180,6 +181,12 @@ const conduit = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(inlines));
     return;
   }
+  if (req.method === "GET" && req.url?.startsWith("/control/submissions")) {
+    const revision = Number(new URL(req.url, "http://127.0.0.1").searchParams.get("revision"));
+    const submissions = conduitStates.get(revision)?.submissions ?? [];
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(submissions));
+    return;
+  }
   const form = new URLSearchParams(body);
   const method = req.url!.slice("/api/".length);
   const params = JSON.parse(form.get("params") ?? "{}");
@@ -187,7 +194,7 @@ const conduit = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: "ERR-INVALID-SESSION", error_info: "Session key is not present.", result: null }));
     return;
   }
-  const revisionId = Number(params.constraints?.ids?.[0] ?? params.revisionID ?? params.objectIdentifier?.replace("PHID-DREV-", "") ?? params.constraints?.revisionPHIDs?.[0]?.replace("PHID-DREV-", "") ?? 1);
+  const revisionId = Number(params.constraints?.ids?.[0] ?? params.revisionID ?? params.revision_id ?? params.objectIdentifier?.replace("PHID-DREV-", "") ?? params.constraints?.revisionPHIDs?.[0]?.replace("PHID-DREV-", "") ?? 1);
   const conduitState = state(revisionId);
   const result = method === "differential.revision.search" ? (() => {
     const ids: number[] = params.constraints?.ids ?? params.constraints?.phids?.map((phid: string) => Number(phid.replace("PHID-DREV-", ""))) ?? [1];
@@ -212,6 +219,11 @@ const conduit = createServer(async (req, res) => {
               conduitState.inlines.push(inline);
               return { id: nextInlineId++ };
             })()
+            : method === "differential.createcomment" ? (() => {
+                const submission: ConduitSubmission = { revision_id: Number(params.revision_id), message: params.message, action: params.action, attach_inlines: params.attach_inlines === true };
+                conduitState.submissions.push(submission);
+                return { id: 1 };
+              })()
             : method === "transaction.search" ? { data: conduitState.transactions, cursor: { limit: "50", after: null, before: null } }
               : method === "user.whoami" ? { phid: "PHID-USER-me", userName: "me", realName: "Me" }
                 : method === "user.search" ? { data: [{ phid: "PHID-USER-alice", fields: { username: "alice", realName: "Alice" } }, { phid: "PHID-USER-reviewbot", fields: { username: "reviewbot", realName: "Code Review Bot" } }] }

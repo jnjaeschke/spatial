@@ -306,20 +306,6 @@
 
 `Promise`\<\{ `artifactId`: `string`; \}\>
 
-### postDrafts
-
-> **postDrafts**: (`sessionId`) => `Promise`\<\{ `posted`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `posted`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
-
 ### postReplies
 
 > **postReplies**: (`sessionId`) => `Promise`\<\{ `posted`: `number`; `skipped`: `object`[]; \}\>
@@ -529,6 +515,34 @@
 #### Returns
 
 `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
+
+### submitReview
+
+> **submitReview**: (`sessionId`, `body`) => `Promise`\<\{ `inlines`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### body
+
+###### action
+
+`"accept"` \| `"comment"` \| `"request-changes"`
+
+###### body
+
+`string`
+
+###### revision
+
+`number`
+
+#### Returns
+
+`Promise`\<\{ `inlines`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
 
 ### triageComment
 

@@ -20,17 +20,18 @@ test("accept a finding, edit comment, post to Phabricator", async ({ page, reque
   await expect(finding.getByLabel("Accept finding")).toHaveCount(0);
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
   const summary = page.getByTestId("summary");
-  await expect(summary.getByText(/Post.*draft/)).toHaveCount(0);
+  await expect(summary.getByText(/Submit.*inline comment/)).toHaveCount(0);
   await finding.getByLabel("Comment").fill("Edited comment text.");
   await revealNode(page, finding.getByRole("button", { name: "Save" }));
   await finding.getByRole("button", { name: "Save" }).click();
-  const post = summary.getByText(/Post.*draft.*D1/);
+  const post = summary.getByText(/Submit 1 inline comment to D1/);
   await expect(post).toBeVisible({ timeout: 5_000 });
   await revealNode(page, post);
+  page.once("dialog", (dialog) => void dialog.accept());
   await post.click();
-  await expect(summary.getByText(/Posted 1 draft to D1/)).toBeVisible({ timeout: 10_000 });
+  await expect(summary.getByText(/Submitted 1 inline comment to D1/)).toBeVisible({ timeout: 10_000 });
   await expect(finding.getByText("Posted to D1")).toBeVisible();
-  await expect(summary.getByText(/Post.*draft.*D1/)).toHaveCount(0);
+  await expect(summary.getByText(/Submit 1 inline comment to D1/)).toHaveCount(0);
 });
 
 test("dismiss a finding makes it dimmed", async ({ page, request }) => {

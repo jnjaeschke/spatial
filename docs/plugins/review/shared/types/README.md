@@ -23,6 +23,7 @@
 - [ReviewDraftData](interfaces/ReviewDraftData.md)
 - [ReviewFindingData](interfaces/ReviewFindingData.md)
 - [ReviewPostedCommentData](interfaces/ReviewPostedCommentData.md)
+- [ReviewSubmissionData](interfaces/ReviewSubmissionData.md)
 - [SpecReferenceData](interfaces/SpecReferenceData.md)
 - [SpecStepMapData](interfaces/SpecStepMapData.md)
 - [StepLink](interfaces/StepLink.md)

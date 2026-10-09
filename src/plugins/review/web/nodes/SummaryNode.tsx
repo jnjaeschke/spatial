@@ -8,8 +8,8 @@ import { commitColors, commitLabel } from "../commit-colors.ts";
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
 
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
-  const [postResult, setPostResult] = useState<string | null>(null);
-  const [postError, setPostError] = useState<string | null>(null);
+  const [postResult, setPostResult] = useState<Record<number, string>>({});
+  const [postError, setPostError] = useState<Record<number, string>>({});
   const collapse = useContext(CollapseContext);
   const actions = useContext(ChatActionsContext);
   const closed = collapse?.collapsed.has(data.narrativeId) ?? false;
@@ -23,10 +23,6 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         specStatus.unverified > 0 && `${specStatus.unverified} unverified`,
       ].filter(Boolean).join(", ")}`
   );
-  const totalDrafts = data.drafts.reduce((sum, draft) => sum + draft.count, 0);
-  const postLabel = data.drafts.length === 1
-    ? `Post ${totalDrafts} draft${totalDrafts !== 1 ? "s" : ""} to D${data.drafts[0]!.revision}`
-    : `Post ${totalDrafts} drafts to ${data.drafts.map((draft) => `D${draft.revision} (${draft.count})`).join(", ")}`;
   return (
     <div className={`node summary-node level-${data.level}`} data-anchor={data.narrativeId} data-testid="summary">
       <div className="title">{data.changeCount} changes{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.narrativeId)}>{closed ? "▸" : "▾"}</button>}</div>
@@ -57,20 +53,21 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
           </section>;
         })}
         {actions && data.level !== "patch" && (data.drafts.length > 0 || data.skipped > 0) && <div className="post-drafts-row">
-          {data.drafts.length > 0 && <>
+          {data.drafts.map((draft) => <span key={draft.revision}>
           <button className="post-drafts nodrag" onClick={async () => {
-            setPostError(null);
-            setPostResult(null);
+            if (!window.confirm(`Publish ${draft.count} inline comment${draft.count !== 1 ? "s" : ""} on D${draft.revision}?`)) return;
+            setPostError((errors) => ({ ...errors, [draft.revision]: "" }));
+            setPostResult((results) => ({ ...results, [draft.revision]: "" }));
             try {
-              const result = await api.postDrafts(data.sessionId);
-              const skipped = result.skipped.map((item) => `${item.finding}: ${item.reason}`).join("; ");
-              setPostResult(`Posted ${result.posted} draft${result.posted !== 1 ? "s" : ""} to ${result.revision}${skipped ? `; skipped ${skipped}` : ""}`);
-            } catch (e) { setPostError((e as Error).message); }
-          }}>{postLabel}</button>
-          </>}
+              const result = await api.submitReview(data.sessionId, { revision: draft.revision, action: "comment", body: "" });
+              const skipped = result.skipped.map((item) => `${item.source}: ${item.reason}`).join("; ");
+              setPostResult((results) => ({ ...results, [draft.revision]: `Submitted ${result.inlines} inline comment${result.inlines !== 1 ? "s" : ""} to ${result.revision}${skipped ? `; skipped ${skipped}` : ""}` }));
+            } catch (e) { setPostError((errors) => ({ ...errors, [draft.revision]: (e as Error).message })); }
+          }}>Submit {draft.count} inline comment{draft.count !== 1 ? "s" : ""} to D{draft.revision}</button>
+          {postResult[draft.revision] && <span className="post-result">{postResult[draft.revision]}</span>}
+          {postError[draft.revision] && <span className="post-error">{postError[draft.revision]}</span>}
+          </span>)}
           {data.skipped > 0 && <span className="post-skipped">{data.skipped} skipped</span>}
-          {postResult && <span className="post-result">{postResult}</span>}
-          {postError && <span className="post-error">{postError}</span>}
         </div>}
         {data.level !== "patch" && (
           <ul className="files">

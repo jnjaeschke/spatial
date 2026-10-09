@@ -5,9 +5,9 @@ import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/diffs.ts";
 import { currentUserComments, postableComments } from "../shared/postable-comments.ts";
-import { postPlan } from "../shared/post-plan.ts";
+import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
-import type { ChangeReviewData, FindingDecisionData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, UserCommentData } from "../shared/types.ts";
+import type { ChangeReviewData, FindingDecisionData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
 import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type DiffData, type LlmSelection, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
@@ -141,19 +141,30 @@ export function reviewRoutes(rt: Runtime): Route[] {
       done.catch((e) => console.error(`mapSpecSteps ${taskId} failed: ${(e as Error).message}`));
       send(res, 202, { taskId });
     }],
-    ["POST", /^\/api\/sessions\/([^/]+)\/post-drafts$/, async ({ params, res }) => {
+    ["POST", /^\/api\/sessions\/([^/]+)\/review-submit$/, async ({ req, params, res }) => {
       const session = requireSession(rt, params[0]!);
+      const request = await readJson(req);
+      const { revision, action, body } = request as { revision?: unknown; action?: unknown; body?: unknown };
+      if (!Number.isInteger(revision) || (revision as number) <= 0) throw new HttpError(400, "revision must be a positive integer");
+      const revisionId = revision as number;
+      if (action !== "comment" && action !== "accept" && action !== "request-changes") throw new HttpError(400, "Invalid review action");
+      if (typeof body !== "string") throw new HttpError(400, "body must be a string");
       const artifacts = rt.store.listArtifacts(session.id);
       const diffArtifact = latestDiff(artifacts);
       if (!diffArtifact) throw new HttpError(409, "Session has no imported diff");
       const diff = diffArtifact.data;
-      if (!diff.commits.some((commit) => commitRevision(commit) !== null)) {
-        throw new HttpError(409, "No commit of the stack has a Differential Revision trailer");
-      }
+      const commit = diff.commits.findIndex((item) => commitRevision(item)?.id === revisionId);
+      if (commit === -1) throw new HttpError(409, `No commit of the stack is D${revisionId}`);
+      // Without a narrative there are no findings and no anchored comments yet; a general comment can still be submitted.
       const narrative = narrativeOf(artifacts, diffArtifact.id);
-      if (!narrative) throw new HttpError(409, "The latest revision has no narrative");
-      const candidates = postableComments({ artifacts, links: rt.store.listLinks(session.id) }, narrative.id);
+      const candidates = postableComments({ artifacts, links: rt.store.listLinks(session.id) }, narrative?.id ?? null);
       const plan = postPlan(diff, candidates);
+      const group: RevisionDrafts = plan.revisions.find((item) => item.revision.id === revisionId) ?? {
+        commit,
+        revision: commitRevision(diff.commits[commit]!)!,
+        items: [],
+      };
+      if (!group.items.length && action === "comment" && !body.trim()) throw new HttpError(400, "Nothing to submit");
       const loaded: { group: typeof plan.revisions[number]; conduit: ConduitClient; diffID: number }[] = [];
       const fetchRevision = async (host: string, id: number) => {
         let token: string;
@@ -174,7 +185,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
           throw new HttpError(502, (e as Error).message);
         }
       };
-      for (const group of plan.revisions) {
+      {
         const { host, id } = group.revision;
         const { conduit, diffID, remote } = await fetchRevision(host, id);
         loaded.push({ group, conduit, diffID });
@@ -216,7 +227,25 @@ export function reviewRoutes(rt: Runtime): Route[] {
           postedCount++;
         }
       }
-      send(res, 200, { posted: postedCount, skipped, revision: loaded.map(({ group }) => `D${group.revision.id}`).join(", ") });
+      const { conduit } = loaded[0]!;
+      try {
+        await conduit.call("differential.createcomment", {
+          revision_id: revisionId,
+          message: body,
+          action: action === "accept" ? "accept" : action === "request-changes" ? "reject" : "none",
+          attach_inlines: true,
+        });
+      } catch (e) {
+        throw new HttpError(502, (e as Error).message);
+      }
+      rt.store.putArtifact({
+        sessionId: session.id,
+        type: "ReviewSubmission",
+        status: "verified",
+        data: { revision: revisionId, action, body, inlines: postedCount } satisfies ReviewSubmissionData,
+        provenance: { taskId: "runtime" },
+      });
+      send(res, 200, { inlines: postedCount, skipped, revision: `D${revisionId}` });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ req, params, res }) => {
       const id = requireSession(rt, params[0]!).id;

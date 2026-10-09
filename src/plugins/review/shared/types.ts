@@ -58,6 +58,9 @@ export interface UserCommentData { diffId: Id; lines: LineRange; body: string; r
 /** The user's general review comment for a Phabricator revision. */
 export interface ReviewDraftData { revision: number; body: string }
 
+/** Receipt for a submitted Phabricator review. */
+export interface ReviewSubmissionData { revision: number; action: "comment" | "accept" | "request-changes"; body: string; inlines: number }
+
 export interface ReviewPostedCommentData { comment: Id; source: Id; revision: number; diff: number; inlineId: number }
 
 /** The Phabricator diff matching a local Diff while it was the session head, and the revision's newest diff. */
