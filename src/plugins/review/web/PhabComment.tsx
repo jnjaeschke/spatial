@@ -15,7 +15,7 @@ function ClampedBody({ children }: { children: ReactNode }) {
   });
   return <>
     <div ref={ref} className={`phab-body${expanded ? "" : " clamped"}${overflows && !expanded ? " fading" : ""}`}>{children}</div>
-    {(overflows || expanded) && <button className="phab-more nodrag" onClick={() => setExpanded(!expanded)}>{expanded ? "Show less" : "Show more"}</button>}
+    {(overflows || expanded) && <button className="link-button phab-more nodrag" onClick={() => setExpanded(!expanded)}>{expanded ? "Show less" : "Show more"}</button>}
   </>;
 }
 

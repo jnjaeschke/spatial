@@ -13,11 +13,11 @@ export function CodeSpan({ text, hunks, diffId }: { text: string; hunks?: { file
   }, [sf, text]);
   if (match && open && diffId) {
     const openFile = open;
-    return <button className="code-link" title="Show in diff" onClick={() => openFile({ diffId, path: match.path, hunkId: match.hunkId, text: match.text, row: { side: match.side, line: match.line } })}>{text}</button>;
+    return <button className="link-button code-link" title="Show in diff" onClick={() => openFile({ diffId, path: match.path, hunkId: match.hunkId, text: match.text, row: { side: match.side, line: match.line } })}>{text}</button>;
   }
   if (!sf?.exact) return <code>{text}</code>;
   const url = sf.links[text];
   return typeof url === "string"
-    ? <a className="code-link nodrag" href={url} target="_blank" rel="noreferrer" title="Searchfox at the patch's merge-base"><code>{text}</code></a>
+    ? <a className="link-button code-link nodrag" href={url} target="_blank" rel="noreferrer" title="Searchfox at the patch's merge-base"><code>{text}</code></a>
     : <code>{text}</code>;
 }

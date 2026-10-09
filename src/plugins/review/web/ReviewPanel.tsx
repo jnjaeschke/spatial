@@ -36,8 +36,8 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
 
   return <Box nested kind="review" testId={`review-panel-D${review.revision}`} title={`Review D${review.revision}`} collapse={{ key: `review:${review.revision}`, label: `review D${review.revision}` }}>
     <p>{review.comments.length} inline comment{review.comments.length === 1 ? "" : "s"} pending</p>
-    <label onBlur={save}>General comment<Composer label="General comment" value={body} onChange={setBody} canSubmit onSubmit={() => { save(); clear(); setConfirming(true); }} /></label>
-    <label>Action<select aria-label="review action" value={action} onChange={(event) => setAction(event.target.value as ReviewSubmissionData["action"])}>
+    <label className="field field-stacked" onBlur={save}><span className="field-label">General comment</span><Composer label="General comment" value={body} onChange={setBody} canSubmit onSubmit={() => { save(); clear(); setConfirming(true); }} /></label>
+    <label className="field field-stacked"><span className="field-label">Action</span><select aria-label="review action" value={action} onChange={(event) => setAction(event.target.value as ReviewSubmissionData["action"])}>
       <option value="comment">Comment</option><option value="accept">Accept</option><option value="request-changes">Request changes</option>
     </select></label>
     <button className="review-submit nodrag" onClick={() => { clear(); setConfirming(true); }}>Submit to D{review.revision}…</button>

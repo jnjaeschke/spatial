@@ -98,7 +98,7 @@ export function SpecView({ state, specId, llm, onClose }: { state: SessionState;
       <ErrorText error={error} />
       <span className="spacer" />
       <span className="spec-legend">{(["implements", "partial", "structural", "deviates"] as const).map((kind) => <span key={kind} className={`legend map-${kind}`}>{kind}</span>)}{(["plumbing", "error-path", "test", "unexplained"] as const).map((reason) => <span key={reason} className={`legend map-${reason}`}>{reason}</span>)}<span className="legend map-none">not mapped</span></span>
-      <button aria-label="Close spec view" onClick={onClose}>×</button>
+      <button aria-label="Close spec view" className="link-button" onClick={onClose}>×</button>
     </header>
     <div className="spec-view-body">
       <div className="spec-steps"><ol>

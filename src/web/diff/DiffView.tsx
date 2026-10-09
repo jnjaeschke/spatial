@@ -55,12 +55,12 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
-      <div className="diff-head">{openFile ? <button className="file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <button aria-label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</button>}</div>
+      <div className="diff-head">{openFile ? <button className="link-button file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <button aria-label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</button>}</div>
       {hunk.rewrites?.map(({ by, of, lines }) => <div className="rewrite-flag" data-testid="rewrite-flag" key={`${by}-${of}`}>C{by + 1} rewrites {lines} line{lines === 1 ? "" : "s"} added in C{of + 1}</div>)}
       <table><tbody>
-        {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
+        {canShowAbove && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
         <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} afterRow={(threads?.length || afterRow) ? (row, index) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}{afterRow?.(row, index)}</> : undefined} />
-        {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
+        {canShowBelow && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>
     </div>
