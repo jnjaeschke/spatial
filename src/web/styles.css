@@ -260,7 +260,9 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .file-panel table { table-layout: auto; }
 .file-panel tr.in-hunk { border-left: 3px solid var(--border-strong); }
 .file-panel tr.target { border-left: 3px solid var(--accent); }
-.file-panel tr.focus, .change-node tr.focus { background: var(--diff-focus); }
+/* The jump target flashes, then fades back to the row's own add/del color; the class stays so a later jump restarts it. */
+.file-panel tr.focus, .change-node tr.focus { animation: row-focus 2.5s ease-out; }
+@keyframes row-focus { 0%, 40% { background-color: var(--diff-focus); } }
 .file-panel-error { padding: 8px 12px; color: var(--danger); }
 .empty { padding: 32px; color: var(--text-2); }
 .analysis { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; color: var(--text-2); }
