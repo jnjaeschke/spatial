@@ -21,3 +21,5 @@ export function tryNext(view: WorkflowView, epoch: Epoch): Step | null {
 }
 
 export const tryPhase: Phase<TryInput> = { id: "try", async run(rt, sessionId, input) { await rt.run(sessionId, "proposeTry", input); }, next: tryNext };
+
+export const tryPushPhase: Phase<TryPushInput> = { id: "tryPush", async run(rt, sessionId, input) { await rt.run(sessionId, "tryPush", input); } };

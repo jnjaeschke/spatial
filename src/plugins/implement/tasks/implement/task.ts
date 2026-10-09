@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type Id, type LlmEvent, type LlmSelection, type WriteMode, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
 import type { CommandRunData, ImplementBranchData, ImplementResultData, InvestigationData } from "../../shared/types.ts";
+import { commandRunData } from "../../runtime/command-run.ts";
 import { describeFinding, openHighFindings } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
@@ -94,7 +95,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
         const started = Date.now();
         const out = await runProcess("sh", ["-c", command], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
         const output = out.stdout + out.stderr;
-        ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command, exitCode: out.code, durationMs: Date.now() - started, output: output.length > 262144 ? `${output.slice(0, 262144)}\n[output truncated]` : output, test: true });
+        ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, true));
         return { exitCode: out.code, output };
       };
       const outcome = await runEditsOnly({

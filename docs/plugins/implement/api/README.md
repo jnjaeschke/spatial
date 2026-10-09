@@ -6,6 +6,10 @@
 
 # plugins/implement/api
 
+## Functions
+
+- [commandRunData](functions/commandRunData.md)
+
 ## References
 
 ### CommandRunData
