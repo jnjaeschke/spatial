@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReviewSubmissionData } from "../shared/types.ts";
-import { api } from "../../../web/plugin-api.ts";
-import type { Id } from "../../../web/plugin-api.ts";
+import { api, Box, type Id } from "../../../web/plugin-api.ts";
 import type { SummaryNodeData } from "./graph.ts";
 
 const actionLabel = (action: ReviewSubmissionData["action"]) => action === "accept" ? "accepted" : action === "request-changes" ? "requested changes" : "commented";
@@ -11,7 +10,6 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
   const [body, setBody] = useState(review.body);
   const [action, setAction] = useState<ReviewSubmissionData["action"]>("comment");
   const [error, setError] = useState("");
-  const [result, setResult] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,17 +27,14 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
 
   const submit = async () => {
     setError("");
-    setResult("");
     try {
-      const submitted = await api.submitReview(sessionId, { revision: review.revision, action, body });
-      setResult(`Submitted to D${review.revision}: ${submitted.inlines} inline comment${submitted.inlines === 1 ? "" : "s"}, ${actionLabel(action)}`);
+      await api.submitReview(sessionId, { revision: review.revision, action, body });
       setBody("");
       await api.saveReviewDraft(sessionId, review.revision, "");
     } catch (e) { setError((e as Error).message); }
   };
 
-  return <section className="review-panel" data-testid={`review-panel-D${review.revision}`}>
-    <h4>Review D{review.revision}</h4>
+  return <Box nested kind="review" testId={`review-panel-D${review.revision}`} title={`Review D${review.revision}`} collapse={{ key: `review:${review.revision}`, label: `review D${review.revision}` }}>
     <p>{review.comments.length} inline comment{review.comments.length === 1 ? "" : "s"} pending</p>
     <label>General comment<textarea aria-label="General comment" value={body} onChange={(event) => setBody(event.target.value)} onBlur={save} /></label>
     <label>Action<select aria-label="review action" value={action} onChange={(event) => setAction(event.target.value as ReviewSubmissionData["action"])}>
@@ -53,8 +48,7 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
       <p>{actionPhrase(action)}</p>
       <footer><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button type="button" onClick={() => { dialog.current?.close(); void submit(); }}>Confirm</button></footer>
     </dialog>
-    {result && <p className="review-result" role="status">{result}</p>}
     {review.submissions.map((submission) => <p className="review-result" key={submission.id}>Submitted to D{submission.data.revision}: {submission.data.inlines} inline comment{submission.data.inlines === 1 ? "" : "s"}, {actionLabel(submission.data.action)}</p>)}
     {error && <p className="review-error" role="alert">{error}</p>}
-  </section>;
+  </Box>;
 }

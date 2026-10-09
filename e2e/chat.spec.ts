@@ -224,6 +224,7 @@ test("a failed first turn shows its error in the chat", async ({ page, request }
 test("ask about a hunk anchors the chat to its change", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "code");
+  await revealNode(page, page.getByRole("button", { name: "Ask about f0h0" }));
   await page.getByRole("button", { name: "Ask about f0h0" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
   await expect(chat).toBeVisible();

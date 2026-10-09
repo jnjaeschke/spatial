@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, phabCommentCollapseId, reviewGraph, stackLayout, stepNodeId, type Layer } from "./graph.ts";
+import { LAYERS, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, stackLayout, stepNodeId, type Layer } from "./graph.ts";
 
 /** A diff row to reveal and focus; a new object per request. */
 export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
@@ -65,6 +65,7 @@ export const reviewCanvas: CanvasModel = {
     : isReviewKind(n.data, "phab") ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
       : isReviewKind(n.data, "summary") ? [
         ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
+        ...n.data.reviews.filter(reviewIsEmpty).map((review) => `review:${review.revision}`),
         ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : []),
   guide: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "change") ? [n.data] : []).map((step) => ({

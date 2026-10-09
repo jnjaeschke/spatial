@@ -1,7 +1,7 @@
 import { useContext, useMemo, useState } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DiagramNodeData } from "../graph.ts";
-import { type ZoomLevel, CollapseContext, ClosedContext } from "../../../../web/plugin-api.ts";
+import { type ZoomLevel, Box, ClosedContext } from "../../../../web/plugin-api.ts";
 import { DiagramStepContext } from "../canvas.tsx";
 
 export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData & { level: ZoomLevel }, "diagram">;
@@ -12,11 +12,9 @@ const HEAD_H = 56;
 
 export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
   const { diagram } = data;
-  const collapse = useContext(CollapseContext);
   const closer = useContext(ClosedContext);
   const diagramSteps = useContext(DiagramStepContext);
   const collapseId = `diagram:${diagram.id}`;
-  const closed = collapse?.collapsed.has(collapseId) ?? true;
   const [showBefore, setShowBefore] = useState(false);
   const steps = showBefore ? diagram.data.before ?? diagram.data.steps : diagram.data.steps;
   const unverified = steps.filter((step) => !step.verified).length;
@@ -30,12 +28,13 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
       return { step, index, startsPhase };
     });
   }, [steps]);
-  return <div className={`node diagram-node level-${data.level}`} data-testid={`diagram-${diagram.id}`}>
-    <Handle type="target" position={Position.Top} />
-    <div className="title">Sequence — {diagram.data.title}<span className="diagram-counts">{steps.length} steps · {unverified} unverified</span>{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(collapseId)}>{closed ? "▸" : "▾"}</button>}{closer && <button aria-label="Close" className="close nodrag" onClick={() => closer.close(diagram.id)}>✕</button>}</div>
+  const head = <>
     <div className="diagram-summary">{diagram.data.summary}</div>
     {diagram.data.before && <button className="diagram-toggle nodrag" aria-pressed={showBefore} onClick={() => setShowBefore(!showBefore)}>Show flow {showBefore ? "after" : "before"} this commit</button>}
-    {!closed && <div className="diagram-content nodrag nopan">
+  </>;
+  return <Box kind="diagram" level={data.level} testId={`diagram-${diagram.id}`} handles={{ target: Position.Top, source: Position.Bottom }} title={<>Sequence — {diagram.data.title}<span className="diagram-counts">{steps.length} steps · {unverified} unverified</span></>} collapse={{ key: collapseId, closedWithoutContext: true }} stub={head} onClose={closer ? () => closer.close(diagram.id) : undefined}>
+    {head}
+    <div className="diagram-content nodrag nopan">
       <div className="sequence-diagram" role="group" aria-label={`Sequence diagram: ${diagram.data.title}`} style={{ width, height }}>
         <div className="sequence-lanes">{diagram.data.lanes.map((lane, index) => <div className="sequence-lane" key={lane.id} style={{ left: index * LANE_W, width: LANE_W }}><strong>{lane.label}</strong>{lane.note && <small>{lane.note}</small>}<i /></div>)}</div>
         {groups.map(({ step, index, startsPhase }) => {
@@ -61,7 +60,6 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
           </div>;
         })}
       </div>
-    </div>}
-    <Handle type="source" position={Position.Bottom} />
-  </div>;
+    </div>
+  </Box>;
 }

@@ -10,10 +10,6 @@
 
 ## Type Declaration
 
-### closable?
-
-> `optional` **closable?**: `boolean`
-
 ### lead?
 
 > `optional` **lead?**: `ReactNode`

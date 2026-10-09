@@ -1,6 +1,6 @@
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
-import { api, ChatActionsContext, draftTexts } from "../../../web/plugin-api.ts";
+import { api, ChatActionsContext, draftTexts, Box } from "../../../web/plugin-api.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
 
@@ -36,12 +36,11 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
-  return <div className="user-comment-box nodrag nopan nowheel" data-testid="user-comment" onMouseDown={stop} onClick={stop}>
-    <div className="user-comment-title">{title}{item.draft && <button className="close" aria-label="Discard" onClick={() => { draftTexts.delete(item.draft!.id); actions?.onDiscard(item.draft!.id); }}>✕</button>}</div>
+  return <Box nested kind="user-comment" className="nodrag nopan nowheel" testId="user-comment" title={title} closeLabel="Discard" onMouseDown={stop} onClick={stop} onClose={item.draft ? () => { draftTexts.delete(item.draft!.id); actions?.onDiscard(item.draft!.id); } : undefined}>
     {item.draft ? <>
       <textarea aria-label="Comment for Phabricator" value={body} onChange={(event) => { setBody(event.currentTarget.value); draftTexts.set(item.draft!.id, event.currentTarget.value); }} onKeyDown={(event) => {
         if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void saveDraft(); }
-        if (event.key === "Escape" && !body.trim()) { event.preventDefault(); draftTexts.delete(item.draft!.id); actions?.onDiscard(item.draft!.id); }
+        if (event.key === "Escape" && body.trim()) event.preventDefault();
       }} />
       <div><button disabled={!body.trim() || busy} onClick={() => void saveDraft()}>Save</button></div>
     </> : item.artifact && <>
@@ -50,5 +49,5 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
         : <><div className="user-comment-body">{item.artifact.data.body}</div>{item.postedTo !== null ? <div className="user-comment-status">Posted to D{item.postedTo}</div> : <div><button onClick={() => { setBody(item.artifact!.data.body); setEditing(true); }}>Edit</button><button disabled={busy} onClick={() => void remove()}>Delete</button></div>}</>}
     </>}
     {error && <div className="failed">{error}</div>}
-  </div>;
+  </Box>;
 }

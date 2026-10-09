@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
 import { api } from "../api.ts";
@@ -10,33 +10,28 @@ import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { ClosedContext } from "../closed.ts";
 import { ReopenClosed } from "../ReopenClosed.tsx";
+import { Box } from "../Box.tsx";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
 export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
-  const collapse = useContext(CollapseContext);
   const closer = useContext(ClosedContext);
   const actions = useContext(ChatActionsContext);
   const id = data.threadId ?? data.draftId!;
-  const closed = data.threadId !== null && (collapse?.collapsed.has(data.threadId) ?? false);
 
   if (data.level === "patch") {
-    return <div className="node chat-node level-patch" data-testid={`chat-${id}`}><Handle type="source" position={Position.Left} /><div className="title">💬 {data.messages.length}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}</div></div>;
+    return <Box kind="chat" level="patch" testId={`chat-${id}`} title={<>💬 {data.messages.length}</>} handles={{ source: Position.Left }} collapse={data.threadId ? { key: data.threadId } : undefined} />;
   }
   return (
-    <div className={`node chat-node level-${data.level}`} data-testid={`chat-${id}`}>
-      <Handle type="source" position={Position.Left} />
-      <div className="title">Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}{closer && <button aria-label="Close" className="close nodrag" onClick={() => closeChat(data.threadId, data.draftId, actions, closer)}>✕</button>}</div>
-      {!closed && <>
+    <Box kind="chat" level={data.level} testId={`chat-${id}`} handles={{ source: Position.Left }} title={<>Chat{data.messages.length > 0 && ` · ${data.messages.length}`}</>} collapse={data.threadId ? { key: data.threadId } : undefined} onClose={closer ? () => closeChat(data.threadId, data.draftId, actions, closer) : undefined}>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
-      <Conversation {...data} closable />
+      <Conversation {...data} />
       <ReopenClosed hostId={nodeId} />
-      </>}
-    </div>
+    </Box>
   );
 }
 
-export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** A chat box of its own: Escape closes it. */ closable?: boolean };
+export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -102,7 +97,6 @@ export function Conversation(data: ConversationProps) {
         }, (err: Error) => setError(err.message));
       }}>
         <textarea ref={textarea} aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
-          if (e.key === "Escape" && data.closable) { e.preventDefault(); closeChat(data.threadId, data.draftId, actions, closer); return; }
           if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
           e.preventDefault();
           if (e.ctrlKey) {

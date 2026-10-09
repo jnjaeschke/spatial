@@ -166,7 +166,7 @@ test("remote inline whose line is gone after an amend is listed as outdated", as
   const summary = page.getByTestId("summary");
   await expect(summary).toContainText("Phabricator comments (outdated, epoch 1)");
   await expect(summary).not.toContainText("Why THIRTY?");
-  await summary.getByLabel("Expand").click();
+  await summary.getByLabel("Expand", { exact: true }).click();
   await expect(summary).toContainText("alice");
   await expect(summary).toContainText("Why THIRTY?");
 });

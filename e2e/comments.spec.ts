@@ -35,8 +35,10 @@ test("comment on selected diff lines, edit and delete it", async ({ page, reques
   await page.reload();
   await expect(page.getByTestId("user-comment")).toContainText("Please keep this behavior.");
 
+  await revealNode(page, page.getByTestId("user-comment").getByRole("button", { name: "Edit" }));
   await page.getByTestId("user-comment").getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Edit comment").fill("Updated review comment.");
+  await revealNode(page, page.getByTestId("user-comment").getByRole("button", { name: "Save" }));
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByTestId("user-comment")).toContainText("Updated review comment.");
   await page.getByTestId("user-comment").getByRole("button", { name: "Delete" }).click();
@@ -56,7 +58,8 @@ test("Escape closes an empty comment draft", async ({ page, request }) => {
 test("review panel saves its general comment and opens a confirmation dialog", async ({ page, request }) => {
   const sessionId = await openCodeReview(page, request);
   const panel = page.getByTestId("review-panel-D1");
-  await expect(panel).toBeVisible();
+  await expect(panel.getByLabel("General comment")).toHaveCount(0);
+  await panel.getByRole("button", { name: "Expand review D1" }).click();
   const general = panel.getByLabel("General comment");
   await general.fill("Please include the API rationale.");
   await general.blur();

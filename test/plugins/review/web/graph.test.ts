@@ -5,7 +5,7 @@ import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState,
 import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData, type ZoomLevel } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
-import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, narrativeGraph, reviewGraph, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, level: ZoomLevel, textScale = 1) => {
@@ -248,8 +248,19 @@ test("summary size accounts for review panels before stack lanes are placed", ()
   const summary = graph.nodes.find((node) => node.data.kind === "summary")!;
   assert.ok(isReviewKind(summary.data, "summary"));
   const withoutPanel = reviewSize(summary.data, "concept").height;
-  summary.data.reviews = [{ revision: 1, comments: [], body: "", submissions: [] }];
+  summary.data.reviews = [{ revision: 1, comments: [{ path: "a.txt", line: 1, body: "x" }], body: "", submissions: [] }];
   assert.ok(reviewSize(summary.data, "concept").height >= withoutPanel + 220);
+});
+
+test("an empty review panel starts collapsed and is estimated as its title row", () => {
+  const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  const summary = graph.nodes.find((node) => node.data.kind === "summary")!;
+  assert.ok(isReviewKind(summary.data, "summary"));
+  const withoutPanel = reviewSize(summary.data, "concept").height;
+  summary.data.reviews = [{ revision: 1, comments: [], body: "", submissions: [] }];
+  assert.equal(reviewSize(summary.data, "concept").height, withoutPanel + 40);
+  assert.ok(reviewIsEmpty(summary.data.reviews[0]!));
+  assert.ok(!reviewIsEmpty({ ...summary.data.reviews[0]!, body: "draft" }));
 });
 
 test("commit card estimates match node widths and shrink at patch level", () => {

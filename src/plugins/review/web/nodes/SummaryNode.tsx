@@ -1,7 +1,7 @@
 import { useContext } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
-import { type ZoomLevel, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
+import { type ZoomLevel, Box, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
 import { ReviewPanel } from "../ReviewPanel.tsx";
@@ -11,7 +11,6 @@ export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Reco
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   const collapse = useContext(CollapseContext);
   const actions = useContext(ChatActionsContext);
-  const closed = collapse?.collapsed.has(data.narrativeId) ?? false;
   const specStatus = data.specStatus;
   const specText = specStatus && (
     specStatus.code + specStatus.inferred + specStatus.unverified === 0
@@ -22,11 +21,11 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         specStatus.unverified > 0 && `${specStatus.unverified} unverified`,
       ].filter(Boolean).join(", ")}`
   );
+  const sinceEpoch = data.sinceEpoch !== null && <div className="since-epoch" data-testid="since-epoch">Changes since epoch {data.sinceEpoch}</div>;
   return (
-    <div className={`node summary-node level-${data.level}`} data-anchor={data.narrativeId} data-testid="summary">
-      <div className="title">{data.changeCount} changes{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.narrativeId)}>{closed ? "▸" : "▾"}</button>}</div>
-      {data.sinceEpoch !== null && <div className="since-epoch" data-testid="since-epoch">Changes since epoch {data.sinceEpoch}</div>}
-      {!closed && <div className="body nodrag nopan">
+    <Box kind="summary" level={data.level} testId="summary" data={{ "data-anchor": data.narrativeId }} handles={{ source: Position.Bottom }} title={`${data.changeCount} changes`} collapse={{ key: data.narrativeId }} stub={sinceEpoch}>
+      {sinceEpoch}
+      <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>
         {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}
         {data.level !== "patch" && data.bugs.map(({ report, summary, summarizing }) => <details className="bug-summary" data-testid="bug-summary" key={report.id}>
@@ -58,8 +57,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
           </ul>
         )}
         <ReopenClosed hostId={data.narrativeId} />
-      </div>}
-      <Handle type="source" position={Position.Bottom} />
-    </div>
+      </div>
+    </Box>
   );
 }

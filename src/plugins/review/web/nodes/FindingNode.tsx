@@ -1,35 +1,44 @@
 import { useContext, useState } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { api, ChatActionsContext, CollapseContext, type ZoomLevel, AnswerMarkdown, Conversation } from "../../../../web/plugin-api.ts";
+import { Position, type Node, type NodeProps } from "@xyflow/react";
+import { api, ChatActionsContext, type ZoomLevel, AnswerMarkdown, Conversation, Box } from "../../../../web/plugin-api.ts";
 import type { FindingNodeData } from "../graph.ts";
 
 export type FindingFlowNode = Node<FindingNodeData & { level: ZoomLevel } & Record<string, unknown>, "finding">;
 
 export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   const actions = useContext(ChatActionsContext);
-  const collapse = useContext(CollapseContext);
   const [error, setError] = useState<string | null>(null);
-  const closed = collapse?.collapsed.has(data.findingId) ?? false;
   const dismissed = data.decision === "dismissed";
   const statusLabel = data.status === "partially" ? "partially addressed" : data.status === "not_addressed" ? "not addressed" : data.status;
   const finding = <div className="msg assistant finding-body"><AnswerMarkdown text={data.body} hunks={data.hunks} diffId={data.diffId} /></div>;
+  const verdict = data.verdict && <div className="verdict-reason" data-testid="finding-verdict">{data.verdict.reason}</div>;
+  const errorText = error && <div className="failed">{error}</div>;
   const decide = (decision: "accepted" | "dismissed") => {
     if (!actions) return;
     setError(null);
     api.decideFinding(actions.sessionId, data.findingId, decision, actions.models.default).catch((e: Error) => setError(e.message));
   };
-  return <div className={`node finding-node severity-${data.severity} level-${data.level}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`} data-testid={`finding-${data.findingId}`} data-anchor={data.findingId}>
-    <Handle type="source" position={Position.Left} />
-    <div className="title"><span className={`badge severity-${data.severity}`}>{data.severity}</span><span className="category">{data.category}</span>{!data.ai && <span className="badge muted" title="Found by the runtime, not an LLM">spec check</span>}{data.status !== "open" && <span className={`badge status-${data.status}`} data-testid="finding-status">{statusLabel}</span>}{data.outdated && <span className="badge outdated" data-testid="finding-outdated">outdated</span>}{data.fromEpoch !== null && <span className="epoch-marker" data-testid="finding-epoch">epoch {data.fromEpoch}</span>}{data.title}{data.thread && ` · ${data.thread.messages.length}`}{actions && data.decision !== "accepted" && <button aria-label="Accept finding" className="accept nodrag" onClick={() => decide("accepted")}>Accept</button>}{actions && data.decision !== "dismissed" && <button aria-label="Dismiss finding" className="dismiss nodrag" onClick={() => decide("dismissed")}>Dismiss</button>}{collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.findingId)}>{closed ? "▸" : "▾"}</button>}</div>
-    {data.verdict && <div className="verdict-reason" data-testid="finding-verdict">{data.verdict.reason}</div>}
-    {error && <div className="failed">{error}</div>}
-    {!dismissed && !closed && data.level !== "patch" && <>
+  return <Box
+    kind="finding"
+    level={data.level}
+    testId={`finding-${data.findingId}`}
+    data={{ "data-anchor": data.findingId }}
+    className={`severity-${data.severity}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`}
+    handles={{ source: Position.Left }}
+    title={<><span className={`badge severity-${data.severity}`}>{data.severity}</span><span className="category">{data.category}</span>{!data.ai && <span className="badge muted" title="Found by the runtime, not an LLM">spec check</span>}{data.status !== "open" && <span className={`badge status-${data.status}`} data-testid="finding-status">{statusLabel}</span>}{data.outdated && <span className="badge outdated" data-testid="finding-outdated">outdated</span>}{data.fromEpoch !== null && <span className="epoch-marker" data-testid="finding-epoch">epoch {data.fromEpoch}</span>}{data.title}{data.thread && ` · ${data.thread.messages.length}`}</>}
+    actions={<>{actions && data.decision !== "accepted" && <button aria-label="Accept finding" className="accept nodrag" onClick={() => decide("accepted")}>Accept</button>}{actions && data.decision !== "dismissed" && <button aria-label="Dismiss finding" className="dismiss nodrag" onClick={() => decide("dismissed")}>Dismiss</button>}</>}
+    collapse={{ key: data.findingId }}
+    stub={<>{verdict}{errorText}</>}
+  >
+    {verdict}
+    {errorText}
+    {!dismissed && data.level !== "patch" && <>
       {actions
         ? <Conversation anchor={data.findingId} diffId={data.diffId} hunks={data.hunks} threadId={data.thread?.threadId ?? null} draftId={null} taskId={data.thread?.taskId ?? null} messages={data.thread?.messages ?? []} revisions={data.thread?.revisions ?? {}} mcpRequests={data.thread?.mcpRequests ?? []} lead={finding} />
         : <div className="messages body nodrag nopan nowheel">{finding}</div>}
       {data.decision === "accepted" && <CommentEditor key={data.comment?.id ?? "none"} findingId={data.findingId} comment={data.comment} postedTo={data.postedTo} />}
     </>}
-  </div>;
+  </Box>;
 }
 
 function CommentEditor({ findingId, comment, postedTo }: Pick<FindingNodeData, "findingId" | "comment" | "postedTo">) {

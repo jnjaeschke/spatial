@@ -12,6 +12,7 @@
 
 ## Interfaces
 
+- [BoxProps](interfaces/BoxProps.md)
 - [CanvasModel](interfaces/CanvasModel.md)
 - [CanvasProps](interfaces/CanvasProps.md)
 - [CanvasProviderProps](interfaces/CanvasProviderProps.md)
@@ -70,6 +71,7 @@
 - [addChats](functions/addChats.md)
 - [addNotes](functions/addNotes.md)
 - [AnswerMarkdown](functions/AnswerMarkdown.md)
+- [Box](functions/Box.md)
 - [Canvas](functions/Canvas.md)
 - [cascade](functions/cascade.md)
 - [closeChat](functions/closeChat.md)

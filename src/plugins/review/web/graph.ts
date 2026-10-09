@@ -389,6 +389,9 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   return g;
 }
 
+/** A review with nothing pending or submitted starts collapsed. */
+export const reviewIsEmpty = (review: SummaryNodeData["reviews"][number]) => review.comments.length === 0 && !review.body && review.submissions.length === 0;
+
 const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30 + (comment.bot ? 1 : Math.min(lines(comment.body, charsPerLine), 12)) * 20;
 
 /** First-paint size estimate of the review kinds, unscaled. */
@@ -401,7 +404,7 @@ export function reviewSize(data: GraphNodeData, level: ZoomLevel): { width: numb
   if (isReviewKind(data, "commit")) return { width, height: level === "patch" ? 120 : 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
-    const reviewHeight = data.reviews.reduce((sum, review) => sum + 220 + review.submissions.length * 20, 0);
+    const reviewHeight = data.reviews.reduce((sum, review) => sum + (reviewIsEmpty(review) ? 40 : 220 + review.submissions.length * 20), 0);
     return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight + reviewHeight };
   }
   if (!isReviewKind(data, "change")) throw new Error(`Not a review node kind: ${data.kind}`);

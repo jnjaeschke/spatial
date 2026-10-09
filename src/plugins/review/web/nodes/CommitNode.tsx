@@ -1,8 +1,9 @@
 import { useContext, useState } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { CommitNodeData } from "../graph.ts";
 import { type ZoomLevel, InlineText, AskContext, ChatActionsContext, api, ReopenClosed } from "../../../../web/plugin-api.ts";
 import { commitColors } from "../commit-colors.ts";
+import { Box } from "../../../../web/plugin-api.ts";
 
 export type CommitFlowNode = Node<CommitNodeData & { level: ZoomLevel } & Record<string, unknown>, "commit">;
 
@@ -19,9 +20,7 @@ export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
   };
   const { swatch } = commitColors(data.index);
   return (
-    <div className={`node commit-node level-${data.level}`} style={{ borderTopColor: swatch }} data-testid={`commit-${data.index}`} data-level={data.level}>
-      <Handle type="target" position={Position.Top} />
-      <div className="title"><span className="swatch" style={{ background: swatch }} />C{data.index + 1} <InlineText text={data.commit.subject} />{ask && data.level !== "patch" && <button aria-label={`Ask about commit ${data.index + 1}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#commit-${data.index}`)}>Ask</button>}</div>
+    <Box kind="commit" level={data.level} testId={`commit-${data.index}`} data={{ "data-level": data.level }} handles={{ target: Position.Top, source: Position.Bottom }} title={<><span className="swatch" style={{ background: swatch }} />C{data.index + 1} <InlineText text={data.commit.subject} /></>} actions={ask && data.level !== "patch" && <button aria-label={`Ask about commit ${data.index + 1}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#commit-${data.index}`)}>Ask</button>}>
       <div className="body nodrag nopan">
         {data.intent && <p className="intent"><InlineText text={data.intent} /></p>}
         <p className="counts" data-testid="commit-counts">{data.changeCount} change{data.changeCount === 1 ? "" : "s"} · {data.reviewedCount}/{data.changeCount} reviewed · {data.findingCount} finding{data.findingCount === 1 ? "" : "s"}</p>
@@ -29,7 +28,6 @@ export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
         {error && <p className="failed">{error}</p>}
         <ReopenClosed hostId={id} />
       </div>
-      <Handle type="source" position={Position.Bottom} />
-    </div>
+    </Box>
   );
 }

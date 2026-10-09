@@ -1,16 +1,14 @@
 import { useContext } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { InvestigationNodeData } from "../graph.ts";
-import { AskContext, InlineText } from "../../../../web/plugin-api.ts";
+import { AskContext, InlineText, Box } from "../../../../web/plugin-api.ts";
 
 export type InvestigationFlowNode = Node<InvestigationNodeData & Record<string, unknown>, "investigation">;
 
 export function InvestigationNode({ data }: NodeProps<InvestigationFlowNode>) {
   const ask = useContext(AskContext);
   const d = data.data;
-  return <div className="node investigation-node" data-testid="investigation" data-anchor={data.investigationId}>
-    <Handle type="target" position={Position.Top} />
-    <div className="title">Investigation <span className="badge">{d.kind}</span>{d.bug !== null && <span className="badge">Bug {d.bug}</span>}{ask && <button aria-label="Ask about the investigation" className="ask nodrag" onClick={() => ask.ask(data.investigationId)}>Ask</button>}</div>
+  return <Box kind="investigation" testId="investigation" data={{ "data-anchor": data.investigationId }} handles={{ target: Position.Top, source: Position.Bottom }} title={<>Investigation <span className="badge">{d.kind}</span>{d.bug !== null && <span className="badge">Bug {d.bug}</span>}</>} actions={ask && <button aria-label="Ask about the investigation" className="ask nodrag" onClick={() => ask.ask(data.investigationId)}>Ask</button>}>
     <div className="body nodrag nopan">
       <p><InlineText text={d.summary} /></p>
       {d.architecture && <p className="architecture"><InlineText text={d.architecture} /></p>}
@@ -23,6 +21,5 @@ export function InvestigationNode({ data }: NodeProps<InvestigationFlowNode>) {
       {d.diagramError && <p className="dropped">Diagram dropped: {d.diagramError}</p>}
       {d.droppedLocations && d.droppedLocations.length > 0 && <p className="dropped" title={d.droppedLocations.join("\n")}>{d.droppedLocations.length} location{d.droppedLocations.length === 1 ? "" : "s"} dropped</p>}
     </div>
-    <Handle type="source" position={Position.Bottom} />
-  </div>;
+  </Box>;
 }
