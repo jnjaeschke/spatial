@@ -1,5 +1,5 @@
 import type { ArtifactKind } from "../../../plugin-api.ts";
-import type { ReviewerSuggestionData, TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
+import type { PhabSubmissionData, ReviewerSuggestionData, TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
 
 export const artifactKinds: Record<string, ArtifactKind> = {
   ReviewerSuggestion: { render: (_view, artifact, subId) => {
@@ -16,6 +16,11 @@ export const artifactKinds: Record<string, ArtifactKind> = {
     if (subId !== undefined) return null;
     const d = artifact.data as TryPushData;
     return `# Try push\n\n\`${d.command}\` at ${d.head.slice(0, 12)}\n\n${d.url}`;
+  } },
+  PhabSubmission: { render: (_view, artifact, subId) => {
+    if (subId !== undefined) return null;
+    const d = artifact.data as PhabSubmissionData;
+    return [`# Phabricator submission`, `\`${d.command}\``, ...d.revisions.map((r) => `- ${r.subject}: ${r.url}`)].join("\n\n");
   } },
   TryRun: { render: (_view, artifact, subId) => {
     if (subId !== undefined) return null;

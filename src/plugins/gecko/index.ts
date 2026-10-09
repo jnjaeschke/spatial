@@ -6,13 +6,14 @@ import { tryPush } from "./tasks/try-push/task.ts";
 import { artifactKinds } from "./runtime/kinds.ts";
 import { TryWatcher } from "./runtime/try-watcher.ts";
 import { tryField } from "./runtime/try-chat.ts";
-import { submitPhase } from "./workflow/submit.ts";
+import { phabSubmitPhase, submitPhase } from "./workflow/submit.ts";
 import { suggestReviewers } from "./tasks/suggest-reviewers/task.ts";
+import { phabSubmit } from "./tasks/phab-submit/task.ts";
 
 function server(rt: Runtime, opts: { intervalMs?: number }) {
   const watcher = new TryWatcher(rt, { intervalMs: opts.intervalMs });
   return { start() { watcher.start(); } };
 }
 
-/** Gecko repo profile and try phases. */
-export const geckoPlugin = definePlugin({ id: "gecko", dependsOn: ["implement"], repoProfiles: [geckoProfile], phases: [tryPhase, tryPushPhase, submitPhase], tasks: [proposeTry, tryPush, suggestReviewers], artifactKinds, chatReplyFields: [tryField], server });
+/** Gecko repo profile, try and Phabricator submit phases. */
+export const geckoPlugin = definePlugin({ id: "gecko", dependsOn: ["implement", "review"], repoProfiles: [geckoProfile], phases: [tryPhase, tryPushPhase, submitPhase, phabSubmitPhase], tasks: [proposeTry, tryPush, suggestReviewers, phabSubmit], artifactKinds, chatReplyFields: [tryField], server });

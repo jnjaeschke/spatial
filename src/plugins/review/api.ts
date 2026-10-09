@@ -6,3 +6,5 @@ export { findingStates } from "./shared/findings.ts";
 export type { FindingState, FindingStatus } from "./shared/findings.ts";
 export type { ReviewFindingData, FindingDecisionData, FindingVerdictData, SpecReferenceData } from "./shared/types.ts";
 export type { ReviewPhaseInput } from "./workflow/review.ts";
+export { commitRevision } from "./shared/phabricator.ts";
+export type { PhabRevision } from "./shared/phabricator.ts";

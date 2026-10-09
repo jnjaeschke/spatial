@@ -18,3 +18,5 @@ export interface SubmitInput { base: string; head: string }
 export interface ReviewerSuggestionData { files: string[]; commits: number; suggested: string[]; candidates: { name: string; count: number }[]; error: string | null }
 /** Input of the `phabSubmit` phase: what the user confirmed. */
 export interface PhabSubmitInput { base: string; head: string; reviewers: string; wip: boolean }
+/** A submission to Phabricator (artifact `PhabSubmission`, verified): the command that ran, the tip after moz-phab amended the commits, and each commit's revision. */
+export interface PhabSubmissionData { command: string; head: string; revisions: { sha: string; subject: string; url: string }[] }

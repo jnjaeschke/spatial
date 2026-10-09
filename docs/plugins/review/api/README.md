@@ -27,6 +27,12 @@
 
 ## References
 
+### commitRevision
+
+Re-exports [commitRevision](../shared/phabricator/functions/commitRevision.md)
+
+***
+
 ### defaultReviewRange
 
 Re-exports [defaultReviewRange](../workflow/review-range/functions/defaultReviewRange.md)
@@ -66,6 +72,12 @@ Re-exports [FindingVerdictData](../shared/types/interfaces/FindingVerdictData.md
 ### nearestFork
 
 Re-exports [nearestFork](../workflow/review-range/functions/nearestFork.md)
+
+***
+
+### PhabRevision
+
+Re-exports [PhabRevision](../shared/phabricator/interfaces/PhabRevision.md)
 
 ***
 

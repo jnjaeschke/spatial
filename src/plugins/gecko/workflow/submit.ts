@@ -20,3 +20,5 @@ export function submitNext(view: WorkflowView, epoch: Epoch): Step | null {
 }
 
 export const submitPhase: Phase<SubmitInput> = { id: "submit", async run(rt, sessionId, input) { await rt.run(sessionId, "suggestReviewers", { base: input.base, head: input.head }); }, next: submitNext };
+
+export const phabSubmitPhase: Phase<PhabSubmitInput> = { id: "phabSubmit", async run(rt, sessionId, input) { await rt.run(sessionId, "phabSubmit", input); } };
