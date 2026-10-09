@@ -1,4 +1,4 @@
-import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
+import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
 import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode, type ZoomLevel } from "../../../web/graph-api.ts";
@@ -10,6 +10,9 @@ import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
 import { changeCommit, reviewedChanges } from "../shared/review-path.ts";
+import { currentUserComments } from "../shared/postable-comments.ts";
+import { commitRevision } from "../shared/phabricator.ts";
+import { postTarget } from "../shared/post-plan.ts";
 
 export type ChangeNodeData = {
   kind: "change";
@@ -22,6 +25,7 @@ export type ChangeNodeData = {
   commit: number | null;
   reviewed: boolean;
   threads: HostedThread[];
+  comments: { artifact?: Artifact<UserCommentData>; draft?: Draft; lines: UserCommentData["lines"]; revision: number | null; postedTo: number | null }[];
 };
 
 export type CommitNodeData = {
@@ -167,7 +171,7 @@ export function latestNarrative(state: SessionState): { narrative: Artifact<Patc
   return { narrative, diff };
 }
 
-export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Artifact<DiffData>, artifacts: Artifact[]): Graph {
+export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Artifact<DiffData>, artifacts: Artifact[], drafts: Draft[] = []): Graph {
   const previousNarrative = narrative.data.previous
     ? artifacts.find((a) => a.id === narrative.data.previous && a.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined
     : undefined;
@@ -192,12 +196,33 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
       edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
     });
   }
+  const userComments = currentUserComments(artifacts).filter((comment) => comment.data.diffId === diff.id);
+  const commentDrafts = drafts.filter((draft) => draft.kind === "comment" && draft.lines);
+  const commentForHunks = (hunks: { file: DiffFile; hunk: Hunk }[]) => {
+    const contains = (range: UserCommentData["lines"]) => hunks.some(({ file, hunk }) => file.path === range.path && numberLines(hunk).some((row) => {
+      const start = range.side === "new" ? row.new : row.old;
+      return start === range.end;
+    }));
+    const saved = userComments.filter((comment) => contains(comment.data.lines)).map((artifact) => {
+      const target = postTarget(diff.data, artifact.data.lines);
+      const revision = "skip" in target ? null : commitRevision(diff.data.commits[target.commit]!)?.id ?? null;
+      const stableId = artifact.data.replaces ?? artifact.id;
+      const posted = artifacts.filter((item) => item.type === "PostedComment").find((item) => (item.data as PostedCommentData).comment === stableId);
+      return { artifact, lines: artifact.data.lines, revision, postedTo: posted ? (posted.data as PostedCommentData).revision : null };
+    });
+    const transient = commentDrafts.filter((draft) => !!draft.lines && contains(draft.lines)).map((draft) => {
+      const target = postTarget(diff.data, draft.lines!);
+      const revision = "skip" in target ? null : commitRevision(diff.data.commits[target.commit]!)?.id ?? null;
+      return { draft, lines: draft.lines!, revision, postedTo: null };
+    });
+    return [...saved, ...transient];
+  };
   for (const change of narrative.data.changes) {
     const hunks = change.hunkIds.map((id) => byHunk.get(id)!);
     const commit = stack ? changeCommit(diff.data, change) : null;
     nodes.push({
       id: ref(change.id),
-      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id), threads: [] } satisfies ChangeNodeData,
+      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id), threads: [], comments: commentForHunks(hunks) } satisfies ChangeNodeData,
     });
     const sources = change.dependsOn.length ? change.dependsOn.map(ref) : [commit === null ? narrative.id : commitNodeId(narrative.id, commit)];
     for (const s of sources) edges.push({ id: `${s}->${ref(change.id)}`, source: s, target: ref(change.id) });
@@ -233,7 +258,7 @@ export function anchorNodeId(
 export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
   const latest = latestNarrative(state);
   if (!latest) return null;
-  const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts);
+  const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts, drafts);
   const diagramsByCommit = new Map<string, Artifact<DiagramData>>();
   for (const artifact of state.artifacts) {
     if (artifact.type !== "Diagram") continue;

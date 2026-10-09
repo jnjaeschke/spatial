@@ -184,6 +184,7 @@ export function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf:
     g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
   }
   for (const draft of drafts) {
+    if (draft.kind === "comment") continue;
     if (draft.taskId && threads.some((thread) => thread.provenance.taskId === draft.taskId)) continue;
     const node = resolve(draft.anchor);
     if (!node) continue;

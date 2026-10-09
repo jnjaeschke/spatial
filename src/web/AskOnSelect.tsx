@@ -23,9 +23,10 @@ export function AskOnSelect() {
     return () => { document.removeEventListener("selectionchange", update); cancelAnimationFrame(frame); };
   }, [ask]);
   if (!ask || !button) return null;
-  return <button className="ask-selection" style={{ position: "fixed", left: button.x, top: button.y, zIndex: 1000 }} onMouseDown={(e) => e.preventDefault()} onClick={() => {
-    ask.ask(button.value.anchor, { quote: button.value.quote, lines: button.value.lines });
-    window.getSelection()?.removeAllRanges();
-    setButton(null);
-  }}>Ask</button>;
+  const selection = { quote: button.value.quote, lines: button.value.lines };
+  const close = () => { window.getSelection()?.removeAllRanges(); setButton(null); };
+  return <div className="ask-selection" style={{ position: "fixed", left: button.x, top: button.y, zIndex: 1000 }} onMouseDown={(e) => e.preventDefault()}>
+    <button onClick={() => { ask.ask(button.value.anchor, selection); close(); }}>Ask</button>
+    {button.value.lines && ask.comment && <button onClick={() => { ask.comment!(button.value.anchor, selection); close(); }}>Comment</button>}
+  </div>;
 }

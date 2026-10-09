@@ -36,9 +36,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     const id = `draft-${crypto.randomUUID()}`;
     setDrafts((current) => [...current, { id, anchor, ...selection }]);
   }, []);
-  const askContext = useMemo(() => ({ ask }), [ask]);
+  const comment = useCallback((anchor: Ref, selection: SelectionData) => {
+    const id = `comment-${crypto.randomUUID()}`;
+    setDrafts((current) => [...current, { id, anchor, kind: "comment", ...selection }]);
+  }, []);
   const onSent = useCallback((draftId: string, taskId: string) => setDrafts((current) => current.map((d) => d.id === draftId ? { ...d, taskId } : d)), []);
   const onOpenAside = useCallback((draft: Draft) => setDrafts((current) => [...current, draft]), []);
+  const commentsOnSelection = state ? activePhaseView(webPlugins, state).view?.commentsOnSelection === true : false;
+  const askContext = useMemo(() => ({ ask, ...(commentsOnSelection ? { comment } : {}) }), [ask, comment, commentsOnSelection]);
   if (error) return <p className="empty failed">{error}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);

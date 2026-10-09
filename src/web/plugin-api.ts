@@ -15,6 +15,8 @@ export interface PhaseViewProps { state: SessionState; models: ModelsResponse; d
 export interface ExportDiff { id: string; commits: string[]; files: string[] }
 export interface PhaseView {
   Body: ComponentType<PhaseViewProps>;
+  /** Whether selected diff lines can start a local inline comment. */
+  commentsOnSelection?: boolean;
   /** Whether the Export button shows; default false. */
   exportable?(state: SessionState): boolean;
   /** The diff an export carries file texts of; none for views without diffs. */
@@ -46,7 +48,7 @@ export { Canvas } from "./Canvas.tsx";
 export type { NodeProps } from "@xyflow/react";
 export * from "./graph-api.ts";
 export { InlineText } from "./InlineText.tsx";
-export { AskContext, ChatActionsContext, closeChat } from "./chat-context.ts";
+export { AskContext, ChatActionsContext, closeChat, draftTexts } from "./chat-context.ts";
 export { CollapseContext } from "./collapse.ts";
 export { ClosedContext } from "./closed.ts";
 export { ReopenClosed } from "./ReopenClosed.tsx";

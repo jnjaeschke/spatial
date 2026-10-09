@@ -57,6 +57,7 @@
 - [ChatActionsContext](variables/ChatActionsContext.md)
 - [ClosedContext](variables/ClosedContext.md)
 - [CollapseContext](variables/CollapseContext.md)
+- [draftTexts](variables/draftTexts.md)
 - [FileViewContext](variables/FileViewContext.md)
 - [NODE\_WIDTH](variables/NODE_WIDTH.md)
 - [NodeKindsContext](variables/NodeKindsContext.md)

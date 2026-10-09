@@ -28,7 +28,7 @@ function exportDiff(state: SessionState): ExportDiff | null {
 
 export const reviewWeb: WebPlugin = {
   id: "review",
-  phaseViews: { review: { Body: ReviewView, exportable: (state) => !!latestNarrative(state), exportDiff, isStaleNotice: (state, notice) => isStaleNotice(notice, latestDiff(state.artifacts)) } },
+  phaseViews: { review: { Body: ReviewView, commentsOnSelection: true, exportable: (state) => !!latestNarrative(state), exportDiff, isStaleNotice: (state, notice) => isStaleNotice(notice, latestDiff(state.artifacts)) } },
   workflowPhase: { review: "review" },
   nodeKinds: reviewNodeKinds,
 };

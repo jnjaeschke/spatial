@@ -6,4 +6,4 @@
 
 # Variable: AskContext
 
-> `const` **AskContext**: `Context`\<\{ `ask`: `void`; \} \| `null`\>
+> `const` **AskContext**: `Context`\<\{ `ask`: `void`; `comment?`: `void`; \} \| `null`\>

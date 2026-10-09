@@ -12,6 +12,14 @@
 
 > **Body**: `ComponentType`\<[`PhaseViewProps`](PhaseViewProps.md)\>
 
+***
+
+### commentsOnSelection?
+
+> `optional` **commentsOnSelection?**: `boolean`
+
+Whether selected diff lines can start a local inline comment.
+
 ## Methods
 
 ### exportable()?

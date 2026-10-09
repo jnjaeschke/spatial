@@ -4,8 +4,8 @@ import type { ChatThreadData, ModelsResponse, Ref, TaskRecord } from "../shared/
 /** Opens a draft chat anchored at `anchor`; null when chat is unavailable (fixture mode, models not loaded). */
 export type SelectionData = Pick<ChatThreadData, "quote" | "lines">;
 /** A chat box the user opened but whose first turn has not produced a thread yet. */
-export interface Draft extends SelectionData { id: string; anchor: Ref; aside?: boolean; taskId?: string }
-export const AskContext = createContext<{ ask(anchor: Ref, selection?: SelectionData): void } | null>(null);
+export interface Draft extends SelectionData { id: string; anchor: Ref; kind?: "chat" | "comment"; aside?: boolean; taskId?: string }
+export const AskContext = createContext<{ ask(anchor: Ref, selection?: SelectionData): void; comment?(anchor: Ref, selection: SelectionData): void } | null>(null);
 
 export interface ChatActions {
   models: ModelsResponse;

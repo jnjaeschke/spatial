@@ -529,10 +529,11 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .revision-errors { margin: 6px 0 0; color: var(--text-3); font-size: 0.85em; }
 .chat-quote { margin: 8px 0 0; padding: 4px 10px; border-left: 3px solid var(--kind-chat); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: color-mix(in oklab, var(--kind-chat) 8%, transparent); color: var(--text-2); max-height: 6em; overflow: auto; font-size: 0.92em; }
 .ask-selection {
-  padding: 5px 12px; border: 0; border-radius: 999px; color: var(--accent-fg); font-weight: 600;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow-3); cursor: pointer;
+  display: flex; gap: 4px; padding: 4px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow-3);
 }
-.ask-selection:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); }
+.ask-selection > button { padding: 4px 10px; border: 0; border-radius: 999px; color: var(--accent-fg); font-weight: 600; background: transparent; cursor: pointer; }
+.ask-selection > button:hover { background: color-mix(in oklab, white 18%, transparent); }
 ::highlight(syn-keyword) { color: var(--syn-keyword); }
 ::highlight(syn-string) { color: var(--syn-string); }
 ::highlight(syn-comment) { color: var(--syn-comment); font-style: italic; }
@@ -602,6 +603,13 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .running::before, .activity .pending::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .diff td.sign { white-space: nowrap; }
 .diff tr.thread-row > td { padding: 0; white-space: normal; word-break: normal; font-family: var(--font-sans); }
+.user-comment-box { position: relative; --kind: var(--kind-phab); border-left: 3px solid var(--kind-phab); padding: 8px 10px; background: var(--surface); color: var(--text); }
+.user-comment-title > .close { position: absolute; top: 6px; right: 8px; margin: 0; }
+.user-comment-title, .user-comment-author { color: var(--kind-phab); font-weight: 600; margin-bottom: 4px; }
+.user-comment-body { white-space: pre-wrap; }
+.user-comment-box textarea { width: 100%; min-height: 4em; resize: vertical; font: inherit; }
+.user-comment-box > div:not(.user-comment-title):has(> button) { display: flex; gap: 6px; margin-top: 6px; }
+.user-comment-status { color: var(--text-3); font-size: .9em; }
 .commit-tag { margin-left: 3px; font-size: calc(9px * var(--text-scale, 1)); color: var(--text-3); }
 .rewrite-flag { padding: 3px 8px; font: 11px var(--font-mono); color: var(--badge-warn-fg); background: var(--badge-warn-bg); border-top: 1px solid var(--border); }
 .toasts { position: fixed; right: 16px; bottom: 48px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }

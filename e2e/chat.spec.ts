@@ -247,8 +247,8 @@ test("selecting text in a chat opens a chat anchored to the original chat", asyn
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, { steps: 8 });
   await page.mouse.up();
-  await expect(page.locator("button.ask-selection")).toBeVisible();
-  await page.locator("button.ask-selection").click();
+  await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toBeVisible();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
   const nested = page.locator('[data-testid^="chat-draft-"]').filter({ has: page.getByLabel("message") });
   await expect(nested).toHaveCount(1);
   await expect(page.getByTestId("change-c1").locator(".hosted-chat")).toHaveCount(2);
@@ -263,8 +263,8 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
   await page.mouse.down();
   await page.mouse.move(explanationBox.x + explanationBox.width - 3, explanationBox.y + explanationBox.height / 2, { steps: 8 });
   await page.mouse.up();
-  await expect(page.locator("button.ask-selection")).toBeVisible();
-  await page.locator("button.ask-selection").click();
+  await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toBeVisible();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await expect(draft.locator("blockquote.chat-quote")).toContainText("Replaces");
   await expect(draft.getByLabel("message")).toBeFocused();
@@ -281,7 +281,7 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
   await page.mouse.down();
   await page.mouse.move(b.x + b.width * 0.8, b.y + b.height / 2, { steps: 12 });
   await page.mouse.up();
-  await expect(page.locator("button.ask-selection")).toHaveCount(0);
+  await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toHaveCount(0);
 });
 
 test("selecting diff rows stores the selected line range", async ({ page, request }) => {
@@ -296,8 +296,8 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
   await page.mouse.down();
   await page.mouse.move(last!.x + last!.width * 0.8, last!.y + last!.height / 2, { steps: 8 });
   await page.mouse.up();
-  await expect(page.locator("button.ask-selection")).toBeVisible();
-  await page.locator("button.ask-selection").click();
+  await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toBeVisible();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("Explain these lines");
   await draft.getByRole("button", { name: "Send" }).click();
@@ -322,7 +322,7 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   const selected = await code.innerText();
   await code.dblclick();
   const word = await page.evaluate(() => getSelection()!.toString().trim());
-  const ask = page.locator("button.ask-selection");
+  const ask = page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true });
   await expect(ask).toBeVisible();
   await ask.click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
@@ -380,7 +380,7 @@ test("a collapsed quoted chat reopens from its highlight", async ({ page, reques
   const code = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand) td.code').last();
   await code.dblclick();
   const word = await page.evaluate(() => getSelection()!.toString().trim());
-  await page.locator("button.ask-selection").click();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("Why?");
   await draft.getByRole("button", { name: "Send" }).click();
@@ -489,7 +489,7 @@ test("a chat on code lines renders directly after its last quoted row", async ({
   await setLevel(page, "code");
   const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
   await row.locator("td.code").dblclick();
-  await page.locator("button.ask-selection").click();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("Why?");
   await draft.getByRole("button", { name: "Send" }).click();

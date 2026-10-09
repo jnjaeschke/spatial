@@ -32,6 +32,12 @@ A chat box the user opened but whose first turn has not produced a thread yet.
 
 ***
 
+### kind?
+
+> `optional` **kind?**: `"chat"` \| `"comment"`
+
+***
+
 ### lines?
 
 > `optional` **lines?**: `object`
