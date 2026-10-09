@@ -105,7 +105,7 @@ test("the write mode is remembered per repository", async ({ page }) => {
   await expect(page.getByLabel("write mode")).toHaveValue("editsOnly");
 });
 
-test("gecko: after Accept the try proposal is pushed on click and followed on Treeherder", async ({ page }) => {
+test("gecko: after Accept try and Phabricator submit run only on click", async ({ page }) => {
   test.setTimeout(120_000);
   const dir = makeGeckoRepo();
   await page.goto(open(dir));
@@ -122,12 +122,25 @@ test("gecko: after Accept the try proposal is pushed on click and followed on Tr
   expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
   await bar.getByLabel("decision text").fill("./mach try fuzzy --query 'mochitest-plain' --artifact");
   await bar.getByRole("button", { name: "Push" }).click();
-  await expect(bar).toContainText("to Phabricator?", { timeout: 20_000 });
+  await expect(bar).toContainText(/Submit 1 commit \([0-9a-f]{12}\) to Phabricator\?/, { timeout: 20_000 });
+  await expect(bar.getByLabel("decision text")).toHaveValue("#dom-core");
+  await expect(page.getByTestId("reviewer-suggestion")).toContainText("#dom-core");
+  expect(existsSync(join(dir, ".git/moz-phab-args"))).toBe(false);
+
   await page.getByTestId("epoch-chip-5").click();
   await expect(page.getByTestId("try-failure")).toContainText("test-linux1804-64/opt-mochitest-plain-1", { timeout: 20_000 });
   await expect(page.getByTestId("try-failure")).toContainText("c is missing");
   await expect(page.getByTestId("try-headline")).toContainText("Finished: 3 done, 1 failing", { timeout: 20_000 });
   expect(readFileSync(join(dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean)).toEqual(["try", "fuzzy", "--query", "mochitest-plain", "--artifact"]);
+
+  const base = git(dir, "rev-parse", "main");
+  await bar.getByLabel("decision text").fill("#dom-core, smaug");
+  await bar.getByRole("button", { name: "Submit", exact: true }).click();
+  await expect(page.getByTestId("epoch-chip-7")).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("epoch-chip-7").click();
+  await expect(page.getByTestId("phab-revision")).toContainText("D4242", { timeout: 20_000 });
+  expect(readFileSync(join(dir, ".git/moz-phab-args"), "utf8").split("\n").filter(Boolean)).toEqual(["submit", "--yes", "--reviewer", "#dom-core,smaug", base, "HEAD"]);
+  expect(git(dir, "log", "-1", "--format=%B")).toContain("Differential Revision: https://phabricator.services.mozilla.com/D4242");
   expect(git(dir, "log", "--format=%s", "-1")).toBe("Bug 4242 - Add c");
 });
 

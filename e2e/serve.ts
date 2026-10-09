@@ -112,6 +112,10 @@ const treeherderCli = join(implementDir, "treeherder-cli.sh");
 writeFileSync(treeherderCli, `#!/bin/sh\ncat <<'EOF'\n${JSON.stringify({ revision: "abc123", push_id: 7, matched_jobs: 3, jobs: [{ job: { id: 9, job_type_name: "test-linux1804-64/opt-mochitest-plain-1", job_type_symbol: "1", platform: "linux1804-64", platform_option: "opt", result: "testfailed", state: "completed", failure_classification_id: 1 }, errors: [{ action: "test_result", line: 1, test: "dom/base/test/test_c.html", status: "FAIL", message: "c is missing" }], log_matches: [] }] })}\nEOF\n`);
 chmodSync(treeherderCli, 0o755);
 process.env.SPATIAL_TREEHERDER_CLI = treeherderCli;
+const mozPhab = join(implementDir, "moz-phab.sh");
+writeFileSync(mozPhab, `#!/bin/sh\nprintf '%s\\n' "$@" > .git/moz-phab-args\ngit -c user.name=spatial -c user.email=spatial@example.com -c commit.gpgsign=false commit -q --amend -m "$(git log -1 --format=%B)" -m "Differential Revision: https://phabricator.services.mozilla.com/D4242"\necho "Submitted D4242"\n`);
+chmodSync(mozPhab, 0o755);
+process.env.SPATIAL_MOZPHAB = mozPhab;
 // Implement routes come first: the review prompts of an implement session also contain the generic needles below.
 const implementRoutes = { "You investigate a bug report&&TRY-E2E": tryInvestigationOut, 'TRY-E2E&&"findings"': tryCleanReviewOut, "You propose a try push": tryProposalOut, "You investigate a bug report": investigationOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
 // Spec view and file navigation routes come first: their mapping and narration prompts also contain the generic needles below.
