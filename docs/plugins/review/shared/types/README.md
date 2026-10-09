@@ -16,6 +16,7 @@
 - [LineRange](interfaces/LineRange.md)
 - [PhabCommentData](interfaces/PhabCommentData.md)
 - [PhabSyncData](interfaces/PhabSyncData.md)
+- [PostedReplyData](interfaces/PostedReplyData.md)
 - [ReviewCommentData](interfaces/ReviewCommentData.md)
 - [ReviewFindingData](interfaces/ReviewFindingData.md)
 - [SpecReferenceData](interfaces/SpecReferenceData.md)

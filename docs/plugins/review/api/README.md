@@ -21,6 +21,7 @@
 ## Functions
 
 - [lookupSpec](functions/lookupSpec.md)
+- [postInlineReplies](functions/postInlineReplies.md)
 - [resolveSpecReference](functions/resolveSpecReference.md)
 - [specReferenceData](functions/specReferenceData.md)
 - [verifyDiagramAtBase](functions/verifyDiagramAtBase.md)
@@ -75,9 +76,21 @@ Re-exports [nearestFork](../workflow/review-range/functions/nearestFork.md)
 
 ***
 
+### PhabCommentData
+
+Re-exports [PhabCommentData](../shared/types/interfaces/PhabCommentData.md)
+
+***
+
 ### PhabRevision
 
 Re-exports [PhabRevision](../shared/phabricator/interfaces/PhabRevision.md)
+
+***
+
+### PostedReplyData
+
+Re-exports [PostedReplyData](../shared/types/interfaces/PostedReplyData.md)
 
 ***
 

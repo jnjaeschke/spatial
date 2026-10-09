@@ -28,6 +28,12 @@ A comment imported from Phabricator. Provenance is runtime verified; a newer ver
 
 ***
 
+### byMe
+
+> **byMe**: `boolean`
+
+***
+
 ### dateCreated
 
 > **dateCreated**: `number`

@@ -57,9 +57,12 @@ export interface PhabSyncData { revision: number; matchingDiffId: number | null;
 
 /** A comment imported from Phabricator. Provenance is runtime verified; a newer version or done state revises the prior artifact. `bot` is set when the username ends in "bot": Phabricator roles do not distinguish bots. */
 export interface PhabCommentData {
-  revision: number; phid: string; version: number; author: string; bot: boolean; body: string; path?: string; line?: number; length?: number; /** Text of the commented line in the raw diff of `diffId`; absent when not found. */ quote?: string;
+  revision: number; phid: string; version: number; author: string; bot: boolean; /** Whether the author is the user whose Conduit token spatial uses. */ byMe: boolean; body: string; path?: string; line?: number; length?: number; /** Text of the commented line in the raw diff of `diffId`; absent when not found. */ quote?: string;
   diffId?: number; isNewFile?: boolean; replyTo?: string; own: boolean; done: boolean; txId: number; dateCreated: number;
 }
+
+/** Receipt for a draft inline created on a Phabricator revision. Linked `about → comment`. */
+export interface PostedReplyData { comment: Id; body: string; revision: number; diff: number; inlineId: number }
 
 /** Data of an `Interdiff` artifact: what the author changed between two revisions, without changes that only come from rebasing. Linked `about → toDiff`. Produced by the `interdiff` task; verified; no LLM. `conflicts` lists paths where replaying the old patch onto the new base conflicted; for those, `files` holds a per-file comparison of the old and new patch hunks instead. */
 export interface InterdiffData { fromDiff: Id; toDiff: Id; files: DiffFile[]; conflicts: string[] }

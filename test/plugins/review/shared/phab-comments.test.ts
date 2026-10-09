@@ -4,7 +4,7 @@ import { latestPhabComments, phabAnchorId, phabLatest, phabThread } from "../../
 import type { PhabCommentData } from "../../../../src/plugins/review/shared/types.ts";
 import type { Artifact } from "../../../../src/shared/types.ts";
 
-const artifact = (id: string, data: Partial<PhabCommentData>): Artifact<PhabCommentData> => ({ id, sessionId: "S", type: "PhabComment", status: "verified", provenance: { taskId: "runtime" }, createdAt: id, data: { revision: 1, phid: "root", version: 1, author: "alice", bot: false, body: id, own: false, done: false, txId: 1, dateCreated: 1, ...data }, epoch: null});
+const artifact = (id: string, data: Partial<PhabCommentData>): Artifact<PhabCommentData> => ({ id, sessionId: "S", type: "PhabComment", status: "verified", provenance: { taskId: "runtime" }, createdAt: id, data: { revision: 1, phid: "root", version: 1, author: "alice", bot: false, byMe: false, body: id, own: false, done: false, txId: 1, dateCreated: 1, ...data }, epoch: null});
 
 test("Phabricator comment helpers preserve stable anchors and latest versions", () => {
   const root = artifact("root-v1", { phid: "root", txId: 1 });

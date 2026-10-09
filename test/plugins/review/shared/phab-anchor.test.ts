@@ -12,7 +12,7 @@ const narrative = (id: string, diffId: string, hunkId: string | null): Artifact<
   diffId, summary: "summary", changes: hunkId ? [{ id: "c", title: "change", explanation: "", rationale: "", hunkIds: [hunkId], dependsOn: [], specUrls: [] }] : [],
 });
 const comment = (id: string, values: Partial<PhabCommentData> = {}) => make<PhabCommentData>(id, "PhabComment", {
-  revision: 1, phid: id, version: 1, author: "alice", bot: false, body: "body", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, quote: "target", own: false, done: false, txId: 1, dateCreated: 1, ...values,
+  revision: 1, phid: id, version: 1, author: "alice", bot: false, byMe: false, body: "body", path: "a.txt", line: 30, length: 1, diffId: 1, isNewFile: true, quote: "target", own: false, done: false, txId: 1, dateCreated: 1, ...values,
 });
 const sync = (diffId: string, matchingDiffId: number | null, revision = 1) => make("sync-" + diffId + "-" + revision, "PhabSync", { localDiff: diffId, matchingDiffId, revision, latestDiffId: 1 });
 

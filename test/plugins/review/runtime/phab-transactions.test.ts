@@ -62,6 +62,8 @@ test("storeRemoteComments is idempotent, revises edits and done toggles, and ide
   assert.equal(first.length, 1);
   assert.equal(first[0]?.data.done, false);
   assert.equal(first[0]?.data.author, "alice");
+  assert.equal(first[0]?.data.byMe, true);
+  assert.equal(first[0]?.data.own, false);
   assert.equal(storeRemoteComments(store, session.id, 7, [remote()], new Map(), { phid: "U", posted: [] }).length, 0);
   const edited = storeRemoteComments(store, session.id, 7, [remote({ version: 2, body: "edited" })], new Map(), { phid: "U", posted: [] });
   const done = storeRemoteComments(store, session.id, 7, [remote({ version: 2, body: "edited", isDone: true })], new Map(), { phid: "U", posted: [] });
