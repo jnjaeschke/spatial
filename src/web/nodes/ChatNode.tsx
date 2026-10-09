@@ -100,6 +100,8 @@ export function Conversation(data: ConversationProps) {
         }, (err: Error) => setError(err.message));
       }}>
         <textarea ref={textarea} aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
+          // Escape discards only an empty draft, so typed text is never lost to one key.
+          if (e.key === "Escape" && data.draftId && !text.trim()) { e.preventDefault(); actions.onDiscard(data.draftId); return; }
           if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
           e.preventDefault();
           if (e.ctrlKey) {
@@ -112,7 +114,7 @@ export function Conversation(data: ConversationProps) {
         }} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
-        {data.aside && data.draftId && <button type="button" aria-label="Discard draft" onClick={() => actions.onDiscard(data.draftId!)}>×</button>}
+        {data.draftId && <button type="button" aria-label="Discard draft" onClick={() => actions.onDiscard(data.draftId!)}>×</button>}
         {error && <span className="failed">{error}</span>}
       </form>}
   </>;

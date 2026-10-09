@@ -42,6 +42,24 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
+test("an unsent draft on a change closes with its × or with Escape while empty", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await setLevel(page, "concept");
+  const drafts = page.locator('[data-testid^="chat-draft-"]');
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  await expect(drafts).toHaveCount(1);
+  await drafts.getByRole("button", { name: "Discard draft" }).click();
+  await expect(drafts).toHaveCount(0);
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const message = drafts.getByLabel("message");
+  await message.fill("not empty");
+  await message.press("Escape");
+  await expect(drafts).toHaveCount(1);
+  await message.fill("");
+  await message.press("Escape");
+  await expect(drafts).toHaveCount(0);
+});
+
 test("a closed chat stays closed after reload and reopens from its change", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "concept");
