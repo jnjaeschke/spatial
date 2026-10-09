@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { LineRange, ReviewFindingData, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../shared/types.ts";
 import { type Artifact, type DiffData, type Id, type Link, type LlmSelection, type PatchNarrativeData, defineTask } from "../../../../plugin-api.ts";
-import { numberLines } from "../../shared/diff-lines.ts";
+import { numberLines } from "../../../../plugin-api.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { checkStepComment, commentBlock, misplacedStepComment, stepComments } from "../resolve-spec-refs/step-check.ts";

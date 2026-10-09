@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fileRows, numberLines } from "../../../../src/plugins/review/shared/diff-lines.ts";
-import type { DiffFile } from "../../../../src/shared/types.ts";
+import { fileRows, numberLines } from "../../src/shared/diff-lines.ts";
+import type { DiffFile } from "../../src/shared/types.ts";
 
 test("numbers old/new sides per line kind", () => {
   const out = numberLines({

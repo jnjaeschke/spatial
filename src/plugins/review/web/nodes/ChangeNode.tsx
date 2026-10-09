@@ -2,10 +2,8 @@ import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeNodeData } from "../graph.ts";
 import { type ZoomLevel, InlineText, AskContext, ClosedContext, ReopenClosed, api, ChatActionsContext, Conversation, closeChat, Box, ErrorText, useAction } from "../../../../web/plugin-api.ts";
-import { DiffView } from "../DiffView.tsx";
 import { UserCommentBox } from "../UserCommentBox.tsx";
-import { commitColors } from "../commit-colors.ts";
-import { numberLines } from "../../shared/diff-lines.ts";
+import { DiffView, commitColors, numberLines } from "../../../../web/plugin-api.ts";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string; level: ZoomLevel } & Record<string, unknown>, "change">;
 
@@ -42,7 +40,10 @@ export function ChangeNode({ id: nodeId, data }: NodeProps<ChangeFlowNode>) {
             {files.map((f) => <li key={f}>{f}</li>)}
           </ul>
         )}
-        {level === "code" && hunks.map(({ file, hunk }) => <DiffView key={hunk.id} sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} threads={inlineThreads} renderThread={renderThread} comments={data.comments} renderComment={(item) => <UserCommentBox item={item} diffId={diffId} />} />)}
+        {level === "code" && hunks.map(({ file, hunk }) => (
+          <DiffView key={hunk.id} sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} threads={inlineThreads} renderThread={renderThread}
+            afterRow={(row) => data.comments.filter((comment) => comment.lines.path === file.path && comment.lines.end === (comment.lines.side === "new" ? row.new : row.old)).map((item) => <tr className="thread-row user-comment-row" key={item.artifact?.id ?? item.draft?.id}><td colSpan={4}><UserCommentBox item={item} diffId={diffId} /></td></tr>)} />
+        ))}
         {level !== "patch" && data.threads.filter((thread) => level === "concept" || !inlineThreads.includes(thread)).map((thread) => <div key={thread.threadId ?? thread.draftId}>{renderThread(thread)}</div>)}
         {level !== "patch" && <ReopenClosed hostId={nodeId} />}
       </div>

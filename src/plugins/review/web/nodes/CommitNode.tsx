@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { CommitNodeData } from "../graph.ts";
 import { type ZoomLevel, InlineText, AskContext, ChatActionsContext, api, ReopenClosed, ErrorText, useAction } from "../../../../web/plugin-api.ts";
-import { commitColors } from "../commit-colors.ts";
+import { commitColors } from "../../../../web/plugin-api.ts";
 import { Box } from "../../../../web/plugin-api.ts";
 
 export type CommitFlowNode = Node<CommitNodeData & { level: ZoomLevel } & Record<string, unknown>, "commit">;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { commitColors, commitLabel } from "../../../../src/plugins/review/web/commit-colors.ts";
+import { commitColors, commitLabel } from "../../src/web/diff/commit-colors.ts";
 
 test("commitColors is stable and gives nearby stack commits distinct row colors", () => {
   const colors = Array.from({ length: 6 }, (_, i) => commitColors(i));

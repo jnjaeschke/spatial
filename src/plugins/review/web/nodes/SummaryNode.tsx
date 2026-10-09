@@ -3,7 +3,7 @@ import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
 import { type ZoomLevel, Box, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
-import { commitColors, commitLabel } from "../commit-colors.ts";
+import { commitColors, commitLabel } from "../../../../web/plugin-api.ts";
 import { ReviewPanel } from "../ReviewPanel.tsx";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;

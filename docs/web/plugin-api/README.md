@@ -31,6 +31,7 @@
 - [GraphEdge](interfaces/GraphEdge.md)
 - [GraphNode](interfaces/GraphNode.md)
 - [GuideStep](interfaces/GuideStep.md)
+- [HunkRow](interfaces/HunkRow.md)
 - [NodeKind](interfaces/NodeKind.md)
 - [NoteNodeData](interfaces/NoteNodeData.md)
 - [PhaseView](interfaces/PhaseView.md)
@@ -66,6 +67,7 @@
 - [NodeKindsContext](variables/NodeKindsContext.md)
 - [SATELLITE\_WIDTH](variables/SATELLITE_WIDTH.md)
 - [SearchfoxContext](variables/SearchfoxContext.md)
+- [StackContext](variables/StackContext.md)
 - [TopbarSlot](variables/TopbarSlot.md)
 
 ## Functions
@@ -76,14 +78,20 @@
 - [Box](functions/Box.md)
 - [Canvas](functions/Canvas.md)
 - [cascade](functions/cascade.md)
+- [changeStarts](functions/changeStarts.md)
 - [closeChat](functions/closeChat.md)
+- [commitColors](functions/commitColors.md)
+- [commitLabel](functions/commitLabel.md)
 - [Composer](functions/Composer.md)
 - [composerKey](functions/composerKey.md)
 - [Conversation](functions/Conversation.md)
 - [conversationGraph](functions/conversationGraph.md)
 - [conversationNode](functions/conversationNode.md)
 - [Dialog](functions/Dialog.md)
+- [DiffRows](functions/DiffRows.md)
+- [DiffView](functions/DiffView.md)
 - [ErrorText](functions/ErrorText.md)
+- [FilePanel](functions/FilePanel.md)
 - [fileUrl](functions/fileUrl.md)
 - [InlineText](functions/InlineText.md)
 - [isSatellite](functions/isSatellite.md)
@@ -98,6 +106,7 @@
 - [rootThread](functions/rootThread.md)
 - [rowSegments](functions/rowSegments.md)
 - [searchfoxLinks](functions/searchfoxLinks.md)
+- [SidePanel](functions/SidePanel.md)
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)
 - [useAction](functions/useAction.md)
@@ -219,6 +228,12 @@ Re-exports [EpochStatus](../../shared/types/type-aliases/EpochStatus.md)
 
 ***
 
+### fileRows
+
+Re-exports [fileRows](../../plugin-api/functions/fileRows.md)
+
+***
+
 ### FileStatus
 
 Re-exports [FileStatus](../../shared/types/type-aliases/FileStatus.md)
@@ -303,6 +318,12 @@ Re-exports [NotifyPayload](../../shared/types/interfaces/NotifyPayload.md)
 
 ***
 
+### numberLines
+
+Re-exports [numberLines](../../plugin-api/functions/numberLines.md)
+
+***
+
 ### PatchNarrativeData
 
 Re-exports [PatchNarrativeData](../../shared/types/interfaces/PatchNarrativeData.md)
@@ -360,6 +381,12 @@ Re-exports [RevisionData](../../shared/types/interfaces/RevisionData.md)
 ### Rewrite
 
 Re-exports [Rewrite](../../shared/types/interfaces/Rewrite.md)
+
+***
+
+### Row
+
+Re-exports [Row](../../plugin-api/type-aliases/Row.md)
 
 ***
 

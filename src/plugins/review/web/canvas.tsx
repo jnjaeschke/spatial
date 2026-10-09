@@ -4,7 +4,7 @@ import { type Artifact, type CanvasModel, type CanvasProviderProps, type Diagram
 import { LAYERS, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, stackLayout, stepNodeId, type Layer } from "./graph.ts";
 
 /** A diff row to reveal and focus; a new object per request. */
-export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
+import type { HunkRow } from "../../../web/plugin-api.ts";
 /** The latest request to jump to a diff row, provided by the review view around its canvas. */
 export const JumpContext = createContext<HunkRow | null>(null);
 

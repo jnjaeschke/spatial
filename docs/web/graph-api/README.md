@@ -140,6 +140,12 @@ Re-exports [NoteNodeData](../plugin-api/interfaces/NoteNodeData.md)
 
 ***
 
+### numberLines
+
+Re-exports [numberLines](../../plugin-api/functions/numberLines.md)
+
+***
+
 ### PlacedNode
 
 Re-exports [PlacedNode](../plugin-api/interfaces/PlacedNode.md)

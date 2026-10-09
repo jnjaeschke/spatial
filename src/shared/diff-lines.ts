@@ -1,4 +1,4 @@
-import type { DiffFile, DiffLine, Hunk } from "../../../plugin-api.ts";
+import type { DiffFile, DiffLine, Hunk } from "../shared/types.ts";
 
 export function numberLines(hunk: Hunk): (DiffLine & { old?: number; new?: number })[] {
   let o = hunk.oldStart;

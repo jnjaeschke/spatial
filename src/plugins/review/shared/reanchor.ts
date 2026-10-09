@@ -1,4 +1,4 @@
-import { numberLines } from "./diff-lines.ts";
+import { numberLines } from "../../../web/graph-api.ts";
 import type { ChatThreadData, DiffData, Hunk } from "../../../plugin-api.ts";
 
 type Lines = NonNullable<ChatThreadData["lines"]>;

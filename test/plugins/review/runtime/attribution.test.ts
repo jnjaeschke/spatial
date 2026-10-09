@@ -4,7 +4,7 @@ import type { Commit } from "../../../../src/shared/types.ts";
 import type { GitCapability } from "../../../../src/runtime/tasks.ts";
 import { parseUnifiedDiff } from "../../../../src/plugins/review/runtime/diff-parse.ts";
 import { attribute, splitByCommit } from "../../../../src/plugins/review/runtime/attribution.ts";
-import { fileRows } from "../../../../src/plugins/review/shared/diff-lines.ts";
+import { fileRows } from "../../../../src/plugin-api.ts";
 
 const base = "0".repeat(40), a = "a".repeat(40), b = "b".repeat(40), c = "c".repeat(40);
 const commits: Commit[] = [a,b,c].map((sha) => ({ sha, subject: "", body: "" }));

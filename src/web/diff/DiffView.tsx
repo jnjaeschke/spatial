@@ -1,14 +1,17 @@
-import { useContext, useState } from "react";
-import { type DiffFile, type Hunk, loadFileLines, AskContext, fileUrl, linkTitle, SearchfoxContext, type HostedThread } from "../../../web/plugin-api.ts";
-import { fileRows, numberLines, type Row } from "../shared/diff-lines.ts";
-import { DiffRows, FileViewContext } from "./FilePanel.tsx";
-import type { ReactNode } from "react";
-import type { ChangeNodeData } from "./graph.ts";
+import { useContext, useState, type ReactNode } from "react";
+import type { DiffFile, Hunk } from "../../shared/types.ts";
+import type { HostedThread } from "../graph-api.ts";
+import { loadFileLines } from "../file-lines.ts";
+import { AskContext } from "../chat-context.ts";
+import { fileUrl, linkTitle, SearchfoxContext } from "../searchfox-url.ts";
+import { FileViewContext } from "../file-view-context.ts";
+import { fileRows, numberLines, type Row } from "../../shared/diff-lines.ts";
+import { DiffRows } from "./DiffRows.tsx";
 
 const STEP = 20;
 
 /** Read-only hunk. `nodrag nopan` lets users select text instead of moving the canvas. */
-export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread, comments, renderComment }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk; threads?: HostedThread[]; renderThread?: (thread: HostedThread) => ReactNode; comments?: ChangeNodeData["comments"]; renderComment?: (comment: ChangeNodeData["comments"][number]) => ReactNode }) {
+export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread, afterRow }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk; threads?: HostedThread[]; renderThread?: (thread: HostedThread) => ReactNode; afterRow?: (row: Row, index: number) => ReactNode }) {
   const [above, setAbove] = useState(0);
   const [below, setBelow] = useState(0);
   const [lines, setLines] = useState<string[] | null>(null);
@@ -48,7 +51,6 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
       ? rows.findIndex((row) => (!expanded || row.hunkId === hunk.id) && line.end === (line.side === "new" ? row.new : row.old)) : -1;
     if (index >= 0) insertAt.set(thread, index);
   }
-  const afterRow = (_row: Row, index: number) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}</>;
   const canShowAbove = canExpand && (expanded ? start > 0 : hunk.newStart > 1);
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
@@ -57,7 +59,7 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
       {hunk.rewrites?.map(({ by, of, lines }) => <div className="rewrite-flag" data-testid="rewrite-flag" key={`${by}-${of}`}>C{by + 1} rewrites {lines} line{lines === 1 ? "" : "s"} added in C{of + 1}</div>)}
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} afterRow={(threads?.length || comments?.length) ? (row, index) => <>{afterRow(row, index)}{(comments ?? []).filter((comment) => comment.lines.path === file.path && comment.lines.end === (comment.lines.side === "new" ? row.new : row.old)).map((comment) => <tr className="thread-row user-comment-row" key={comment.artifact?.id ?? comment.draft?.id}><td colSpan={4}>{renderComment?.(comment)}</td></tr>)}</> : undefined} />
+        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} afterRow={(threads?.length || afterRow) ? (row, index) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}{afterRow?.(row, index)}</> : undefined} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

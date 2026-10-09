@@ -1,4 +1,4 @@
-import type { Commit } from "../../../web/plugin-api.ts";
+import type { Commit } from "../../shared/types.ts";
 
 /** Stable per-commit colors for stack attribution. */
 export function commitColors(index: number): { row: string; swatch: string } {

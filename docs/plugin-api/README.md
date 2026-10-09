@@ -51,14 +51,20 @@ composition roots.
 - [GitWriter](interfaces/GitWriter.md)
 - [PatchIdentity](interfaces/PatchIdentity.md)
 
+## Type Aliases
+
+- [Row](type-aliases/Row.md)
+
 ## Functions
 
 - [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
 - [fetchBugMarkdown](functions/fetchBugMarkdown.md)
+- [fileRows](functions/fileRows.md)
 - [isGeckoRepo](functions/isGeckoRepo.md)
 - [makeGit](functions/makeGit.md)
 - [makeGitWriter](functions/makeGitWriter.md)
+- [numberLines](functions/numberLines.md)
 - [revisedText](functions/revisedText.md)
 - [runProcess](functions/runProcess.md)
 

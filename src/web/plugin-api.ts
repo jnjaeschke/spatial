@@ -37,8 +37,8 @@ export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
 /** A location in a diff to show; with `row` the view jumps to that row where the diff is shown, without it the view opens the file. */
-export interface FileViewRequest { diffId: string; path: string; hunkId: string; text?: string; row?: { side: "new" | "old"; line: number } }
-export const FileViewContext = createContext<((file: FileViewRequest) => void) | null>(null);
+export { FileViewContext } from "./file-view-context.ts";
+export type { FileViewRequest } from "./file-view-context.ts";
 export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal | null {
   const slot = useContext(TopbarSlot);
   return slot ? createPortal(children, slot) : null;
@@ -67,6 +67,15 @@ export { RowPainter, rowSegments } from "./syntax.ts";
 export { SearchfoxContext, searchfoxLinks, mergedCodeLinks, fileUrl, linkTitle } from "./searchfox-url.ts";
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
 export { loadFileLines } from "./file-lines.ts";
+export { DiffRows, changeStarts } from "./diff/DiffRows.tsx";
+export { DiffView } from "./diff/DiffView.tsx";
+export { FilePanel } from "./diff/FilePanel.tsx";
+export type { HunkRow } from "./diff/FilePanel.tsx";
+export { SidePanel } from "./SidePanel.tsx";
+export { StackContext } from "./diff/stack-context.ts";
+export { commitColors, commitLabel } from "./diff/commit-colors.ts";
+export { numberLines, fileRows } from "../shared/diff-lines.ts";
+export type { Row } from "../shared/diff-lines.ts";
 export * from "../shared/types.ts";
 export type { CanvasProps } from "./Canvas.tsx";
 export type { ConversationProps } from "./nodes/ChatNode.tsx";

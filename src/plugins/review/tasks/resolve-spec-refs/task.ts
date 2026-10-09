@@ -2,7 +2,7 @@ import type { ReviewFindingData, SpecReferenceData } from "../../shared/types.ts
 import { type DiffData, type PatchNarrativeData, type ResolvedSpec, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
-import { numberLines } from "../../shared/diff-lines.ts";
+import { numberLines } from "../../../../plugin-api.ts";
 import { specUrlsNear } from "./cited.ts";
 import { checkStepComment, stepComments } from "./step-check.ts";
 import { lookupSpec, specReferenceData } from "../../runtime/spec-ref.ts";

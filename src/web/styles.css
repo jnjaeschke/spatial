@@ -241,23 +241,23 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .react-flow__node:has(> .node) { border-radius: var(--radius-lg); }
 
 /* Side panels */
-.file-panel { width: min(50vw, 900px); min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface); box-shadow: -12px 0 32px -20px var(--shadow-color-strong); }
-.file-panel > header {
+.side-panel { width: min(50vw, 900px); min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface); box-shadow: -12px 0 32px -20px var(--shadow-color-strong); }
+.side-panel > header {
   display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 12px 8px 16px;
   border-bottom: 1px solid var(--border); font: 500 12.5px var(--font-mono); color: var(--text-2);
   background: linear-gradient(180deg, var(--surface-2), var(--surface));
 }
-.file-panel > header button { box-shadow: none; border-color: transparent; background: transparent; font-size: 16px; line-height: 1; padding: 2px 8px; color: var(--text-3); }
-.file-panel > header button:hover:not(:disabled) { color: var(--text); background: var(--surface-3); border-color: transparent; }
-.file-panel > header > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.side-panel > header button { box-shadow: none; border-color: transparent; background: transparent; font-size: 16px; line-height: 1; padding: 2px 8px; color: var(--text-3); }
+.side-panel > header button:hover:not(:disabled) { color: var(--text); background: var(--surface-3); border-color: transparent; }
+.side-panel > header > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .change-nav { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
-.file-panel-body:focus { outline: none; }
-.file-panel-body { min-height: 0; overflow: auto; }
-.file-panel-body h3 { margin: 16px 16px 6px; font: 600 12.5px var(--font-mono); color: var(--text-2); }
-.file-panel-body section .diff { margin: 0 12px 10px; }
-.file-panel .diff { margin: 0; border: 0; border-radius: 0; overflow: visible; box-shadow: none; }
+.side-panel-body:focus { outline: none; }
+.side-panel-body { min-height: 0; overflow: auto; }
+.side-panel-body h3 { margin: 16px 16px 6px; font: 600 12.5px var(--font-mono); color: var(--text-2); }
+.side-panel-body section .diff { margin: 0 12px 10px; }
+.side-panel .diff { margin: 0; border: 0; border-radius: 0; overflow: visible; box-shadow: none; }
 .file-panel-body section .diff { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
-.file-panel table { table-layout: auto; }
+.side-panel table { table-layout: auto; }
 .file-panel tr.in-hunk { border-left: 3px solid var(--border-strong); }
 .file-panel tr.target { border-left: 3px solid var(--accent); }
 /* The jump target flashes, then fades back to the row's own add/del color; the class stays so a later jump restarts it. */

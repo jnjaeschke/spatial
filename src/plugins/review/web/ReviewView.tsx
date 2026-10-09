@@ -1,17 +1,15 @@
 import { useCallback, useState } from "react";
-import { type Artifact, type DiffData, Canvas, FileViewContext, TopbarExtras, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type FileViewRequest, type HunkRow } from "../../../web/plugin-api.ts";
 import { latestNarrative } from "./graph.ts";
-import { JumpContext, reviewCanvas, type HunkRow } from "./canvas.tsx";
+import { JumpContext, reviewCanvas } from "./canvas.tsx";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
-import { FilePanel, type OpenFile } from "./FilePanel.tsx";
 import { RevisionView } from "./RevisionView.tsx";
 import { InterdiffPanel } from "./InterdiffPanel.tsx";
-import { StackContext } from "./stack-context.ts";
 import { SpecView, SpecViewContext } from "./SpecView.tsx";
 
 export function ReviewView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
-  const [openFile, setOpenFile] = useState<OpenFile | null>(null);
+  const [openFile, setOpenFile] = useState<FileViewRequest | null>(null);
   const [aside, setAside] = useState<"file" | "interdiff" | null>(null);
   const [jump, setJump] = useState<HunkRow | null>(null);
   const [specView, setSpecView] = useState<string | null>(null);

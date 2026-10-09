@@ -2,9 +2,9 @@ import { createContext, useEffect, useMemo, useRef, useState } from "react";
 import type { LineRange, SpecReferenceData, StepLink } from "../shared/types.ts";
 import { type Artifact, type DiffFile, type Hunk, type Id, type LlmSelection, type SessionState, api } from "../../../web/plugin-api.ts";
 import { latestNarrative } from "./graph.ts";
-import { numberLines, type Row } from "../shared/diff-lines.ts";
+import { numberLines, type Row } from "../../../web/plugin-api.ts";
 import { parseSteps } from "../shared/spec-text.ts";
-import { DiffRows } from "./FilePanel.tsx";
+import { DiffRows } from "../../../web/plugin-api.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 import { ErrorText, useAction } from "../../../web/plugin-api.ts";
 

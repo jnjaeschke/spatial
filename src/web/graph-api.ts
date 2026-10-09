@@ -19,3 +19,5 @@ export { threadContent, conversationNode, addNotes, addChats } from "./graph.ts"
 /** Estimated line count of text wrapped at a width in characters. */
 export { lines } from "./graph.ts";
 export type { FreePosition } from "./free-positions.ts";
+/** Diff hunk lines numbered on both sides. */
+export { numberLines } from "../shared/diff-lines.ts";
