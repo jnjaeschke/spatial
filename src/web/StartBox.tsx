@@ -5,6 +5,8 @@ import { LlmPicker } from "./LlmPicker.tsx";
 import { DescribedOptions } from "./custom-select.tsx";
 import { commandSuggestions, completeCommand } from "./slash.ts";
 import { readWriteMode, saveWriteMode, WRITE_MODES } from "./write-mode.ts";
+import { Composer } from "./Composer.tsx";
+import { COMPOSER_HINT } from "./composer-key.ts";
 
 export function StartBox({ path, repoDir, models }: { path: string; repoDir: string; models: ModelsResponse }) {
   const [commands, setCommands] = useState<WorkflowInfo[]>([]);
@@ -30,8 +32,8 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
   };
   return <form className="start-box" onSubmit={(e) => { e.preventDefault(); submit(); }}>
     <div className="start-input">
-    <textarea aria-label="start" rows={3} value={text} placeholder="What do you want to do? Type / for commands — Enter to send, Ctrl+Enter for newline"
-      onChange={(e) => { setText(e.target.value); setDismissed(false); setActive(0); setError(null); setQuestion(null); }}
+    <Composer label="start" rows={3} value={text} placeholder={`What do you want to do? Type / for commands — ${COMPOSER_HINT}`} canSubmit={!busy && !!text.trim()} onSubmit={() => submit()}
+      onChange={(value) => { setText(value); setDismissed(false); setActive(0); setError(null); setQuestion(null); }}
       onKeyDown={(e) => {
         if (suggestions.length) {
           if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -42,13 +44,6 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
           if ((e.key === "Tab" || e.key === "Enter") && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); complete(suggestions[selected]!); return; }
           if (e.key === "Escape") { e.preventDefault(); setDismissed(true); return; }
         }
-        if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
-        e.preventDefault();
-        if (e.ctrlKey) {
-          const el = e.currentTarget;
-          el.setRangeText("\n", el.selectionStart, el.selectionEnd, "end");
-          setText(el.value);
-        } else submit();
       }} />
     {suggestions.length > 0 && <ul className="command-popup" role="listbox" aria-label="commands">
       {suggestions.map((c, i) => <li key={c.id} role="option" aria-selected={i === selected} onMouseMove={() => setActive(i)} onMouseDown={(e) => { e.preventDefault(); complete(c); }}>

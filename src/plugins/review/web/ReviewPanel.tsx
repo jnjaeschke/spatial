@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReviewSubmissionData } from "../shared/types.ts";
-import { api, Box, type Id } from "../../../web/plugin-api.ts";
+import { api, Box, type Id, Composer } from "../../../web/plugin-api.ts";
 import type { SummaryNodeData } from "./graph.ts";
 
 const actionLabel = (action: ReviewSubmissionData["action"]) => action === "accept" ? "accepted" : action === "request-changes" ? "requested changes" : "commented";
@@ -36,7 +36,7 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
 
   return <Box nested kind="review" testId={`review-panel-D${review.revision}`} title={`Review D${review.revision}`} collapse={{ key: `review:${review.revision}`, label: `review D${review.revision}` }}>
     <p>{review.comments.length} inline comment{review.comments.length === 1 ? "" : "s"} pending</p>
-    <label>General comment<textarea aria-label="General comment" value={body} onChange={(event) => setBody(event.target.value)} onBlur={save} /></label>
+    <label onBlur={save}>General comment<Composer label="General comment" value={body} onChange={setBody} canSubmit onSubmit={() => { save(); setError(""); dialog.current?.showModal(); }} /></label>
     <label>Action<select aria-label="review action" value={action} onChange={(event) => setAction(event.target.value as ReviewSubmissionData["action"])}>
       <option value="comment">Comment</option><option value="accept">Accept</option><option value="request-changes">Request changes</option>
     </select></label>

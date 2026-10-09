@@ -215,7 +215,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .reviewer-comment-quote { margin: 4px 0; }
 .reviewer-comment-ai { opacity: .85; border-left: 3px solid var(--accent); padding-left: 8px; }
 .reviewer-comment-controls { display: flex; gap: 6px; align-items: start; flex-wrap: wrap; }
-.reviewer-comment-controls textarea { flex: 1 1 100%; min-height: 3em; }
+.reviewer-comment-controls .composer { flex: 1 1 100%; min-height: 3em; }
 .reviewer-comment-controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 
 .react-flow {
@@ -322,7 +322,6 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .folder-picker > footer { justify-content: flex-end; margin-top: 16px; }
 .start-box { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 14px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
 .start-input { position: relative; width: 100%; }
-.start-box textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }
 .start-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; width: 100%; }
 .start-controls .start-submit { margin-left: auto; }
 .start-controls .llm-picker { gap: 8px 16px; }
@@ -461,7 +460,7 @@ button.code-link::after {
 .review-node > .title { margin-bottom: 5px; color: var(--kind-phab); }
 .review-node > p { margin: 4px 0 8px; font-size: calc(12px * var(--text-scale, 1)); }
 .review-node label { display: grid; gap: 4px; margin: 7px 0; font-size: calc(12px * var(--text-scale, 1)); }
-.review-node textarea { min-height: 64px; resize: vertical; }
+.review-node .composer { min-height: 64px; }
 .review-submit { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; }
 .review-result { color: var(--success); }
 .review-error { color: var(--danger); }
@@ -572,7 +571,8 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .box form .llm-picker select { font-size: calc(11.5px * var(--text-scale, 1)); padding: 2px 20px 2px 4px; color: var(--text-2); background-color: var(--surface-2); }
 @supports (appearance: base-select) { .box form .llm-picker select { padding: 2px 6px; } }
 .box form button[type="submit"] { margin-left: auto; }
-.box form textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
+.composer { width: 100%; resize: vertical; font: inherit; }
+.box form .composer { margin-top: 0; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
 .ask { margin-left: 8px; font-size: 0.75em; padding: 1px 8px; font-weight: 500; color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); background: var(--accent-soft); }
 button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 18%, var(--surface)); }
 
@@ -603,7 +603,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .finding-node.dismissed { opacity: 0.5; }
 .finding-node .comment-draft { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .finding-node .comment-draft > div:has(button) { display: flex; gap: 6px; }
-.finding-node .comment-draft textarea { width: 100%; min-height: 80px; resize: vertical; font-size: calc(12px * var(--text-scale, 1)); font-family: inherit; }
+.finding-node .comment-draft .composer { min-height: 80px; font-size: calc(12px * var(--text-scale, 1)); }
 .finding-node .comment-status { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-3); }
 
 /* Activity strip and toasts */
@@ -622,7 +622,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .user-comment-node { position: relative; --kind: var(--kind-phab); border-left: 3px solid var(--kind-phab); padding: 8px 10px; background: var(--surface); color: var(--text); }
 .user-comment-node > .title, .user-comment-author { color: var(--kind-phab); font-weight: 600; margin-bottom: 4px; }
 .user-comment-body { white-space: pre-wrap; }
-.user-comment-node textarea { width: 100%; min-height: 4em; resize: vertical; font: inherit; }
+.user-comment-node .composer { min-height: 4em; }
 .user-comment-node > div:not(.title):has(> button) { display: flex; gap: 6px; margin-top: 6px; }
 .user-comment-status { color: var(--text-3); font-size: .9em; }
 .commit-tag { margin-left: 3px; font-size: calc(9px * var(--text-scale, 1)); color: var(--text-3); }
@@ -664,7 +664,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .file-panel tr.jumps { cursor: pointer; }
 .file-panel tr.jumps:hover td.ln, .file-panel tr.jumps:hover td.sign { text-decoration: underline; }
 .selector-question { max-width: 640px; margin: 48px auto; display: flex; flex-direction: column; gap: 8px; }
-.selector-question textarea { min-height: 4em; }
+.selector-question .composer { min-height: 4em; }
 .selector-question button { align-self: flex-end; }
 .commit-node .flow-hint { color: var(--text-2); font-size: 0.85em; }
 .revision-file > summary { cursor: pointer; padding: 4px 0; }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PhaseViewProps } from "../../../web/plugin-api.ts";
-import { api } from "../../../web/plugin-api.ts";
+import { api, Composer } from "../../../web/plugin-api.ts";
 import { commentPlan, type CommentPlanItem } from "../shared/comment-plan.ts";
 import type { CommentAction } from "../shared/types.ts";
 import { RunStatus } from "./RunStatus.tsx";
@@ -21,7 +21,7 @@ function CommentItem({ sessionId, item, readOnly }: { sessionId: string; item: C
     </div>}
     {!readOnly && <div className="reviewer-comment-controls">
       {(["address", "reply", "ignore"] as const).map((option) => <button key={option} type="button" aria-pressed={action === option} onClick={() => { setAction(option); void save(option, text); }}>{option[0]!.toUpperCase() + option.slice(1)}</button>)}
-      {action !== "ignore" && <textarea aria-label="comment text" placeholder={action === "reply" ? "Reply (posted as a draft inline)" : "Note for the implement agent"} value={text} onChange={(e) => setText(e.target.value)} />}
+      {action !== "ignore" && <Composer label="comment text" placeholder={action === "reply" ? "Reply (posted as a draft inline)" : "Note for the implement agent"} value={text} onChange={setText} canSubmit={!!text.trim()} onSubmit={() => void save(action, text)} />}
       {action !== "ignore" && <button type="button" onClick={() => void save(action, text)}>Save</button>}
       {error && <span className="failed">{error}</span>}
     </div>}

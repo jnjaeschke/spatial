@@ -20,6 +20,7 @@
 - [ChatNodeData](interfaces/ChatNodeData.md)
 - [ClosedItem](interfaces/ClosedItem.md)
 - [CodeRow](interfaces/CodeRow.md)
+- [ComposerProps](interfaces/ComposerProps.md)
 - [ConversationNodeData](interfaces/ConversationNodeData.md)
 - [DecisionNodeData](interfaces/DecisionNodeData.md)
 - [Draft](interfaces/Draft.md)
@@ -58,6 +59,7 @@
 - [ChatActionsContext](variables/ChatActionsContext.md)
 - [ClosedContext](variables/ClosedContext.md)
 - [CollapseContext](variables/CollapseContext.md)
+- [COMPOSER\_HINT](variables/COMPOSER_HINT.md)
 - [draftTexts](variables/draftTexts.md)
 - [FileViewContext](variables/FileViewContext.md)
 - [NODE\_WIDTH](variables/NODE_WIDTH.md)
@@ -75,6 +77,8 @@
 - [Canvas](functions/Canvas.md)
 - [cascade](functions/cascade.md)
 - [closeChat](functions/closeChat.md)
+- [Composer](functions/Composer.md)
+- [composerKey](functions/composerKey.md)
 - [Conversation](functions/Conversation.md)
 - [conversationGraph](functions/conversationGraph.md)
 - [conversationNode](functions/conversationNode.md)
@@ -94,6 +98,7 @@
 - [searchfoxLinks](functions/searchfoxLinks.md)
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)
+- [useDraftText](functions/useDraftText.md)
 
 ## References
 

@@ -1,12 +1,12 @@
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
-import { api, ChatActionsContext, draftTexts, Box } from "../../../web/plugin-api.ts";
+import { api, ChatActionsContext, draftTexts, Box, Composer, useDraftText } from "../../../web/plugin-api.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
 
 export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: string }) {
   const actions = useContext(ChatActionsContext);
-  const [body, setBody] = useState(item.artifact?.data.body ?? draftTexts.get(item.draft?.id ?? "") ?? "");
+  const [body, setBody, clearDraft] = useDraftText(item.draft?.id, item.artifact?.data.body ?? "");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
     setBusy(true);
     try {
       await api.createComment(actions.sessionId, diffId, item.lines, body.trim());
-      draftTexts.delete(item.draft.id);
+      clearDraft();
       actions.onDiscard(item.draft.id);
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
@@ -38,14 +38,11 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
   };
   return <Box nested kind="user-comment" className="nodrag nopan nowheel" testId="user-comment" title={title} closeLabel="Discard" onMouseDown={stop} onClick={stop} onClose={item.draft ? () => { draftTexts.delete(item.draft!.id); actions?.onDiscard(item.draft!.id); } : undefined}>
     {item.draft ? <>
-      <textarea aria-label="Comment for Phabricator" value={body} onChange={(event) => { setBody(event.currentTarget.value); draftTexts.set(item.draft!.id, event.currentTarget.value); }} onKeyDown={(event) => {
-        if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void saveDraft(); }
-        if (event.key === "Escape" && body.trim()) event.preventDefault();
-      }} />
+      <Composer label="Comment for Phabricator" value={body} onChange={setBody} canSubmit={!!body.trim() && !busy} onSubmit={() => void saveDraft()} onKeyDown={(event) => { if (event.key === "Escape" && body.trim()) event.preventDefault(); }} />
       <div><button disabled={!body.trim() || busy} onClick={() => void saveDraft()}>Save</button></div>
     </> : item.artifact && <>
       <div className="user-comment-author">You</div>
-      {editing ? <><textarea aria-label="Edit comment" value={body} onChange={(event) => setBody(event.currentTarget.value)} /><div><button disabled={!body.trim() || busy} onClick={() => void saveEdit()}>Save</button><button onClick={() => { setBody(item.artifact!.data.body); setEditing(false); }}>Cancel</button></div></>
+      {editing ? <><Composer label="Edit comment" value={body} onChange={setBody} canSubmit={!!body.trim() && !busy} onSubmit={() => void saveEdit()} onKeyDown={(event) => { if (event.key === "Escape") event.preventDefault(); }} /><div><button disabled={!body.trim() || busy} onClick={() => void saveEdit()}>Save</button><button onClick={() => { setBody(item.artifact!.data.body); setEditing(false); }}>Cancel</button></div></>
         : <><div className="user-comment-body">{item.artifact.data.body}</div>{item.postedTo !== null ? <div className="user-comment-status">Posted to D{item.postedTo}</div> : <div><button onClick={() => { setBody(item.artifact!.data.body); setEditing(true); }}>Edit</button><button disabled={busy} onClick={() => void remove()}>Delete</button></div>}</>}
     </>}
     {error && <div className="failed">{error}</div>}

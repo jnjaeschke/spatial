@@ -3,7 +3,7 @@ import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
 import { api } from "../api.ts";
-import { ChatActionsContext, closeChat, draftTexts } from "../chat-context.ts";
+import { ChatActionsContext, closeChat } from "../chat-context.ts";
 import type { ChatNodeData, ZoomLevel } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
@@ -11,6 +11,8 @@ import { CollapseContext } from "../collapse.ts";
 import { ClosedContext } from "../closed.ts";
 import { ReopenClosed } from "../ReopenClosed.tsx";
 import { Box } from "../Box.tsx";
+import { Composer, useDraftText } from "../Composer.tsx";
+import { COMPOSER_HINT } from "../composer-key.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
 
@@ -40,8 +42,7 @@ export function Conversation(data: ConversationProps) {
   const closer = useContext(ClosedContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
-  const [text, setTextState] = useState(() => (data.draftId ? draftTexts.get(data.draftId) : undefined) ?? "");
-  const setText = (value: string) => { setTextState(value); if (data.draftId) draftTexts.set(data.draftId, value); };
+  const [text, setText] = useDraftText(data.draftId);
   const [error, setError] = useState<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
@@ -96,17 +97,7 @@ export function Conversation(data: ConversationProps) {
           if (data.draftId) actions.onSent(data.draftId, taskId);
         }, (err: Error) => setError(err.message));
       }}>
-        <textarea ref={textarea} aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
-          if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
-          e.preventDefault();
-          if (e.ctrlKey) {
-            const el = e.currentTarget;
-            el.setRangeText("\n", el.selectionStart, el.selectionEnd, "end");
-            setText(el.value);
-          } else if (canSend) {
-            e.currentTarget.form!.requestSubmit();
-          }
-        }} />
+        <Composer textareaRef={textarea} label="message" placeholder={`Ask AI — ${COMPOSER_HINT}`} value={text} onChange={setText} rows={2} canSubmit={canSend} onSubmit={() => textarea.current?.form?.requestSubmit()} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
         {error && <span className="failed">{error}</span>}

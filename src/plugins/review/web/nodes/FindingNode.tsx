@@ -1,6 +1,6 @@
 import { useContext, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
-import { api, ChatActionsContext, type ZoomLevel, AnswerMarkdown, Conversation, Box } from "../../../../web/plugin-api.ts";
+import { api, ChatActionsContext, type ZoomLevel, AnswerMarkdown, Conversation, Box, Composer } from "../../../../web/plugin-api.ts";
 import type { FindingNodeData } from "../graph.ts";
 
 export type FindingFlowNode = Node<FindingNodeData & { level: ZoomLevel } & Record<string, unknown>, "finding">;
@@ -64,7 +64,7 @@ function CommentEditor({ findingId, comment, postedTo }: Pick<FindingNodeData, "
   if (!comment && busy) return <div className="comment-draft">Generating comment…</div>;
   if (!comment && taskError) return <div className="comment-draft failed">{taskError}</div>;
   return <div className="comment-draft nodrag nopan nowheel">
-    <textarea aria-label="Comment" value={body} onChange={(e) => setBody(e.target.value)} />
+    <Composer label="Comment" value={body} onChange={setBody} canSubmit={!!actions && !!body.trim() && !saving && !busy} onSubmit={save} />
     <div><button type="button" onClick={save} disabled={!actions || !body.trim() || saving || busy}>Save</button><button type="button" onClick={regenerate} disabled={!actions || busy || saving}>Regenerate</button></div>
     <div className="comment-status">{busy ? "Regenerating…" : comment?.status === "proposed" ? "Draft — save to make it postable" : postedTo !== null ? `Posted to D${postedTo}` : comment ? "Ready to post" : "No comment yet"}</div>
     {(error ?? taskError) && <div className="failed">{error ?? taskError}</div>}
