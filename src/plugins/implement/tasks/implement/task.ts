@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type Id, type LlmEvent, type LlmSelection, type WriteMode, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
-import type { CommandRunData, ImplementBranchData, ImplementResultData, InvestigationData } from "../../shared/types.ts";
+import type { CommandRunData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { commandRunData } from "../../runtime/command-run.ts";
 import { describeFinding, openHighFindings } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
@@ -40,7 +40,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const current = await writer.currentBranch();
     if (current !== branch.branch) throw new Error(`The checkout is on ${current ?? "a detached HEAD"}, not on ${branch.branch}; spatial does not move the checkout back`);
     const tip = await ctx.git.resolve("HEAD");
-    if (previous && !(await ctx.git.isAncestor(previous.data.head, tip))) throw new Error(`${branch.branch} moved away from ${previous.data.head.slice(0, 12)} since the last implement run; spatial does not move the checkout back`);
+    const rewrite = view.artifacts.slice(previous ? view.artifacts.indexOf(previous) + 1 : 0).findLast((a) => a.type === "StackRewrite") as Artifact<StackRewriteData> | undefined;
+    const expected = rewrite?.data.to ?? previous?.data.head;
+    if (expected && !(await ctx.git.isAncestor(expected, tip))) throw new Error(`${branch.branch} moved away from ${expected.slice(0, 12)} since the last implement run; spatial does not move the checkout back`);
 
     const open = openHighFindings(view);
     for (const finding of open) {

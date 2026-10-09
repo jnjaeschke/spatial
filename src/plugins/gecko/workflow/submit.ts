@@ -1,5 +1,5 @@
 import type { Artifact, DecisionData, Epoch, Phase, Step, WorkflowView } from "../../../plugin-api.ts";
-import type { PhabSubmitInput, ReviewerSuggestionData, SubmitInput } from "../shared/types.ts";
+import type { PhabSubmissionData, PhabSubmitInput, ReviewerSuggestionData, SubmitInput } from "../shared/types.ts";
 import { REVIEWERS_PATTERN } from "../runtime/submit-command.ts";
 
 /** The Submit decision's question; it names the tip, because a submit started from chat sends whatever HEAD was then. */
@@ -21,4 +21,12 @@ export function submitNext(view: WorkflowView, epoch: Epoch): Step | null {
 
 export const submitPhase: Phase<SubmitInput> = { id: "submit", async run(rt, sessionId, input) { await rt.run(sessionId, "suggestReviewers", { base: input.base, head: input.head }); }, next: submitNext };
 
-export const phabSubmitPhase: Phase<PhabSubmitInput> = { id: "phabSubmit", async run(rt, sessionId, input) { await rt.run(sessionId, "phabSubmit", input); } };
+export const phabSubmitPhase: Phase<PhabSubmitInput> = {
+  id: "phabSubmit",
+  async run(rt, sessionId, input) {
+    const { submissionId } = await rt.run<{ submissionId: string }>(sessionId, "phabSubmit", input);
+    // The review plugin syncs revisions named by trailers in the latest Diff; submitted commits carry those trailers.
+    const head = rt.store.getArtifact<PhabSubmissionData>(submissionId).data.head;
+    await rt.run(sessionId, "importDiff", { base: input.base, head });
+  },
+};

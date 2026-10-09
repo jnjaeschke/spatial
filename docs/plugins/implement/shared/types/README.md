@@ -14,3 +14,4 @@
 - [InvestigationData](interfaces/InvestigationData.md)
 - [InvestigationLocation](interfaces/InvestigationLocation.md)
 - [InvestigationStep](interfaces/InvestigationStep.md)
+- [StackRewriteData](interfaces/StackRewriteData.md)

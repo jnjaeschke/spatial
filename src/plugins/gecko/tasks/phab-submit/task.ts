@@ -1,5 +1,5 @@
 import { defineTask, runProcess, type Id } from "../../../../plugin-api.ts";
-import { commandRunData, type CommandRunData } from "../../../implement/api.ts";
+import { commandRunData, type CommandRunData, type StackRewriteData } from "../../../implement/api.ts";
 import { commitRevision } from "../../../review/api.ts";
 import type { PhabSubmissionData, PhabSubmitInput } from "../../shared/types.ts";
 import { submitArgs } from "../../runtime/submit-command.ts";
@@ -23,6 +23,7 @@ export const phabSubmit = defineTask<PhabSubmitInput, { submissionId: Id }>({
       if (!revision) throw new Error(`moz-phab finished, but commit ${commit.sha.slice(0, 12)} (${commit.subject}) has no Differential Revision trailer`);
       return { sha: commit.sha, subject: commit.subject, url: `${revision.host}/D${revision.id}` };
     });
+    ctx.artifacts.put<StackRewriteData>("StackRewrite", "verified", { from: head, to: after, by: "moz-phab submit" });
     return { submissionId: ctx.artifacts.put<PhabSubmissionData>("PhabSubmission", "verified", { command, head: after, revisions }).id };
   },
 });

@@ -169,6 +169,29 @@ test("the checkout must still be on the branch and descend from the last result"
   await assert.rejects(run(), /not on spatial\/x/);
 });
 
+test("a recorded stack rewrite lets the next implement run continue from the amended tip", async () => {
+  const { repo, store, session, run } = setup((call, _, r) => {
+    if (call === 0) r.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  });
+  const { resultId } = await run();
+  const from = store.getArtifact<ImplementResultData>(resultId).data.head;
+  repo.git("commit", "--amend", "-m", "Add b", "-m", "Differential Revision: https://phab.example.com/D1");
+  const to = repo.git("rev-parse", "HEAD").trim();
+  store.putArtifact({ sessionId: session.id, type: "StackRewrite", status: "verified", data: { from, to, by: "moz-phab submit" }, provenance: { taskId: "test" } });
+  await run();
+});
+
+test("an unrecorded stack rewrite still fails the moved-away guard", async () => {
+  const { repo, run } = setup((call, _, r) => {
+    if (call === 0) r.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  });
+  await run();
+  repo.git("commit", "--amend", "-m", "Add b", "-m", "Differential Revision: https://phab.example.com/D1");
+  await assert.rejects(run(), /moved away from/);
+});
+
 test("edits-only fix rounds feed the problems back to the agent", async () => {
   const { repo, prompts, run } = setup((call, _, r) => {
     if (call === 0) return ok;

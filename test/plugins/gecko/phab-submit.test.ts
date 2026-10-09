@@ -38,7 +38,7 @@ function setup() {
   const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const run = (input: PhabSubmitInput) => rt.run<{ submissionId: string }>(session.id, "phabSubmit", input);
-  return { repo, base, head, run, store, session };
+  return { repo, base, head, run, store, session, rt };
 }
 
 async function withBinary<T>(binary: string, fn: () => Promise<T>): Promise<T> {
@@ -56,11 +56,22 @@ test("Submit runs moz-phab without a shell and records the revision of every com
   const submission = store.getArtifact<PhabSubmissionData>(out.submissionId).data;
   assert.equal(submission.head, repo.git("rev-parse", "HEAD").trim());
   assert.notEqual(submission.head, head);
+  assert.deepEqual(store.listArtifacts(session.id, "StackRewrite").map((a) => a.data), [{ from: head, to: submission.head, by: "moz-phab submit" }]);
   assert.deepEqual(submission.revisions.map((r) => [r.subject, r.url]), [["Bug 1 - A", "https://phabricator.services.mozilla.com/D1002"], ["Bug 1 - B", "https://phabricator.services.mozilla.com/D1003"]]);
   assert.equal(submission.command, `moz-phab submit --yes --reviewer #dom-core --blocker smaug ${base} HEAD`);
   const runs = store.listArtifacts(session.id, "CommandRun").map((a) => a.data as CommandRunData);
   assert.equal(runs.at(-1)!.exitCode, 0);
   assert.match(runs.at(-1)!.output, /Submitting done/);
+});
+
+test("the phabSubmit phase imports the rewritten, trailered stack as the latest Diff", async () => {
+  const { repo, base, head, store, session, rt } = setup();
+  await withBinary(join(repo.dir, ".git", "fake-moz-phab"), async () => {
+    await rt.runPhase(session.id, "phabSubmit", { base, head, reviewers: "", wip: false });
+  });
+  const diff = store.listArtifacts(session.id, "Diff").at(-1)!;
+  assert.equal((diff.data as { headSha: string }).headSha, repo.git("rev-parse", "HEAD").trim());
+  assert.match(repo.git("log", "-1", "--format=%B"), /Differential Revision:/);
 });
 
 test("a failing moz-phab fails the epoch and keeps its output", async () => {
