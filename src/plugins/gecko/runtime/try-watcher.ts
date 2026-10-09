@@ -85,7 +85,7 @@ export class TryWatcher {
   async #poll(sessionId: Id, push: Artifact<TryPushData>, last: TryRunData | null): Promise<void> {
     const next = await this.#observe(push, last);
     if (last && same(last, next)) return;
-    const run = this.#rt.store.putArtifact<TryRunData>({ sessionId, type: "TryRun", status: "verified", data: next, provenance: { taskId: "try-watcher" } });
+    const run = this.#rt.store.putArtifact<TryRunData>({ sessionId, type: "TryRun", status: "verified", epoch: push.epoch, data: next, provenance: { taskId: "try-watcher" } });
     this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: run.id, type: "TryRun" });
     const failed = next.failures.length;
     const notice: NotifyPayload | null = next.complete

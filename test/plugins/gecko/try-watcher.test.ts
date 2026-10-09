@@ -88,3 +88,11 @@ test("a new watcher resumes pushes stored before it started", async () => {
   await restarted.tick();
   assert.deepEqual(first.runs().map((run) => run.complete), [false, false, true]);
 });
+
+test("a TryRun belongs to its push's epoch, so the push's epoch view shows it after later epochs", async () => {
+  const { store, watcher, push } = setup({ out: [{ code: 0, stdout: failingJson(1) }], status: [{ completed: 1, running: 1 }] });
+  for (const phase of ["tryPush", "submit"]) store.updateEpoch(push.sessionId, store.createEpoch(push.sessionId, phase, null).n, { status: "succeeded" });
+  const pushed = store.putArtifact({ sessionId: push.sessionId, type: "TryPush", status: "verified", provenance: { taskId: "t" }, epoch: 1, data: push.data });
+  await watcher.tick();
+  assert.equal(store.listArtifacts(push.sessionId, "TryRun").find((a) => (a.data as TryRunData).push === pushed.id)!.epoch, 1);
+});
