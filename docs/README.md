@@ -16,6 +16,7 @@
 - [plugins/implement/runtime/test-first](plugins/implement/runtime/test-first/README.md)
 - [plugins/implement/runtime/verify-stack](plugins/implement/runtime/verify-stack/README.md)
 - [plugins/implement/shared/types](plugins/implement/shared/types/README.md)
+- [plugins/implement/web/api](plugins/implement/web/api/README.md)
 - [plugins/implement/workflow/next](plugins/implement/workflow/next/README.md)
 - [plugins/review/api](plugins/review/api/README.md)
 - [plugins/review/runtime/attribution](plugins/review/runtime/attribution/README.md)

@@ -645,5 +645,11 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .command-chip.test { font-weight: 600; }
 .terminal { background: #111; color: #ddd; border-radius: 6px; padding: 8px; }
 .terminal pre { margin: 4px 0 0; max-height: 240px; overflow: auto; white-space: pre-wrap; }
+.try-proposal, .try-run { padding: 6px 12px; }
+.try-proposal code { white-space: pre-wrap; }
+.try-headline { display: flex; gap: 8px; align-items: baseline; }
+.try-run[data-complete="false"] .try-headline { font-style: italic; }
+.try-failures { margin: 4px 0 0; padding-left: 18px; }
+.try-failures ul { margin: 2px 0 4px; padding-left: 16px; font-family: var(--mono, monospace); font-size: 0.9em; }
 .terminal-title { color: #9ad; font-family: var(--mono, monospace); font-size: 12px; }
 .implement-summary, .running { padding: 0 12px; margin: 4px 0; }
