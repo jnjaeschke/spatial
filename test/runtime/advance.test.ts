@@ -143,3 +143,16 @@ test("a failed epoch gets no follow-up, and the workflow decides once the phase 
   assert.deepEqual(done.calls, ["a", "b"]);
   assert.equal(done.rt.nextStep(done.session.id), null);
 });
+
+test("a decision step for an earlier epoch is stored at that epoch and asked again after another decision", async () => {
+  const { store, rt, session } = setup((view) => view.epochs.length === 2 ? { decide: { question: "Go?", options: OPTIONS }, epoch: 1 } : null);
+  await rt.runPhase(session.id, "a", null);
+  await rt.runPhase(session.id, "b", null);
+  await rt.advance(session.id);
+  assert.equal(decisionsOf(store, session.id).at(-1)!.epoch, 1);
+  await rt.advance(session.id);
+  assert.equal(decisionsOf(store, session.id).length, 1);
+  store.putArtifact<DecisionData>({ sessionId: session.id, type: "Decision", status: "proposed", data: { question: "Other?", options: OPTIONS, chosen: null }, provenance: { taskId: "t" } });
+  await rt.advance(session.id);
+  assert.deepEqual(decisionsOf(store, session.id).map((d) => [d.data.question, d.epoch]), [["Go?", 1], ["Other?", 2], ["Go?", 1]]);
+});

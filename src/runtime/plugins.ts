@@ -7,10 +7,10 @@ import type { Route } from "../server/http.ts";
 import { coreArtifactKinds } from "./render-ref.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
-/** What a workflow does next: run a phase, or take a decision. A decision with `chosen` is made by a rule and stored already answered; without it the user is asked. */
+/** What a workflow does next: run a phase, or take a decision. A decision with `chosen` is made by a rule and stored already answered; without it the user is asked. `epoch` is the epoch the decision is about (default: the latest); a workflow sets it when phases it does not own may have run since. */
 export type Step =
   | { run: string; input: unknown }
-  | { decide: { question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string } };
+  | { decide: { question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string }; epoch?: number };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
 /** A question asked before the session exists; the chosen option's `params` are merged into the workflow params, an option without `params` cancels the start. */
 export interface PrecheckQuestion<P> { question: string; options: { label: string; params?: Partial<P> }[] }

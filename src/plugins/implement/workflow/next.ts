@@ -62,15 +62,17 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (!start || !branch) return null;
   const profile = ctx.repoProfiles.get(branch.data.profile);
   if (!profile) throw new Error(`Unknown repo profile: ${branch.data.profile}`);
-  if (!view.epochs.length) return investigateStep(start, branch, profile, start.data.llm);
-  const last = view.epochs.at(-1)!;
+  // Phases started outside the workflow (a try push from chat) leave its own last epoch and that epoch's decision in charge.
+  const investigatePhase = profile.investigatePhase ?? "investigate", own = new Set([investigatePhase, "implement", "review"]);
+  const last = view.epochs.findLast((epoch) => own.has(epoch.phase));
+  if (!last) return investigateStep(start, branch, profile, start.data.llm);
   if (last.status !== "succeeded") return null;
 
   const decisions = decisionsOf(view), investigation = latest<InvestigationData>(view, "Investigation"), result = latest<ImplementResultData>(view, "ImplementResult");
-  const decisionStep = (question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { question, options }, ...(chosen ? { chosen } : {}) });
+  const decisionStep = (question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
   const llm = (selection: LlmSelection | undefined) => selection ? { llm: selection } : {};
   const approve = answered(decisions, APPROVE, last.n);
-  if (last.phase === (profile.investigatePhase ?? "investigate")) {
+  if (last.phase === investigatePhase) {
     if (!investigation) return null;
     if (!approve) {
       const needsBug = Boolean(profile.requiresBug && investigation.data.bug === null);
@@ -112,10 +114,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     if (open.length > 0 && rounds < max) return decisionStep(fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${open.length} high finding${open.length === 1 ? "" : "s"} open; automatic fix round ${rounds + 1} of ${max}` });
     return decisionStep(REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
   }
-
-  const lastReview = view.epochs.findLast((epoch) => epoch.phase === "review");
-  const accepted = lastReview && decisions.some((a) => a.epoch === lastReview.n && a.data.question === REVIEWED && a.data.chosen?.option === "accept");
-  return accepted && result ? afterAcceptStep(view, profile, branch, result, start, lastReview.n) : null;
+  return null;
 }
 
 /** Whether an implement session still has work: an epoch is running, or the session has a next step (an open decision included). Used to refuse a second session on the same checkout. */

@@ -75,6 +75,14 @@ test("answering stores a verified version, links it and advances the workflow", 
   assert.equal((await post(`/api/sessions/${id}/decisions/${first.id}`, { option: "go" })).status, 409, "already answered");
 });
 
+test("the answer keeps the epoch the decision was asked for, also after later epochs", async () => {
+  const { id } = session("asking");
+  for (const phase of ["a", "try"]) store.updateEpoch(id, store.createEpoch(id, phase, null).n, { status: "succeeded" });
+  const asked = store.putArtifact<DecisionData>({ sessionId: id, type: "Decision", status: "proposed", epoch: 1, data: { question: "Go?", options: OPTIONS, chosen: null }, provenance: { taskId: "runtime" } });
+  const res = await post(`/api/sessions/${id}/decisions/${asked.id}`, { option: "stop" });
+  assert.equal(store.getArtifact((await res.json()).artifactId).epoch, 1);
+});
+
 test("an older decision and a running epoch are rejected", async () => {
   const { id } = session("asking");
   await rt.advance(id);

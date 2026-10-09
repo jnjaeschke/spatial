@@ -362,6 +362,8 @@ Fails every running epoch and pending or running task with `reason`. Only a serv
 
 > **putArtifact**\<`T`\>(`a`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
 
+Stores an artifact in the session's latest epoch unless `epoch` names another.
+
 #### Type Parameters
 
 ##### T
@@ -375,6 +377,10 @@ Fails every running epoch and pending or running task with `reason`. Only a serv
 ###### data
 
 `T`
+
+###### epoch?
+
+`number` \| `null`
 
 ###### provenance
 

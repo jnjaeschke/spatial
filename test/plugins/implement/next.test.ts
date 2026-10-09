@@ -159,9 +159,15 @@ test("after Accept the after-accept phases run in order without asking", () => {
   assert.equal(next(failedX), null);
 });
 
-test("other phases after a review that was not accepted end the loop", () => {
-  const revised = view([...baseArtifacts("stack"), result(2), decision(REVIEWED, { option: "revise", by: "user", text: "t" }, 3)], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "x")]);
-  assert.equal(next(revised), null);
+test("phases started outside the workflow (try from chat) leave the open decision of its own last epoch answerable", () => {
+  const foreign = [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "try"), epoch(5, "tryPush", "failed")];
+  const open = decide(next(view([...baseArtifacts("stack"), result(2), decision(REVIEWED, null, 3)], foreign)));
+  assert.equal(open.decide.question, REVIEWED);
+  assert.equal(open.epoch, 3);
+  const revised = view([...baseArtifacts("stack"), result(2), decision(REVIEWED, { option: "revise", by: "user", text: "t" }, 3)], foreign);
+  assert.equal(run(next(revised)).run, "implement");
+  const accepted = view([...baseArtifacts("stack"), result(2), decision(REVIEWED, { option: "accept", by: "user" }, 3)], [...foreign.slice(0, 3), epoch(4, "x")]);
+  assert.equal(run(next(accepted)).run, "y", "an after-accept phase that already ran after the review is not run again");
 });
 
 test("a plan that does not hold asks to re-investigate or continue", () => {

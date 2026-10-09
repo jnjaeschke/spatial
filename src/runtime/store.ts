@@ -114,8 +114,9 @@ export class Store {
     return (this.#db.prepare("SELECT * FROM epochs WHERE session_id = ? ORDER BY n").all(sessionId) as Row[]).map(toEpoch);
   }
 
-  putArtifact<T>(a: { sessionId: Id; type: string; status: ArtifactStatus; data: T; provenance: Provenance }): Artifact<T> {
-    const full: Artifact<T> = { id: randomUUID(), createdAt: now(), epoch: this.latestEpoch(a.sessionId), ...a };
+  /** Stores an artifact in the session's latest epoch unless `epoch` names another. */
+  putArtifact<T>(a: { sessionId: Id; type: string; status: ArtifactStatus; data: T; provenance: Provenance; epoch?: number | null }): Artifact<T> {
+    const full: Artifact<T> = { id: randomUUID(), createdAt: now(), ...a, epoch: a.epoch === undefined ? this.latestEpoch(a.sessionId) : a.epoch };
     this.#db
       .prepare("INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
       .run(full.id, full.sessionId, full.type, full.status, JSON.stringify(full.data), JSON.stringify(full.provenance), full.createdAt, full.epoch);

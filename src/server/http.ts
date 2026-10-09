@@ -103,7 +103,7 @@ function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionD
     if (typeof candidate !== "object" || candidate === null || (candidate.backend !== "claude" && candidate.backend !== "codex") || typeof candidate.model !== "string" || typeof candidate.effort !== "string") throw new HttpError(400, "llm must be { backend, model, effort }");
     selection = { backend: candidate.backend, model: candidate.model, effort: candidate.effort };
   }
-  const answered = rt.store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: "verified", data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
+  const answered = rt.store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: "verified", epoch: open.epoch, data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
   const link = rt.store.putLink({ sessionId, from: answered.id, to: open.id, kind: "revises" });
   rt.emit(sessionId, "user", "artifact.created", { artifactId: answered.id, type: "Decision" });
   rt.emit(sessionId, "user", "link.created", { linkId: link.id, from: answered.id, to: open.id, kind: "revises" });

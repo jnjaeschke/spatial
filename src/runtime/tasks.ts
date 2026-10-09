@@ -341,7 +341,7 @@ export class Runtime {
       if (step === null) return;
       if ("run" in step) { await this.runPhase(sessionId, step.run, step.input); continue; }
       const { question, options } = step.decide;
-      const epoch = this.#store.listEpochs(sessionId).at(-1)?.n ?? null;
+      const epoch = step.epoch ?? this.#store.listEpochs(sessionId).at(-1)?.n ?? null;
       const latest = this.#store.listArtifacts(sessionId, "Decision").at(-1) as Artifact<DecisionData> | undefined;
       if (latest && latest.epoch === epoch && latest.data.question === question) {
         if (latest.data.chosen) throw new Error(`Session ${sessionId} asked "${question}" again after it was answered`);
@@ -349,7 +349,7 @@ export class Runtime {
       }
       if (step.chosen && !options.some((option) => option.id === step.chosen!.option)) throw new Error(`Session ${sessionId} chose unknown option ${step.chosen.option}`);
       const chosen = step.chosen ? { option: step.chosen.option, by: "rule" as const, reason: step.chosen.reason } : null;
-      const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", data: { question, options, chosen }, provenance: { taskId: "runtime" } });
+      const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", epoch, data: { question, options, chosen }, provenance: { taskId: "runtime" } });
       this.emit(sessionId, "runtime", "artifact.created", { artifactId: decision.id, type: "Decision" });
       if (!chosen) return;
     }
