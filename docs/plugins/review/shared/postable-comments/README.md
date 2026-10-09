@@ -12,4 +12,6 @@
 
 ## Functions
 
+- [currentUserComments](functions/currentUserComments.md)
 - [postableComments](functions/postableComments.md)
+- [reviewDraft](functions/reviewDraft.md)

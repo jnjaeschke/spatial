@@ -8,15 +8,17 @@
 
 ## Properties
 
-### comment
+### body
 
-> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewCommentData`](../../types/interfaces/ReviewCommentData.md)\>
+> **body**: `string`
 
 ***
 
-### finding
+### comment
 
-> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewFindingData`](../../types/interfaces/ReviewFindingData.md)\>
+> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)
+
+Stable Phabricator-post identity: ReviewComment for findings, UserComment for local comments.
 
 ***
 
@@ -39,3 +41,9 @@
 #### start
 
 > **start**: `number`
+
+***
+
+### source
+
+> **source**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)

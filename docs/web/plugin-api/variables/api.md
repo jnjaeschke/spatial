@@ -64,6 +64,46 @@
 
 `Promise`\<\{ `links`: `Record`\<`string`, `string` \| `null`\>; \}\>
 
+### createComment
+
+> **createComment**: (`sessionId`, `diffId`, `lines`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### diffId
+
+`string`
+
+##### lines
+
+###### end
+
+`number`
+
+###### path
+
+`string`
+
+###### side
+
+`"new"` \| `"old"`
+
+###### start
+
+`number`
+
+##### body
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
+
 ### decide
 
 > **decide**: (`sessionId`, `decisionId`, `option`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
@@ -122,6 +162,24 @@
 
 `Promise`\<\{ `artifactId`: `string`; \}\>
 
+### deleteComment
+
+> **deleteComment**: (`sessionId`, `stableId`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### stableId
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
+
 ### dirs
 
 > **dirs**: (`path?`) => `Promise`\<[`DirectoryListing`](../../../shared/types/interfaces/DirectoryListing.md)\>
@@ -135,6 +193,28 @@
 #### Returns
 
 `Promise`\<[`DirectoryListing`](../../../shared/types/interfaces/DirectoryListing.md)\>
+
+### editComment
+
+> **editComment**: (`sessionId`, `stableId`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### stableId
+
+`string`
+
+##### body
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
 
 ### enableMcpServer
 
@@ -339,6 +419,28 @@
 ##### findingId
 
 `string`
+
+##### body
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
+
+### saveReviewDraft
+
+> **saveReviewDraft**: (`sessionId`, `revision`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### revision
+
+`number`
 
 ##### body
 

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { postableComments } from "../../../../src/plugins/review/shared/postable-comments.ts";
+import { currentUserComments, postableComments } from "../../../../src/plugins/review/shared/postable-comments.ts";
 import type { Artifact, Link } from "../../../../src/shared/types.ts";
+import type { UserCommentData } from "../../../../src/plugins/review/shared/types.ts";
 
 test("postableComments selects latest verified comments for accepted findings only", () => {
   const session = { id: "S" };
@@ -40,7 +41,7 @@ test("postableComments selects latest verified comments for accepted findings on
   const dismissedComment = putArtifact("ReviewComment", "verified", { finding: dismissed.id, body: "dismissed" });
   linkAbout(dismissedComment.id, dismissed.id);
 
-  assert.deepEqual(postableComments({ artifacts, links }, "N1").map(({ finding: f, comment }) => [f.id, comment.id]), [[finding.id, latestComment.id]]);
+  assert.deepEqual(postableComments({ artifacts, links }, "N1").map(({ source, comment }) => [source.id, comment.id]), [[finding.id, latestComment.id]]);
 
   const receipt = putArtifact("PostedComment", "verified", { comment: latestComment.id, revision: 1, diff: 2, inlineId: 3 });
   linkAbout(receipt.id, latestComment.id);
@@ -97,5 +98,39 @@ test("postableComments uses carried lines and excludes outdated or addressed fin
     const c = put(id, "ReviewComment", "verified", { finding: f.id, body: "Ready" });
     links.push({ id: `${id}-about`, sessionId: "S", from: c.id, to: f.id, kind: "about" });
   }
-  assert.deepEqual(postableComments({ artifacts, links }, "N2").map(({ finding: f, lines }) => [f.id, lines]), [["F1", { path: "a.ts", side: "new", start: 8, end: 8 }], ["F4", { path: "a.ts", side: "new", start: 8, end: 8 }]]);
+  assert.deepEqual(postableComments({ artifacts, links }, "N2").map(({ source, lines }) => [source.id, lines]), [["F1", { path: "a.ts", side: "new", start: 8, end: 8 }], ["F4", { path: "a.ts", side: "new", start: 8, end: 8 }]]);
+});
+
+test("currentUserComments picks the newest version, preserves its stable id, and hides deletes", () => {
+  const first = { id: "U1", sessionId: "S", type: "UserComment", status: "verified" as const, data: { diffId: "D", lines: { path: "a.ts", side: "new" as const, start: 2, end: 2 }, body: "old", replaces: null, deleted: false }, provenance: { taskId: "runtime" }, createdAt: "1", epoch: null } as Artifact<UserCommentData>;
+  const edited = { ...first, id: "U2", data: { ...first.data, body: "edited", replaces: "U1" }, createdAt: "2" } as Artifact;
+  const deleted = { ...first, id: "U3", data: { ...first.data, body: "", replaces: "U1", deleted: true }, createdAt: "3" } as Artifact;
+  assert.deepEqual(currentUserComments([first, edited]).map((item) => [item.id, item.data.body, item.data.replaces ?? item.id]), [["U2", "edited", "U1"]]);
+  assert.deepEqual(currentUserComments([first, edited, deleted]), []);
+});
+
+test("postableComments includes unposted comments on the latest diff after accepted findings", () => {
+  const state = { artifacts: [] as Artifact[], links: [] as Link[] };
+  const put = (id: string, type: string, data: unknown) => {
+    const item = { id, sessionId: "S", type, status: "verified" as const, data, provenance: { taskId: "t" }, createdAt: id, epoch: null } as Artifact;
+    state.artifacts.push(item);
+    return item;
+  };
+  put("D", "Diff", { baseSha: "b", headSha: "h", commits: [], files: [] });
+  const narrative = put("N", "PatchNarrative", { diffId: "D", summary: "n", changes: [] });
+  const finding = put("F", "ReviewFinding", { anchor: "D#h", lines: { path: "a.ts", side: "new", start: 2, end: 2 }, category: "correctness", severity: "low", title: "f", body: "f" });
+  state.links.push({ id: "fn", sessionId: "S", from: finding.id, to: narrative.id, kind: "derivedFrom" });
+  const decision = put("DEC", "FindingDecision", { finding: finding.id, decision: "accepted" });
+  state.links.push({ id: "da", sessionId: "S", from: decision.id, to: finding.id, kind: "about" });
+  const reviewComment = put("RC", "ReviewComment", { finding: finding.id, body: "finding comment" });
+  state.links.push({ id: "rca", sessionId: "S", from: reviewComment.id, to: finding.id, kind: "about" });
+  const userComment = put("UC", "UserComment", { diffId: "D", lines: { path: "b.ts", side: "new", start: 7, end: 7 }, body: "user comment", replaces: null, deleted: false }) as Artifact<{ lines: { path: string; side: "new"; start: number; end: number } }>;
+  const results = postableComments(state, narrative.id);
+  assert.deepEqual(results.map((item) => [item.source.id, item.body, item.lines]), [
+    [finding.id, "finding comment", { path: "a.ts", side: "new", start: 2, end: 2 }],
+    [userComment.id, "user comment", userComment.data.lines],
+  ]);
+  const posted = put("POSTED", "PostedComment", { comment: userComment.id, source: userComment.id, revision: 1, diff: 1, inlineId: 1 });
+  state.links.push({ id: "pa", sessionId: "S", from: posted.id, to: userComment.id, kind: "about" });
+  assert.deepEqual(postableComments(state, narrative.id).map((item) => item.source.id), [finding.id]);
 });

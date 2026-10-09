@@ -8,7 +8,7 @@
 
 > **postableComments**(`state`, `narrativeId`): [`PostableComment`](../interfaces/PostableComment.md)[]
 
-Returns each accepted finding's latest verified comment at its current location, unless it was already posted or the finding is outdated or addressed.
+Accepted findings first, then unposted local comments on the Diff owned by this narrative.
 
 ## Parameters
 

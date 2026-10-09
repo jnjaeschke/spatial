@@ -762,7 +762,7 @@ test("post-drafts submits verified comments as Conduit drafts", async () => {
     assert.equal(inlineLine, 8);
     const posted = rt.store.listArtifacts(session.id, "PostedComment");
     assert.equal(posted.length, 1);
-    assert.deepEqual(posted[0]!.data, { comment: comment.id, revision: 1, diff: 7, inlineId: 9 });
+    assert.deepEqual(posted[0]!.data, { comment: comment.id, source: finding.id, revision: 1, diff: 7, inlineId: 9 });
     assert.deepEqual(posted[0]!.provenance, { taskId: "runtime" });
 
     const nextComment = rt.store.putArtifact({ sessionId: session.id, type: "ReviewComment", status: "verified", data: { finding: finding.id, body: "Please update this too." }, provenance: { taskId: "user" } });

@@ -1,4 +1,4 @@
-import type { PhabCommentData, ReviewFindingData, SpecReferenceData } from "../shared/types.ts";
+import type { PhabCommentData, ReviewDraftData, ReviewFindingData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { Artifact, DiffData, PatchNarrativeData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { findingStates } from "../shared/findings.ts";
@@ -27,6 +27,14 @@ const search: ArtifactKind["search"] = (view, artifact) => {
   if (artifact.type === "ReviewFinding") {
     const f = artifact.data as ReviewFindingData;
     return [{ ref: artifact.id, kind: "finding", body: f.title + "\n" + f.body }];
+  }
+  if (artifact.type === "UserComment") {
+    const comment = artifact.data as UserCommentData;
+    return [{ ref: artifact.id, kind: "comment", body: `${comment.lines.path}:${comment.lines.start}-${comment.lines.end}\n${comment.body}` }];
+  }
+  if (artifact.type === "ReviewDraft") {
+    const draft = artifact.data as ReviewDraftData;
+    return [{ ref: artifact.id, kind: "review-draft", body: `D${draft.revision}\n${draft.body}` }];
   }
   return [];
 };
@@ -76,11 +84,19 @@ const render: ArtifactKind["render"] = (view, artifact, subId, renderRef) => {
     const data = artifact.data as ReviewFindingData;
     return ["# Finding " + artifact.id + ": " + data.title, "Category: " + data.category + ", severity: " + data.severity, "Anchor: " + data.anchor, ...(data.quote ? ["> " + data.quote] : []), data.body].join("\n\n");
   }
+  if (artifact.type === "UserComment" && subId === undefined) {
+    const data = artifact.data as UserCommentData;
+    return `# User comment on ${data.diffId}\n\n${data.lines.path}:${data.lines.start}-${data.lines.end} (${data.lines.side})\n\n${data.deleted ? "Deleted" : data.body}`;
+  }
+  if (artifact.type === "ReviewDraft" && subId === undefined) {
+    const data = artifact.data as ReviewDraftData;
+    return `# Review draft for D${data.revision}\n\n${data.body}`;
+  }
   return null;
 };
 
-export const artifactKinds: Record<string, ArtifactKind> = Object.fromEntries(["Diff", "PatchNarrative", "SpecReference", "ReviewFinding", "PhabComment"].map((type) => [type, { search, render }]));
-export const searchKinds: string[] = ["change", "summary", "hunk", "commit", "spec", "finding", "comment"];
+export const artifactKinds: Record<string, ArtifactKind> = Object.fromEntries(["Diff", "PatchNarrative", "SpecReference", "ReviewFinding", "PhabComment", "UserComment", "ReviewDraft"].map((type) => [type, { search, render }]));
+export const searchKinds: string[] = ["change", "summary", "hunk", "commit", "spec", "finding", "comment", "review-draft"];
 
 /** Review sections used in the session overview. */
 export function reviewOverview(view: SessionView): string[] {

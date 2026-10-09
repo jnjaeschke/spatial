@@ -4,10 +4,10 @@ import { checkDrift } from "../runtime/drift.ts";
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/diffs.ts";
-import { postableComments } from "../shared/postable-comments.ts";
+import { currentUserComments, postableComments } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
-import type { ChangeReviewData, FindingDecisionData, ReviewCommentData } from "../shared/types.ts";
+import type { ChangeReviewData, FindingDecisionData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
 import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type DiffData, type LlmSelection, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
@@ -65,6 +65,53 @@ export function reviewRoutes(rt: Runtime): Route[] {
       if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
       requireArtifact(rt, session.id, findingId, "ReviewFinding", "finding");
       const artifact = putUserArtifact(rt, session.id, "ReviewComment", { finding: findingId, body: text } satisfies ReviewCommentData, findingId);
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/comments$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const diffId = str(body.diffId, "diffId");
+      const diffArtifact = requireArtifact(rt, session.id, diffId, "Diff", "diff") as Artifact<DiffData>;
+      if (!body.lines || typeof body.lines !== "object") throw new HttpError(400, "Invalid lines");
+      const lines = body.lines as Record<string, unknown>;
+      if (typeof lines.path !== "string" || !diffArtifact.data.files.some((file) => file.path === lines.path)) throw new HttpError(400, "Comment path is outside the Diff");
+      if (lines.side !== "new" && lines.side !== "old") throw new HttpError(400, "Invalid line side");
+      if (!Number.isInteger(lines.start) || !Number.isInteger(lines.end) || (lines.start as number) < 1 || (lines.end as number) < 1) throw new HttpError(400, "Invalid line range");
+      if ((lines.end as number) < (lines.start as number)) throw new HttpError(400, "Comment end must not precede start");
+      const start = lines.start as number, end = lines.end as number;
+      const text = str(body.body, "body");
+      if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
+      const artifact = putUserArtifact(rt, session.id, "UserComment", { diffId, lines: { path: lines.path, side: lines.side, start, end }, body: text, replaces: null, deleted: false } satisfies UserCommentData, diffId);
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/comments\/([^/]+)$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const stableId = params[1]!;
+      const artifacts = rt.store.listArtifacts(session.id);
+      const current = currentUserComments(artifacts).find((comment) => (comment.data.replaces ?? comment.id) === stableId);
+      if (!current) throw new HttpError(404, "Unknown comment");
+      const posted = artifacts.some((artifact) => artifact.type === "PostedComment" && (artifact.data as PostedCommentData).comment === stableId);
+      if (posted) throw new HttpError(409, "Comment was already posted");
+      const body = await readJson(req);
+      let data: UserCommentData;
+      if (body.deleted === true && body.body === undefined) data = { ...current.data, body: "", replaces: stableId, deleted: true };
+      else {
+        const text = str(body.body, "body");
+        if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
+        data = { ...current.data, body: text, replaces: stableId, deleted: false };
+      }
+      const artifact = putUserArtifact(rt, session.id, "UserComment", data, stableId);
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/review-draft$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      if (!Number.isInteger(body.revision) || (body.revision as number) < 1) throw new HttpError(400, "Invalid revision");
+      const revision = body.revision as number;
+      const text = str(body.body, "body");
+      const diff = latestDiff(rt.store.listArtifacts(session.id));
+      if (!diff) throw new HttpError(409, "Session has no imported diff");
+      const artifact = putUserArtifact(rt, session.id, "ReviewDraft", { revision, body: text } satisfies ReviewDraftData, diff.id);
       send(res, 201, { artifactId: artifact.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/comment\/regenerate$/, async ({ req, res, params }) => {
@@ -138,10 +185,10 @@ export function reviewRoutes(rt: Runtime): Route[] {
         if (drift !== null) throw new HttpError(409, `Local patch differs from the latest diff on D${id} (first difference in ${drift}); update the revision or the checkout first`);
       }
 
-      const skipped = plan.skipped.map(({ finding, reason }) => ({ finding, reason }));
+      const skipped = plan.skipped.map(({ source, reason }) => ({ source, reason }));
       let postedCount = 0;
       for (const { group, conduit, diffID } of loaded) {
-        for (const { finding, comment, target } of group.items) {
+        for (const { source, commentId, body, target } of group.items) {
           let result: { id: number };
           try {
             result = await conduit.call<{ id: number }>("differential.createinline", {
@@ -151,7 +198,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
               isNewFile: target.side === "new" ? 1 : 0,
               lineNumber: target.start,
               lineLength: target.end - target.start,
-              content: comment.data.body,
+              content: body,
             });
           } catch (e) {
             throw new HttpError(502, (e as Error).message);
@@ -160,12 +207,12 @@ export function reviewRoutes(rt: Runtime): Route[] {
             sessionId: session.id,
             type: "PostedComment",
             status: "verified",
-            data: { comment: comment.id, revision: group.revision.id, diff: diffID, inlineId: result.id } satisfies PostedCommentData,
+            data: { comment: commentId, source: source.id, revision: group.revision.id, diff: diffID, inlineId: result.id } satisfies ReviewPostedCommentData,
             provenance: { taskId: "runtime" },
           });
-          const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: comment.id, kind: "about" });
+          const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: commentId, kind: "about" });
           rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
-          rt.emit(session.id, "runtime", "link.created", { linkId: link.id, from: artifact.id, to: comment.id, kind: "about" });
+          rt.emit(session.id, "runtime", "link.created", { linkId: link.id, from: artifact.id, to: commentId, kind: "about" });
           postedCount++;
         }
       }

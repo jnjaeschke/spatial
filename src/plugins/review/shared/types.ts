@@ -52,6 +52,14 @@ export interface FindingVerdictData { finding: Id; verdict: FindingVerdictValue;
 /** First version from the `comment` task; reviewer edits create a verified version. Linked `about → findingId`. */
 export interface ReviewCommentData { finding: Id; body: string }
 
+/** A user's inline comment on one side of a Diff. Later versions link back to the first artifact id. */
+export interface UserCommentData { diffId: Id; lines: LineRange; body: string; replaces: Id | null; deleted: boolean }
+
+/** The user's general review comment for a Phabricator revision. */
+export interface ReviewDraftData { revision: number; body: string }
+
+export interface ReviewPostedCommentData { comment: Id; source: Id; revision: number; diff: number; inlineId: number }
+
 /** The Phabricator diff matching a local Diff while it was the session head, and the revision's newest diff. */
 export interface PhabSyncData { revision: number; matchingDiffId: number | null; latestDiffId: number | null; localDiff: Id }
 

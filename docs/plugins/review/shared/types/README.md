@@ -20,11 +20,14 @@
 - [PhabSyncData](interfaces/PhabSyncData.md)
 - [PostedReplyData](interfaces/PostedReplyData.md)
 - [ReviewCommentData](interfaces/ReviewCommentData.md)
+- [ReviewDraftData](interfaces/ReviewDraftData.md)
 - [ReviewFindingData](interfaces/ReviewFindingData.md)
+- [ReviewPostedCommentData](interfaces/ReviewPostedCommentData.md)
 - [SpecReferenceData](interfaces/SpecReferenceData.md)
 - [SpecStepMapData](interfaces/SpecStepMapData.md)
 - [StepLink](interfaces/StepLink.md)
 - [UnmappedLines](interfaces/UnmappedLines.md)
+- [UserCommentData](interfaces/UserCommentData.md)
 
 ## Type Aliases
 

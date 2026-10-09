@@ -1,4 +1,4 @@
-import type { ReviewCommentData, ReviewFindingData } from "./types.ts";
+import type { ReviewFindingData, UserCommentData } from "./types.ts";
 import type { Artifact, DiffData, Id } from "../../../plugin-api.ts";
 import { numberLines } from "./diff-lines.ts";
 import { commitRevision } from "./phabricator.ts";
@@ -35,25 +35,25 @@ export function postTarget(diff: DiffData, lines: FindingLines): PostTarget | { 
 export interface RevisionDrafts {
   commit: number;
   revision: PhabRevision;
-  items: { finding: Artifact<ReviewFindingData>; comment: Artifact<ReviewCommentData>; target: PostTarget }[];
+  items: { source: Artifact; commentId: Id; body: string; target: PostTarget }[];
 }
 
-export function postPlan(diff: DiffData, candidates: PostableComment[]): { revisions: RevisionDrafts[]; skipped: { finding: Id; reason: string }[] } {
+export function postPlan(diff: DiffData, candidates: PostableComment[]): { revisions: RevisionDrafts[]; skipped: { source: Id; reason: string }[] } {
   const revisions = new Map<number, RevisionDrafts>();
-  const skipped: { finding: Id; reason: string }[] = [];
-  for (const { finding, comment, lines } of candidates) {
+  const skipped: { source: Id; reason: string }[] = [];
+  for (const { source, comment, body, lines } of candidates) {
     if (!lines) {
-      skipped.push({ finding: finding.id, reason: "Finding has no line range" });
+      skipped.push({ source: source.id, reason: source.type === "ReviewFinding" ? "Finding has no line range" : "Comment has no line range" });
       continue;
     }
     const target = postTarget(diff, lines);
     if ("skip" in target) {
-      skipped.push({ finding: finding.id, reason: target.skip });
+      skipped.push({ source: source.id, reason: target.skip });
       continue;
     }
     const revision = commitRevision(diff.commits[target.commit]!);
     if (!revision) {
-      skipped.push({ finding: finding.id, reason: `Commit ${diff.commits[target.commit]!.sha.slice(0, 12)} has no Differential Revision trailer` });
+      skipped.push({ source: source.id, reason: `Commit ${diff.commits[target.commit]!.sha.slice(0, 12)} has no Differential Revision trailer` });
       continue;
     }
     let group = revisions.get(target.commit);
@@ -61,7 +61,8 @@ export function postPlan(diff: DiffData, candidates: PostableComment[]): { revis
       group = { commit: target.commit, revision, items: [] };
       revisions.set(target.commit, group);
     }
-    group.items.push({ finding, comment, target });
+    const commentId = comment.type === "UserComment" ? ((comment.data as UserCommentData).replaces ?? comment.id) : comment.id;
+    group.items.push({ source, commentId, body, target });
   }
   return { revisions: [...revisions.values()].sort((a, b) => a.commit - b.commit), skipped };
 }

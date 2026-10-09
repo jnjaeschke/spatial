@@ -18,13 +18,17 @@
 
 > **items**: `object`[]
 
-#### comment
+#### body
 
-> **comment**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewCommentData`](../../types/interfaces/ReviewCommentData.md)\>
+> **body**: `string`
 
-#### finding
+#### commentId
 
-> **finding**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`ReviewFindingData`](../../types/interfaces/ReviewFindingData.md)\>
+> **commentId**: `string`
+
+#### source
+
+> **source**: [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)
 
 #### target
 

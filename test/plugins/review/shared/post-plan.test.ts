@@ -49,7 +49,7 @@ function artifact<T>(id: string, type: string, data: T): Artifact<T> {
 function candidate(id: string, range?: PostableComment["lines"]): PostableComment {
   const finding = artifact<ReviewFindingData>(`f${id}`, "ReviewFinding", { anchor: "x", ...(range ? { lines: range } : {}), category: "correctness", severity: "low", title: id, body: "" });
   const comment = artifact<ReviewCommentData>(`c${id}`, "ReviewComment", { finding: finding.id, body: id });
-  return { finding, comment, ...(range ? { lines: range } : {}) };
+  return { source: finding, comment, body: comment.data.body, ...(range ? { lines: range } : {}) };
 }
 
 test("postPlan groups by owning commit and reports unmappable candidates", () => {
@@ -61,11 +61,11 @@ test("postPlan groups by owning commit and reports unmappable candidates", () =>
     { commit: 1, revision: { host: "https://phab.example.com", id: 2 }, count: 1 },
   ]);
   assert.deepEqual(plan.skipped, [
-    { finding: "f3", reason: "Comment spans lines of several commits" },
-    { finding: "f4", reason: "Finding has no line range" },
+    { source: "f3", reason: "Comment spans lines of several commits" },
+    { source: "f4", reason: "Finding has no line range" },
   ]);
   const withoutTrailer = diff();
   withoutTrailer.commits[0]!.body = "none";
   const missing = postPlan(withoutTrailer, [candidate("5", lines("new", 2))]);
-  assert.deepEqual(missing.skipped, [{ finding: "f5", reason: "Commit a11111111111 has no Differential Revision trailer" }]);
+  assert.deepEqual(missing.skipped, [{ source: "f5", reason: "Commit a11111111111 has no Differential Revision trailer" }]);
 });
