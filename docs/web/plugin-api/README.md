@@ -106,6 +106,7 @@
 - [rootThread](functions/rootThread.md)
 - [rowSegments](functions/rowSegments.md)
 - [searchfoxLinks](functions/searchfoxLinks.md)
+- [Segmented](functions/Segmented.md)
 - [SidePanel](functions/SidePanel.md)
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)

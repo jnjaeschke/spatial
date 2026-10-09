@@ -72,6 +72,7 @@ export { DiffView } from "./diff/DiffView.tsx";
 export { FilePanel } from "./diff/FilePanel.tsx";
 export type { HunkRow } from "./diff/FilePanel.tsx";
 export { SidePanel } from "./SidePanel.tsx";
+export { Segmented } from "./Segmented.tsx";
 export { StackContext } from "./diff/stack-context.ts";
 export { commitColors, commitLabel } from "./diff/commit-colors.ts";
 export { numberLines, fileRows } from "../shared/diff-lines.ts";

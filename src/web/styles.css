@@ -188,10 +188,12 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .node.decision-node { --pad-y: 10px; --pad-x: 12px; }
 .topbar .decision input { width: 14em; }
 .llm-picker { display: inline-flex; gap: 4px; }
-.theme-toggle, .text-size { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border); }
-.theme-toggle button, .text-size button { display: inline-grid; place-items: center; border: 0; box-shadow: none; background: transparent; border-radius: 999px; padding: 2px 7px; color: var(--text-3); }
-.theme-toggle button:hover:not(:disabled), .text-size button:hover:not(:disabled) { background: transparent; color: var(--text); }
-.theme-toggle button[aria-pressed="true"] { background: light-dark(var(--surface), var(--accent-soft)); color: var(--accent); box-shadow: var(--shadow-1); }
+.segmented { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border); }
+.segmented button { display: inline-grid; place-items: center; border: 0; box-shadow: none; background: transparent; border-radius: 999px; padding: 2px 7px; color: var(--text-3); }
+.segmented button:hover:not(:disabled) { background: transparent; color: var(--text); }
+.segmented button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.theme-toggle button[aria-pressed="true"] { background: light-dark(var(--surface), var(--accent-soft)); box-shadow: var(--shadow-1); }
+.text-size { display: inline-flex; }
 .text-size button { font-size: 12px; font-weight: 600; }
 .text-size button:disabled { opacity: 0.4; cursor: default; }
 
@@ -209,14 +211,13 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .canvas-minimap { box-sizing: border-box; border-left: 1px solid var(--border); }
 .session-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; }
 .session-body > .canvas { min-width: 0; }
-.reviewer-comments-panel { position: absolute; inset: 0; overflow: auto; padding: 0 12px 12px; }
+.reviewer-comments-panel { position: relative; grid-column: 1 / -1; min-height: 0; overflow: auto; padding: 0 12px 12px; }
 .reviewer-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
 .reviewer-comment { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
 .reviewer-comment-quote { margin: 4px 0; }
 .reviewer-comment-ai { opacity: .85; border-left: 3px solid var(--accent); padding-left: 8px; }
 .reviewer-comment-controls { display: flex; gap: 6px; align-items: start; flex-wrap: wrap; }
 .reviewer-comment-controls .composer { flex: 1 1 100%; min-height: 3em; }
-.reviewer-comment-controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 
 .react-flow {
   --xy-background-color: transparent;

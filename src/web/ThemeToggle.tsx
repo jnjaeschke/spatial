@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Segmented } from "./Segmented.tsx";
 import { setThemePreference, useThemePreference, type ThemePreference } from "./theme.ts";
 
 const icon = (children: ReactNode) => <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
@@ -11,7 +12,5 @@ const OPTIONS: { value: ThemePreference; icon: ReactNode; label: string }[] = [
 
 export function ThemeToggle() {
   const preference = useThemePreference();
-  return <div className="theme-toggle" role="group" aria-label="Theme">
-    {OPTIONS.map((o) => <button key={o.value} type="button" aria-label={o.label} title={o.label} aria-pressed={preference === o.value} onClick={() => setThemePreference(o.value)}>{o.icon}</button>)}
-  </div>;
+  return <Segmented label="Theme" className="theme-toggle" options={OPTIONS.map((o) => ({ value: o.value, label: o.icon, title: o.label }))} value={preference} onChange={setThemePreference} />;
 }
