@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { DirectoryListing } from "../shared/types.ts";
+import type { DirectoryListing, RecentRepo } from "../shared/types.ts";
 import { api } from "./api.ts";
+
+const RECENT_LIMIT = 6;
 
 export function FolderPicker({ onClose }: { onClose: () => void }) {
   const [listing, setListing] = useState<DirectoryListing | null>(null);
@@ -8,12 +10,17 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [canOpen, setCanOpen] = useState(false);
+  const [recents, setRecents] = useState<RecentRepo[]>([]);
   const dialog = useRef<HTMLDialogElement>(null);
   // Listings can resolve out of order (the initial home listing after a typed path); only the latest request counts.
   const request = useRef(0);
   // Typing in the path field while a listing loads must not be overwritten by that listing's path.
   const edits = useRef(0);
-  useEffect(() => { if (dialog.current && !dialog.current.open) dialog.current.showModal(); void navigate(); }, []);
+  useEffect(() => {
+    if (dialog.current && !dialog.current.open) dialog.current.showModal();
+    void navigate();
+    api.repos().then((repos) => setRecents(repos.toSorted((a, b) => b.lastActive.localeCompare(a.lastActive)).slice(0, RECENT_LIMIT)), () => setRecents([]));
+  }, []);
 
   async function navigate(path?: string) {
     const id = ++request.current, editsAtStart = edits.current;
@@ -52,6 +59,9 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
   }
   return <dialog ref={dialog} className="folder-picker" aria-label="Open folder" onKeyDown={keyDown} onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <header><h2>Open folder</h2><button type="button" aria-label="Close" onClick={onClose}>×</button></header>
+    {recents.length > 0 && <nav aria-label="Recent folders" className="folder-recents"><h3>Recent</h3><ul>{recents.map((repo) => <li key={repo.worktree}>
+      <a href={`?path=${encodeURIComponent(repo.worktree)}`}><b>{repo.name}</b> <code>{repo.worktree}</code></a>
+    </li>)}</ul></nav>}
     {listing && <nav aria-label="Folder breadcrumbs" className="folder-breadcrumbs">{listing.path.split(/[\\/]/).filter(Boolean).map((part, index, parts) => {
       const root = listing.path.startsWith("/") ? "/" : "";
       const path = root + parts.slice(0, index + 1).join(listing.path.includes("\\") ? "\\" : "/");
