@@ -6,7 +6,7 @@
 
 # Interface: ChatMessageData
 
-Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to.
+Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. `run`: a phase the reply asked to start after the turn; anything with outside effects still waits for the user's decision in that phase.
 
 ## Properties
 
@@ -57,6 +57,20 @@ Revisions from this reply that were not applied, with the reason.
 ### role
 
 > **role**: `"user"` \| `"assistant"`
+
+***
+
+### run?
+
+> `optional` **run?**: `object`
+
+#### input
+
+> **input**: `unknown`
+
+#### phase
+
+> **phase**: `string`
 
 ***
 

@@ -5,7 +5,7 @@ import { defineTask, Runtime, TaskCancelledError, type GitCapability, type Searc
 import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm/types.ts";
 import type { ChatMessageData, ChatThreadData, DiagramData, DiffData, LlmSelection, McpServerData, PatchNarrativeData } from "../../src/shared/types.ts";
 import { renderRef as renderRefWith, sessionView } from "../../src/runtime/render-ref.ts";
-import { pluginRegistry } from "../../src/runtime/plugins.ts";
+import { pluginRegistry, type ChatReplyField } from "../../src/runtime/plugins.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 const registry = pluginRegistry(plugins);
@@ -23,7 +23,7 @@ const DIFF: DiffData = {
   ] }],
 };
 
-function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; git?: GitCapability; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[]; diagram?: unknown } | undefined)[] } = {}) {
+function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; git?: GitCapability; replyFields?: ChatReplyField[]; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[]; diagram?: unknown; [field: string]: unknown } | undefined)[] } = {}) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let n = 0;
@@ -42,7 +42,7 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({
-    store, plugins: [corePlugin, ...plugins], llm, git: () => opts.git ?? ({} as GitCapability),
+    store, plugins: [corePlugin, ...plugins, ...(opts.replyFields?.length ? [{ id: "test-reply-fields", chatReplyFields: opts.replyFields }] : [])], llm, git: () => opts.git ?? ({} as GitCapability),
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
@@ -135,6 +135,22 @@ test("chat passes the reply schema on new and resumed turns and stores structure
   const assistant = store.getArtifact<ChatMessageData>(first.messageId).data;
   assert.equal(assistant.text, "The answer");
   assert.deepEqual(assistant.questions, ["Need a choice?"]);
+});
+
+test("chat reply can request one phase run", async () => {
+  const field: ChatReplyField = { name: "runRequest", label: "Run", schema: { type: "object" }, prompt: "", async accept() { return { ok: true, artifacts: [], run: { phase: "p", input: { x: 1 } } }; } };
+  const { store, turn, narrativeId } = setup({ replyFields: [field], replies: [{ answer: "Go", revisions: [], questions: [], runRequest: {} }] });
+  const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Run it", llm: SONNET });
+  assert.deepEqual(store.getArtifact<ChatMessageData>(messageId).data.run, { phase: "p", input: { x: 1 } });
+});
+
+test("chat reply rejects multiple requested phase runs", async () => {
+  const field = (name: string, label: string): ChatReplyField => ({ name, label, schema: { type: "object" }, prompt: "", async accept() { return { ok: true, artifacts: [], run: { phase: name, input: null } }; } });
+  const { store, turn, narrativeId } = setup({ replyFields: [field("first", "First"), field("second", "Second")], replies: [{ answer: "Go", revisions: [], questions: [], first: {}, second: {} }] });
+  const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Run it", llm: SONNET });
+  const data = store.getArtifact<ChatMessageData>(messageId).data;
+  assert.equal(data.run, undefined);
+  assert.ok(data.replyErrors?.some((error) => error.label === "Second" && error.error === "only one phase run per reply"));
 });
 
 test("chat verifies a proposed diagram and links it to the assistant reply", async () => {

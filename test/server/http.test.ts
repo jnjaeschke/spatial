@@ -9,6 +9,8 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
+import { definePlugin } from "../../src/plugin-api.ts";
+import type { ChatReplyField } from "../../src/runtime/plugins.ts";
 import { makeGit } from "../../src/runtime/git.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { plugins } from "../../src/plugins/index.ts";
@@ -20,6 +22,7 @@ import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
 let failNarrationOnce = false;
+let requestPhase = false;
 const CHAT_REPLY = { answer: "hi", questions: [], revisions: [], requestMcpServers: [], diagram: null };
 const replyFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "answer" in (prompt.schema as { properties: object }).properties;
 const selectorFor = (prompt: { schema?: object }) => prompt.schema && "properties" in prompt.schema && "workflow" in (prompt.schema as { properties: object }).properties;
@@ -27,7 +30,7 @@ const reviewFor = (prompt: { schema?: object; system?: string }) => prompt.syste
 const commentFor = (prompt: { schema?: object }) => !!prompt.schema && "properties" in prompt.schema && "body" in (prompt.schema as { properties: object }).properties;
 const llm: LlmService = {
   defaultSelection: { backend: "claude", model: "sonnet", effort: "medium" },
-  async run(selection, prompt) { if (failNarrationOnce && prompt.system?.startsWith("You explain a code patch")) { failNarrationOnce = false; throw new Error("synthetic narration failure"); } const selector = selectorFor(prompt); const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); const stack = prompt.schema && "properties" in prompt.schema && "commitIntents" in (prompt.schema as { properties: object }).properties; const commitHunks = [...prompt.prompt.matchAll(/^### (f\d+h\d+) .* \[C(\d+)\](?: \[[^\]]+\])*$/gm)].map((match) => [match[1]!, Number(match[2])]); return { text: "hi", json: prompt.schema ? selector ? { workflow: "chat", params: {}, title: "Picked" } : chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : stack ? { summary: "Adds `c.txt`, then updates `a.txt`.", commitIntents: Array.from({ length: (prompt.prompt.match(/^## C\d+: /gm) ?? []).length }, (_, i) => `Commit ${i + 1} intent.`), changes: [...new Set(commitHunks.map(([, commit]) => commit))].sort().map((commit, index, owners) => ({ id: `c${commit}`, title: `Commit ${commit}`, explanation: `Changes of commit ${commit}.`, rationale: "r", hunkIds: commitHunks.filter(([, owner]) => owner === commit).map(([id]) => id), dependsOn: index ? [`c${owners[index - 1]}`] : [], specUrls: [] })) } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
+  async run(selection, prompt) { if (failNarrationOnce && prompt.system?.startsWith("You explain a code patch")) { failNarrationOnce = false; throw new Error("synthetic narration failure"); } const selector = selectorFor(prompt); const chat = replyFor(prompt); const review = reviewFor(prompt); const comment = commentFor(prompt); const stack = prompt.schema && "properties" in prompt.schema && "commitIntents" in (prompt.schema as { properties: object }).properties; const commitHunks = [...prompt.prompt.matchAll(/^### (f\d+h\d+) .* \[C(\d+)\](?: \[[^\]]+\])*$/gm)].map((match) => [match[1]!, Number(match[2])]); return { text: "hi", json: prompt.schema ? selector ? { workflow: "chat", params: {}, title: "Picked" } : chat ? { ...CHAT_REPLY, requestPhase: requestPhase ? {} : null } : review ? { findings: [], verdicts: [] } : comment ? { body: "Generated review comment." } : stack ? { summary: "Adds `c.txt`, then updates `a.txt`.", commitIntents: Array.from({ length: (prompt.prompt.match(/^## C\d+: /gm) ?? []).length }, (_, i) => `Commit ${i + 1} intent.`), changes: [...new Set(commitHunks.map(([, commit]) => commit))].sort().map((commit, index, owners) => ({ id: `c${commit}`, title: `Commit ${commit}`, explanation: `Changes of commit ${commit}.`, rationale: "r", hunkIds: commitHunks.filter(([, owner]) => owner === commit).map(([id]) => id), dependsOn: index ? [`c${owners[index - 1]}`] : [], specUrls: [] })) } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
   async listModels() { return { claude: { models: [{ id: "sonnet", efforts: ["low"] }] }, codex: { error: "no cache" } }; },
 };
 const repo = makeRepo();
@@ -35,7 +38,13 @@ repo.commit({ "a.txt": "1\n2\n" }, "base");
 repo.commit({ "a.txt": "1\nTWO\n", "c.txt": "c\n" }, "change");
 const staticDir = mkdtempSync(join(tmpdir(), "static-"));
 writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>app</title>");
-const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+const runRequestField: ChatReplyField = { name: "requestPhase", label: "Run", schema: { type: "object" }, prompt: "", async accept() { return { ok: true, artifacts: [], run: { phase: "p", input: { x: 1 } } }; } };
+const task6Plugin = definePlugin({ id: "http-task6-test", chatReplyFields: [runRequestField], phases: [
+  { id: "p", async run() {} },
+  { id: "blocking", async run() { await new Promise<void>((resolve) => { unblockPhase = resolve; }); } },
+] });
+let unblockPhase: (() => void) | undefined;
+const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
 const server = createHttpServer(rt, { staticDir });
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -520,6 +529,34 @@ test("turns: first turn creates thread; busy thread is 409", async () => {
     release();
     await new Promise<void>((resolve) => gatedServer.close(() => resolve()));
   }
+});
+
+test("turn request starts its requested phase after the chat task completes", async () => {
+  const s = await newSession();
+  await post(`/api/sessions/${s.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+  const narrative = await waitFor(async () => rt.store.listArtifacts(s.id, "PatchNarrative")[0]);
+  requestPhase = true;
+  try {
+    const response = await post(`/api/sessions/${s.id}/turns`, { anchor: `${narrative.id}#c1`, text: "run", llm: { backend: "claude", model: "sonnet", effort: "medium" } });
+    assert.equal(response.status, 202);
+    await waitFor(async () => rt.store.listEpochs(s.id).find((epoch) => epoch.phase === "p" && epoch.status === "succeeded"));
+    assert.deepEqual(rt.store.listEpochs(s.id).filter((epoch) => epoch.phase === "p").map((epoch) => epoch.input), [{ x: 1 }]);
+  } finally { requestPhase = false; }
+});
+
+test("turn request notifies when its requested phase cannot start during another epoch", async () => {
+  const s = await newSession();
+  await post(`/api/sessions/${s.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
+  const narrative = await waitFor(async () => rt.store.listArtifacts(s.id, "PatchNarrative")[0]);
+  const running = rt.runPhase(s.id, "blocking", null);
+  await waitFor(async () => unblockPhase ? true : undefined);
+  requestPhase = true;
+  try {
+    const response = await post(`/api/sessions/${s.id}/turns`, { anchor: `${narrative.id}#c1`, text: "run", llm: { backend: "claude", model: "sonnet", effort: "medium" } });
+    assert.equal(response.status, 202);
+    await waitFor(async () => rt.store.listEvents(s.id).find((event) => event.type === "notify" && (event.payload as { title?: string }).title === "Could not start p"));
+    assert.equal(rt.store.listEpochs(s.id).some((epoch) => epoch.phase === "p"), false);
+  } finally { requestPhase = false; unblockPhase?.(); await running; unblockPhase = undefined; }
 });
 
 test("turns reject selected quotes over 20000 characters", async () => {

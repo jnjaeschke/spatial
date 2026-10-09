@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { SelectorQuestionData, SelectorAnswerData, Artifact, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageData, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
@@ -277,8 +277,15 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
         t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") && (t.input as { threadId?: string }).threadId === threadId)) {
         throw new HttpError(409, "A turn is already running in this thread");
       }
-      const { taskId, done } = rt.start(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, aside: body.aside as boolean | undefined, text, llm: body.llm, quote: body.quote, lines: body.lines });
-      done.catch((e) => console.error(`chatTurn ${taskId} failed: ${(e as Error).message}`));
+      const { taskId, done } = rt.start<{ threadId: string; messageId: string }>(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, aside: body.aside as boolean | undefined, text, llm: body.llm, quote: body.quote, lines: body.lines });
+      done.then(({ messageId }) => {
+        const run = rt.store.getArtifact<ChatMessageData>(messageId).data.run;
+        if (!run) return;
+        let started: Promise<unknown>;
+        try { started = rt.runPhase(id, run.phase, run.input); }
+        catch (e) { rt.emit(id, "runtime", "notify", { id: `run-${run.phase}`, title: `Could not start ${run.phase}`, body: (e as Error).message } satisfies NotifyPayload); return; }
+        started.then(() => rt.advance(id)).catch((e) => console.error(`${run.phase} from chat failed in session ${id}: ${(e as Error).message}`));
+      }).catch((e) => console.error(`chatTurn ${taskId} failed: ${(e as Error).message}`));
       send(res, 202, { taskId });
     }],
     ["GET", /^\/api\/llm\/models$/, async (): Promise<ModelsResponse> => ({

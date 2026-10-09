@@ -1,9 +1,17 @@
 import { z } from "zod";
-import { definePlugin, type Workflow, type Phase, type Runtime, type Id, type LlmSelection, type SessionView } from "../../plugin-api.ts";
+import { definePlugin, type Workflow, type Phase, type Runtime, type Id, type LlmSelection, type SessionView, type Artifact, type ChatMessageData, type WorkflowView } from "../../plugin-api.ts";
 
 const params = z.strictObject({});
 interface ChatPhaseInput { anchor: Id; text: string; llm: LlmSelection }
-const chatPhase: Phase<ChatPhaseInput> = { id: "chat", async run(rt, sessionId, input) { await rt.run(sessionId, "chatTurn", input); } };
+/** After a chat epoch, the phase its reply asked for, if any. */
+export const chatPhase: Phase<ChatPhaseInput> = {
+  id: "chat",
+  async run(rt, sessionId, input) { await rt.run(sessionId, "chatTurn", input); },
+  next(view: WorkflowView, epoch) {
+    const reply = view.artifacts.findLast((a) => a.type === "ChatMessage" && a.epoch === epoch.n && (a.data as ChatMessageData).role === "assistant") as Artifact<ChatMessageData> | undefined;
+    return reply?.data.run ? { run: reply.data.run.phase, input: reply.data.run.input } : null;
+  },
+};
 const chat: Workflow<z.infer<typeof params>> = {
   id: "chat", description: "Open conversation about the repository and its code. Use it for anything that is not clearly one of the other workflows.", argHint: "<message>", params,
   parseArgs: (args) => args.trim() ? { ok: true, params: {} } : { ok: false, error: "Usage: /chat <message>" },

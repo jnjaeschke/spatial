@@ -42,9 +42,9 @@ JSON schema for the non-null value. Core makes it required and nullable.
 
 ### accept()
 
-> **accept**(`ctx`, `value`): `Promise`\<\{ `artifacts`: `object`[]; `ok`: `true`; \} \| \{ `error`: `string`; `ok`: `false`; \}\>
+> **accept**(`ctx`, `value`): `Promise`\<\{ `artifacts`: `object`[]; `ok`: `true`; `run?`: \{ `input`: `unknown`; `phase`: `string`; \}; \} \| \{ `error`: `string`; `ok`: `false`; \}\>
 
-Validates the value and returns artifacts to store and link to the reply.
+Validates the value and returns artifacts to store and link to the reply, and optionally a phase for the runtime to start after the turn (one per reply).
 
 #### Parameters
 
@@ -58,4 +58,4 @@ Validates the value and returns artifacts to store and link to the reply.
 
 #### Returns
 
-`Promise`\<\{ `artifacts`: `object`[]; `ok`: `true`; \} \| \{ `error`: `string`; `ok`: `false`; \}\>
+`Promise`\<\{ `artifacts`: `object`[]; `ok`: `true`; `run?`: \{ `input`: `unknown`; `phase`: `string`; \}; \} \| \{ `error`: `string`; `ok`: `false`; \}\>

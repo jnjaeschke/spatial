@@ -100,16 +100,25 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
     }
     const replyErrors: { label: string; error: string }[] = [];
     const acceptedFields: { artifacts: { type: string; data: unknown }[] }[] = [];
+    let run: { phase: string; input: unknown } | undefined;
+    let runCount = 0;
     for (const field of ctx.chat.replyFields) {
       const value = json[field.name];
       if (value === null || value === undefined) continue;
       const accepted = await field.accept(ctx, value);
       if (!accepted.ok) replyErrors.push({ label: field.label, error: accepted.error });
-      else acceptedFields.push({ artifacts: accepted.artifacts });
+      else {
+        acceptedFields.push({ artifacts: accepted.artifacts });
+        if (accepted.run) {
+          runCount++;
+          if (runCount === 1) run = accepted.run;
+          else { run = undefined; replyErrors.push({ label: field.label, error: "only one phase run per reply" }); }
+        }
+      }
     }
     const reply = ctx.artifacts.put<ChatMessageData>(
       "ChatMessage", "proposed",
-      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), ...(replyErrors.length ? { replyErrors } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
+      { role: "assistant", text: json.answer, ...(json.questions.length ? { questions: json.questions } : {}), ...(errors.length ? { revisionErrors: errors } : {}), ...(replyErrors.length ? { replyErrors } : {}), ...(runCount === 1 && run ? { run } : {}), llm: r.selection, providerSessionId: r.providerSessionId },
       r.selection,
     );
     ctx.links.put(reply.id, thread.id, "reply");

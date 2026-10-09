@@ -181,7 +181,7 @@ export type ChangeStatus = "unchanged" | "modified" | "new";
 
 /** Receipt of a posted Phabricator inline. Linked `about → commentId`. Provenance: runtime. */
 export interface PostedCommentData { comment: Id; revision: number; diff: number; inlineId: number }
-/** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. */
+/** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. `run`: a phase the reply asked to start after the turn; anything with outside effects still waits for the user's decision in that phase. */
 export interface ChatMessageData {
   role: "user" | "assistant";
   text: string;
@@ -193,6 +193,7 @@ export interface ChatMessageData {
   revisionErrors?: string[];
   /** Why a plugin-proposed artifact was dropped during deterministic validation. */
   replyErrors?: { label: string; error: string }[];
+  run?: { phase: string; input: unknown };
 }
 
 export interface Link {

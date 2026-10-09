@@ -79,8 +79,8 @@ export interface ChatReplyField {
   schema: object;
   /** Section appended to the chat system prompt. */
   prompt: string;
-  /** Validates the value and returns artifacts to store and link to the reply. */
-  accept(ctx: TaskContext, value: unknown): Promise<{ ok: true; artifacts: { type: string; data: unknown }[] } | { ok: false; error: string }>;
+  /** Validates the value and returns artifacts to store and link to the reply, and optionally a phase for the runtime to start after the turn (one per reply). */
+  accept(ctx: TaskContext, value: unknown): Promise<{ ok: true; artifacts: { type: string; data: unknown }[]; run?: { phase: string; input: unknown } } | { ok: false; error: string }>;
 }
 /** A packaging unit; contributes any mix of these. Artifact kinds are keyed by artifact type. */
 export interface Plugin {
