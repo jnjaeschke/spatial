@@ -125,7 +125,7 @@ select {
   background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
   background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%; background-size: 4px 4px; background-repeat: no-repeat;
 }
-/* Customizable select where supported, except on the canvas: anchor positioning ignores the canvas transform, so the picker would open away from its select. */
+/* Customizable select where supported, except on the canvas: Gecko opens the picker of a select inside the transformed canvas away from it. */
 @supports (appearance: base-select) {
   select:not(.react-flow select), ::picker(select) { appearance: base-select; }
   select:not(.react-flow select) { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background-image: none; }
