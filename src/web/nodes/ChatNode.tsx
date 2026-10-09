@@ -3,7 +3,7 @@ import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
 import { api } from "../api.ts";
-import { ChatActionsContext } from "../chat-context.ts";
+import { ChatActionsContext, closeChat, draftTexts } from "../chat-context.ts";
 import type { ChatNodeData, ZoomLevel } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
@@ -16,6 +16,7 @@ export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<str
 export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   const collapse = useContext(CollapseContext);
   const closer = useContext(ClosedContext);
+  const actions = useContext(ChatActionsContext);
   const id = data.threadId ?? data.draftId!;
   const closed = data.threadId !== null && (collapse?.collapsed.has(data.threadId) ?? false);
 
@@ -25,17 +26,17 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   return (
     <div className={`node chat-node level-${data.level}`} data-testid={`chat-${id}`}>
       <Handle type="source" position={Position.Left} />
-      <div className="title">Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}{data.threadId && closer && <button aria-label="Close" className="close nodrag" onClick={() => closer.close(data.threadId!)}>✕</button>}</div>
+      <div className="title">Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{data.threadId && collapse && <button aria-label={closed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(data.threadId!)}>{closed ? "▸" : "▾"}</button>}{closer && <button aria-label="Close" className="close nodrag" onClick={() => closeChat(data.threadId, data.draftId, actions, closer)}>✕</button>}</div>
       {!closed && <>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
-      <Conversation {...data} />
+      <Conversation {...data} closable />
       <ReopenClosed hostId={nodeId} />
       </>}
     </div>
   );
 }
 
-export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode };
+export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** A chat box of its own: Escape closes it. */ closable?: boolean };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -44,7 +45,8 @@ export function Conversation(data: ConversationProps) {
   const closer = useContext(ClosedContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
-  const [text, setText] = useState("");
+  const [text, setTextState] = useState(() => (data.draftId ? draftTexts.get(data.draftId) : undefined) ?? "");
+  const setText = (value: string) => { setTextState(value); if (data.draftId) draftTexts.set(data.draftId, value); };
   const [error, setError] = useState<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
@@ -100,8 +102,7 @@ export function Conversation(data: ConversationProps) {
         }, (err: Error) => setError(err.message));
       }}>
         <textarea ref={textarea} aria-label="message" placeholder="Ask AI — Enter to send, Ctrl+Enter for newline" value={text} onChange={(e) => setText(e.target.value)} rows={2} onKeyDown={(e) => {
-          // Escape discards only an empty draft, so typed text is never lost to one key.
-          if (e.key === "Escape" && data.draftId && !text.trim()) { e.preventDefault(); actions.onDiscard(data.draftId); return; }
+          if (e.key === "Escape" && data.closable) { e.preventDefault(); closeChat(data.threadId, data.draftId, actions, closer); return; }
           if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
           e.preventDefault();
           if (e.ctrlKey) {
@@ -114,7 +115,6 @@ export function Conversation(data: ConversationProps) {
         }} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
-        {data.draftId && <button type="button" aria-label="Discard draft" onClick={() => actions.onDiscard(data.draftId!)}>×</button>}
         {error && <span className="failed">{error}</span>}
       </form>}
   </>;

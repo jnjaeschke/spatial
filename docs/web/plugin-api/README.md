@@ -71,6 +71,7 @@
 - [AnswerMarkdown](functions/AnswerMarkdown.md)
 - [Canvas](functions/Canvas.md)
 - [cascade](functions/cascade.md)
+- [closeChat](functions/closeChat.md)
 - [Conversation](functions/Conversation.md)
 - [conversationGraph](functions/conversationGraph.md)
 - [conversationNode](functions/conversationNode.md)

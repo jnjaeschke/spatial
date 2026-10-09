@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeNodeData } from "../graph.ts";
-import { type ZoomLevel, InlineText, AskContext, CollapseContext, ClosedContext, ReopenClosed, api, ChatActionsContext, Conversation } from "../../../../web/plugin-api.ts";
+import { type ZoomLevel, InlineText, AskContext, CollapseContext, ClosedContext, ReopenClosed, api, ChatActionsContext, Conversation, closeChat } from "../../../../web/plugin-api.ts";
 import { DiffView } from "../DiffView.tsx";
 import { commitColors } from "../commit-colors.ts";
 import { numberLines } from "../../shared/diff-lines.ts";
@@ -25,8 +25,8 @@ export function ChangeNode({ id: nodeId, data }: NodeProps<ChangeFlowNode>) {
     const threadClosed = thread.threadId !== null && (collapse?.collapsed.has(thread.threadId) ?? false);
     const lastMessage = thread.messages.at(-1)?.data.text ?? "";
     return <div className="node chat-node hosted-chat" data-testid={`chat-${id}`} data-thread-boundary>
-      <div className="title">Chat · {thread.messages.length}{thread.threadId && collapse && <button aria-label={threadClosed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(thread.threadId!)}>{threadClosed ? "▸" : "▾"}</button>}{thread.threadId && closer && <button aria-label="Close" className="close nodrag" onClick={() => closer.close(thread.threadId!)}>✕</button>}</div>
-      {threadClosed ? <div className="thread-stub">{lastMessage.slice(0, 100)}</div> : <>{thread.quote && <blockquote className="chat-quote">{thread.quote.length > 300 ? `${thread.quote.slice(0, 300)}…` : thread.quote}</blockquote>}<Conversation {...thread} /></>}
+      <div className="title">Chat · {thread.messages.length}{thread.threadId && collapse && <button aria-label={threadClosed ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(thread.threadId!)}>{threadClosed ? "▸" : "▾"}</button>}{closer && <button aria-label="Close" className="close nodrag" onClick={() => closeChat(thread.threadId, thread.draftId, actions, closer)}>✕</button>}</div>
+      {threadClosed ? <div className="thread-stub">{lastMessage.slice(0, 100)}</div> : <>{thread.quote && <blockquote className="chat-quote">{thread.quote.length > 300 ? `${thread.quote.slice(0, 300)}…` : thread.quote}</blockquote>}<Conversation {...thread} closable /></>}
     </div>;
   };
   return (

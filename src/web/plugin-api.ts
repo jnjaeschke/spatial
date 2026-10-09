@@ -46,7 +46,7 @@ export { Canvas } from "./Canvas.tsx";
 export type { NodeProps } from "@xyflow/react";
 export * from "./graph-api.ts";
 export { InlineText } from "./InlineText.tsx";
-export { AskContext, ChatActionsContext } from "./chat-context.ts";
+export { AskContext, ChatActionsContext, closeChat } from "./chat-context.ts";
 export { CollapseContext } from "./collapse.ts";
 export { ClosedContext } from "./closed.ts";
 export { ReopenClosed } from "./ReopenClosed.tsx";

@@ -98,15 +98,16 @@ export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Grap
   for (const n of g.nodes) {
     if (!closed.has(n.id)) continue;
     if ("closable" in n.data && n.data.closable === true) gone.add(n.id);
-    if (isCoreKind(n.data, "chat") && n.data.threadId !== null) { gone.add(n.id); addClosed(n.anchors![0]!, n.id); }
+    if (isCoreKind(n.data, "chat")) { gone.add(n.id); addClosed(n.anchors![0]!, n.id); }
     if (n.data.kind === "note") { gone.add(n.id); addClosed(n.anchors![0]!, n.id, "note"); }
   }
   cascade(g, gone);
-  const isClosed = (thread: HostedThread) => thread.threadId !== null && closed.has(thread.threadId);
+  const closeId = (thread: HostedThread) => thread.threadId ?? thread.draftId;
+  const isClosed = (thread: HostedThread) => { const id = closeId(thread); return id !== null && closed.has(id); };
   const nodes = g.nodes.filter((n) => !gone.has(n.id)).map((n) => {
     const threads = hostedThreads(n.data);
     if (!threads?.some(isClosed)) return n;
-    for (const thread of threads) if (isClosed(thread)) addClosed(n.id, thread.threadId!);
+    for (const thread of threads) if (isClosed(thread)) addClosed(n.id, closeId(thread)!);
     return { ...n, data: { ...n.data, threads: threads.filter((thread) => !isClosed(thread)) } };
   });
   return { graph: { nodes, edges: g.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target)) }, closedOn };

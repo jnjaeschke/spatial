@@ -42,21 +42,29 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
-test("an unsent draft on a change closes with its × or with Escape while empty", async ({ page, request }) => {
+test("chat boxes close with their top-right × or Escape; an empty draft is discarded, a draft with text reopens with it", async ({ page, request }) => {
   await openNarrated(page, request);
   await setLevel(page, "concept");
   const drafts = page.locator('[data-testid^="chat-draft-"]');
+  const change = page.getByTestId("change-c1");
   await page.getByRole("button", { name: "Ask about c1" }).click();
   await expect(drafts).toHaveCount(1);
-  await drafts.getByRole("button", { name: "Discard draft" }).click();
+  const close = drafts.getByRole("button", { name: "Close" });
+  const closeBox = (await close.boundingBox())!, draftBox = (await drafts.boundingBox())!;
+  expect(draftBox.x + draftBox.width - (closeBox.x + closeBox.width)).toBeLessThan(20);
+  expect(closeBox.y - draftBox.y).toBeLessThan(20);
+  await close.click();
   await expect(drafts).toHaveCount(0);
+  await expect(change.getByRole("button", { name: /Reopen/ })).toHaveCount(0);
+
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const message = drafts.getByLabel("message");
-  await message.fill("not empty");
-  await message.press("Escape");
-  await expect(drafts).toHaveCount(1);
-  await message.fill("");
-  await message.press("Escape");
+  await drafts.getByLabel("message").fill("keep me");
+  await drafts.getByLabel("message").press("Escape");
+  await expect(drafts).toHaveCount(0);
+  await change.getByRole("button", { name: "Reopen 1 closed chat" }).click();
+  await expect(drafts.getByLabel("message")).toHaveValue("keep me");
+  await drafts.getByLabel("message").fill("");
+  await drafts.getByLabel("message").press("Escape");
   await expect(drafts).toHaveCount(0);
 });
 

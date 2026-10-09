@@ -353,7 +353,9 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .node .title button { box-shadow: none; }
 .node .title .reviewed { float: right; margin-left: 8px; font-size: 0.75em; font-weight: 500; color: var(--text-2); cursor: pointer; }
 .collapse, .close { margin-left: 8px; padding: 0 4px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 0.8em; color: var(--text-3); cursor: pointer; box-shadow: none; }
-.close { margin-left: 2px; }
+/* Every closable box has its close button in its top-right corner. */
+.node > .title > .close { position: absolute; top: 8px; right: 10px; margin: 0; }
+.node > .title:has(> .close) { padding-right: 22px; }
 .close:hover { color: var(--danger); }
 .reopen-closed { display: block; margin-top: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--accent); font: inherit; font-size: 0.85em; cursor: pointer; }
 button.collapse:hover:not(:disabled) { background: var(--surface-3); color: var(--text); border-color: transparent; }

@@ -16,3 +16,13 @@ export interface ChatActions {
   onNote(draftId: string, noteId: string): void;
 }
 export const ChatActionsContext = createContext<ChatActions | null>(null);
+
+/** Unsent text per draft id. Drafts live for the page, so a closed draft reopens with its text. */
+export const draftTexts = new Map<string, string>();
+
+/** Closing a chat box: an empty draft is discarded, anything else closes and can be reopened from its host. */
+export function closeChat(threadId: string | null, draftId: string | null, actions: ChatActions | null, closer: { close(id: string): void } | null): void {
+  if (draftId && !threadId && !(draftTexts.get(draftId) ?? "").trim()) { draftTexts.delete(draftId); actions?.onDiscard(draftId); return; }
+  const id = threadId ?? draftId;
+  if (id) closer?.close(id);
+}
