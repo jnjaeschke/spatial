@@ -119,16 +119,17 @@ input, select, textarea {
 }
 select { padding: 3px 6px; cursor: pointer; }
 select:hover:not(:disabled) { border-color: color-mix(in oklab, var(--accent) 45%, var(--border-strong)); }
-/* Native picker with an own chevron drawn from two gradients, so it follows the theme colors. */
-select {
-  appearance: none; padding-right: 22px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
-  background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%; background-size: 4px 4px; background-repeat: no-repeat;
+/* Without customizable select: native picker, own chevron drawn from two gradients so it follows the theme colors. */
+@supports not (appearance: base-select) {
+  select {
+    appearance: none; padding-right: 22px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+    background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%; background-size: 4px 4px; background-repeat: no-repeat;
+  }
 }
-/* Customizable select where supported, except on the canvas: Gecko opens the picker of a select inside the transformed canvas away from it. */
 @supports (appearance: base-select) {
-  select:not(.react-flow select), ::picker(select) { appearance: base-select; }
-  select:not(.react-flow select) { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background-image: none; }
+  select, ::picker(select) { appearance: base-select; }
+  select { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; }
   select > button { all: unset; display: flex; align-items: center; min-width: 0; }
   select::picker-icon {
     content: ""; width: 9px; height: 9px; background: var(--text-3); transition: rotate 150ms ease;
@@ -544,6 +545,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .msg-llm { display: block; font-size: 0.7em; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }
 .node form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .node form .llm-picker select { font-size: calc(11.5px * var(--text-scale, 1)); padding: 2px 20px 2px 4px; color: var(--text-2); background-color: var(--surface-2); }
+@supports (appearance: base-select) { .node form .llm-picker select { padding: 2px 6px; } }
 .node form button[type="submit"] { margin-left: auto; }
 .chat-node textarea, .finding-node textarea, .phab-node textarea { width: 100%; box-sizing: border-box; margin-top: 0; font: inherit; font-size: calc(13px * var(--text-scale, 1)); background: var(--surface); }
 .ask { margin-left: 8px; font-size: 0.75em; padding: 1px 8px; font-weight: 500; color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); background: var(--accent-soft); }
