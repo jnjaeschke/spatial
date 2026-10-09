@@ -55,10 +55,38 @@ export async function scmBranches(repo: string): Promise<string> {
   return capScmOutput(rows.length ? rows.map((row) => { const [name, sha, upstream, subject] = row.split("\0"); return `${name} ${sha}${upstream ? ` [${upstream}]` : ""} ${subject}`; }).join("\n") : "No local branches.");
 }
 
-export async function scmLog(repo: string, range: string, limit = 50): Promise<string> {
+/** History searches over a large repository can take minutes; past this they fail instead of blocking the agent. */
+const SCM_SEARCH_TIMEOUT_MS = 120_000;
+
+/** `search` and `regex` select commits whose diff changes the number of occurrences of a string (`git log -S`) or touches a line matching a regex (`git log -G`). */
+export async function scmLog(repo: string, range: string, opts: { limit?: number; path?: string; search?: string; regex?: string } = {}): Promise<string> {
   safeRevision(range, "range");
-  const out = await git(repo, ["log", `-${Math.min(Math.max(Math.trunc(limit), 1), 500)}`, "--abbrev=12", "--format=%h %s", "--end-of-options", range]);
+  const args = ["log", `-${Math.min(Math.max(Math.trunc(opts.limit ?? 50), 1), 500)}`, "--abbrev=12", "--format=%h %as %an: %s"];
+  // Attached to their flag, so a value starting with "-" is never read as an option.
+  if (opts.search !== undefined) args.push(`-S${opts.search}`);
+  if (opts.regex !== undefined) args.push(`-G${opts.regex}`);
+  args.push("--end-of-options", range);
+  if (opts.path !== undefined) args.push("--", safeRepoPath(opts.path));
+  const out = await git(repo, args, undefined, opts.search !== undefined || opts.regex !== undefined ? SCM_SEARCH_TIMEOUT_MS : undefined);
   return capScmOutput(out.trimEnd() || "No commits.");
+}
+
+/** Who last changed each line of `path` at `rev`: `sha date author line: text`, at most 400 lines. */
+export async function scmBlame(repo: string, rev: string, path: string, start: number, end: number): Promise<string> {
+  safeRevision(rev, "revision");
+  safeRepoPath(path);
+  if (!Number.isInteger(start) || start < 1 || !Number.isInteger(end) || end < start) throw new Error("Invalid line range");
+  const out = await git(repo, ["blame", "--line-porcelain", "-L", `${start},${Math.min(end, start + 399)}`, rev, "--", path], undefined, SCM_SEARCH_TIMEOUT_MS);
+  const rows: string[] = [];
+  let sha = "", author = "", time = 0, line = 0;
+  for (const row of out.split("\n")) {
+    const header = /^([0-9a-f]{40}) \d+ (\d+)/.exec(row);
+    if (header) { sha = header[1]!; line = Number(header[2]); continue; }
+    if (row.startsWith("author ")) author = row.slice("author ".length);
+    else if (row.startsWith("author-time ")) time = Number(row.slice("author-time ".length));
+    else if (row.startsWith("\t")) rows.push(`${sha.slice(0, 12)} ${new Date(time * 1000).toISOString().slice(0, 10)} ${author} ${line}: ${row.slice(1)}`);
+  }
+  return capWholeLines(rows).text;
 }
 
 export async function scmMergeBase(repo: string, a: string, b: string): Promise<string> {
@@ -92,8 +120,8 @@ export async function scmFile(repo: string, rev: string, path: string, start = 1
   return next <= Math.min(end ?? lines.length, lines.length) ? `${text}\n[more lines available; request from line ${next}]` : text;
 }
 
-async function git(repo: string, args: string[], env?: Record<string, string>): Promise<string> {
-  const { stdout } = await run("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}) });
+async function git(repo: string, args: string[], env?: Record<string, string>, timeout?: number): Promise<string> {
+  const { stdout } = await run("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}), ...(timeout ? { timeout } : {}) });
   return stdout;
 }
 
