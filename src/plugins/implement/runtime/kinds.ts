@@ -1,5 +1,5 @@
 import type { Artifact, ArtifactKind } from "../../../plugin-api.ts";
-import type { CommandRunData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
+import type { CommentInterpretationData, CommentTriageData, CommandRunData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
 
 const renderLocation = (location: InvestigationLocation) => `${location.path}:${location.line} - ${location.why}\n\n\`${location.quote}\``;
 
@@ -36,4 +36,6 @@ export const artifactKinds: Record<string, ArtifactKind> = {
     const d = artifact.data as CommandRunData;
     return `# Command run\n\n\`${d.command}\` exited ${d.exitCode} in ${d.durationMs} ms\n\n\`\`\`\n${d.output}\n\`\`\``;
   } },
+  CommentInterpretation: { render: (_view, artifact) => { const d = artifact.data as CommentInterpretationData; return `# Interpretation of ${d.phid}\n\nAsks: ${d.asks}\n\nProposal: ${d.proposal}\n\nSuggested: ${d.action}${d.reply !== null ? `\n\nReply draft: ${d.reply}` : ""}`; } },
+  CommentTriage: { render: (_view, artifact) => { const d = artifact.data as CommentTriageData; return `# Marked ${d.action}: ${d.phid}${d.text !== null ? `\n\n${d.text}` : ""}`; } },
 };

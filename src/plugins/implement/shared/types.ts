@@ -1,5 +1,14 @@
-import type { DiagramData, WriteMode } from "../../../plugin-api.ts";
+import type { DiagramData, Id, LlmSelection, WriteMode } from "../../../plugin-api.ts";
 import type { SpecReferenceData } from "../../review/api.ts";
+
+/** Comment phids to interpret in the order shown, with an optional model choice. */
+export interface ReviewerCommentsInput { comments: string[]; llm?: LlmSelection }
+/** The suggested action for a reviewer comment. */
+export type CommentAction = "address" | "reply" | "ignore";
+/** Private LLM interpretation of a Phabricator comment, linked `about → comment`. */
+export interface CommentInterpretationData { comment: Id; phid: string; asks: string; proposal: string; action: CommentAction; reply: string | null }
+/** User's mark on a comment, linked `about → comment`; latest per phid wins. */
+export interface CommentTriageData { comment: Id; phid: string; action: CommentAction; text: string | null }
 
 /** Recorded (verified) by the start: where the work lives; `baseSha` is the commit the branch started from, or the fork point of the current branch from main for `current-branch`. */
 export interface ImplementBranchData { branch: string; baseSha: string; baseRef: string | null; profile: string; checkout: "new-branch" | "current-branch" }
