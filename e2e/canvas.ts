@@ -64,8 +64,9 @@ export async function revealNode(page: Page, target: string | Locator): Promise<
     const paneBox = (await pane.boundingBox())!;
     if (box.y < paneBox.y) return "ArrowUp";
     if (box.x < paneBox.x) return "ArrowLeft";
-    if (box.y + Math.min(box.height, paneBox.height) > paneBox.y + paneBox.height) return "ArrowDown";
-    if (box.x + Math.min(box.width, paneBox.width) > paneBox.x + paneBox.width) return "ArrowRight";
+    // A node larger than the pane counts as revealed once its top-left half is in view; an exact fit is not reachable with arrow steps.
+    if (box.y + Math.min(box.height, paneBox.height / 2) > paneBox.y + paneBox.height) return "ArrowDown";
+    if (box.x + Math.min(box.width, paneBox.width / 2) > paneBox.x + paneBox.width) return "ArrowRight";
     return null;
   };
   // A top panel (the layer toggles) over a revealed button intercepts its clicks.

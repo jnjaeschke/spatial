@@ -62,19 +62,19 @@ async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>
 }
 
 async function reviewAndPost(page: Page, revision: number) {
-  page.once("dialog", (dialog) => void dialog.accept());
   const finding = page.locator(".finding-node");
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
   // The grown comment box can push Save under a neighbouring node, which would take a pointer click.
   await finding.getByRole("button", { name: "Save" }).press("Enter");
-  const summary = page.getByTestId("summary");
-  const post = summary.getByRole("button", { name: `Submit 1 inline comment to D${revision}` });
+  const panel = page.getByTestId(`review-panel-D${revision}`);
+  const post = panel.getByRole("button", { name: `Submit to D${revision}…` });
   await expect(post).toBeVisible({ timeout: 10_000 });
   await post.click();
-  await expect(summary.locator(".post-result")).toContainText(`D${revision}`);
-  return { finding, summary };
+  await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
+  await expect(panel.locator(".review-result").first()).toContainText(`Submitted to D${revision}`);
+  return { finding, panel };
 }
 
 async function state(request: APIRequestContext, sessionId: string) {
@@ -349,22 +349,24 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
+  await revealNode(page, finding.getByRole("button", { name: "Save" }));
   await finding.getByRole("button", { name: "Save" }).click();
-  const summary = page.getByTestId("summary");
-  const post = summary.getByRole("button", { name: `Submit 1 inline comment to D${ids[0]!.revision}` });
+  const panel = page.getByTestId(`review-panel-D${ids[0]!.revision}`);
+  const post = panel.getByRole("button", { name: `Submit to D${ids[0]!.revision}…` });
   await expect(post).toBeVisible({ timeout: 10_000 });
 
   const drifted = stack.rawDiffs[0]!.replace("THIRTY", "THIRTY-X");
   const driftUpdate = await request.post(control, { data: { revision: ids[0]!.revision, diffs: [ids[0]!.diff + 1, ids[0]!.diff], rawDiffs: { [ids[0]!.diff + 1]: drifted, [ids[0]!.diff]: stack.rawDiffs[0] } } });
   expect(driftUpdate.ok()).toBeTruthy();
-  page.on("dialog", (dialog) => void dialog.accept());
   await post.click();
-  await expect(summary.locator(".post-error")).toContainText(`D${ids[0]!.revision}`);
+  await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
+  await expect(panel.locator(".review-error")).toContainText(`D${ids[0]!.revision}`);
   expect(await inlines(request, ids[0]!.revision)).toEqual([]);
 
   const restore = await request.post(control, { data: { revision: ids[0]!.revision, diffs: [ids[0]!.diff], rawDiffs: { [ids[0]!.diff]: stack.rawDiffs[0] } } });
   expect(restore.ok()).toBeTruthy();
   await post.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
   await expect(finding).toContainText(`Posted to D${ids[0]!.revision}`);
   await expect.poll(async () => inlines(request, ids[0]!.revision)).toHaveLength(1);
 });

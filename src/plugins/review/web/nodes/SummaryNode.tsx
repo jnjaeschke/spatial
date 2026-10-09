@@ -1,15 +1,14 @@
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
-import { type ZoomLevel, InlineText, CollapseContext, api, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
+import { type ZoomLevel, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../commit-colors.ts";
+import { ReviewPanel } from "../ReviewPanel.tsx";
 
 export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
 
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
-  const [postResult, setPostResult] = useState<Record<number, string>>({});
-  const [postError, setPostError] = useState<Record<number, string>>({});
   const collapse = useContext(CollapseContext);
   const actions = useContext(ChatActionsContext);
   const closed = collapse?.collapsed.has(data.narrativeId) ?? false;
@@ -52,23 +51,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             {!closedGroup && <ul className="phab-comments">{group.comments.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} where={`${comment.data.path}:${comment.data.line}`} /></li>)}</ul>}
           </section>;
         })}
-        {actions && data.level !== "patch" && (data.drafts.length > 0 || data.skipped > 0) && <div className="post-drafts-row">
-          {data.drafts.map((draft) => <span key={draft.revision}>
-          <button className="post-drafts nodrag" onClick={async () => {
-            if (!window.confirm(`Publish ${draft.count} inline comment${draft.count !== 1 ? "s" : ""} on D${draft.revision}?`)) return;
-            setPostError((errors) => ({ ...errors, [draft.revision]: "" }));
-            setPostResult((results) => ({ ...results, [draft.revision]: "" }));
-            try {
-              const result = await api.submitReview(data.sessionId, { revision: draft.revision, action: "comment", body: "" });
-              const skipped = result.skipped.map((item) => `${item.source}: ${item.reason}`).join("; ");
-              setPostResult((results) => ({ ...results, [draft.revision]: `Submitted ${result.inlines} inline comment${result.inlines !== 1 ? "s" : ""} to ${result.revision}${skipped ? `; skipped ${skipped}` : ""}` }));
-            } catch (e) { setPostError((errors) => ({ ...errors, [draft.revision]: (e as Error).message })); }
-          }}>Submit {draft.count} inline comment{draft.count !== 1 ? "s" : ""} to D{draft.revision}</button>
-          {postResult[draft.revision] && <span className="post-result">{postResult[draft.revision]}</span>}
-          {postError[draft.revision] && <span className="post-error">{postError[draft.revision]}</span>}
-          </span>)}
-          {data.skipped > 0 && <span className="post-skipped">{data.skipped} skipped</span>}
-        </div>}
+        {actions && data.level !== "patch" && data.reviews.map((review) => <ReviewPanel key={review.revision} sessionId={data.sessionId} review={review} />)}
         {data.level !== "patch" && (
           <ul className="files">
             {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}

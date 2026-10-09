@@ -243,6 +243,15 @@ test("stackLayout keeps lanes and their satellites separate below the summary", 
   assert.ok(pos.get("NS#c3")!.y > pos.get("NS#commit-1")!.y);
 });
 
+test("summary size accounts for review panels before stack lanes are placed", () => {
+  const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
+  const summary = graph.nodes.find((node) => node.data.kind === "summary")!;
+  assert.ok(isReviewKind(summary.data, "summary"));
+  const withoutPanel = reviewSize(summary.data, "concept").height;
+  summary.data.reviews = [{ revision: 1, comments: [], body: "", submissions: [] }];
+  assert.ok(reviewSize(summary.data, "concept").height >= withoutPanel + 220);
+});
+
 test("commit card estimates match node widths and shrink at patch level", () => {
   const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   const card = g.nodes.find((n) => isReviewKind(n.data, "commit"))!.data;

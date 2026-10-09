@@ -447,14 +447,20 @@ button.code-link::after {
 .bug-summary > summary { cursor: pointer; }
 .bug-summary > summary a { color: var(--accent); }
 .bug-summary .bug-error { color: var(--danger); }
-.summary-node .post-drafts-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.summary-node .post-drafts { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; font-size: calc(12px * var(--text-scale, 1)); }
-.summary-node .post-drafts:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); }
-.summary-node .post-result { color: var(--success); font-size: calc(12px * var(--text-scale, 1)); margin-left: 8px; }
-.summary-node .post-error { color: var(--danger); font-size: calc(12px * var(--text-scale, 1)); margin-left: 8px; }
+.review-panel { --kind: var(--kind-phab); margin-top: 10px; padding: 9px; border: 1px solid color-mix(in oklab, var(--kind-phab) 42%, var(--border)); border-left: 3px solid var(--kind-phab); border-radius: var(--radius-sm); background: var(--surface); }
+.review-panel h4 { margin: 0 0 5px; color: var(--kind-phab); }
+.review-panel > p { margin: 4px 0 8px; font-size: calc(12px * var(--text-scale, 1)); }
+.review-panel label { display: grid; gap: 4px; margin: 7px 0; font-size: calc(12px * var(--text-scale, 1)); }
+.review-panel textarea { min-height: 64px; resize: vertical; }
+.review-submit { border: 0; border-radius: var(--radius-sm); padding: 5px 12px; color: var(--accent-fg); font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; }
+.review-result { color: var(--success); }
+.review-error { color: var(--danger); }
+.review-confirmation { width: min(560px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+.review-confirmation::backdrop { background: rgb(0 0 0 / 45%); }
+.review-confirmation footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.review-confirmation li { margin: 5px 0; overflow-wrap: anywhere; }
 .phab-summary { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
 .phab-summary h4 { margin: 0; font-size: 0.85em; font-weight: 650; color: var(--text-2); }
-.summary-node .post-skipped { color: var(--text-3); font-size: calc(12px * var(--text-scale, 1)); }
 .summary-node .files .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .phab-summary ul { margin: 4px 0; padding-left: 18px; }
 .phab-summary li { margin: 3px 0; overflow-wrap: anywhere; }

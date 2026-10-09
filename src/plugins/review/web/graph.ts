@@ -1,9 +1,9 @@
-import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
+import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
 import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode, type ZoomLevel } from "../../../web/graph-api.ts";
 import { numberLines } from "../shared/diff-lines.ts";
-import { postableComments } from "../shared/postable-comments.ts";
+import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
@@ -50,6 +50,7 @@ export type SummaryNodeData = {
   specStatus: { code: number; inferred: number; unverified: number } | null;
   drafts: { commit: number; revision: number; count: number }[];
   skipped: number;
+  reviews: { revision: number; comments: { path: string; line: number; body: string }[]; body: string; submissions: Artifact<ReviewSubmissionData>[] }[];
   sessionId: Id;
   sinceEpoch: number | null;
   phabGeneral: Artifact<PhabCommentData>[];
@@ -180,7 +181,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, sessionId: narrative.sessionId,
+    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, reviews: [], sessionId: narrative.sessionId,
       sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [], bugs: [],
       bugHunks: [...new Set(narrative.data.changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId } satisfies SummaryNodeData,
   }];
@@ -287,8 +288,16 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     summarizing: state.tasks.some((task) => task.kind === "summarizeBug" && task.status === "running" && (task.input as { reportId?: string }).reportId === report.id),
   }));
   const plan = postPlan(latest.diff.data, postableComments(state, latest.narrative.id));
-  summary.drafts = plan.revisions.map((r) => ({ commit: r.commit, revision: r.revision.id, count: r.items.length }));
+  summary.drafts = plan.revisions.map((group) => ({ commit: group.commit, revision: group.revision.id, count: group.items.length }));
   summary.skipped = plan.skipped.length;
+  const submissions = state.artifacts.filter((artifact): artifact is Artifact<ReviewSubmissionData> => artifact.type === "ReviewSubmission");
+  summary.reviews = latest.diff.data.commits.flatMap((commit, index) => {
+    const revision = commitRevision(commit)?.id;
+    if (revision === undefined) return [];
+    const group = plan.revisions.find((item) => item.commit === index);
+    return [{ revision, comments: group?.items.map((item) => ({ path: item.target.path, line: item.target.start, body: item.body })) ?? [],
+      body: reviewDraft(state.artifacts, revision), submissions: submissions.filter((item) => item.data.revision === revision) }];
+  });
   const prefix = `${latest.narrative.id}#`;
   const anchorsBySpec = new Map<string, string[]>();
   for (const l of state.links) {
@@ -392,7 +401,8 @@ export function reviewSize(data: GraphNodeData, level: ZoomLevel): { width: numb
   if (isReviewKind(data, "commit")) return { width, height: level === "patch" ? 120 : 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
-    return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight };
+    const reviewHeight = data.reviews.reduce((sum, review) => sum + 220 + review.submissions.length * 20, 0);
+    return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight + reviewHeight };
   }
   if (!isReviewKind(data, "change")) throw new Error(`Not a review node kind: ${data.kind}`);
   if (level === "patch") return { width, height: 60 + lines(data.change.title, 20) * 36 };
