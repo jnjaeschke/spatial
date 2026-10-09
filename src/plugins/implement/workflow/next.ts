@@ -2,9 +2,13 @@ import { type Artifact, type DecisionData, type DecisionOption, type Id, type Ll
 import type { ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
 import { openHighFindings } from "../runtime/findings.ts";
+import { commentPlan } from "../shared/comment-plan.ts";
+import type { ReviewerCommentsInput } from "../shared/types.ts";
+import { commentsFeedback } from "../runtime/comments-feedback.ts";
 
 export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
+export const workInQuestion = (count: number): string => `Work in ${count} reviewer comment${count === 1 ? "" : "s"}?`;
 const planInvalidQuestion = (reason: string) => `The implement agent reports that the plan does not hold: ${reason}`;
 const fixQuestion = (count: number) => `Fix ${count} high finding${count === 1 ? "" : "s"}`;
 const isReviewQuestion = (question: string) => question === REVIEWED || question.startsWith("Fix ");
@@ -63,7 +67,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   const profile = ctx.repoProfiles.get(branch.data.profile);
   if (!profile) throw new Error(`Unknown repo profile: ${branch.data.profile}`);
   // Phases started outside the workflow (a try push from chat) leave its own last epoch and that epoch's decision in charge.
-  const investigatePhase = profile.investigatePhase ?? "investigate", own = new Set([investigatePhase, "implement", "review"]);
+  const investigatePhase = profile.investigatePhase ?? "investigate", own = new Set([investigatePhase, "implement", "review", "reviewerComments"]);
   const last = view.epochs.findLast((epoch) => own.has(epoch.phase));
   if (!last) return investigateStep(start, branch, profile, start.data.llm);
   if (last.status !== "succeeded") return null;
@@ -113,6 +117,13 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     const open = openHighFindings(view), rounds = ruleRounds(decisions), max = profile.autoFixRounds ?? 2;
     if (open.length > 0 && rounds < max) return decisionStep(fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${open.length} high finding${open.length === 1 ? "" : "s"} open; automatic fix round ${rounds + 1} of ${max}` });
     return decisionStep(REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
+  }
+
+  if (last.phase === "reviewerComments") {
+    const items = commentPlan(view, last), question = workInQuestion((last.input as ReviewerCommentsInput).comments.length), choice = answered(decisions, question, last.n);
+    if (!choice) return decisionStep(question, [{ id: "work", label: "Work in" }, { id: "later", label: "Not yet" }]);
+    const text = choice.option === "work" ? commentsFeedback(items) : null;
+    return text && investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), text, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
   }
   return null;
 }

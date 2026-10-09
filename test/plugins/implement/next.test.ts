@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DecisionOption, Epoch, EpochStatus, LlmSelection, RepoProfile, Step, WorkflowView } from "../../../src/plugin-api.ts";
-import { implementNext } from "../../../src/plugins/implement/workflow/next.ts";
+import { implementNext, workInQuestion } from "../../../src/plugins/implement/workflow/next.ts";
+import type { CommentPlanItem } from "../../../src/plugins/implement/shared/comment-plan.ts";
 
 let n = 0;
 const art = (type: string, data: unknown, epoch: number | null): Artifact => ({ id: `${type}${++n}`, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch, createdAt: "" });
@@ -192,4 +193,32 @@ test("a plan that does not hold asks to re-investigate or continue", () => {
 
 test("an unknown profile is an error", () => {
   assert.throws(() => next(view([start(), branch("missing")], [])), /Unknown repo profile: missing/);
+});
+
+test("reviewer comments ask to work in, feed addressed comments to implement, and leave other choices idle", () => {
+  const comment = art("PhabComment", { phid: "P1", revision: 7, author: "alice", path: "dom/a.cpp", line: 12, quote: "x = 30;", body: "Name this", done: false }, 8);
+  const interpretation = art("CommentInterpretation", { comment: comment.id, phid: "P1", asks: "Name the constant", proposal: "const kMax = 30", action: "address", reply: null }, 8);
+  const input = { comments: ["P1"] };
+  const reviewComments = epoch(8, "reviewerComments");
+  reviewComments.input = input;
+  const base = [...baseArtifacts(), result(2), comment, interpretation];
+  const epochs = [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "try"), epoch(5, "tryPush"), epoch(6, "submit"), epoch(7, "phabSubmit"), reviewComments];
+  const open = decide(next(view(base, epochs)));
+  assert.equal(open.decide.question, workInQuestion(1));
+  assert.deepEqual(open.decide.options.map((o) => o.id), ["work", "later"]);
+  assert.equal(open.epoch, 8);
+
+  const chosen = decision(workInQuestion(1), { option: "work", by: "user" }, 8);
+  const started = run(next(view([...base, chosen], epochs)));
+  assert.equal(started.run, "implement");
+  assert.match((started.input as { text: string }).text, /^Address these reviewer comments/);
+
+  const replied = art("CommentTriage", { comment: comment.id, phid: "P1", action: "reply", text: "thanks" }, 8);
+  assert.equal(next(view([...base, replied, decision(workInQuestion(1), { option: "work", by: "user" }, 8)], epochs)), null);
+  assert.equal(next(view([...base, decision(workInQuestion(1), { option: "later", by: "user" }, 8)], epochs)), null);
+
+  const afterImplement = view([...baseArtifacts(), result(2), comment, interpretation, chosen, result(9)], [...epochs, epoch(9, "implement")]);
+  const review = run(next(afterImplement));
+  assert.equal(review.run, "review");
+  assert.equal((review.input as { update: boolean }).update, true);
 });
