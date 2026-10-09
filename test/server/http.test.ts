@@ -535,6 +535,7 @@ test("turn request starts its requested phase after the chat task completes", as
   const s = await newSession();
   await post(`/api/sessions/${s.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   const narrative = await waitFor(async () => rt.store.listArtifacts(s.id, "PatchNarrative")[0]);
+  await waitFor(async () => rt.store.listEpochs(s.id).every((epoch) => epoch.status !== "running") || undefined);
   requestPhase = true;
   try {
     const response = await post(`/api/sessions/${s.id}/turns`, { anchor: `${narrative.id}#c1`, text: "run", llm: { backend: "claude", model: "sonnet", effort: "medium" } });
@@ -548,6 +549,7 @@ test("turn request notifies when its requested phase cannot start during another
   const s = await newSession();
   await post(`/api/sessions/${s.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   const narrative = await waitFor(async () => rt.store.listArtifacts(s.id, "PatchNarrative")[0]);
+  await waitFor(async () => rt.store.listEpochs(s.id).every((epoch) => epoch.status !== "running") || undefined);
   const running = rt.runPhase(s.id, "blocking", null);
   await waitFor(async () => unblockPhase ? true : undefined);
   requestPhase = true;
