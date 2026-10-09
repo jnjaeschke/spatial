@@ -148,17 +148,20 @@ test("revise runs implement with the text; cancel and accept without after-accep
   assert.equal(next(afterReview([decision(REVIEWED, { option: "accept", by: "user" }, 3)])), null);
 });
 
-test("afterAccept phases each ask first and can be skipped", () => {
+test("after Accept the after-accept phases run in order without asking", () => {
   const accept = decision(REVIEWED, { option: "accept", by: "user" }, 3);
-  const first = decide(next(afterReview([accept], "stack")));
-  assert.equal(first.decide.question, "Run x?");
-  assert.deepEqual(first.decide.options.map((o) => o.id), ["run", "skip"]);
-  const runX = run(next(afterReview([accept, decision("Run x?", { option: "run", by: "user" }, 3)], "stack")));
-  assert.deepEqual(runX, { run: "x", input: { base: "BASE", head: "HEAD1", llm: START } });
-  const afterX = view([...baseArtifacts("stack"), result(2), accept, decision("Run x?", { option: "run", by: "user" }, 3)], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "x")]);
-  assert.equal(decide(next(afterX)).decide.question, "Run y?");
-  const skipY = view([...afterX.artifacts, decision("Run y?", { option: "skip", by: "user" }, 4)], afterX.epochs);
-  assert.equal(next(skipY), null);
+  assert.deepEqual(run(next(afterReview([accept], "stack"))), { run: "x", input: { base: "BASE", head: "HEAD1", llm: START } });
+  const afterX = view([...baseArtifacts("stack"), result(2), accept], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "x")]);
+  assert.equal(run(next(afterX)).run, "y");
+  const afterFollowUp = view(afterX.artifacts, [...afterX.epochs, epoch(5, "x-follow-up"), epoch(6, "y")]);
+  assert.equal(next(afterFollowUp), null);
+  const failedX = view(afterX.artifacts, [...afterX.epochs.slice(0, 3), epoch(4, "x", "failed"), epoch(5, "other")]);
+  assert.equal(next(failedX), null);
+});
+
+test("other phases after a review that was not accepted end the loop", () => {
+  const revised = view([...baseArtifacts("stack"), result(2), decision(REVIEWED, { option: "revise", by: "user", text: "t" }, 3)], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "x")]);
+  assert.equal(next(revised), null);
 });
 
 test("a plan that does not hold asks to re-investigate or continue", () => {

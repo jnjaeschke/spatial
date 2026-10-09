@@ -3,9 +3,9 @@ import type {
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
-import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView } from "./render-ref.ts";
+import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView, type WorkflowView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
-import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Workflow } from "./plugins.ts";
+import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Step, type Workflow } from "./plugins.ts";
 
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
@@ -111,8 +111,8 @@ export class TaskCancelledError extends Error {
   }
 }
 
-/** A unit of work in a workflow; each run is one epoch. `run` orchestrates tasks; throwing fails the epoch. */
-export interface Phase<I> { id: string; run(rt: Runtime, sessionId: Id, input: I, epoch: Epoch): Promise<void> }
+/** A unit of work in a workflow; each run is one epoch. `run` orchestrates tasks; throwing fails the epoch. `next` is what the phase still needs after its epoch succeeded, while that epoch is the latest: a decision or a follow-up phase; null when the phase is done. `Runtime.advance` asks it before the workflow's `next`, in any workflow. */
+export interface Phase<I> { id: string; run(rt: Runtime, sessionId: Id, input: I, epoch: Epoch): Promise<void>; next?(view: WorkflowView, epoch: Epoch): Step | null }
 
 export class PhaseBusyError extends Error {
   constructor(id: Id, epoch: Epoch) {
@@ -324,23 +324,30 @@ export class Runtime {
     return this.#executePhase(phase, sessionId, retry.input, retry);
   }
 
-  /** Runs the steps `Workflow.next` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user. */
-  async advance(sessionId: Id): Promise<void> {
+  /** The step `advance` would take now: the follow-up of the latest epoch's phase when that epoch succeeded, else the workflow's `next`; null when neither has one. */
+  nextStep(sessionId: Id): Step | null {
     const session = this.#store.getSession(sessionId);
     const workflow = session.workflow ? this.workflows.get(session.workflow) : undefined;
-    if (!workflow?.next) return;
+    const view = workflowView(this.#store, sessionId);
+    const last = view.epochs.at(-1);
+    const followUp = last?.status === "succeeded" ? this.#phases.get(last.phase)?.next?.(view, last) ?? null : null;
+    return followUp ?? workflow?.next?.(view, { repoProfiles: this.plugins.repoProfiles }) ?? null;
+  }
+
+  /** Runs the steps `nextStep` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user. */
+  async advance(sessionId: Id): Promise<void> {
     for (;;) {
-      const step = workflow.next(workflowView(this.#store, sessionId), { repoProfiles: this.plugins.repoProfiles });
+      const step = this.nextStep(sessionId);
       if (step === null) return;
       if ("run" in step) { await this.runPhase(sessionId, step.run, step.input); continue; }
       const { question, options } = step.decide;
       const epoch = this.#store.listEpochs(sessionId).at(-1)?.n ?? null;
       const latest = this.#store.listArtifacts(sessionId, "Decision").at(-1) as Artifact<DecisionData> | undefined;
       if (latest && latest.epoch === epoch && latest.data.question === question) {
-        if (latest.data.chosen) throw new Error(`Workflow ${workflow.id} asked "${question}" again after it was answered`);
+        if (latest.data.chosen) throw new Error(`Session ${sessionId} asked "${question}" again after it was answered`);
         return;
       }
-      if (step.chosen && !options.some((option) => option.id === step.chosen!.option)) throw new Error(`Workflow ${workflow.id} chose unknown option ${step.chosen.option}`);
+      if (step.chosen && !options.some((option) => option.id === step.chosen!.option)) throw new Error(`Session ${sessionId} chose unknown option ${step.chosen.option}`);
       const chosen = step.chosen ? { option: step.chosen.option, by: "rule" as const, reason: step.chosen.reason } : null;
       const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", data: { question, options, chosen }, provenance: { taskId: "runtime" } });
       this.emit(sessionId, "runtime", "artifact.created", { artifactId: decision.id, type: "Decision" });

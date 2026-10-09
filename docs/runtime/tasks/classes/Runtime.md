@@ -76,7 +76,7 @@
 
 > **advance**(`sessionId`): `Promise`\<`void`\>
 
-Runs the steps `Workflow.next` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user.
+Runs the steps `nextStep` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user.
 
 #### Parameters
 
@@ -149,6 +149,24 @@ Read-only git for server queries outside tasks.
 #### Returns
 
 [`GitCapability`](../interfaces/GitCapability.md)
+
+***
+
+### nextStep()
+
+> **nextStep**(`sessionId`): [`Step`](../../plugins/type-aliases/Step.md) \| `null`
+
+The step `advance` would take now: the follow-up of the latest epoch's phase when that epoch succeeded, else the workflow's `next`; null when neither has one.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+[`Step`](../../plugins/type-aliases/Step.md) \| `null`
 
 ***
 

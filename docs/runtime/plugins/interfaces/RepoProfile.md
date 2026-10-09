@@ -14,7 +14,7 @@ How to work in one kind of repository. Plugins contribute profiles; workflows pi
 
 > `optional` **afterAccept?**: `string`[]
 
-Phase ids run in order after the user accepts, each behind its own decision.
+Phase ids run in order right after the user accepts; a phase with an outside effect asks first through its own `Phase.next`.
 
 ***
 

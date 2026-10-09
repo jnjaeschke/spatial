@@ -21,6 +21,7 @@
  *   with options, answered by a rule or by the user through `POST /api/sessions/:id/decisions/:artifactId`),
  *   and repeats until `next` returns null (waiting for the user, or done). A failed epoch stops the loop;
  *   Retry reruns it and advances again.
+ *   Before the workflow's `next`, `advance` asks the phase of the latest succeeded epoch for its own follow-up (`Phase.next`), so a phase can ask its own decisions and run its follow-up phases in any workflow.
  * - An **artifact kind** (`ArtifactKind`) tells core how to render, search and overview a
  *   plugin's artifact type without importing plugin code.
  * - A **repo profile** (`RepoProfile`, contributed through `Plugin.repoProfiles`) says how to work in a

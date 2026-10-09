@@ -16,10 +16,10 @@ const llm: LlmService = {
 };
 const OPTIONS = [{ id: "go", label: "Go" }, { id: "stop", label: "Stop" }];
 
-function setup(next?: (view: WorkflowView) => Step | null) {
+function setup(next?: (view: WorkflowView) => Step | null, follow?: Phase<unknown>["next"]) {
   const store = new Store(":memory:");
   const calls: string[] = [];
-  const phase = (id: string): Phase<unknown> => ({ id, async run() { calls.push(id); if (id === "boom") throw new Error("kaput"); } });
+  const phase = (id: string): Phase<unknown> => ({ id, async run() { calls.push(id); if (id === "boom") throw new Error("kaput"); }, ...(id === "a" && follow ? { next: follow } : {}) });
   const flow: Workflow<Record<string, never>> = { id: "flow", description: "d", argHint: "", params: z.strictObject({}), parseArgs: () => ({ ok: true, params: {} }), async start() {}, ...(next ? { next } : {}) };
   const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [flow], phases: [phase("a"), phase("b"), phase("boom")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "flow" });
@@ -117,4 +117,25 @@ test("a Decision renders its question and answer", async () => {
   const text = renderRef(rt.plugins.artifactKinds, { artifacts: store.listArtifacts(session.id), links: [] }, decision!.id);
   assert.match(text, /Go\?/);
   assert.match(text, /Chosen: Go \(rule\)/);
+});
+
+test("the latest epoch's phase follows up before the workflow's next, also in a session whose workflow has no next", async () => {
+  const { store, rt, session, calls } = setup(undefined, (view, epoch) => view.epochs.some((e) => e.phase === "b") ? null : chosenOf(view) ? { run: "b", input: { after: epoch.n } } : { decide: { question: "Follow?", options: OPTIONS } });
+  await rt.runPhase(session.id, "a", null);
+  await rt.advance(session.id);
+  assert.equal(decisionsOf(store, session.id).at(-1)!.data.question, "Follow?");
+  assert.deepEqual(calls, ["a"]);
+  const open = decisionsOf(store, session.id).at(-1)!;
+  store.putArtifact<DecisionData>({ sessionId: session.id, type: "Decision", status: "verified", data: { ...open.data, chosen: { option: "go", by: "user" } }, provenance: { taskId: "user" } });
+  await rt.advance(session.id);
+  assert.deepEqual(calls, ["a", "b"]);
+  assert.deepEqual(store.listEpochs(session.id).at(-1)!.input, { after: 1 });
+});
+
+test("follow-ups are not asked after a failed epoch, and the workflow decides once the phase is done", async () => {
+  const { rt, session, calls } = setup((view) => view.epochs.length === 1 ? { run: "b", input: null } : null, () => null);
+  await rt.runPhase(session.id, "a", null);
+  await rt.advance(session.id);
+  assert.deepEqual(calls, ["a", "b"]);
+  assert.equal(rt.nextStep(session.id), null);
 });

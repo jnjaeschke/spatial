@@ -6,7 +6,7 @@
 
 # Interface: Phase\<I\>
 
-A unit of work in a workflow; each run is one epoch. `run` orchestrates tasks; throwing fails the epoch.
+A unit of work in a workflow; each run is one epoch. `run` orchestrates tasks; throwing fails the epoch. `next` is what the phase still needs after its epoch succeeded, while that epoch is the latest: a decision or a follow-up phase; null when the phase is done. `Runtime.advance` asks it before the workflow's `next`, in any workflow.
 
 ## Type Parameters
 
@@ -21,6 +21,26 @@ A unit of work in a workflow; each run is one epoch. `run` orchestrates tasks; t
 > **id**: `string`
 
 ## Methods
+
+### next()?
+
+> `optional` **next**(`view`, `epoch`): [`Step`](../../plugins/type-aliases/Step.md) \| `null`
+
+#### Parameters
+
+##### view
+
+[`WorkflowView`](../../render-ref/interfaces/WorkflowView.md)
+
+##### epoch
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+#### Returns
+
+[`Step`](../../plugins/type-aliases/Step.md) \| `null`
+
+***
 
 ### run()
 

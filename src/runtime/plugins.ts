@@ -36,7 +36,7 @@ export interface RepoProfile {
   investigatePhase?: string;
   /** Automatic fix rounds before the user is asked; default 2, 0 always asks. */
   autoFixRounds?: number;
-  /** Phase ids run in order after the user accepts, each behind its own decision. */
+  /** Phase ids run in order right after the user accepts; a phase with an outside effect asks first through its own `Phase.next`. */
   afterAccept?: string[];
 }
 /** What `Workflow.next` may consult besides the stored session state. */

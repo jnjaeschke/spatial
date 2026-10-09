@@ -8,7 +8,7 @@
 
 > **isActive**(`rt`, `sessionId`): `boolean`
 
-Whether an implement session still has work: an epoch is running or `next` has a step. Used to refuse a second session on the same checkout.
+Whether an implement session still has work: an epoch is running, or the session has a next step (an open decision included). Used to refuse a second session on the same checkout.
 
 ## Parameters
 

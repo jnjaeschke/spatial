@@ -1,4 +1,4 @@
-import { type Artifact, type DecisionData, type DecisionOption, type Id, type LlmSelection, type RepoProfile, type Runtime, type Step, type WorkflowContext, type WorkflowStartData, type WorkflowView, workflowView } from "../../../plugin-api.ts";
+import { type Artifact, type DecisionData, type DecisionOption, type Id, type LlmSelection, type RepoProfile, type Runtime, type Step, type WorkflowContext, type WorkflowStartData, type WorkflowView } from "../../../plugin-api.ts";
 import type { ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
 import { openHighFindings } from "../runtime/findings.ts";
@@ -7,7 +7,6 @@ export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
 const planInvalidQuestion = (reason: string) => `The implement agent reports that the plan does not hold: ${reason}`;
 const fixQuestion = (count: number) => `Fix ${count} high finding${count === 1 ? "" : "s"}`;
-const runQuestion = (phase: string) => `Run ${phase}?`;
 const isReviewQuestion = (question: string) => question === REVIEWED || question.startsWith("Fix ");
 
 type Chosen = NonNullable<DecisionData["chosen"]>;
@@ -48,12 +47,11 @@ function implementStep(branch: Artifact<ImplementBranchData>, investigation: Art
   return { run: "implement", input: { branchId: branch.id, investigationId: investigation.id, bug, text, ...(ignorePlanInvalid ? { ignorePlanInvalid: true } : {}), writeMode: start.data.writeMode ?? "auto", ...(llm ? { llm } : {}) } };
 }
 
-function afterAcceptStep(view: WorkflowView, profile: RepoProfile, branch: Artifact<ImplementBranchData>, result: Artifact<ImplementResultData>, start: Artifact<WorkflowStartData>, decisions: Artifact<DecisionData>[], acceptEpoch: number): Step | null {
+function afterAcceptStep(view: WorkflowView, profile: RepoProfile, branch: Artifact<ImplementBranchData>, result: Artifact<ImplementResultData>, start: Artifact<WorkflowStartData>, acceptEpoch: number): Step | null {
   for (const phase of profile.afterAccept ?? []) {
-    const question = runQuestion(phase), choice = decisions.findLast((a) => a.data.question === question && a.epoch !== null && a.epoch >= acceptEpoch)?.data.chosen;
-    if (view.epochs.some((epoch) => epoch.phase === phase && epoch.status === "succeeded" && epoch.n > acceptEpoch) || choice?.option === "skip") continue;
-    if (choice?.option === "run") return { run: phase, input: { base: branch.data.baseSha, head: result.data.head, ...(start.data.llm ? { llm: start.data.llm } : {}) } };
-    return { decide: { question, options: [{ id: "run", label: "Run" }, { id: "skip", label: "Skip" }] } };
+    const ran = view.epochs.findLast((epoch) => epoch.phase === phase && epoch.n > acceptEpoch);
+    if (!ran) return { run: phase, input: { base: branch.data.baseSha, head: result.data.head, ...(start.data.llm ? { llm: start.data.llm } : {}) } };
+    if (ran.status !== "succeeded") return null;
   }
   return null;
 }
@@ -107,7 +105,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     if (choice) {
       if (choice.option === "fix") return investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), null, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
       if (choice.option === "revise") return investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), choice.text ?? null, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
-      if (choice.option === "accept") return result ? afterAcceptStep(view, profile, branch, result, start, decisions, last.n) : null;
+      if (choice.option === "accept") return result ? afterAcceptStep(view, profile, branch, result, start, last.n) : null;
       return null;
     }
     const open = openHighFindings(view), rounds = ruleRounds(decisions), max = profile.autoFixRounds ?? 2;
@@ -115,15 +113,12 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     return decisionStep(REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
   }
 
-  if (profile.afterAccept?.includes(last.phase)) {
-    const acceptEpoch = view.epochs.filter((epoch) => epoch.phase === "review").at(-1)?.n;
-    return result && acceptEpoch !== undefined ? afterAcceptStep(view, profile, branch, result, start, decisions, acceptEpoch) : null;
-  }
-  return null;
+  const lastReview = view.epochs.findLast((epoch) => epoch.phase === "review");
+  const accepted = lastReview && decisions.some((a) => a.epoch === lastReview.n && a.data.question === REVIEWED && a.data.chosen?.option === "accept");
+  return accepted && result ? afterAcceptStep(view, profile, branch, result, start, lastReview.n) : null;
 }
 
-/** Whether an implement session still has work: an epoch is running or `next` has a step. Used to refuse a second session on the same checkout. */
+/** Whether an implement session still has work: an epoch is running, or the session has a next step (an open decision included). Used to refuse a second session on the same checkout. */
 export function isActive(rt: Runtime, sessionId: Id): boolean {
-  if (rt.runningEpoch(sessionId)) return true;
-  return implementNext(workflowView(rt.store, sessionId), { repoProfiles: rt.plugins.repoProfiles }) !== null;
+  return rt.runningEpoch(sessionId) !== null || rt.nextStep(sessionId) !== null;
 }
