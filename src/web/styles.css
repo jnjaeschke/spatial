@@ -180,6 +180,8 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .topbar .back:hover { color: var(--accent); }
 .topbar .session-title { font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; }
 .topbar .repo { color: var(--text-3); font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px 6px; }
+/* A long worktree path must not push the topbar onto a second row; the title attribute has the whole path. */
+.topbar .repo { max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar .spacer { flex: 1; }
 .topbar :is(button, select, input:not([type="checkbox"])) { padding-block: 2px; }
 .topbar .desktop-toggle { color: var(--text-2); font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
@@ -194,7 +196,6 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .segmented button:hover:not(:disabled) { background: transparent; color: var(--text); }
 .segmented button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .theme-toggle button[aria-pressed="true"] { background: light-dark(var(--surface), var(--accent-soft)); box-shadow: var(--shadow-1); }
-.text-size { display: inline-flex; }
 .text-size button { font-size: 12px; font-weight: 600; }
 .text-size button:disabled { opacity: 0.4; cursor: default; }
 
