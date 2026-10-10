@@ -67,7 +67,7 @@ export { RowPainter, rowSegments } from "./syntax.ts";
 export { SearchfoxContext, searchfoxLinks, mergedCodeLinks, fileUrl, linkTitle } from "./searchfox-url.ts";
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
 export { loadFileLines } from "./file-lines.ts";
-export { DiffRows, changeStarts } from "./diff/DiffRows.tsx";
+export { DiffRows, changeStarts, type RowMark } from "./diff/DiffRows.tsx";
 export { DiffView } from "./diff/DiffView.tsx";
 export { FilePanel } from "./diff/FilePanel.tsx";
 export type { HunkRow } from "./diff/FilePanel.tsx";

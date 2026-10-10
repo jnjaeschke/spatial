@@ -37,6 +37,7 @@
 - [PhaseView](interfaces/PhaseView.md)
 - [PhaseViewProps](interfaces/PhaseViewProps.md)
 - [PlacedNode](interfaces/PlacedNode.md)
+- [RowMark](interfaces/RowMark.md)
 - [SearchfoxLinks](interfaces/SearchfoxLinks.md)
 - [Segment](interfaces/Segment.md)
 - [WebPlugin](interfaces/WebPlugin.md)

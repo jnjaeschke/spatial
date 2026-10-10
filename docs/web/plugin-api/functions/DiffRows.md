@@ -26,9 +26,17 @@ Renders numbered diff rows and optional content inserted after each row.
 
 `string`
 
+#### marks?
+
+(`row`) => [`RowMark`](../interfaces/RowMark.md)[]
+
 #### oldHref?
 
 (`line`) => `string`
+
+#### onMark?
+
+(`mark`) => `void`
 
 #### onRowClick?
 

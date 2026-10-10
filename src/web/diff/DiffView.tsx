@@ -11,7 +11,7 @@ import { DiffRows } from "./DiffRows.tsx";
 const STEP = 20;
 
 /** Read-only hunk. `nodrag nopan` lets users select text instead of moving the canvas. */
-export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread, afterRow }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk; threads?: HostedThread[]; renderThread?: (thread: HostedThread) => ReactNode; afterRow?: (row: Row, index: number) => ReactNode }) {
+export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread, afterRow, marks, onMark }: { sessionId: string; diffId: string; file: DiffFile; hunk: Hunk; threads?: HostedThread[]; renderThread?: (thread: HostedThread) => ReactNode; afterRow?: (row: Row, index: number) => ReactNode; marks?: (row: Row) => { start: number; end: number; name: string; highlight: string; title: string }[]; onMark?: (mark: { name: string }) => void }) {
   const [above, setAbove] = useState(0);
   const [below, setBelow] = useState(0);
   const [lines, setLines] = useState<string[] | null>(null);
@@ -59,7 +59,7 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
       {hunk.rewrites?.map(({ by, of, lines }) => <div className="rewrite-flag" data-testid="rewrite-flag" key={`${by}-${of}`}>C{by + 1} rewrites {lines} line{lines === 1 ? "" : "s"} added in C{of + 1}</div>)}
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} afterRow={(threads?.length || afterRow) ? (row, index) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}{afterRow?.(row, index)}</> : undefined} />
+        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} marks={marks} onMark={onMark} afterRow={(threads?.length || afterRow) ? (row, index) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}{afterRow?.(row, index)}</> : undefined} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

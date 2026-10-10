@@ -30,6 +30,14 @@ Read-only hunk. `nodrag nopan` lets users select text instead of moving the canv
 
 [`Hunk`](../../../shared/types/interfaces/Hunk.md)
 
+#### marks?
+
+(`row`) => `object`[]
+
+#### onMark?
+
+(`mark`) => `void`
+
 #### renderThread?
 
 (`thread`) => `ReactNode`
