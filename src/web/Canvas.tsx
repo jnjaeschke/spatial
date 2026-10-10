@@ -74,6 +74,8 @@ export interface CanvasModel {
   stack?: { is(graph: Graph, place: string | null): boolean; layout(nodes: PlacedNode[], edges: GraphEdge[]): Map<string, { x: number; y: number }> };
   /** Edges that only steer the dagre layout; the displayed edges stay as they are. */
   layoutEdges?(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[];
+  /** Quoted items a node hosts besides its chats (e.g. findings), highlighted in the text of their `anchor`. */
+  quotes?(data: GraphNodeData): { id: string; kind: string; anchor: string; quote: string; lines?: ChatNodeData["lines"] }[];
   /** Nodes to center when they first appear after the canvas has loaded (a freshly generated diagram). */
   revealWhenAdded?(node: GraphNode): boolean;
   /** Wraps the canvas in the plugin's contexts. */
@@ -203,10 +205,11 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
     for (const node of graph.nodes) {
       const quote = quoteOf(node.data);
       if (quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: quote });
+      for (const { id, ...data } of model.quotes?.(node.data) ?? []) entries.push({ id, anchors: [node.id], data });
       for (const thread of hostedThreads(node.data) ?? []) if (thread.quote) entries.push({ id: thread.threadId ?? thread.draftId!, anchors: [node.id], data: { kind: "chat", anchor: thread.anchor, quote: thread.quote, lines: thread.lines } });
     }
     return entries;
-  }, [graph]);
+  }, [model, graph]);
   const [hoveredChat, setHoveredChat] = useState<string | null>(null);
   const [focusedChat, setFocusedChat] = useState<string | null>(null);
   const [hoveredQuote, setHoveredQuote] = useState<string | null>(null);

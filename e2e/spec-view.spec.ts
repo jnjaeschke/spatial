@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { revealNode, startReview } from "./canvas.ts";
+import { openChange, revealNode, startReview } from "./canvas.ts";
 
 const dirs: string[] = [];
 test.afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -30,7 +30,6 @@ test("a cited spec opens in the details panel and selecting a step maps its chan
   const { dir, base } = specRepo();
   await startReview(page, dir, `${base}..HEAD`);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("Step 3 comment describes step 2 of HTML#navigate")).toBeAttached();
 
   const spec = page.locator(".spec-node");
   await revealNode(page, spec);
@@ -38,12 +37,13 @@ test("a cited spec opens in the details panel and selecting a step maps its chan
   const view = page.getByTestId("spec-panel");
   await expect(view.getByText("HTML#navigate")).toBeVisible();
   await expect(view.getByTestId("spec-map-status")).toHaveText("2 of 2 steps mapped · 1 deviates · 2 added lines unexplained", { timeout: 15_000 });
-  await expect(page.getByText("Step 1 comment sits on code mapped to step 2 of HTML#navigate")).toBeAttached();
   await expect(view.getByTestId("step-1")).toHaveClass(/status-implements/);
   await expect(view.getByTestId("step-2")).toHaveClass(/status-deviates/);
   await view.getByTestId("unmapped-0").click();
   await expect(view.getByText("Logs the navigation.")).toBeVisible();
   await expect(page.locator(".canvas")).toHaveAttribute("data-place", /change:/);
+  await expect(page.getByTestId(/finding-chip/).filter({ hasText: "Step 3 comment describes step 2 of HTML#navigate" })).toBeAttached();
+  await expect(page.getByTestId(/finding-chip/).filter({ hasText: "Step 1 comment sits on code mapped to step 2 of HTML#navigate" })).toBeAttached();
   await expect(page.locator('.hunk-node tr[data-new="9"]')).toHaveClass(/step-mapped/);
 
   await view.getByTestId("step-2").click();
@@ -60,7 +60,8 @@ test("a cited spec opens in the details panel and selecting a step maps its chan
 test("topbar toggles hide spec cards with spec checks and AI findings, and persist", async ({ page }) => {
   const { dir, base } = specRepo();
   await startReview(page, dir, `${base}..HEAD`);
-  const check = page.getByText("Step 3 comment describes step 2 of HTML#navigate");
+  await openChange(page, "change-c1");
+  const check = page.getByTestId(/finding-chip/).filter({ hasText: "Step 3 comment describes step 2 of HTML#navigate" });
   await expect(check).toBeAttached({ timeout: 15_000 });
   await expect(page.locator(".spec-node")).toHaveCount(1);
   const specs = page.getByRole("group", { name: "Show on canvas" }).getByRole("button", { name: "Specs" });
@@ -77,7 +78,8 @@ test("topbar toggles hide spec cards with spec checks and AI findings, and persi
 
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  const finding = page.getByText("No test for c");
+  await openChange(page, "change-c2");
+  const finding = page.getByTestId(/finding-chip/).filter({ hasText: "No test for c" });
   await expect(finding).toBeAttached({ timeout: 15_000 });
   await page.getByRole("group", { name: "Show on canvas" }).getByRole("button", { name: "AI review" }).click();
   await expect(finding).toHaveCount(0);

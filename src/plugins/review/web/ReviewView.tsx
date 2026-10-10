@@ -11,6 +11,7 @@ import type { LineRange } from "../shared/types.ts";
 import { backDetail, canGoBack, closeDetails, DetailsContext, openDetail, type Detail, type DetailsState } from "./details.ts";
 import { ChatDetails, useChatLookup } from "./ChatDetails.tsx";
 import { CommentDetails, findComment } from "./CommentDetails.tsx";
+import { FindingDetails, findFinding } from "./FindingDetails.tsx";
 
 export function ReviewView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   const [details, setDetails] = useState<DetailsState>(closeDetails);
@@ -33,7 +34,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
       if (!draft.aside) setDetails((current) => openDetail(current, { kind: draft.kind === "comment" ? "comment" : "chat", id: draft.id }));
     }
   }, [drafts]);
-  const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : true;
+  const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : detail.kind === "finding" ? findFinding(graph, detail.id) !== null : true;
   const body = narrative ? <RevealContext.Provider value={revealer}><JumpContext.Provider value={jump}><Canvas model={reviewCanvas} closed={closed} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider></RevealContext.Provider>
     : diff && epoch !== null ? <RevisionView sessionId={state.session.id} diff={diff as Artifact<DiffData>} epoch={epoch} state={state} models={models} />
       : <AnalysisStatus state={state} models={models} />;
@@ -49,6 +50,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   };
   const selectedChat = details.current?.kind === "chat" ? chatThread(details.current.id) : null;
   const selectedComment = details.current?.kind === "comment" ? findComment(graph, details.current.id) : null;
+  const selectedFinding = details.current?.kind === "finding" ? findFinding(graph, details.current.id) : null;
   const chatActions = { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard, onNote: () => {} };
   const back = canGoBack(details, resolves) ? () => setDetails((current) => backDetail(current, resolves)) : undefined;
   const closePanel = () => setDetails(closeDetails());
@@ -59,6 +61,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
         {body}
         {selectedChat && <ChatDetails thread={selectedChat} actions={chatActions} closed={closed} reveal={(nodeId, collapseId) => revealer.current?.(nodeId, collapseId)} onClose={closePanel} onBack={back} />}
         {selectedComment && <CommentDetails comment={selectedComment} actions={chatActions} onClose={closePanel} onBack={back} />}
+        {selectedFinding && <FindingDetails data={selectedFinding} actions={chatActions} onClose={closePanel} onBack={back} />}
         {details.current?.kind === "spec" && narrative && <SpecPanel state={state} specId={details.current.specId} llm={models.default} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} onFocusRange={focusSpecRange} onSelection={setSpecSelection} />}
         {details.current?.kind === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} /> : details.current?.kind === "file" && diff && details.current.file.diffId === diff.id && <FilePanel sessionId={state.session.id} diff={diff} open={details.current.file} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} onJump={setJump} />}
       </div></StackContext.Provider>

@@ -10,7 +10,6 @@ import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
 import { DiagramNode } from "./nodes/DiagramNode.tsx";
-import { FindingNode } from "./nodes/FindingNode.tsx";
 import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
 
 const reviewNodeKinds: Record<string, NodeKind> = {
@@ -21,7 +20,6 @@ const reviewNodeKinds: Record<string, NodeKind> = {
   summary: { component: SummaryNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
   spec: { component: SpecNode as NodeKind["component"], minimapColor: "var(--kind-spec)", size: reviewSize },
   diagram: { component: DiagramNode as NodeKind["component"], minimapColor: "var(--kind-diagram)", size: reviewSize, resizable: false },
-  finding: { component: FindingNode as NodeKind["component"], minimapColor: "var(--kind-finding)", size: reviewSize },
   phab: { component: PhabThreadNode as NodeKind["component"], minimapColor: "var(--kind-phab)", size: reviewSize },
 };
 

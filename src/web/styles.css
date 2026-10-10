@@ -485,10 +485,7 @@ button.code-link::after {
 .thread-stub { padding: 4px 8px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .note-node { --kind: var(--kind-note); }
 .note-draft { margin-left: 8px; padding: 2px 6px; border-radius: 999px; background: color-mix(in oklab, var(--kind-note) 18%, transparent); font-size: 0.75em; }
-.finding-node { --kind: var(--kind-finding); }
 .phab-node { --kind: var(--kind-phab); }
-.finding-node.severity-high { --kind: var(--severity-high); }
-.finding-node.severity-low { --kind: var(--kind-chat); }
 
 /* Diffs */
 .diff { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; cursor: text; user-select: text; background: var(--surface); }
@@ -526,9 +523,9 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .phab-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
 .phab-node > .title .badge:first-child { margin-left: 0; margin-right: 4px; background: color-mix(in oklab, var(--kind-phab) 16%, transparent); color: var(--kind-phab); }
 .phab-done { background: var(--badge-muted-bg); color: var(--badge-muted-fg); }
-.chat-node .messages, .finding-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.chat-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .box .messages { margin-top: 6px; scrollbar-width: thin; }
-.chat-node .enable-mcp-request, .finding-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: calc(12px * var(--text-scale, 1)); padding: 4px 0; }
+.chat-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: calc(12px * var(--text-scale, 1)); padding: 4px 0; }
 .msg { padding: 6px 9px; border-radius: var(--radius-md); line-height: 1.4; }
 .msg.user {
   white-space: pre-wrap; align-self: flex-end; max-width: 88%; color: var(--text);
@@ -588,7 +585,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .badge.severity-high { background: var(--severity-high); color: #fff; }
 .badge.severity-medium { background: var(--severity-medium); color: #fff; }
 .badge.severity-low { background: var(--severity-low); color: #fff; }
-.finding-node > .title .badge:first-child { margin-left: 0; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.62em; }
 .status-unchanged { color: var(--text-3); }
 .status-modified { color: var(--warning); }
 .status-new { color: var(--success); }
@@ -598,17 +594,20 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .verdict-reason { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-2); padding: 6px 10px; margin-top: 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
 
 /* Findings */
-.finding-node.outdated { opacity: 0.75; }
-.finding-node .category { margin: 0 6px; color: var(--text-3); font-weight: 500; font-size: 0.9em; }
-.finding-node .accept, .finding-node .dismiss { border-radius: var(--radius-sm); padding: 1px 9px; cursor: pointer; font-size: calc(11.5px * var(--text-scale, 1)); font-weight: 600; margin-left: 6px; }
-.finding-node .accept { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--accent-fg); border: 1px solid transparent; }
-.finding-node .accept:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); border-color: transparent; }
-.finding-node .dismiss { background: transparent; color: var(--text-2); border: 1px solid var(--border-strong); }
-.finding-node.dismissed { opacity: 0.5; }
-.finding-node .comment-draft { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
-.finding-node .comment-draft > div:has(button) { display: flex; gap: 6px; }
-.finding-node .comment-draft .composer { min-height: 80px; font-size: calc(12px * var(--text-scale, 1)); }
-.finding-node .comment-status { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-3); }
+.finding-details { position: relative; --kind: var(--kind-finding); }
+.finding-details.outdated { opacity: 0.75; }
+.finding-detail-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.finding-detail-title .category { margin: 0 4px; color: var(--text-3); font-weight: 500; font-size: 0.9em; }
+.finding-actions { display: flex; gap: 6px; }
+.finding-actions button { border-radius: var(--radius-sm); padding: 1px 9px; cursor: pointer; font-size: calc(11.5px * var(--text-scale, 1)); font-weight: 600; }
+.finding-actions .accept { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--accent-fg); border: 1px solid transparent; }
+.finding-actions .accept:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, white), color-mix(in oklab, var(--accent-2) 88%, white)); border-color: transparent; }
+.finding-actions .dismiss { background: transparent; color: var(--text-2); border: 1px solid var(--border-strong); }
+.finding-details.dismissed { opacity: 0.5; }
+.finding-details .comment-draft { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.finding-details .comment-draft > div:has(button) { display: flex; gap: 6px; }
+.finding-details .comment-draft .composer { min-height: 80px; font-size: calc(12px * var(--text-scale, 1)); }
+.finding-details .comment-status { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-3); }
 
 /* Activity strip and toasts */
 .activity { display: flex; gap: 8px; align-items: center; padding: 4px 12px; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--surface) 90%, transparent); font-size: 12px; color: var(--text-2); overflow-x: auto; }
@@ -626,6 +625,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .review-chip { --chip-kind: var(--kind-chat); display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 3px 8px; border: 1px solid var(--border); border-left: 3px solid var(--chip-kind); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
 .review-chip.kind-comment { --chip-kind: var(--kind-phab); }
 .review-chip.kind-finding { --chip-kind: var(--kind-finding); }
+.review-chip.dismissed { opacity: 0.5; }
 .review-chip.kind-phab { --chip-kind: var(--kind-phab); }
 .review-chip.kind-spec { --chip-kind: var(--kind-spec); }
 .review-chip > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

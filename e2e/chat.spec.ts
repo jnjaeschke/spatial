@@ -392,66 +392,37 @@ test("a quoted chat chip opens its details panel", async ({ page, request }) => 
   await expect(page.getByTestId("chat-panel")).toBeVisible();
 });
 
-test("a review finding sits next to its quote and is a chat", async ({ page, request }) => {
+test("a review finding chip opens its detail panel with the thread", async ({ page, request }) => {
   await openNarrated(page, request);
-  const finding = page.locator(".finding-node");
+  await openChange(page, "change-c2");
+  const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
+  const finding = page.getByTestId(/finding-chip/);
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await expect(finding).toContainText("No test for c");
-  await expect(finding.locator(".badge")).toHaveText("medium");
+  await expect(finding).toHaveClass(/severity-medium/);
+  await expect(finding.locator("xpath=ancestor::tr")).toHaveAttribute("class", /chip-row/);
+  await finding.click();
+  const panel = page.locator(".review-detail-panel");
+  await expect(panel).toContainText("No test for c");
+  await expect(panel.getByRole("button", { name: "Accept finding" })).toBeVisible();
+  await expect(panel.getByLabel("message")).toBeVisible();
+  await panel.getByLabel("message").fill("Why?");
+  await panel.getByRole("button", { name: "Send" }).click();
+  await expect(panel.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(panel.locator(".msg.user")).toHaveText("Why?");
+  await expect(page.locator(".finding-node")).toHaveCount(0);
+});
+
+test("a finding quote stays highlighted under its row", async ({ page, request }) => {
+  await openNarrated(page, request);
   await openChange(page, "change-c2");
   const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
   await revealNode(page, row);
-  await revealNode(page, finding);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("finding-quote") ?? [])].map((r) => (r as Range).toString()))).toEqual(["c"]);
   await expect.poll(() => page.evaluate(() => {
     const range = [...CSS.highlights.get("finding-quote")!][0] as Range;
     return range.startContainer.parentElement?.closest("td")?.classList.contains("code") ?? false;
   })).toBe(true);
-  await expect.poll(async () => {
-    const box = await finding.boundingBox(), rowBox = await row.boundingBox();
-    return box && rowBox ? Math.abs(box.y - rowBox.y) : Infinity;
-  }).toBeLessThan(40);
-
-  await revealNode(page, finding.getByRole("button", { name: "Collapse" }));
-  await finding.getByRole("button", { name: "Collapse" }).click();
-  await expect(finding).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => CSS.highlights.get("finding-quote")?.size ?? 0)).toBe(1);
-  const quoteCenter = () => page.evaluate(() => {
-    const box = ([...CSS.highlights.get("finding-quote")!][0] as Range).getBoundingClientRect();
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  });
-  for (let point = await quoteCenter(); point.x < 100; point = await quoteCenter()) {
-    const dx = Math.min(600, 700 - point.x);
-    const grab = await page.evaluate((dx) => {
-      for (let x = 20; x + dx < innerWidth - 20; x += 20) {
-        if (document.elementFromPoint(x, innerHeight / 2)?.classList.contains("react-flow__pane")) return { x, y: innerHeight / 2 };
-      }
-      throw new Error("no empty pane");
-    }, dx);
-    await page.mouse.move(grab.x, grab.y);
-    await page.mouse.down();
-    await page.mouse.move(grab.x + dx, grab.y, { steps: 8 });
-    await page.mouse.up();
-  }
-  // Measured nodes can still shift the layout after the pan, so re-measure until the hover lands.
-  let point = await quoteCenter();
-  await expect(async () => {
-    point = await quoteCenter();
-    await page.mouse.move(point.x, point.y);
-    await expect(page.locator(".canvas")).toHaveClass(/over-collapsed-quote/, { timeout: 500 });
-  }).toPass();
-  await page.mouse.click(point.x, point.y);
-  await expect(finding).toBeVisible();
-  await expect(finding.getByRole("button", { name: "Ask about finding" })).toHaveCount(0);
-  await finding.getByLabel("message").fill("Why?");
-  await finding.getByRole("button", { name: "Send" }).click();
-  await expect(finding.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
-  await expect(finding.locator(".msg.user")).toHaveText("Why?");
-  await expect(page.locator(".chat-node")).toHaveCount(0);
-  await finding.getByLabel("message").fill("And?");
-  await finding.getByRole("button", { name: "Send" }).click();
-  await expect(finding.locator(".msg.assistant")).toHaveCount(2, { timeout: 10_000 });
-  await expect(page.locator(".chat-node")).toHaveCount(0);
 });
 
 test("a chat on code lines appears as a chip after its last quoted row", async ({ page, request }) => {

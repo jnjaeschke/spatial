@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
+import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { DetailsContext } from "./details.ts";
 
@@ -50,9 +50,15 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
   useEffect(() => {
     if (!details) return;
     const click = (event: MouseEvent) => {
-      const ranges = CSS.highlights.highlightsFromPoint(event.clientX, event.clientY)
-        .filter((hit) => hit.highlight === CSS.highlights.get("chat-quote"))
-        .flatMap((hit) => hit.ranges);
+      const hits = CSS.highlights.highlightsFromPoint(event.clientX, event.clientY);
+      const findingRanges = hits.filter((hit) => hit.highlight === CSS.highlights.get("finding-quote")).flatMap((hit) => hit.ranges);
+      for (const range of findingRanges) {
+        for (const node of graph.nodes) {
+          const finding = findingsOf(node.data).find((item) => item.quote === range.toString());
+          if (finding) { details.open({ kind: "finding", id: finding.findingId }); return; }
+        }
+      }
+      const ranges = hits.filter((hit) => hit.highlight === CSS.highlights.get("chat-quote")).flatMap((hit) => hit.ranges);
       if (!ranges.length) return;
       const quote = ranges.map((range) => range.toString()).join("");
       for (const node of graph.nodes) {
@@ -83,8 +89,7 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
 
 export const reviewCanvas: CanvasModel = {
   graph: reviewGraph,
-  collapsedByDefault: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "finding") && n.data.collapsedByDefault ? [n.id]
-    : isReviewKind(n.data, "phab") ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
+  collapsedByDefault: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "phab") ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
       : isReviewKind(n.data, "summary") ? [
         ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
         ...n.data.reviews.filter(reviewIsEmpty).map((review) => `review:${review.revision}`),
@@ -98,6 +103,7 @@ export const reviewCanvas: CanvasModel = {
   places: reviewPlaces,
   stack: { is: (_, place) => place === "stack", layout: stackLayout },
   layoutEdges: (nodes, edges) => changeLayoutEdges(nodes, diagramLayoutEdges(nodes, edges)),
+  quotes: (data) => findingsOf(data).flatMap((finding) => finding.quote ? [{ id: finding.findingId, kind: "finding", anchor: finding.anchor, quote: finding.quote, lines: finding.lines }] : []),
   revealWhenAdded: (node) => node.data.kind === "diagram",
   Provider: ReviewCanvasProvider,
 };

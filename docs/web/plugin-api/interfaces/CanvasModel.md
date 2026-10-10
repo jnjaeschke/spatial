@@ -284,6 +284,24 @@ Edges that only steer the dagre layout; the displayed edges stay as they are.
 
 ***
 
+### quotes()?
+
+> `optional` **quotes**(`data`): `object`[]
+
+Quoted items a node hosts besides its chats (e.g. findings), highlighted in the text of their `anchor`.
+
+#### Parameters
+
+##### data
+
+[`GraphNodeData`](../type-aliases/GraphNodeData.md)
+
+#### Returns
+
+`object`[]
+
+***
+
 ### revealWhenAdded()?
 
 > `optional` **revealWhenAdded**(`node`): `boolean`

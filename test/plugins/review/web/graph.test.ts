@@ -2,16 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
-import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
+import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
-import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, textScale = 1) => {
   const size = reviewSize(data);
   return { width: size.width * textScale, height: size.height * textScale };
 };
+const findingOf = (graph: { nodes: GraphNode[] }, id: string) => graph.nodes.flatMap((node) => findingsOf(node.data)).find((finding) => finding.findingId === id);
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -213,24 +214,18 @@ test("sessionGraph counts active findings on their owning commit cards", () => {
   assert.equal(isReviewKind(card0.data, "commit") ? card0.data.findingCount : -1, 0);
 });
 
-test("stackLayout keeps lanes and their satellites separate below the summary", () => {
+test("stackLayout keeps commit lanes separate below the summary", () => {
   const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
-  const nodes = [...graph.nodes,
-    { id: "F1", anchors: ["NS#c1"], data: { kind: "finding", findingId: "F1", ai: true, diffId: "DS", hunks: [], anchor: "NS#c1", category: "tests", severity: "low", title: "F1", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
-    { id: "F3", anchors: ["NS#c3"], data: { kind: "finding", findingId: "F3", ai: true, diffId: "DS", hunks: [], anchor: "NS#c3", category: "tests", severity: "low", title: "F3", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
-    { id: "FS", anchors: ["NS"], data: { kind: "finding", findingId: "FS", ai: true, diffId: "DS", hunks: [], anchor: "NS", category: "tests", severity: "low", title: "FS", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
-  ] as GraphNode[];
+  const nodes = graph.nodes;
   const sized = nodes.map((n) => ({ id: n.id, data: n.data, anchors: n.anchors ?? [], ...estimateSize(n.data) }));
   const pos = stackLayout(sized, graph.edges);
   assert.equal(pos.size, nodes.length);
   const right = (id: string) => pos.get(id)!.x + estimateSize(nodes.find((n) => n.id === id)!.data).width;
   const laneOneX = pos.get("NS#commit-1")!.x;
-  for (const id of ["NS#commit-0", "NS#c1", "NS#c2", "F1"]) assert.ok(right(id) < laneOneX, `${id} must fit left of lane 1`);
+  for (const id of ["NS#commit-0", "NS#c1", "NS#c2"]) assert.ok(right(id) < laneOneX, `${id} must fit left of lane 1`);
   assert.ok(pos.get("NS#commit-0")!.y < pos.get("NS#c1")!.y);
   assert.ok(pos.get("NS#commit-0")!.y < pos.get("NS#c2")!.y);
-  assert.ok(pos.get("F1")!.x > right("NS#c1"));
   assert.equal(pos.get("NS")!.y, 0);
-  assert.ok(pos.get("NS#commit-0")!.y >= pos.get("FS")!.y + estimateSize(nodes.find((n) => n.id === "FS")!.data).height);
   assert.ok(pos.get("NS#c3")!.y > pos.get("NS#commit-1")!.y);
 });
 
@@ -393,14 +388,12 @@ test("single-commit layout ranks diagram after summary and before changes", () =
   assert.ok(changes.every((node) => positions.get(d.id)!.y < positions.get(node.id)!.y));
 });
 
-test("estimateSize scales change and finding dimensions", () => {
+test("estimateSize scales change dimensions; findings are not graph nodes", () => {
   const g = narrativeGraph(narrative("N"), diff, [diff]);
   const c2 = g.nodes[2].data;
   const base = estimateSize(c2);
   assert.deepEqual(estimateSize(c2, 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
-  const finding = { kind: "finding" as const, findingId: "F", ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
-  const findingBase = estimateSize(finding);
-  assert.deepEqual(estimateSize(finding, 1.5), { width: SATELLITE_WIDTH * 1.5, height: findingBase.height * 1.5 });
+  assert.ok(g.nodes.every((node) => node.data.kind !== "finding"));
 });
 
 test("layout: dependents below dependencies, no overlaps, deterministic", () => {
@@ -651,11 +644,9 @@ test("sessionGraph adds findings and skips findings from older diffs", () => {
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: findingData , epoch: null};
   const stale = { ...finding, id: "F-old", data: { ...findingData, anchor: "OLD#f0h0" } };
   const g = sessionGraph(state([diff, narrative("N"), finding, stale]))!;
-  const node = g.nodes.find((n) => n.id === "F")!;
-  assert.equal(node.data.kind, "finding");
-  if (isReviewKind(node.data, "finding")) assert.deepEqual({ quote: node.data.quote, lines: node.data.lines, severity: node.data.severity }, { quote: "l0", lines: findingData.lines, severity: "high" });
-  assert.deepEqual(node.anchors, ["N#c1"]);
-  assert.ok(g.edges.some((e) => e.source === "F" && e.target === "N#c1"));
+  assert.deepEqual({ quote: findingOf(g, "F")?.quote, lines: findingOf(g, "F")?.lines, severity: findingOf(g, "F")?.severity }, { quote: "l0", lines: findingData.lines, severity: "high" });
+  assert.ok(g.nodes.some((node) => node.id === "N#c1" && findingOf({ nodes: [node] }, "F")));
+  assert.ok(!g.nodes.some((n) => n.id === "F"));
   assert.ok(!g.nodes.some((n) => n.id === "F-old"));
 });
 
@@ -679,25 +670,19 @@ test("sessionGraph includes carried findings at their new anchor and outdated fi
   const moved = sessionGraph(stateWithCarry("f0h0"))!;
   const summary = moved.nodes.find((item) => item.id === "N2")!.data;
   if (isReviewKind(summary, "summary")) assert.equal(summary.sinceEpoch, 1);
-  const node = moved.nodes.find((item) => item.id === "F")!;
-  assert.deepEqual(node.anchors, ["N2#c1"]);
-  if (isReviewKind(node.data, "finding")) {
-    assert.equal(node.data.fromEpoch, 1);
-    assert.equal(node.data.quote, "l0");
-    assert.deepEqual(node.data.lines, { path: "a.cpp", side: "new", start: 12, end: 12 });
-  }
+  const carried = findingOf(moved, "F");
+  assert.equal(carried?.fromEpoch, 1);
+  assert.equal(carried?.quote, "l0");
+  assert.deepEqual(carried?.lines, { path: "a.cpp", side: "new", start: 12, end: 12 });
+  assert.ok(moved.nodes.some((item) => item.id === "N2#c1" && findingOf({ nodes: [item] }, "F")));
   const outdated = sessionGraph(stateWithCarry(null))!;
-  const stale = outdated.nodes.find((item) => item.id === "F")!;
-  assert.deepEqual(stale.anchors, ["N2"]);
-  if (isReviewKind(stale.data, "finding")) {
-    assert.equal(stale.data.outdated, true);
-    assert.equal(stale.data.quote, undefined);
-    assert.equal(stale.data.collapsedByDefault, true);
-  }
-  assert.deepEqual(visibleGraph(outdated, new Set(["F"])).nodes.map((item) => item.id).includes("F"), true);
+  assert.equal(findingOf(outdated, "F")?.outdated, true);
+  assert.equal(findingOf(outdated, "F")?.quote, undefined);
+  assert.ok(outdated.nodes.some((item) => item.id === "N2" && findingOf({ nodes: [item] }, "F")));
+  assert.ok(!outdated.nodes.some((item) => item.id === "F"));
 });
 
-test("sessionGraph shows only current findings and marks addressed carries collapsed", () => {
+test("sessionGraph shows only current findings and marks addressed carries", () => {
   const d1 = { ...diff, id: "D1", createdAt: "1" };
   const n1 = { ...narrative("N1"), data: { ...narrative("N1").data, diffId: "D1" } };
   const d2 = { ...diff, id: "D2", createdAt: "3" };
@@ -713,18 +698,14 @@ test("sessionGraph shows only current findings and marks addressed carries colla
     { id: "verdict-f", sessionId: "S", from: "V", to: "F", kind: "about" },
   ];
   const g = sessionGraph(st)!;
-  const node = g.nodes.find((item) => item.id === "F")!;
   assert.ok(!g.nodes.some((item) => item.id === "not-carried"));
-  if (isReviewKind(node.data, "finding")) {
-    assert.equal(node.data.status, "addressed");
-    assert.equal(node.data.collapsedByDefault, true);
-    assert.deepEqual(node.data.verdict, { verdict: "addressed", reason: "Fixed" });
-  }
+  assert.equal(findingOf(g, "F")?.status, "addressed");
+  assert.deepEqual(findingOf(g, "F")?.verdict, { verdict: "addressed", reason: "Fixed" });
   const summary = g.nodes.find((item) => item.id === "N2")!.data;
   if (isReviewKind(summary, "summary")) assert.equal(summary.sinceEpoch, null);
 });
 
-test("sessionGraph finding node includes latest decision and comment", () => {
+test("sessionGraph finding data includes latest decision and comment", () => {
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } , epoch: null};
   const decision = { id: "DEC", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" } , epoch: null};
   const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { finding: "F", body: "Use a strong ref." } , epoch: null};
@@ -734,48 +715,38 @@ test("sessionGraph finding node includes latest decision and comment", () => {
     { id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" },
     { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" },
   ];
-  const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
-  assert.equal(node.kind, "finding");
-  if (isReviewKind(node, "finding")) {
-    assert.equal(node.decision, "accepted");
-    assert.deepEqual(node.comment, { id: "C", body: "Use a strong ref.", status: "verified" });
-    assert.equal(node.postedTo, null);
-  }
+  const node = findingOf(sessionGraph(st)!, "F")!;
+  assert.equal(node.decision, "accepted");
+  assert.deepEqual(node.comment, { id: "C", body: "Use a strong ref.", status: "verified" });
+  assert.equal(node.postedTo, null);
 });
 
-test("sessionGraph finding exposes posted revision for its latest comment", () => {
+test("sessionGraph finding data exposes posted revision for its latest comment", () => {
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } , epoch: null};
   const comment = { id: "C", sessionId: "S", type: "ReviewComment", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", body: "Ready" } , epoch: null};
   const posted = { id: "P", sessionId: "S", type: "PostedComment", status: "verified" as const, createdAt: "6", provenance: { taskId: "runtime" }, data: { comment: "C", revision: 12, diff: 8, inlineId: 77 } , epoch: null};
   const st = state([diff, narrative("N"), finding, comment, posted]);
   st.links = [{ id: "comment-about", sessionId: "S", from: "C", to: "F", kind: "about" }, { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" }];
-  const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
-  assert.equal(node.kind, "finding");
-  if (isReviewKind(node, "finding")) assert.equal(node.postedTo, 12);
+  assert.equal(findingOf(sessionGraph(st)!, "F")?.postedTo, 12);
 });
 
-test("sessionGraph finding without status artifacts has null decision and comment", () => {
+test("sessionGraph finding data without status artifacts has null decision and comment", () => {
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } , epoch: null};
-  const node = sessionGraph(state([diff, narrative("N"), finding]))!.nodes.find((n) => n.id === "F")!.data;
-  assert.equal(node.kind, "finding");
-  if (isReviewKind(node, "finding")) {
-    assert.equal(node.decision, null);
-    assert.equal(node.comment, null);
-  }
+  const node = findingOf(sessionGraph(state([diff, narrative("N"), finding]))!, "F")!;
+  assert.equal(node.decision, null);
+  assert.equal(node.comment, null);
 });
 
-test("sessionGraph finding reflects dismissal and latest decision wins", () => {
+test("sessionGraph finding data reflects dismissal and latest decision wins", () => {
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" } , epoch: null};
   const accepted = { id: "DEC1", sessionId: "S", type: "FindingDecision", status: "verified" as const, createdAt: "5", provenance: { taskId: "user" }, data: { finding: "F", decision: "accepted" } , epoch: null};
   const dismissed = { ...accepted, id: "DEC2", createdAt: "6", data: { finding: "F", decision: "dismissed" } };
   const st = state([diff, narrative("N"), finding, accepted, dismissed]);
   st.links = [...[accepted, dismissed].map((a) => ({ id: `${a.id}-about`, sessionId: "S", from: a.id, to: "F", kind: "about" as const })), { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" }];
-  const node = sessionGraph(st)!.nodes.find((n) => n.id === "F")!.data;
-  assert.equal(node.kind, "finding");
-  if (isReviewKind(node, "finding")) assert.equal(node.decision, "dismissed");
+  assert.equal(findingOf(sessionGraph(st)!, "F")?.decision, "dismissed");
 });
 
-test("a finding's thread lives in the finding node, and chats on its messages anchor to the finding", () => {
+test("a finding's thread lives in its details data, and chats on its messages keep the finding's graph anchor", () => {
   const findingData: ReviewFindingData = { anchor: "D#f0h0", category: "tests", severity: "low", title: "Finding", body: "Body" };
   const finding = { id: "F", sessionId: "S", type: "ReviewFinding", status: "proposed" as const, createdAt: "4", provenance: { taskId: "t" }, data: findingData , epoch: null};
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "5", provenance: { taskId: "turn" }, data: { anchor: "F" } , epoch: null};
@@ -785,42 +756,31 @@ test("a finding's thread lives in the finding node, and chats on its messages an
   st.links = [{ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" }, { id: "finding-derived", sessionId: "S", from: "F", to: "N", kind: "derivedFrom" }];
   const g = sessionGraph(st)!;
   assert.ok(!g.nodes.some((n) => n.id === "T"));
-  const node = g.nodes.find((n) => n.id === "F")!.data;
-  assert.equal(node.kind, "finding");
-  if (isReviewKind(node, "finding")) assert.deepEqual({ threadId: node.thread?.threadId, taskId: node.thread?.taskId, messages: node.thread?.messages.map((m) => m.id) }, { threadId: "T", taskId: "turn", messages: ["M"] });
-  assert.deepEqual(g.nodes.find((n) => n.id === "T2")?.anchors, ["F"]);
-});
-
-test("visibleGraph hides collapsed quoted findings except dismissed cards", () => {
-  const finding = (id: string, quote?: string, decision: "accepted" | "dismissed" | null = null): GraphNode => ({ id, data: { kind: "finding", foldsToQuote: decision !== "dismissed", findingId: id, ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", ...(quote ? { quote } : {}), category: "tests", severity: "low", title: id, body: "body", thread: null, decision, comment: null, postedTo: null, status: decision ?? "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } });
-  const g = { nodes: [finding("quoted", "l0"), finding("plain"), finding("dismissed", "l0", "dismissed")], edges: [{ id: "q", source: "quoted", target: "N#c1" }, { id: "p", source: "plain", target: "N#c1" }, { id: "d", source: "dismissed", target: "N#c1" }] };
-  const visible = visibleGraph(g, new Set(["quoted", "plain", "dismissed"]));
-  assert.deepEqual(visible.nodes.map((n) => n.id), ["plain", "dismissed"]);
-  assert.deepEqual(visible.edges.map((e) => e.id), ["p", "d"]);
-});
-
-test("estimateSize gives findings the satellite width", () => {
-  const data = { kind: "finding" as const, findingId: "F", ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
-  assert.deepEqual(estimateSize(data), { width: SATELLITE_WIDTH, height: 110 + 20 });
+  assert.deepEqual({ threadId: findingOf(g, "F")?.thread?.threadId, taskId: findingOf(g, "F")?.thread?.taskId, messages: findingOf(g, "F")?.thread?.messages.map((m) => m.id) }, { threadId: "T", taskId: "turn", messages: ["M"] });
+  assert.ok(!g.nodes.some((n) => n.id === "F" || n.id === "T"));
+  const owner = g.nodes.find((n) => n.id === "N#c1")!;
+  assert.deepEqual(isReviewKind(owner.data, "change") ? owner.data.threads.map((item) => item.threadId) : [], ["T2"]);
 });
 
 test("layerGraph hides spec cards with spec checks, AI findings, or Phabricator comments, and what hangs off them", () => {
   const node = (id: string, data: object, anchors?: string[]) => ({ id, ...(anchors ? { anchors } : {}), data } as unknown as GraphNode);
   const g = { nodes: [
     node("N", { kind: "summary", phabGeneral: ["general"], phabUnanchored: ["unanchored"] }),
-    node("N#c1", { kind: "change" }),
+    node("N#c1", { kind: "change", findings: [{ findingId: "F-ai", ai: true }, { findingId: "F-step", ai: false }] }),
     node("R", { kind: "spec" }, ["N#c1"]),
     node("T", { kind: "chat" }, ["R"]),
-    node("F-ai", { kind: "finding", ai: true }, ["N#c1"]),
-    node("F-step", { kind: "finding", ai: false }, ["N#c1"]),
     node("P", { kind: "phab" }, ["N#c1"]),
   ], edges: [{ id: "R->N#c1", source: "R", target: "N#c1" }, { id: "T->R", source: "T", target: "R" }, { id: "P->N#c1", source: "P", target: "N#c1" }] };
   const ids = (hidden: string[]) => layerGraph(g, new Set(hidden as ("spec" | "review" | "phab")[])).nodes.map((n) => n.id);
   assert.equal(layerGraph(g, new Set()), g);
-  assert.deepEqual(ids(["spec"]), ["N", "N#c1", "F-ai", "P"]);
-  assert.deepEqual(ids(["review"]), ["N", "N#c1", "R", "T", "F-step", "P"]);
+  assert.deepEqual(ids(["spec"]), ["N", "N#c1", "P"]);
+  assert.deepEqual(ids(["review"]), ["N", "N#c1", "R", "T", "P"]);
+  assert.equal(findingOf({ nodes: layerGraph(g, new Set(["spec"])).nodes }, "F-ai")?.findingId, "F-ai");
+  assert.equal(findingOf({ nodes: layerGraph(g, new Set(["spec"])).nodes }, "F-step"), undefined);
+  assert.equal(findingOf({ nodes: layerGraph(g, new Set(["review"])).nodes }, "F-step")?.findingId, "F-step");
+  assert.equal(findingOf({ nodes: layerGraph(g, new Set(["review"])).nodes }, "F-ai"), undefined);
   const phab = layerGraph(g, new Set(["phab"]));
-  assert.deepEqual(phab.nodes.map((n) => n.id), ["N", "N#c1", "R", "T", "F-ai", "F-step"]);
+  assert.deepEqual(phab.nodes.map((n) => n.id), ["N", "N#c1", "R", "T"]);
   assert.deepEqual(phab.nodes[0]!.data, { kind: "summary", phabGeneral: [], phabUnanchored: [] });
   assert.deepEqual(layerGraph(g, new Set(["spec"])).edges.map((e) => e.id), ["P->N#c1"]);
 });
@@ -834,4 +794,16 @@ test("a review session shows notes as note nodes", () => {
 
 test("stepNodeId targets the change node", () => {
   assert.equal(stepNodeId({ narrativeId: "N", change: { id: "c3" } as ChangeNodeData["change"] }), "N#c3");
+});
+
+test("layerGraph recounts a commit card's active findings from the visible layers", () => {
+  const finding = (findingId: string, ai: boolean, decision: "dismissed" | null = null) => ({ findingId, ai, decision, outdated: false });
+  const node = (id: string, data: object) => ({ id, data } as unknown as GraphNode);
+  const g = { nodes: [
+    node("C0", { kind: "commit", index: 0, findingCount: 2, findings: [] }),
+    node("N#c1", { kind: "change", commit: 0, findings: [finding("a", true), finding("b", false), finding("c", true, "dismissed")] }),
+  ], edges: [] };
+  const count = (hidden: ("spec" | "review")[]) => { const card = layerGraph(g, new Set(hidden)).nodes[0]!.data; return isReviewKind(card, "commit") ? card.findingCount : -1; };
+  assert.equal(count(["review"]), 1);
+  assert.equal(count(["spec"]), 1);
 });

@@ -60,14 +60,17 @@ async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>
   return sessionId;
 }
 
-async function reviewAndPost(page: Page, revision: number, commit: number) {
+async function reviewAndPost(page: Page, revision: number, commit: number, change: string) {
   await openPatch(page, commit);
-  const finding = page.locator(".finding-node");
-  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await openChange(page, change);
+  const chip = page.getByTestId(/finding-chip/);
+  await expect(chip).toBeVisible({ timeout: 15_000 });
+  await chip.click();
+  const finding = page.getByTestId("finding-panel");
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
-  // The grown comment box can push Save under a neighbouring node, which would take a pointer click.
-  await finding.getByRole("button", { name: "Save" }).press("Enter");
+  await finding.getByRole("button", { name: "Save" }).click();
+  await placeUp(page);
   await placeUp(page);
   const panel = page.getByTestId(`review-panel-D${revision}`);
   const post = panel.getByRole("button", { name: `Submit to D${revision}…` });
@@ -333,7 +336,7 @@ test("posts a C1 line to C1", async ({ page, request }) => {
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
   const sessionId = await narrate(page, stack);
-  await reviewAndPost(page, ids[0]!.revision, 0);
+  await reviewAndPost(page, ids[0]!.revision, 0, "change-c2");
   const posted = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
   expect(posted).toHaveLength(1);
   expect(posted[0]!.data.revision).toBe(ids[0]!.revision);
@@ -350,7 +353,7 @@ test("posts a C2 line to C2", async ({ page, request }) => {
     { revision: ids[1]!.revision, subject: "Add c", apply: (dir) => writeFileSync(join(dir, "c.txt"), "c\n") },
   ]);
   const sessionId = await narrate(page, stack);
-  await reviewAndPost(page, ids[1]!.revision, 1);
+  await reviewAndPost(page, ids[1]!.revision, 1, "change-c2");
   const posted = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
   expect(posted).toHaveLength(1);
   expect(posted[0]!.data.revision).toBe(ids[1]!.revision);
@@ -368,12 +371,15 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   ]);
   await narrate(page, stack);
   await openPatch(page, 0);
-  const finding = page.locator(".finding-node").filter({ hasText: "Magic number" });
-  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await openChange(page, "change-c1");
+  const chip = page.getByTestId(/finding-chip/).filter({ hasText: "Magic number" });
+  await expect(chip).toBeVisible({ timeout: 15_000 });
+  await chip.click();
+  const finding = page.getByTestId("finding-panel");
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
-  await revealNode(page, finding.getByRole("button", { name: "Save" }));
   await finding.getByRole("button", { name: "Save" }).click();
+  await placeUp(page);
   await placeUp(page);
   const panel = page.getByTestId(`review-panel-D${ids[0]!.revision}`);
   const post = panel.getByRole("button", { name: `Submit to D${ids[0]!.revision}…` });
