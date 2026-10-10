@@ -2,14 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
-import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData, type ZoomLevel } from "../../../../src/web/graph.ts";
+import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
 import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
-const estimateSize = (data: GraphNodeData, level: ZoomLevel, textScale = 1) => {
-  const size = reviewSize(data, level);
+const estimateSize = (data: GraphNodeData, textScale = 1) => {
+  const size = reviewSize(data);
   return { width: size.width * textScale, height: size.height * textScale };
 };
 
@@ -220,17 +220,17 @@ test("stackLayout keeps lanes and their satellites separate below the summary", 
     { id: "F3", anchors: ["NS#c3"], data: { kind: "finding", findingId: "F3", ai: true, diffId: "DS", hunks: [], anchor: "NS#c3", category: "tests", severity: "low", title: "F3", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
     { id: "FS", anchors: ["NS"], data: { kind: "finding", findingId: "FS", ai: true, diffId: "DS", hunks: [], anchor: "NS", category: "tests", severity: "low", title: "FS", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open", outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false } },
   ] as GraphNode[];
-  const sized = nodes.map((n) => ({ id: n.id, data: n.data, anchors: n.anchors ?? [], ...estimateSize(n.data, "concept") }));
+  const sized = nodes.map((n) => ({ id: n.id, data: n.data, anchors: n.anchors ?? [], ...estimateSize(n.data) }));
   const pos = stackLayout(sized, graph.edges);
   assert.equal(pos.size, nodes.length);
-  const right = (id: string) => pos.get(id)!.x + estimateSize(nodes.find((n) => n.id === id)!.data, "concept").width;
+  const right = (id: string) => pos.get(id)!.x + estimateSize(nodes.find((n) => n.id === id)!.data).width;
   const laneOneX = pos.get("NS#commit-1")!.x;
   for (const id of ["NS#commit-0", "NS#c1", "NS#c2", "F1"]) assert.ok(right(id) < laneOneX, `${id} must fit left of lane 1`);
   assert.ok(pos.get("NS#commit-0")!.y < pos.get("NS#c1")!.y);
   assert.ok(pos.get("NS#commit-0")!.y < pos.get("NS#c2")!.y);
   assert.ok(pos.get("F1")!.x > right("NS#c1"));
   assert.equal(pos.get("NS")!.y, 0);
-  assert.ok(pos.get("NS#commit-0")!.y >= pos.get("FS")!.y + estimateSize(nodes.find((n) => n.id === "FS")!.data, "concept").height);
+  assert.ok(pos.get("NS#commit-0")!.y >= pos.get("FS")!.y + estimateSize(nodes.find((n) => n.id === "FS")!.data).height);
   assert.ok(pos.get("NS#c3")!.y > pos.get("NS#commit-1")!.y);
 });
 
@@ -238,38 +238,40 @@ test("summary size accounts for review panels before stack lanes are placed", ()
   const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   const summary = graph.nodes.find((node) => node.data.kind === "summary")!;
   assert.ok(isReviewKind(summary.data, "summary"));
-  const withoutPanel = reviewSize(summary.data, "concept").height;
+  const withoutPanel = reviewSize(summary.data).height;
   summary.data.reviews = [{ revision: 1, comments: [{ path: "a.txt", line: 1, body: "x" }], body: "", submissions: [] }];
-  assert.ok(reviewSize(summary.data, "concept").height >= withoutPanel + 220);
+  assert.ok(reviewSize(summary.data).height >= withoutPanel + 220);
 });
 
 test("an empty review panel starts collapsed and is estimated as its title row", () => {
   const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   const summary = graph.nodes.find((node) => node.data.kind === "summary")!;
   assert.ok(isReviewKind(summary.data, "summary"));
-  const withoutPanel = reviewSize(summary.data, "concept").height;
+  const withoutPanel = reviewSize(summary.data).height;
   summary.data.reviews = [{ revision: 1, comments: [], body: "", submissions: [] }];
-  assert.equal(reviewSize(summary.data, "concept").height, withoutPanel + 40);
+  assert.equal(reviewSize(summary.data).height, withoutPanel + 40);
   assert.ok(reviewIsEmpty(summary.data.reviews[0]!));
   assert.ok(!reviewIsEmpty({ ...summary.data.reviews[0]!, body: "draft" }));
 });
 
-test("commit card estimates match node widths and shrink at patch level", () => {
+test("commit card estimates match node widths", () => {
   const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
-  const card = g.nodes.find((n) => isReviewKind(n.data, "commit"))!.data;
-  const patch = estimateSize(card, "patch"), concept = estimateSize(card, "concept");
-  assert.ok(patch.height < concept.height);
-  assert.equal(patch.width, NODE_WIDTH.patch);
-  assert.equal(concept.width, NODE_WIDTH.concept);
+  assert.equal(estimateSize(g.nodes.find((n) => isReviewKind(n.data, "commit"))!.data).width, NODE_WIDTH);
 });
 
-test("estimateSize grows with level and hunk size", () => {
+test("a change card is a card, its Change place header and hunk cards are wider and grow with their content", () => {
   const g = narrativeGraph(narrative("N"), diff, [diff]);
-  const c2 = g.nodes[2].data;
-  const p = estimateSize(c2, "patch"), c = estimateSize(c2, "concept"), k = estimateSize(c2, "code");
-  assert.ok(p.height < c.height && c.height < k.height);
-  assert.ok(p.width < k.width);
-  if (isReviewKind(c2, "change")) assert.ok(estimateSize({ ...c2, threads: [{ threadId: "T", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [], anchor: "N#c2", diffId: "D", hunks: [] }] }, "concept").height > c.height);
+  const c2 = g.nodes[2]!.data;
+  assert.ok(isReviewKind(c2, "change"));
+  const card = estimateSize(c2);
+  assert.equal(card.width, NODE_WIDTH);
+  const thread = { threadId: "T", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [], anchor: "N#c2", diffId: "D", hunks: [] };
+  const header = estimateSize({ ...c2, kind: "changeHeader" });
+  assert.ok(header.width > card.width);
+  assert.ok(estimateSize({ ...c2, kind: "changeHeader", threads: [thread] }).height > header.height);
+  const hunkCard = (n: number) => estimateSize({ kind: "hunk", narrativeId: "N", diffId: "D", changeId: "c2", file: diff.data.files[0]!, hunk: hunk("f0h0", n), commit: null, threads: [], comments: [] });
+  assert.ok(hunkCard(40).height > hunkCard(3).height);
+  assert.equal(hunkCard(3).width, header.width);
 });
 
 const diagram = (id: string, commit: string, title = id): Artifact<DiagramData> => ({
@@ -351,7 +353,7 @@ test("stackLayout puts a diagram above its lane and shifts aligned cards down", 
   const graph = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
   const d = diagram("diagram-2", "2");
   graph.nodes.push({ id: d.id, data: { kind: "diagram", diagram: d } });
-  const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data, "concept") }));
+  const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data) }));
   const pos = stackLayout(sized, graph.edges);
   const box = (id: string) => ({ p: pos.get(id)!, h: sized.find((node) => node.id === id)!.height });
   const diagramBox = box("diagram-2"), card2 = box("NS#commit-1"), card1 = box("NS#commit-0");
@@ -365,7 +367,7 @@ test("stackLayout shifts wide diagrams right so they do not overlap", () => {
     const wide = { ...d, data: { ...d.data, lanes: Array.from({ length: 8 }, (_, i) => ({ id: `l${i}`, label: `Lane ${i}`, note: null })) } };
     graph.nodes.push({ id: wide.id, data: { kind: "diagram", diagram: wide } });
   }
-  const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data, "concept") }));
+  const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data) }));
   const pos = stackLayout(sized, graph.edges);
   const first = sized.find((node) => node.id === "diagram-1")!, second = sized.find((node) => node.id === "diagram-2")!;
   assert.ok(pos.get("diagram-1")!.x + first.width <= pos.get("diagram-2")!.x);
@@ -375,8 +377,8 @@ test("diagram estimates grow with lanes and steps", () => {
   const base = diagram("D", "1");
   const data = { kind: "diagram" as const, diagram: base };
   const larger = { ...base, data: { ...base.data, lanes: Array.from({ length: 3 }, (_, i) => ({ id: `${i}`, label: `${i}`, note: null })), steps: Array.from({ length: 4 }, (_, i) => ({ ...base.data.steps[0]!, phase: i < 2 ? "one" : "two" })) } };
-  assert.ok(estimateSize({ ...data, diagram: larger }, "concept").width > estimateSize(data, "concept").width);
-  assert.ok(estimateSize({ ...data, diagram: larger }, "concept").height > estimateSize(data, "concept").height);
+  assert.ok(estimateSize({ ...data, diagram: larger }).width > estimateSize(data).width);
+  assert.ok(estimateSize({ ...data, diagram: larger }).height > estimateSize(data).height);
 });
 
 test("single-commit layout ranks diagram after summary and before changes", () => {
@@ -385,7 +387,7 @@ test("single-commit layout ranks diagram after summary and before changes", () =
   const nodes = [...graph.nodes, { id: d.id, data: { kind: "diagram" as const, diagram: d } }];
   const changes = graph.nodes.filter((node) => isReviewKind(node.data, "change") && graph.edges.every((edge) => edge.target !== node.id));
   const layoutEdges = diagramLayoutEdges(nodes, graph.edges);
-  const positions = layout(nodes.map((node) => ({ id: node.id, ...estimateSize(node.data, "concept") })), layoutEdges);
+  const positions = layout(nodes.map((node) => ({ id: node.id, ...estimateSize(node.data) })), layoutEdges);
   assert.ok(positions.get("N")!.y < positions.get(d.id)!.y);
   assert.ok(changes.every((node) => positions.get(d.id)!.y < positions.get(node.id)!.y));
 });
@@ -393,16 +395,16 @@ test("single-commit layout ranks diagram after summary and before changes", () =
 test("estimateSize scales change and finding dimensions", () => {
   const g = narrativeGraph(narrative("N"), diff, [diff]);
   const c2 = g.nodes[2].data;
-  const base = estimateSize(c2, "code");
-  assert.deepEqual(estimateSize(c2, "code", 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
+  const base = estimateSize(c2);
+  assert.deepEqual(estimateSize(c2, 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
   const finding = { kind: "finding" as const, findingId: "F", ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
-  const findingBase = estimateSize(finding, "code");
-  assert.deepEqual(estimateSize(finding, "code", 1.5), { width: SATELLITE_WIDTH * 1.5, height: findingBase.height * 1.5 });
+  const findingBase = estimateSize(finding);
+  assert.deepEqual(estimateSize(finding, 1.5), { width: SATELLITE_WIDTH * 1.5, height: findingBase.height * 1.5 });
 });
 
 test("layout: dependents below dependencies, no overlaps, deterministic", () => {
   const g = narrativeGraph(narrative("N"), diff, [diff]);
-  const sized = g.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data, "code") }));
+  const sized = g.nodes.map((n) => ({ id: n.id, ...estimateSize(n.data) }));
   const pos = layout(sized, g.edges);
   assert.deepEqual(layout(sized, g.edges), pos);
   assert.ok(pos.get("N#c2")!.y > pos.get("N#c1")!.y);
@@ -796,7 +798,7 @@ test("visibleGraph hides collapsed quoted findings except dismissed cards", () =
 
 test("estimateSize gives findings the satellite width", () => {
   const data = { kind: "finding" as const, findingId: "F", ai: true, diffId: "D", hunks: [], anchor: "D#f0h0", quote: "l0", category: "tests" as const, severity: "low" as const, title: "T", body: "body", thread: null, decision: null, comment: null, postedTo: null, status: "open" as const, outdated: false, verdict: null, fromEpoch: null, collapsedByDefault: false };
-  assert.deepEqual(estimateSize(data, "concept"), { width: SATELLITE_WIDTH, height: 110 + 20 });
+  assert.deepEqual(estimateSize(data), { width: SATELLITE_WIDTH, height: 110 + 20 });
 });
 
 test("layerGraph hides spec cards with spec checks, AI findings, or Phabricator comments, and what hangs off them", () => {

@@ -4,6 +4,8 @@ import { latestDiff } from "../shared/diffs.ts";
 import { isStaleNotice } from "./notices.ts";
 import { ReviewView } from "./ReviewView.tsx";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
+import { ChangeHeaderNode } from "./nodes/ChangeHeaderNode.tsx";
+import { HunkNode } from "./nodes/HunkNode.tsx";
 import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
 import { SpecNode } from "./nodes/SpecNode.tsx";
@@ -13,6 +15,8 @@ import { PhabThreadNode } from "./nodes/PhabThreadNode.tsx";
 
 const reviewNodeKinds: Record<string, NodeKind> = {
   change: { component: ChangeNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
+  changeHeader: { component: ChangeHeaderNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
+  hunk: { component: HunkNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
   commit: { component: CommitNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
   summary: { component: SummaryNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
   spec: { component: SpecNode as NodeKind["component"], minimapColor: "var(--kind-spec)", size: reviewSize },

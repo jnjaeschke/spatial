@@ -1,7 +1,7 @@
 import type { InvestigationData, InvestigationLocation } from "../shared/types.ts";
 import type { DiagramNodeData } from "../../review/web/api.ts";
 import type { Artifact, Ref, SessionState } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, conversationNode, latestStart, lines, rootThread, type Draft, type Graph, type GraphNodeData, type ZoomLevel } from "../../../web/graph-api.ts";
+import { SATELLITE_WIDTH, addChats, addNotes, conversationNode, latestStart, lines, rootThread, type Draft, type Graph, type GraphNodeData } from "../../../web/graph-api.ts";
 
 export interface InvestigationNodeData { kind: "investigation"; investigationId: string; sessionId: string; data: InvestigationData }
 export interface LocationNodeData { kind: "location"; anchor: string; location: InvestigationLocation; searchfox: { repoBase: string; rev: string } | null }
@@ -50,10 +50,12 @@ export function investigationGraph(state: SessionState, drafts: Draft[]): Graph 
   return g;
 }
 
-export function investigationSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+const INVESTIGATION_WIDTH = 760;
+
+export function investigationSize(data: GraphNodeData): { width: number; height: number } {
   if (data.kind === "investigation") {
     const d = (data as unknown as InvestigationNodeData).data;
-    return { width: NODE_WIDTH[level], height: 170 + lines(d.summary, 60) * 22 + d.steps.length * 56 + d.openQuestions.length * 26 + d.testCases.length * 40 + (d.exploration.length ? 60 + d.exploration.length * 40 : 0) };
+    return { width: INVESTIGATION_WIDTH, height: 170 + lines(d.summary, 60) * 22 + d.steps.length * 56 + d.openQuestions.length * 26 + d.testCases.length * 40 + (d.exploration.length ? 60 + d.exploration.length * 40 : 0) };
   }
   if (data.kind === "location") return { width: SATELLITE_WIDTH, height: 110 + lines((data as unknown as LocationNodeData).location.why, 50) * 20 };
   throw new Error(`No size for node kind: ${data.kind}`);

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiffData, Hunk, SemanticChange } from "../../../../src/shared/types.ts";
-import { changeCommit, hunkCommit, reviewedChanges } from "../../../../src/plugins/review/shared/review-path.ts";
+import type { Artifact, DiffData, Hunk, PatchNarrativeData, SemanticChange } from "../../../../src/shared/types.ts";
+import { changeCommit, hunkCommit, reviewedChanges, withUnassigned } from "../../../../src/plugins/review/shared/review-path.ts";
 
 const diff: DiffData = {
   baseSha: "b", headSha: "h",
@@ -38,4 +38,25 @@ test("reviewedChanges returns the latest reviewed marks for one narrative", () =
     mark("1", "N", "c1", true), mark("2", "N", "c2", true), mark("3", "N", "c1", false),
     mark("4", "other", "c3", true),
   ], "N"), new Set(["c2"]));
+});
+
+test("withUnassigned adds one change per commit for the hunks no change claims", () => {
+  const owned = (id: string, commit: number) => hunk(id, [{ kind: "add", text: id, commit }]);
+  const data: DiffData = { ...diff, files: [{ ...diff.files[0]!, hunks: [owned("a0", 0), owned("a1", 1), owned("b1", 1), owned("a2", 2), owned("b2", 2)] }, { path: "b", status: "modified", binary: false, hunks: [owned("c1", 1)] }] };
+  const change = (id: string, hunkIds: string[]): SemanticChange => ({ id, title: id, explanation: "", rationale: "", hunkIds, dependsOn: [], specUrls: [] });
+  const narrative = (changes: SemanticChange[]): PatchNarrativeData => ({ diffId: "D", summary: "", changes });
+  const all = narrative([change("x", ["a0"]), change("y", ["a1"]), change("z", ["a2", "b2"])]);
+  const result = withUnassigned(all, data);
+  assert.deepEqual(result.map((c) => c.id), ["x", "y", "unassigned-C2", "z"]);
+  assert.deepEqual(result[2], { id: "unassigned-C2", title: "Unassigned changes", explanation: "The narration did not place these hunks in any change.", rationale: "", hunkIds: ["b1", "c1"], dependsOn: [], specUrls: [] });
+  const none = narrative([change("x", ["a0", "a1", "b1", "c1"]), change("z", ["a2", "b2"])]);
+  assert.deepEqual(withUnassigned(none, data), none.changes);
+  const several = withUnassigned(narrative([change("x", ["a1"])]), data);
+  assert.deepEqual(several.map((c) => [c.id, c.hunkIds]), [["unassigned-C1", ["a0"]], ["x", ["a1"]], ["unassigned-C2", ["b1", "c1"]], ["unassigned-C3", ["a2", "b2"]]]);
+});
+
+test("withUnassigned of a single-commit diff appends unassigned-C1 at the end", () => {
+  const single: DiffData = { ...diff, commits: [diff.commits[0]!], files: [{ ...diff.files[0]!, hunks: [hunk("a", [{ kind: "add", text: "a" }]), hunk("b", [{ kind: "add", text: "b" }])] }] };
+  const change: SemanticChange = { id: "x", title: "x", explanation: "", rationale: "", hunkIds: ["a"], dependsOn: [], specUrls: [] };
+  assert.deepEqual(withUnassigned({ diffId: "D", summary: "", changes: [change] }, single).map((c) => [c.id, c.hunkIds]), [["x", ["a"]], ["unassigned-C1", ["b"]]]);
 });

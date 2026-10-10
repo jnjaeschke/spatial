@@ -102,22 +102,6 @@ The place shown first, and the fallback for a stored place `graph` rejects.
 
 `string`
 
-#### level()
-
-> **level**(`place`): [`ZoomLevel`](../type-aliases/ZoomLevel.md)
-
-The representation of nodes at `place`.
-
-##### Parameters
-
-###### place
-
-`string`
-
-##### Returns
-
-[`ZoomLevel`](../type-aliases/ZoomLevel.md)
-
 #### open()
 
 > **open**(`graph`, `place`, `nodeId`): `string` \| `null`

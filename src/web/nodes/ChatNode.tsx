@@ -4,7 +4,7 @@ import type { LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext, closeChat } from "../chat-context.ts";
-import type { ChatNodeData, ZoomLevel } from "../graph.ts";
+import type { ChatNodeData } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
@@ -15,18 +15,15 @@ import { Composer, useDraftText } from "../Composer.tsx";
 import { COMPOSER_HINT } from "../composer-key.ts";
 import { ErrorText, useAction } from "../action.tsx";
 
-export type ChatFlowNode = Node<ChatNodeData & { level: ZoomLevel } & Record<string, unknown>, "chat">;
+export type ChatFlowNode = Node<ChatNodeData & Record<string, unknown>, "chat">;
 
 export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   const closer = useContext(ClosedContext);
   const actions = useContext(ChatActionsContext);
   const id = data.threadId ?? data.draftId!;
 
-  if (data.level === "patch") {
-    return <Box kind="chat" level="patch" testId={`chat-${id}`} title={<>💬 {data.messages.length}</>} handles={{ source: Position.Left }} collapse={data.threadId ? { key: data.threadId } : undefined} />;
-  }
   return (
-    <Box kind="chat" level={data.level} testId={`chat-${id}`} handles={{ source: Position.Left }} title={<>Chat{data.messages.length > 0 && ` · ${data.messages.length}`}</>} collapse={data.threadId ? { key: data.threadId } : undefined} onClose={closer ? () => closeChat(data.threadId, data.draftId, actions, closer) : undefined}>
+    <Box kind="chat" testId={`chat-${id}`} handles={{ source: Position.Left }} title={<>Chat{data.messages.length > 0 && ` · ${data.messages.length}`}</>} collapse={data.threadId ? { key: data.threadId } : undefined} onClose={closer ? () => closeChat(data.threadId, data.draftId, actions, closer) : undefined}>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <Conversation {...data} />
       <ReopenClosed hostId={nodeId} />

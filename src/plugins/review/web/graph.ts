@@ -1,14 +1,14 @@
 import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode, type ZoomLevel } from "../../../web/graph-api.ts";
+import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
-import { changeCommit, reviewedChanges } from "../shared/review-path.ts";
+import { changeCommit, reviewedChanges, withUnassigned } from "../shared/review-path.ts";
 import { currentUserComments } from "../shared/postable-comments.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { postTarget } from "../shared/post-plan.ts";
@@ -25,6 +25,23 @@ export type ChangeNodeData = {
   reviewed: boolean;
   threads: HostedThread[];
   comments: { artifact?: Artifact<UserCommentData>; draft?: Draft; lines: UserCommentData["lines"]; revision: number | null; postedTo: number | null }[];
+};
+
+/** The change at its Change place: the same data as `ChangeNodeData`, with the threads that no hunk card shows. */
+export type ChangeHeaderNodeData = Omit<ChangeNodeData, "kind"> & { kind: "changeHeader" };
+
+/** One hunk of a change at its Change place, with the threads and comments that anchor in it. */
+export type HunkNodeData = {
+  kind: "hunk";
+  narrativeId: string;
+  diffId: string;
+  changeId: string;
+  file: DiffFile;
+  hunk: Hunk;
+  /** Owning stack commit; null for single-commit diffs. */
+  commit: number | null;
+  threads: HostedThread[];
+  comments: ChangeNodeData["comments"];
 };
 
 export type CommitNodeData = {
@@ -100,7 +117,7 @@ export type PhabNodeData = {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
 };
 
-export type ReviewNodeData = ChangeNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | FindingNodeData | PhabNodeData;
+export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | FindingNodeData | PhabNodeData;
 
 /** Narrows node data to a review kind. */
 export const isReviewKind = <K extends ReviewNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData, { kind: K }> => data.kind === kind;
@@ -160,6 +177,9 @@ const changePlaceId = (place: string) => place.startsWith("change:") ? place.sli
 const commitCard = (g: Graph, index: number) => g.nodes.find((n) => isReviewKind(n.data, "commit") && n.data.index === index);
 const changeNode = (g: Graph, id: string) => g.nodes.find((n) => n.id === id && isReviewKind(n.data, "change"));
 
+const rowsOf = (lines: { path: string; side: "new" | "old"; end: number }, file: DiffFile, hunk: Hunk) => lines.path === file.path && numberLines(hunk).some((row) => lines.end === (lines.side === "new" ? row.new : row.old));
+const threadInHunk = (thread: HostedThread, file: DiffFile, hunk: Hunk) => !!thread.lines && thread.anchor.split("#").at(-1) === hunk.id && rowsOf(thread.lines, file, hunk);
+
 /** The nodes in `keep` with everything anchored on them (transitively) and the edges among them. */
 function subgraph(g: Graph, keep: Set<string>): Graph {
   for (let grew = true; grew;) {
@@ -193,9 +213,15 @@ export const reviewPlaces = {
       return { nodes: patch.nodes, edges: [...patch.edges, ...patch.nodes.filter((n) => isReviewKind(n.data, "change") && !reached.has(n.id)).map((n) => ({ id: `${card.id}->${n.id}`, source: card.id, target: n.id }))] };
     }
     const id = changePlaceId(place);
-    return id !== null && changeNode(g, id) ? subgraph(g, new Set([id])) : null;
+    const node = id === null ? undefined : changeNode(g, id);
+    if (id === null || !node || !isReviewKind(node.data, "change")) return null;
+    const data = node.data;
+    const { change, narrativeId, diffId, commit } = data;
+    const satellites = subgraph(g, new Set([id]));
+    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${id}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)) } satisfies HunkNodeData }));
+    const header: GraphNode = { ...node, data: { ...data, kind: "changeHeader", threads: data.threads.filter((thread) => !data.hunks.some(({ file, hunk }) => threadInHunk(thread, file, hunk))), comments: [] } satisfies ChangeHeaderNodeData };
+    return { nodes: [header, ...cards, ...satellites.nodes.filter((n) => n.id !== id)], edges: satellites.edges };
   },
-  level: (place: string): ZoomLevel => place.startsWith("change:") ? "code" : "concept",
   open(g: Graph, place: string, nodeId: string): string | null {
     const node = g.nodes.find((n) => n.id === nodeId);
     if (!node) return null;
@@ -246,13 +272,14 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     ? artifacts.find((a) => a.id === narrative.data.previous && a.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined
     : undefined;
   if (narrative.data.previous && !previousNarrative) throw new Error(`Previous narrative ${narrative.data.previous} is missing or invalid`);
+  const changes = withUnassigned(narrative.data, diff.data);
   const byHunk = new Map(diff.data.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, { file, hunk }] as const)));
   const ref = (changeId: string) => `${narrative.id}#${changeId}`;
   const nodes: GraphNode[] = [{
     id: narrative.id,
-    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: narrative.data.changes.length, specStatus: null, drafts: [], skipped: 0, reviews: [], sessionId: narrative.sessionId,
+    data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: changes.length, specStatus: null, drafts: [], skipped: 0, reviews: [], sessionId: narrative.sessionId,
       sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [], bugs: [],
-      bugHunks: [...new Set(narrative.data.changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId } satisfies SummaryNodeData,
+      bugHunks: [...new Set(changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId } satisfies SummaryNodeData,
   }];
   const edges: GraphEdge[] = [];
   const stack = diff.data.commits.length > 1;
@@ -261,18 +288,15 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     diff.data.commits.forEach((commit, index) => {
       const cardId = commitNodeId(narrative.id, index);
       nodes.push({ id: cardId, data: { kind: "commit", narrativeId: narrative.id, index, commit, intent: narrative.data.commitIntents?.[index] ?? null, flowHint: narrative.data.flowHints?.[index] ?? null,
-        changeCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index).length,
-        reviewedCount: narrative.data.changes.filter((change) => changeCommit(diff.data, change) === index && reviewed.has(change.id)).length, findingCount: 0 } satisfies CommitNodeData });
+        changeCount: changes.filter((change) => changeCommit(diff.data, change) === index).length,
+        reviewedCount: changes.filter((change) => changeCommit(diff.data, change) === index && reviewed.has(change.id)).length, findingCount: 0 } satisfies CommitNodeData });
       edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
     });
   }
   const userComments = currentUserComments(artifacts).filter((comment) => comment.data.diffId === diff.id);
   const commentDrafts = drafts.filter((draft) => draft.kind === "comment" && draft.lines);
   const commentForHunks = (hunks: { file: DiffFile; hunk: Hunk }[]) => {
-    const contains = (range: UserCommentData["lines"]) => hunks.some(({ file, hunk }) => file.path === range.path && numberLines(hunk).some((row) => {
-      const start = range.side === "new" ? row.new : row.old;
-      return start === range.end;
-    }));
+    const contains = (range: UserCommentData["lines"]) => hunks.some(({ file, hunk }) => rowsOf(range, file, hunk));
     const saved = userComments.filter((comment) => contains(comment.data.lines)).map((artifact) => {
       const target = postTarget(diff.data, artifact.data.lines);
       const revision = "skip" in target ? null : commitRevision(diff.data.commits[target.commit]!)?.id ?? null;
@@ -287,7 +311,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     });
     return [...saved, ...transient];
   };
-  for (const change of narrative.data.changes) {
+  for (const change of changes) {
     const hunks = change.hunkIds.map((id) => byHunk.get(id)!);
     const commit = stack ? changeCommit(diff.data, change) : null;
     nodes.push({
@@ -329,6 +353,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts, drafts);
+  const narrativeData = { ...latest.narrative.data, changes: withUnassigned(latest.narrative.data, latest.diff.data) };
   const diagramsByCommit = new Map<string, Artifact<DiagramData>>();
   for (const artifact of state.artifacts) {
     if (artifact.type !== "Diagram") continue;
@@ -393,7 +418,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   /** Thread id -> host node id, for threads shown inside their finding or Phabricator box. */
   const hostOf = new Map<string, string>();
   const resolve = (anchor: Ref) => {
-    const id = anchorNodeId(anchor, latest.narrative.id, latest.narrative.data, latest.diff.id, nodeIds, state.links);
+    const id = anchorNodeId(anchor, latest.narrative.id, narrativeData, latest.diff.id, nodeIds, state.links);
     return id && (hostOf.get(id) ?? id);
   };
   const allHunks = latest.diff.data.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk })));
@@ -407,7 +432,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     nodeIds.add(start.id);
     if (root) { nodeIds.add(root.id); hostOf.set(root.id, start.id); }
   }
-  const phab = phabView(state.artifacts, latest.diff, latest.narrative.data);
+  const phab = phabView(state.artifacts, latest.diff, narrativeData);
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
   summary.phabAnchors = phabAnchorsOf(state.artifacts, [...phab.general, ...phab.unanchored.flatMap((group) => group.comments)]);
@@ -463,25 +488,25 @@ export const reviewIsEmpty = (review: SummaryNodeData["reviews"][number]) => rev
 
 const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30 + (comment.bot ? 1 : Math.min(lines(comment.body, charsPerLine), 12)) * 20;
 
+const CODE_WIDTH = 760;
+const threadsHeight = (threads: HostedThread[]) => threads.reduce((sum, thread) => sum + 80 + thread.messages.length * 80, 0);
+
 /** First-paint size estimate of the review kinds, unscaled. */
-export function reviewSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
-  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH[level], data.diagram.data.lanes.length * 170 + 40), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
-  if (isReviewKind(data, "finding")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
-  if (isReviewKind(data, "phab")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
-  if (isReviewKind(data, "spec")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
-  const width = NODE_WIDTH[level];
-  if (isReviewKind(data, "commit")) return { width, height: level === "patch" ? 120 : 100 + lines(data.intent ?? "", 55) * 22 };
+export function reviewSize(data: GraphNodeData): { width: number; height: number } {
+  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH, data.diagram.data.lanes.length * 170 + 40), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
+  if (isReviewKind(data, "finding")) return { width: SATELLITE_WIDTH, height: 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
+  if (isReviewKind(data, "phab")) return { width: SATELLITE_WIDTH, height: 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
+  if (isReviewKind(data, "spec")) return { width: SATELLITE_WIDTH, height: 220 };
+  if (isReviewKind(data, "commit")) return { width: NODE_WIDTH, height: 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
     const reviewHeight = data.reviews.reduce((sum, review) => sum + (reviewIsEmpty(review) ? 40 : 220 + review.submissions.length * 20), 0);
-    return { width, height: level === "patch" ? 140 : 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight + reviewHeight };
+    return { width: NODE_WIDTH, height: 90 + lines(data.summary, 55) * 22 + data.commits.length * 22 + phabHeight + reviewHeight };
   }
+  if (isReviewKind(data, "hunk")) return { width: CODE_WIDTH, height: 80 + data.hunk.lines.length * 18 + threadsHeight(data.threads) };
+  if (isReviewKind(data, "changeHeader")) return { width: CODE_WIDTH, height: 60 + (lines(data.change.explanation, 55) + lines(data.change.rationale, 55)) * 22 + threadsHeight(data.threads) };
   if (!isReviewKind(data, "change")) throw new Error(`Not a review node kind: ${data.kind}`);
-  if (level === "patch") return { width, height: 60 + lines(data.change.title, 20) * 36 };
-  const concept = 60 + (lines(data.change.explanation, 55) + lines(data.change.rationale, 55)) * 22 + data.files.length * 20;
-  const threadHeight = data.threads.reduce((sum, thread) => sum + 80 + thread.messages.length * 80, 0);
-  if (level === "concept") return { width, height: concept + threadHeight };
-  return { width, height: concept + data.hunks.reduce((sum, h) => sum + 40 + h.hunk.lines.length * 18, 0) + threadHeight };
+  return { width: NODE_WIDTH, height: 60 + (lines(data.change.explanation, 55) + lines(data.change.rationale, 55)) * 22 + data.files.length * 20 + threadsHeight(data.threads) };
 }
 
 /** Adds ordering edges for a single-commit diagram without changing the displayed graph edges. */
@@ -496,6 +521,12 @@ export function diagramLayoutEdges(nodes: GraphNode[], edges: GraphEdge[]): Grap
     ...nodes.filter((node) => node.data.kind === "change" && !predecessors.has(node.id))
       .map((node) => ({ id: `layout:${diagram.id}->${node.id}`, source: diagram.id, target: node.id })),
   ];
+}
+
+/** Adds ordering edges that stack a Change place's header and hunk cards in a column without drawing edges between them. */
+export function changeLayoutEdges(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] {
+  const column = nodes.filter((node) => node.data.kind === "changeHeader" || node.data.kind === "hunk");
+  return [...edges, ...column.slice(1).map((node, index) => ({ id: `layout:${column[index]!.id}->${node.id}`, source: column[index]!.id, target: node.id }))];
 }
 
 const LANE_GAP = 120;

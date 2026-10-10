@@ -56,9 +56,9 @@ test("a chat on a location or a plan step hangs on its card", () => {
 });
 
 test("sizes grow with the content and are known for both kinds", () => {
-  const small = investigationSize({ kind: "investigation", investigationId: "i", sessionId: "s", data }, "concept");
-  const big = investigationSize({ kind: "investigation", investigationId: "i", sessionId: "s", data: { ...data, steps: [...data.steps, ...data.steps, ...data.steps] } }, "concept");
+  const small = investigationSize({ kind: "investigation", investigationId: "i", sessionId: "s", data });
+  const big = investigationSize({ kind: "investigation", investigationId: "i", sessionId: "s", data: { ...data, steps: [...data.steps, ...data.steps, ...data.steps] } });
   assert.ok(big.height > small.height);
-  assert.ok(investigationSize({ kind: "location", anchor: "a", location: data.locations[0]!, searchfox: null }, "code").width > 0);
-  assert.throws(() => investigationSize({ kind: "other" }, "code"), /No size/);
+  assert.ok(investigationSize({ kind: "location", anchor: "a", location: data.locations[0]!, searchfox: null }).width > 0);
+  assert.throws(() => investigationSize({ kind: "other" }), /No size/);
 });

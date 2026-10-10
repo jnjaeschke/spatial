@@ -6,6 +6,6 @@
 
 # Variable: NODE\_WIDTH
 
-> `const` **NODE\_WIDTH**: `Record`\<[`ZoomLevel`](../type-aliases/ZoomLevel.md), `number`\>
+> `const` **NODE\_WIDTH**: `480` = `480`
 
-Node width at each zoom level, and the width of satellites at every level.
+Width of cards.

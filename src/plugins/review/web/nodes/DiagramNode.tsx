@@ -1,10 +1,10 @@
 import { useContext, useMemo, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DiagramNodeData } from "../graph.ts";
-import { type ZoomLevel, Box, ClosedContext } from "../../../../web/plugin-api.ts";
+import { Box, ClosedContext } from "../../../../web/plugin-api.ts";
 import { DiagramStepContext } from "../canvas.tsx";
 
-export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData & { level: ZoomLevel }, "diagram">;
+export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData, "diagram">;
 
 const LANE_W = 170;
 const ROW_H = 92;
@@ -32,7 +32,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
     <div className="diagram-summary">{diagram.data.summary}</div>
     {diagram.data.before && <button className="diagram-toggle nodrag" aria-pressed={showBefore} onClick={() => setShowBefore(!showBefore)}>Show flow {showBefore ? "after" : "before"} this commit</button>}
   </>;
-  return <Box kind="diagram" level={data.level} testId={`diagram-${diagram.id}`} handles={{ target: Position.Top, source: Position.Bottom }} title={<>Sequence — {diagram.data.title}<span className="diagram-counts">{steps.length} steps · {unverified} unverified</span></>} collapse={{ key: collapseId, closedWithoutContext: true }} stub={head} onClose={closer ? () => closer.close(diagram.id) : undefined}>
+  return <Box kind="diagram" testId={`diagram-${diagram.id}`} handles={{ target: Position.Top, source: Position.Bottom }} title={<>Sequence — {diagram.data.title}<span className="diagram-counts">{steps.length} steps · {unverified} unverified</span></>} collapse={{ key: collapseId, closedWithoutContext: true }} stub={head} onClose={closer ? () => closer.close(diagram.id) : undefined}>
     {head}
     <div className="diagram-content nodrag nopan">
       <div className="sequence-diagram" role="group" aria-label={`Sequence diagram: ${diagram.data.title}`} style={{ width, height }}>

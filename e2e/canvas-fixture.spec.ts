@@ -36,7 +36,7 @@ test("double-click drills into a change, Esc and the breadcrumb go back up, zoom
 
   for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "zoom out" }).click();
   await waitForCanvasSettled(page);
-  await expect(page.getByTestId("change-c2")).toHaveAttribute("data-level", "code");
+  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
   await expect(page.getByTestId("hunk-f1h0").getByText("mPendingCommit = aPending;")).toBeAttached();
 
   await page.keyboard.press("Escape");
@@ -45,6 +45,7 @@ test("double-click drills into a change, Esc and the breadcrumb go back up, zoom
   await waitForCanvasSettled(page);
   await expect(page.getByTestId("change-c2")).toBeInViewport();
   await expect(page.getByTestId("hunk-f1h0")).toHaveCount(0);
+  await expect(page.getByTestId("change-c2").locator(".explanation")).toBeAttached();
 
   await openChange(page, "change-c2");
   await crumbs.getByRole("button", { name: "Patch" }).click();
@@ -317,7 +318,7 @@ test("view, guide step, and collapse state persist across reloads", async ({ pag
   expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(after.zoom - before.zoom)).toBeLessThanOrEqual(0.01);
-  await expect(page.getByTestId("change-c1")).toHaveAttribute("data-level", "concept");
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "patch:0");
   await expect(page.getByTestId("guide")).toContainText("Step 2/");
   await expect(page.getByTestId("change-c1").locator(".body")).toHaveCount(0);
 });

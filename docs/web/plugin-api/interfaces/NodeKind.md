@@ -30,7 +30,7 @@ False: no width handle and the width always comes from `size` (diagram). Default
 
 ### size()
 
-> **size**(`data`, `level`): `object`
+> **size**(`data`): `object`
 
 First-paint size estimate before measurement, unscaled.
 
@@ -39,10 +39,6 @@ First-paint size estimate before measurement, unscaled.
 ##### data
 
 [`GraphNodeData`](../type-aliases/GraphNodeData.md)
-
-##### level
-
-[`ZoomLevel`](../type-aliases/ZoomLevel.md)
 
 #### Returns
 

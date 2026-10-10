@@ -1,9 +1,9 @@
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { PhabNodeData } from "../graph.ts";
-import { type ZoomLevel, Conversation, Box } from "../../../../web/plugin-api.ts";
+import { Conversation, Box } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
 
-export type PhabFlowNode = Node<PhabNodeData & { level: ZoomLevel; sessionId: string } & Record<string, unknown>, "phab">;
+export type PhabFlowNode = Node<PhabNodeData & { sessionId: string } & Record<string, unknown>, "phab">;
 
 export function PhabThreadNode({ data }: NodeProps<PhabFlowNode>) {
   const root = data.comments[0]!.data;

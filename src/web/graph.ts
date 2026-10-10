@@ -4,10 +4,9 @@ import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 import type { FreePosition } from "./free-positions.ts";
 
-export type ZoomLevel = "patch" | "concept" | "code";
-
-export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
-/** Width of spec and chat satellites at every zoom level. */
+/** Width of cards. */
+export const NODE_WIDTH = 480;
+/** Width of satellites: spec, chat and the like. */
 export const SATELLITE_WIDTH = 420;
 
 export interface NoteNodeData { kind: "note"; body: string }
@@ -251,16 +250,16 @@ export function placeSatellites(main: Map<string, { x: number; y: number; width:
 export const lines = (text: string, charsPerLine: number) => Math.max(1, Math.ceil(text.length / charsPerLine));
 
 /** First-paint estimate of a core kind; the canvas re-layouts with measured sizes. */
-function baseSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
+function baseSize(data: GraphNodeData): { width: number; height: number } {
   if (isCoreKind(data, "note")) return { width: SATELLITE_WIDTH, height: 100 + lines(data.body, 60) * 22 };
-  if (isCoreKind(data, "conversation")) return { width: NODE_WIDTH[level], height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
-  if (isCoreKind(data, "chat")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 140 + data.messages.length * 80 };
+  if (isCoreKind(data, "conversation")) return { width: NODE_WIDTH, height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
+  if (isCoreKind(data, "chat")) return { width: SATELLITE_WIDTH, height: 140 + data.messages.length * 80 };
   if (isCoreKind(data, "decision")) return { width: SATELLITE_WIDTH, height: 150 + data.decision.data.options.length * 10 };
   throw new Error(`No core size for node kind: ${data.kind}`);
 }
 
-export function estimateSize(data: GraphNodeData, level: ZoomLevel, textScale = 1): { width: number; height: number } {
-  const size = baseSize(data, level);
+export function estimateSize(data: GraphNodeData, textScale = 1): { width: number; height: number } {
+  const size = baseSize(data);
   return { width: size.width * textScale, height: size.height * textScale };
 }
 

@@ -160,6 +160,6 @@ test("sessionGraph shows draft notes as free positioned nodes", () => {
 
 test("estimateSize scales core node dimensions", () => {
   const chat = { kind: "chat" as const, anchor: "W", diffId: "", hunks: [], threadId: "T", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] };
-  const base = estimateSize(chat, "code");
-  assert.deepEqual(estimateSize(chat, "code", 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
+  const base = estimateSize(chat);
+  assert.deepEqual(estimateSize(chat, 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
 });

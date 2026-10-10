@@ -4,6 +4,7 @@ import { checkDrift } from "../runtime/drift.ts";
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/diffs.ts";
+import { withUnassigned } from "../shared/review-path.ts";
 import { currentUserComments, postableComments } from "../shared/postable-comments.ts";
 import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
@@ -51,7 +52,8 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, params[0]!);
       const narrative = requireArtifact(rt, session.id, params[1]!, "PatchNarrative", "narrative") as Artifact<PatchNarrativeData>;
       const change = params[2]!;
-      if (!narrative.data.changes.some((item) => item.id === change)) throw new HttpError(404, `Unknown change: ${change}`);
+      const diff = requireArtifact(rt, session.id, narrative.data.diffId, "Diff", "diff") as Artifact<DiffData>;
+      if (!withUnassigned(narrative.data, diff.data).some((item) => item.id === change)) throw new HttpError(404, `Unknown change: ${change}`);
       const body = await readJson(req);
       if (typeof body.reviewed !== "boolean") throw new HttpError(400, "Invalid reviewed");
       const artifact = putUserArtifact(rt, session.id, "ChangeReview", { narrative: narrative.id, change, reviewed: body.reviewed } satisfies ChangeReviewData, `${narrative.id}#${change}`);

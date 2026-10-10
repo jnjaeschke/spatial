@@ -88,12 +88,6 @@ Kind slug: adds the `${kind}-node` class, which sets `--kind`.
 
 ***
 
-### level?
-
-> `optional` **level?**: [`ZoomLevel`](../type-aliases/ZoomLevel.md)
-
-***
-
 ### nested?
 
 > `optional` **nested?**: `boolean`

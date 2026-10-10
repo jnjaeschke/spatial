@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, diagramLayoutEdges, diagramStepTarget, guideEntries, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
+import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 
 /** A diff row to reveal and focus; a new object per request. */
 import type { HunkRow } from "../../../web/plugin-api.ts";
@@ -75,7 +75,7 @@ export const reviewCanvas: CanvasModel = {
   layers: { list: LAYERS.map((id) => ({ id, label: LAYER_LABEL[id] })), hide: (graph, hidden) => layerGraph(graph, hidden as ReadonlySet<Layer>) },
   places: reviewPlaces,
   stack: { is: (_, place) => place === "stack", layout: stackLayout },
-  layoutEdges: diagramLayoutEdges,
+  layoutEdges: (nodes, edges) => changeLayoutEdges(nodes, diagramLayoutEdges(nodes, edges)),
   revealWhenAdded: (node) => node.data.kind === "diagram",
   Provider: ReviewCanvasProvider,
 };

@@ -5,7 +5,7 @@ import {
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, SATELLITE_WIDTH, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode, type ZoomLevel } from "./graph.ts";
+import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, SATELLITE_WIDTH, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode } from "./graph.ts";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
@@ -63,8 +63,6 @@ export interface CanvasModel {
     initial(graph: Graph): string;
     /** The graph shown at `place`, or null when the place does not exist in `graph`. */
     graph(graph: Graph, place: string): Graph | null;
-    /** The representation of nodes at `place`. */
-    level(place: string): ZoomLevel;
     /** The place a node opens into, or null when it opens nothing. */
     open(graph: Graph, place: string, nodeId: string): string | null;
     /** The enclosing place and the node in it that leads to `place`; null at the top. */
@@ -82,13 +80,14 @@ export interface CanvasModel {
   Provider?: ComponentType<CanvasProviderProps>;
 }
 const NO_STEPS: GuideStep[] = [];
+const MIN_NODE_WIDTH = 240;
 const NO_PROVIDER: ComponentType<CanvasProviderProps> = ({ children }) => <>{children}</>;
 
 /** The `quote` of a node, highlighted in the text of its `anchor`: chat threads, and plugin nodes (findings) that carry both. */
 const quoteOf = (data: GraphNodeData) => "quote" in data && typeof data.quote === "string" && data.quote && "anchor" in data && typeof data.anchor === "string"
   ? { kind: data.kind, anchor: data.anchor, quote: data.quote, lines: ("lines" in data ? data.lines : undefined) as ChatNodeData["lines"] } : null;
 
-const ResizeContext = createContext<{ level: ZoomLevel; textScale: number; resized(id: string, from: ResizeParams, to: ResizeParams): void } | null>(null);
+const ResizeContext = createContext<{ textScale: number; resized(id: string, from: ResizeParams, to: ResizeParams): void } | null>(null);
 function ResizableNode(props: NodeProps) {
   const kinds = useContext(NodeKindsContext);
   const resize = useContext(ResizeContext);
@@ -100,7 +99,7 @@ function ResizableNode(props: NodeProps) {
   return <>
     {createElement(Original, props)}
     {resize && <NodeResizer
-      minWidth={NODE_WIDTH[resize.level] * resize.textScale / 2}
+      minWidth={MIN_NODE_WIDTH * resize.textScale}
       minHeight={60 * resize.textScale}
       onResizeStart={(_, params) => { start.current = params; }}
       onResizeEnd={(_, params) => resize.resized(props.id, start.current!, params)}
@@ -181,7 +180,6 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     if (!initialGraph) throw new Error(`Initial place ${initial} does not exist`);
     return { place: initial, placed: initialGraph };
   }, [places, graph, placeState]);
-  const level: ZoomLevel = places && place !== null ? places.level(place) : "code";
   const placeRef = useRef(place);
   placeRef.current = place;
   useEffect(() => {
@@ -268,7 +266,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   const focusNode = (id: string) => {
     const node = rf.getNode(id);
     if (!node) return;
-    const w = node.measured?.width ?? NODE_WIDTH[level] * textScale;
+    const w = node.measured?.width ?? (nodeKinds[node.type!]?.size(node.data as GraphNodeData).width ?? 0) * textScale;
     const h = node.measured?.height ?? 0;
     const zoom = rf.getZoom();
     const view = paneHeight / zoom;
@@ -296,13 +294,13 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   const offsets = useRef(new Map<string, { dx: number; dy: number }>());
   const basePos = useRef(new Map<string, { x: number; y: number }>());
 
-  const sizeOf = (kind: string, id: string): NodeSize => nodeKinds[kind]?.resizable === false ? {} : sizes[level]?.[id] ?? {};
+  const sizeOf = (kind: string, id: string): NodeSize => nodeKinds[kind]?.resizable === false ? {} : sizes[id] ?? {};
   // A node with a height of its own scrolls its content, and the wheel scrolls it instead of the canvas.
   const nodeClass = (id: string, kind: string) => [id === currentRef.current && "guide-current", sizeOf(kind, id).height !== undefined && "fixed-height nowheel"].filter(Boolean).join(" ") || undefined;
   const nodeStyle = (n: PlacedNode | GraphNode) => {
     const kind = nodeKinds[n.data.kind]!;
     const size = sizeOf(n.data.kind, n.id);
-    const width = kind.resizable === false ? kind.size(n.data, level).width : size.width ?? (isSatellite(n) ? SATELLITE_WIDTH : NODE_WIDTH[level]);
+    const width = kind.resizable === false ? kind.size(n.data).width : size.width ?? (isSatellite(n) ? SATELLITE_WIDTH : kind.size(n.data).width);
     return { width: width * textScale, ...(size.height !== undefined ? { height: size.height * textScale } : {}) };
   };
   const keepPosition = (id: string, position: { x: number; y: number }) => {
@@ -317,7 +315,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     if (Math.round(to.width) !== Math.round(from.width)) size.width = to.width / textScale;
     if (Math.round(to.height) !== Math.round(from.height)) size.height = to.height / textScale;
     if (to.x !== from.x || to.y !== from.y) keepPosition(id, { x: to.x, y: to.y });
-    if (size.width !== undefined || size.height !== undefined) setSize(level, id, size);
+    if (size.width !== undefined || size.height !== undefined) setSize(id, size);
   };
 
   const offsetPosition = (id: string, p: { x: number; y: number }) => {
@@ -331,7 +329,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   // chat placed before its anchor was measured moves to its quote once it is.
   const quoteDy = useRef(new Map<string, number>());
   const [quoteDyVersion, setQuoteDyVersion] = useState(0);
-  useEffect(() => quoteDy.current.clear(), [level, place]);
+  useEffect(() => quoteDy.current.clear(), [place]);
   const measureQuoteDy = () => {
     let changed = false;
     for (const n of quoted) {
@@ -386,9 +384,9 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   useLayoutEffect(() => {
     if (anchor.current && revealedIds.includes(anchor.current)
       && !shown.nodes.some((n) => n.id === anchor.current)) anchor.current = null;
-    // A new graph object (every session event) keeps the measured sizes of unchanged zoom and text scale, so
+    // A new graph object (every session event) keeps the measured sizes of an unchanged place and text scale, so
     // the view does not jump to estimated positions until the next measurement.
-    const basis = `${level}|${textScale}`;
+    const basis = `${place}|${textScale}`;
     const keepMeasured = basis === sizeBasis.current;
     sizeBasis.current = basis;
     const measured = new Map(keepMeasured ? rf.getNodes().flatMap((n) => n.measured?.width && n.measured.height ? [[n.id, n.measured] as const] : []) : []);
@@ -397,7 +395,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       const m = measured.get(n.id);
       const kind = nodeKinds[n.data.kind];
       if (!kind) throw new Error(`Unknown node kind: ${n.data.kind}`);
-      const estimate = kind.size(n.data, level);
+      const estimate = kind.size(n.data);
       const width = isSatellite(n) ? SATELLITE_WIDTH : estimate.width;
       const size = sizeOf(n.data.kind, n.id);
       return { id: n.id, width: size.width !== undefined ? size.width * textScale : m?.width ?? width * textScale, height: m?.height ?? (size.height ?? estimate.height) * textScale };
@@ -408,7 +406,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     setNodes(shown.nodes.map((n) => ({
       id: n.id,
       type: n.data.kind,
-      data: { ...n.data, sessionId: state.session.id, level },
+      data: { ...n.data, sessionId: state.session.id },
       position: offsetPosition(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
       style: nodeStyle(n),
@@ -417,7 +415,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       draggable: true,
       dragHandle: ".title",
     })));
-  }, [shown, level, textScale, setNodes, state.session.id, rf, sizes]);
+  }, [shown, place, textScale, setNodes, state.session.id, rf, sizes]);
 
   useEffect(() => {
     setNodes((ns) => ns.map((n) => ({ ...n, className: nodeClass(n.id, n.type!) })));
@@ -427,7 +425,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   useEffect(() => {
     if (nodes.length !== shown.nodes.length || nodes.some((n) => !shown.nodes.some((g) => g.id === n.id))) return;
     if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
-    const key = `${sizeKey}#${quoteDyVersion}#${JSON.stringify(sizes[level] ?? {})}`;
+    const key = `${sizeKey}#${quoteDyVersion}#${JSON.stringify(sizes)}`;
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
     measureQuoteDy();
@@ -459,6 +457,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       const centered = rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
       autoFit.current = false;
+      // The layout has moved the anchor's node, so a focused row in it is centered again.
+      if (focusedRowRef.current) focusCentered.current = false;
       if (selectAfterLayout.current === a.id) {
         const id = a.id;
         selectAfterLayout.current = null;
@@ -479,7 +479,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
         void rf.fitView({ maxZoom: Math.max(1, fitFloor.minZoom ?? 0), ...fitFloor }).then(() => { if (savePlaceView.current && autoFit.current) persistView(); });
       }
     }
-  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, level, graph]);
+  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, graph]);
 
   useEffect(() => {
     if (autoFit.current) return;
@@ -777,7 +777,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
-      <ResizeContext.Provider value={{ level, textScale, resized }}>
+      <ResizeContext.Provider value={{ textScale, resized }}>
       <div className="canvas-layout">
       <ReactFlow
         nodes={nodes}

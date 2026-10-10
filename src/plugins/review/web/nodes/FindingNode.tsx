@@ -1,9 +1,9 @@
 import { useContext, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
-import { api, ChatActionsContext, type ZoomLevel, AnswerMarkdown, Conversation, Box, Composer, ErrorText, useAction } from "../../../../web/plugin-api.ts";
+import { api, ChatActionsContext, AnswerMarkdown, Conversation, Box, Composer, ErrorText, useAction } from "../../../../web/plugin-api.ts";
 import type { FindingNodeData } from "../graph.ts";
 
-export type FindingFlowNode = Node<FindingNodeData & { level: ZoomLevel } & Record<string, unknown>, "finding">;
+export type FindingFlowNode = Node<FindingNodeData & Record<string, unknown>, "finding">;
 
 export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   const actions = useContext(ChatActionsContext);
@@ -19,7 +19,6 @@ export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   };
   return <Box
     kind="finding"
-    level={data.level}
     testId={`finding-${data.findingId}`}
     data={{ "data-anchor": data.findingId }}
     className={`severity-${data.severity}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`}
@@ -31,7 +30,7 @@ export function FindingNode({ data }: NodeProps<FindingFlowNode>) {
   >
     {verdict}
     {errorText}
-    {!dismissed && data.level !== "patch" && <>
+    {!dismissed && <>
       {actions
         ? <Conversation anchor={data.findingId} diffId={data.diffId} hunks={data.hunks} threadId={data.thread?.threadId ?? null} draftId={null} taskId={data.thread?.taskId ?? null} messages={data.thread?.messages ?? []} revisions={data.thread?.revisions ?? {}} mcpRequests={data.thread?.mcpRequests ?? []} lead={finding} />
         : <div className="messages body nodrag nopan nowheel">{finding}</div>}

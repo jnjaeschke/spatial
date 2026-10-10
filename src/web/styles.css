@@ -264,7 +264,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .file-panel tr.in-hunk { border-left: 3px solid var(--border-strong); }
 .file-panel tr.target { border-left: 3px solid var(--accent); }
 /* The jump target flashes, then fades back to the row's own add/del color; the class stays so a later jump restarts it. */
-.file-panel tr.focus, .change-node tr.focus { animation: row-focus 2.5s ease-out; }
+.file-panel tr.focus, .hunk-node tr.focus { animation: row-focus 2.5s ease-out; }
 @keyframes row-focus { 0%, 40% { background-color: var(--diff-focus); } }
 .file-panel-error { padding: 8px 12px; color: var(--danger); }
 .empty { padding: 32px; color: var(--text-2); }
@@ -390,9 +390,8 @@ button.code-link::after {
   background: currentColor;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.5v5M3.5 4h5M3.5 10h5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
-.level-patch { font-size: calc(28px * var(--text-scale, 1)); }
-.level-concept { font-size: calc(16px * var(--text-scale, 1)); }
-.level-code { font-size: calc(13px * var(--text-scale, 1)); }
+.node { font-size: calc(16px * var(--text-scale, 1)); }
+.hunk-node { font-size: calc(13px * var(--text-scale, 1)); }
 .node .rationale b, .box .rationale b { color: var(--text-2); font-weight: 600; }
 .explanation { color: var(--text); }
 .rationale { color: var(--text-2); }
@@ -456,7 +455,6 @@ button.code-link::after {
 }
 .conversation-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .summary-node > .title { color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.72em; }
-.summary-node.level-patch > .title { font-size: 0.6em; }
 .summary-node .since-epoch { font-size: calc(12px * var(--text-scale, 1)); color: var(--text-2); margin-top: 4px; }
 .summary-node .spec-status { font-size: 0.85em; color: var(--text-2); }
 .bug-summary { margin-top: 8px; font-size: 0.9em; }

@@ -89,7 +89,7 @@ test("open the whole file in the side panel", async ({ page }) => {
   await expect(panel.locator("tr", { hasText: "line 1" }).first()).not.toHaveClass(/jumps/);
   await page.getByTestId("change-c1").getByRole("button", { name: "Collapse" }).click();
   await panel.locator("tr", { has: page.getByText("THIRTY", { exact: true }) }).click();
-  const focused = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
+  const focused = page.locator('tr.focus[data-new="30"]');
   await expect(focused).toBeInViewport();
   await expect(focused).toContainText("THIRTY");
   await panel.getByRole("button", { name: "Close file" }).click();
@@ -101,7 +101,7 @@ test("code span in an explanation jumps to the matching row of its change", asyn
   await page.getByRole("link", { name: "fixture" }).click();
   await openPatch(page, 0);
   await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
-  const focus = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
+  const focus = page.locator('tr.focus[data-new="30"]');
   await expect(focus).toHaveText(/THIRTY/);
   await expect(focus).toBeInViewport();
   await expect(page.getByTestId("file-panel")).toHaveCount(0);

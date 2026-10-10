@@ -179,9 +179,3 @@ Re-exports [SATELLITE_WIDTH](../plugin-api/variables/SATELLITE_WIDTH.md)
 ### threadContent
 
 Re-exports [threadContent](../plugin-api/functions/threadContent.md)
-
-***
-
-### ZoomLevel
-
-Re-exports [ZoomLevel](../plugin-api/type-aliases/ZoomLevel.md)

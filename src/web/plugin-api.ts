@@ -7,7 +7,7 @@ import { createContext, useContext, type ComponentType, type ReactNode, type Rea
 import { createPortal } from "react-dom";
 import type { SessionState, ModelsResponse, NotifyPayload, Epoch } from "../shared/types.ts";
 import type { Draft } from "./chat-context.ts";
-import type { GraphNodeData, ZoomLevel } from "./graph-api.ts";
+import type { GraphNodeData } from "./graph-api.ts";
 import type { NodeProps } from "@xyflow/react";
 
 export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; /** The epoch being shown; null before the first epoch. A past epoch comes with the session state as it was then and `readOnly`. */ epoch: Epoch | null; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
@@ -28,7 +28,7 @@ export interface NodeKind {
   component: ComponentType<NodeProps>;
   minimapColor: string;
   /** First-paint size estimate before measurement, unscaled. */
-  size(data: GraphNodeData, level: ZoomLevel): { width: number; height: number };
+  size(data: GraphNodeData): { width: number; height: number };
   /** False: no width handle and the width always comes from `size` (diagram). Default true. */
   resizable?: boolean;
 }

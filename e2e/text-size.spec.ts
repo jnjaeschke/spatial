@@ -12,7 +12,7 @@ test("Ctrl+= grows node text and the fit keeps it readable", async ({ page }) =>
   await page.goto(URL);
   await openChange(page, "change-c2");
   await page.waitForTimeout(500);
-  const change = page.getByTestId("change-c2");
+  const change = page.getByTestId("hunk-card-f1h0");
   await expect(change).toHaveCSS("font-size", "13px");
   const before = await onScreenCodeSize(page);
 
@@ -22,9 +22,7 @@ test("Ctrl+= grows node text and the fit keeps it readable", async ({ page }) =>
   await expect.poll(async () => Math.abs(
     parseFloat(await change.evaluate((el) => getComputedStyle(el).fontSize)) - 20.8,
   )).toBeLessThanOrEqual(1 / 64);
-  await expect(change).toHaveAttribute("data-level", "code");
   await expect.poll(async () => (await onScreenCodeSize(page)) / before, { timeout: 5_000 }).toBeGreaterThan(1.3);
-  await expect(change).toHaveAttribute("data-level", "code");
 
   await page.keyboard.press("Control+0");
   await expect.poll(() => textScaleVar(page)).toBe("1");

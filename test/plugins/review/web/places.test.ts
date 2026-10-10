@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData } from "../../../../src/shared/types.ts";
-import type { Graph, GraphNode } from "../../../../src/web/graph.ts";
-import { guideEntries, narrativeGraph, reviewPlaces } from "../../../../src/plugins/review/web/graph.ts";
+import { layout, type Graph, type GraphNode, type HostedThread } from "../../../../src/web/graph.ts";
+import { changeLayoutEdges, guideEntries, isReviewKind, narrativeGraph, reviewPlaces, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const hunk = (id: string) => ({ id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "ctx" as const, text: "l" }] });
 const diff = (commits: number): Artifact<DiffData> => ({
@@ -59,16 +59,42 @@ test("patch:0 of a single-commit diff is the whole graph", () => {
   assert.equal(reviewPlaces.graph(g, "patch:1"), null);
 });
 
-test("change place holds the change and the satellites anchored to it, transitively", () => {
-  assert.deepEqual(ids(reviewPlaces.graph(single(), "change:N#c1"))!.sort(), ["N#c1", "S1", "S2"]);
-  assert.deepEqual(ids(reviewPlaces.graph(single(), "change:N#c2")), ["N#c2"]);
+test("change place holds the change as a header, one card per hunk in order, and the satellites anchored to it", () => {
+  assert.deepEqual(ids(reviewPlaces.graph(single(), "change:N#c1"))!.sort(), ["N#c1", "N#c1/h0", "S1", "S2"]);
+  const g = reviewPlaces.graph(single(), "change:N#c2")!;
+  assert.deepEqual(g.nodes.map((n) => [n.id, n.data.kind]), [["N#c2", "changeHeader"], ["N#c2/h1", "hunk"], ["N#c2/h2", "hunk"]]);
+  const card = g.nodes[2]!.data;
+  assert.ok(isReviewKind(card, "hunk") && card.changeId === "c2" && card.narrativeId === "N" && card.diffId === "D" && card.file.path === "b.h" && card.hunk.id === "h2" && card.commit === null);
   assert.equal(reviewPlaces.graph(single(), "change:N#missing"), null);
   assert.equal(reviewPlaces.graph(single(), "change:N"), null);
   assert.equal(reviewPlaces.graph(single(), "bogus"), null);
 });
 
-test("places choose the node representation", () => {
-  assert.deepEqual(["stack", "patch:3", "change:N#c1"].map(reviewPlaces.level), ["concept", "concept", "code"]);
+test("change place gives each hunk card the threads and comments anchored in it and the header the rest", () => {
+  const g = single();
+  const thread = (anchor: string, lines?: HostedThread["lines"]): HostedThread => ({ threadId: anchor + lines?.end, taskId: null, messages: [], revisions: {}, mcpRequests: [], anchor, ...(lines ? { lines } : {}), diffId: "D", hunks: [], draftId: null });
+  const comment = (line: number): ChangeNodeData["comments"][number] => ({ lines: { path: "a.cpp", side: "new", start: line, end: line }, revision: null, postedTo: null });
+  const data = g.nodes.find((n) => n.id === "N#c2")!.data as ChangeNodeData;
+  const loose = thread("N#c2");
+  data.threads = [thread("D#h1", { path: "a.cpp", side: "new", start: 1, end: 1 }), loose, thread("D#h2", { path: "b.h", side: "new", start: 1, end: 1 })];
+  data.comments = [comment(1)];
+  const place = reviewPlaces.graph(g, "change:N#c2")!;
+  const of = (id: string) => place.nodes.find((n) => n.id === id)!.data as unknown as { threads: HostedThread[]; comments: unknown[] };
+  assert.deepEqual(of("N#c2").threads, [loose]);
+  assert.deepEqual(of("N#c2/h1").threads.map((t) => t.anchor), ["D#h1"]);
+  assert.deepEqual(of("N#c2/h2").threads.map((t) => t.anchor), ["D#h2"]);
+  assert.equal(of("N#c2/h1").comments.length, 1);
+  assert.equal(of("N#c2/h2").comments.length, 0);
+});
+
+test("change layout edges chain the header and its hunk cards without touching the displayed edges", () => {
+  const g = reviewPlaces.graph(single(), "change:N#c2")!;
+  const edges = changeLayoutEdges(g.nodes, g.edges);
+  assert.deepEqual(edges.map((e) => [e.source, e.target]), [["N#c2", "N#c2/h1"], ["N#c2/h1", "N#c2/h2"]]);
+  assert.deepEqual(g.edges, []);
+  const pos = layout(g.nodes.map((n) => ({ id: n.id, width: 760, height: 100 })), edges);
+  assert.ok(pos.get("N#c2")!.y < pos.get("N#c2/h1")!.y && pos.get("N#c2/h1")!.y < pos.get("N#c2/h2")!.y);
+  assert.deepEqual(changeLayoutEdges(reviewPlaces.graph(single(), "patch:0")!.nodes, []), []);
 });
 
 test("open drills commit cards into patches and changes into change places", () => {
@@ -112,4 +138,15 @@ test("a commit step is reviewed once all its changes are", () => {
   const g = stack();
   for (const n of g.nodes) if (n.data.kind === "commit" && n.data.index === 0) n.data.reviewedCount = n.data.changeCount;
   assert.deepEqual(guideEntries(g, "stack").map((s) => s.reviewed), [true, false]);
+});
+
+test("hunks no change claims are reachable from an unassigned change of their commit", () => {
+  const single = narrativeGraph(narrative([ch("c1", ["h0"])]), diff(1), [diff(1)]);
+  assert.deepEqual(ids(single), ["N", "N#c1", "N#unassigned-C1"]);
+  assert.deepEqual(reviewPlaces.graph(single, "change:N#unassigned-C1")!.nodes.map((n) => n.id), ["N#unassigned-C1", "N#unassigned-C1/h1", "N#unassigned-C1/h2"]);
+  assert.deepEqual(single.edges.map((e) => [e.source, e.target]), [["N", "N#c1"], ["N", "N#unassigned-C1"]]);
+  const stacked = narrativeGraph(narrative([ch("c1", ["h0"])]), diff(2), [diff(2)]);
+  assert.deepEqual(reviewPlaces.graph(stacked, "patch:1")!.nodes.map((n) => n.id).sort(), ["N#commit-1", "N#unassigned-C2"]);
+  assert.deepEqual(guideEntries(stacked, "patch:1").map((s) => [s.title, s.tag]), [["Unassigned changes", "C2"]]);
+  assert.deepEqual(guideEntries(stacked, "stack").map((s) => s.reviewed), [false, false]);
 });

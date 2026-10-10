@@ -26,7 +26,7 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(codeLink).toBeVisible();
   await revealNode(page, codeLink);
   await codeLink.click();
-  const focused = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
+  const focused = page.locator('tr.focus[data-new="30"]');
   await expect(focused).toBeInViewport();
   await expect(focused).toContainText("THIRTY");
   await expect(page.getByTestId("file-panel")).toHaveCount(0);
@@ -330,7 +330,7 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await expect(draft).toBeVisible();
   await expect(draft.getByLabel("message")).toBeFocused();
-  await expect(page.getByTestId("change-c1").locator(".hosted-chat")).toHaveCount(1);
+  await expect(page.getByTestId("hunk-card-f0h0").locator(".hosted-chat")).toHaveCount(1);
   expect(selected).toContain(word);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])]
     .map((r) => `${r.startContainer.parentElement?.closest("td")?.className}:${(r as Range).toString()}`))).toContain(`code:${word}`);

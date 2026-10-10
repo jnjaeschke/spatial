@@ -141,12 +141,16 @@ test("dirs lists directories, marks git roots, validates paths, and defaults to 
 
 test("reviewed marks validate narrative and change, then create a user artifact", async () => {
   const session = await newSession();
+  const diff = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", provenance: { taskId: "test" },
+    data: { baseSha: "b", headSha: "h", commits: [{ sha: "1", subject: "s", body: "" }], files: [{ path: "a", status: "modified", binary: false, hunks: [{ id: "h1", header: "", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "add", text: "x" }] }] }] } });
   const narrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed",
-    data: { diffId: "D", summary: "s", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls: [] }] }, provenance: { taskId: "test" } });
+    data: { diffId: diff.id, summary: "s", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls: [] }] }, provenance: { taskId: "test" } });
   const route = `/api/sessions/${session.id}/narratives/${narrative.id}/changes`;
   assert.equal((await post(`${route}/c1/reviewed`, { reviewed: "yes" })).status, 400);
   assert.equal((await post(`/api/sessions/${session.id}/narratives/missing/changes/c1/reviewed`, { reviewed: true })).status, 404);
   assert.equal((await post(`${route}/c9/reviewed`, { reviewed: true })).status, 404);
+  assert.equal((await post(`${route}/unassigned-C1/reviewed`, { reviewed: true })).status, 201);
+  assert.equal((await post(`${route}/unassigned-C2/reviewed`, { reviewed: true })).status, 404);
   const response = await post(`${route}/c1/reviewed`, { reviewed: true });
   assert.equal(response.status, 201);
   const { artifactId } = await response.json();

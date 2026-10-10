@@ -1,12 +1,12 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
-import { type ZoomLevel, Box, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
+import { Box, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../../../../web/plugin-api.ts";
 import { ReviewPanel } from "../ReviewPanel.tsx";
 
-export type SummaryFlowNode = Node<SummaryNodeData & { level: ZoomLevel } & Record<string, unknown>, "summary">;
+export type SummaryFlowNode = Node<SummaryNodeData & Record<string, unknown>, "summary">;
 
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   const collapse = useContext(CollapseContext);
@@ -23,22 +23,22 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   );
   const sinceEpoch = data.sinceEpoch !== null && <div className="since-epoch" data-testid="since-epoch">Changes since epoch {data.sinceEpoch}</div>;
   return (
-    <Box kind="summary" level={data.level} testId="summary" data={{ "data-anchor": data.narrativeId }} handles={{ source: Position.Bottom }} title={`${data.changeCount} changes`} collapse={{ key: data.narrativeId }} stub={sinceEpoch}>
+    <Box kind="summary" testId="summary" data={{ "data-anchor": data.narrativeId }} handles={{ source: Position.Bottom }} title={`${data.changeCount} changes`} collapse={{ key: data.narrativeId }} stub={sinceEpoch}>
       {sinceEpoch}
       <div className="body nodrag nopan">
         <p><InlineText text={data.summary} /></p>
-        {data.level !== "patch" && specText && <p className="spec-status">{specText}</p>}
-        {data.level !== "patch" && data.bugs.map(({ report, summary, summarizing }) => <details className="bug-summary" data-testid="bug-summary" key={report.id}>
+        {specText && <p className="spec-status">{specText}</p>}
+        {data.bugs.map(({ report, summary, summarizing }) => <details className="bug-summary" data-testid="bug-summary" key={report.id}>
           <summary><a href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${report.data.bug}`} target="_blank" rel="noreferrer">Bug {report.data.bug}</a>{report.data.title && ` — ${report.data.title}`}{report.data.status && ` · ${report.data.status}`}{report.data.component && ` · ${report.data.component}`}</summary>
           {report.data.error ? <p className="bug-error">{report.data.error}</p> : summary
             ? <AnswerMarkdown text={summary.data.summary} hunks={data.bugHunks} diffId={data.bugDiffId} />
             : summarizing ? <p>Summarizing…</p> : <p>Summary unavailable.</p>}
         </details>)}
-        {data.level !== "patch" && data.phabGeneral.length > 0 && <section className="phab-summary">
+        {data.phabGeneral.length > 0 && <section className="phab-summary">
           <h4>Phabricator comments</h4>
           <ul className="phab-comments">{data.phabGeneral.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} /></li>)}</ul>
         </section>}
-        {data.level !== "patch" && data.phabUnanchored.map((group, index) => {
+        {data.phabUnanchored.map((group, index) => {
           const id = group.outdatedEpoch === null ? null : `phab-outdated:${group.outdatedEpoch}`;
           const closedGroup = id !== null && (collapse?.collapsed.has(id) ?? false);
           const revision = group.comments[0]?.data.revision;
@@ -50,12 +50,10 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             {!closedGroup && <ul className="phab-comments">{group.comments.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} where={`${comment.data.path}:${comment.data.line}`} /></li>)}</ul>}
           </section>;
         })}
-        {actions && data.level !== "patch" && data.reviews.map((review) => <ReviewPanel key={review.revision} sessionId={data.sessionId} review={review} />)}
-        {data.level !== "patch" && (
-          <ul className="files">
-            {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
-          </ul>
-        )}
+        {actions && data.reviews.map((review) => <ReviewPanel key={review.revision} sessionId={data.sessionId} review={review} />)}
+        <ul className="files">
+          {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
+        </ul>
         <ReopenClosed hostId={data.narrativeId} />
       </div>
     </Box>

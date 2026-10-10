@@ -8,4 +8,4 @@
 
 > `const` **SATELLITE\_WIDTH**: `420` = `420`
 
-Width of spec and chat satellites at every zoom level.
+Width of satellites: spec, chat and the like.

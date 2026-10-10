@@ -51,7 +51,6 @@
 - [NodeProps](type-aliases/NodeProps.md)
 - [PluginNodeData](type-aliases/PluginNodeData.md)
 - [SelectionData](type-aliases/SelectionData.md)
-- [ZoomLevel](type-aliases/ZoomLevel.md)
 
 ## Variables
 
