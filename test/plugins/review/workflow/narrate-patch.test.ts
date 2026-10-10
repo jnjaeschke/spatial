@@ -55,7 +55,7 @@ test("review phase: importDiff, narrate, resolve spec refs and review, persisted
   assert.deepEqual(rt.store.listEpochs(session.id).map(({ n, phase, status }) => ({ n, phase, status })), [{ n: 1, phase: "review", status: "succeeded" }]);
   assert.deepEqual(n.provenance.llm, { backend: "claude", model: "sonnet", effort: "medium" });
   const types = rt.store.listEvents(session.id).map((e) => e.type);
-  assert.equal(types.filter((t) => t === "task.succeeded").length, 4);
+  assert.equal(types.filter((t) => t === "task.succeeded").length, 5);
   assert.equal(rt.store.listTasks(session.id).at(-1)?.kind, "review");
   assert.ok(types.includes("llm.usage"));
   const call = JSON.parse(readFileSync(process.env.FAKE_LLM_LOG!, "utf8").trim().split("\n")[0]);

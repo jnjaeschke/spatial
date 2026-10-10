@@ -322,7 +322,7 @@ test("narrate runs in background and state reflects the result", async () => {
     return snapshot.tasks.some((task) => task.kind === "review" && task.status !== "running" && task.status !== "pending") ? snapshot : undefined;
   });
   assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
-  assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"]]);
+  assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["introducedSymbols", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
   assert.equal(state.searchfox, null);
   const repeated = await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
@@ -417,9 +417,9 @@ test("update imports a moved feature ref as a new epoch and detects no-op update
   const updatedDiff = state.artifacts.filter((artifact) => artifact.type === "Diff").at(-1)!;
   const interdiffArtifact = state.artifacts.find((artifact) => artifact.type === "Interdiff")!;
   assert.equal((interdiffArtifact.data as { toDiff: string }).toDiff, updatedDiff.id);
-  assert.deepEqual(state.tasks.slice(-6).map((task) => [task.kind, task.status]), [
-    ["importDiff", "succeeded"], ["interdiff", "succeeded"], ["narrate", "succeeded"],
-    ["carryFindings", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"],
+  assert.deepEqual(state.tasks.slice(-7).map((task) => [task.kind, task.status]), [
+    ["importDiff", "succeeded"], ["interdiff", "succeeded"], ["introducedSymbols", "succeeded"],
+    ["narrate", "succeeded"], ["carryFindings", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"],
   ]);
   assert.equal((state.artifacts.find((artifact) => artifact.type === "PatchNarrative" && (artifact.data as { diffId: string }).diffId === updatedDiff.id)!.data as { previous?: string }).previous,
     state.artifacts.find((artifact) => artifact.type === "PatchNarrative" && (artifact.data as { diffId: string }).diffId !== updatedDiff.id)!.id);
@@ -884,7 +884,7 @@ test("SSE replays events after after and honors Last-Event-ID", async () => {
   await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   await waitFor(async () => {
     const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return state.tasks.length === 4 && state.tasks.every((task) => task.status === "succeeded") ? true : undefined;
+    return state.tasks.length === 5 && state.tasks.every((task) => task.status === "succeeded") ? true : undefined;
   });
   const read = async (headers: Record<string, string> = {}) => {
     const response = await fetch(`${base}/api/sessions/${session.id}/events?after=0`, { headers });

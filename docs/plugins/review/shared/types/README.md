@@ -15,6 +15,7 @@
 - [FindingDecisionData](interfaces/FindingDecisionData.md)
 - [FindingVerdictData](interfaces/FindingVerdictData.md)
 - [InterdiffData](interfaces/InterdiffData.md)
+- [IntroducedSymbolsData](interfaces/IntroducedSymbolsData.md)
 - [LineRange](interfaces/LineRange.md)
 - [PhabCommentData](interfaces/PhabCommentData.md)
 - [PhabSyncData](interfaces/PhabSyncData.md)

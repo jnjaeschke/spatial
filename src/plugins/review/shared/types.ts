@@ -78,6 +78,12 @@ export interface PostedReplyData { comment: Id; body: string; revision: number; 
 /** Data of an `Interdiff` artifact: what the author changed between two revisions, without changes that only come from rebasing. Linked `about → toDiff`. Produced by the `interdiff` task; verified; no LLM. `conflicts` lists paths where replaying the old patch onto the new base conflicted; for those, `files` holds a per-file comparison of the old and new patch hunks instead. */
 export interface InterdiffData { fromDiff: Id; toDiff: Id; files: DiffFile[]; conflicts: string[] }
 
+/** Data of an `IntroducedSymbols` artifact: identifiers the diff adds that occur nowhere in the base tree, by name, with the added line that defines them. */
+export interface IntroducedSymbolsData {
+  diffId: Id;
+  symbols: Record<string, { path: string; hunkId: string; line: number; commit: number }>;
+}
+
 /** A reviewer's mark on a change of a narrative; the latest per (narrative, change) wins. Linked `about → <narrative>#<change>`. Provenance: user. */
 export interface ChangeReviewData { narrative: Id; change: string; reviewed: boolean }
 export interface BugReportData { bug: number; title: string; status: string; component: string; markdown: string; error: string | null }

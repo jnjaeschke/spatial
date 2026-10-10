@@ -13,6 +13,7 @@ import { carryFindings } from "./tasks/carry-findings/task.ts";
 import { mapSpecSteps } from "./tasks/map-spec-steps/task.ts";
 import { fetchBugs } from "./tasks/fetch-bugs/task.ts";
 import { summarizeBug } from "./tasks/summarize-bug/task.ts";
+import { introducedSymbols } from "./tasks/introduced-symbols/task.ts";
 import { diagramField } from "./runtime/diagram-chat.ts";
 import { RevisionWatcher } from "./runtime/revision-watcher.ts";
 import { PhabricatorSyncer } from "./runtime/phabricator-sync.ts";
@@ -29,4 +30,4 @@ function server(rt: Runtime, opts: { intervalMs?: number }) {
   const syncer = new PhabricatorSyncer(rt, watcher, { intervalMs: opts.intervalMs });
   return { routes: reviewRoutes(rt), watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
 }
-export const reviewPlugin = definePlugin({ id: "review", workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });
+export const reviewPlugin = definePlugin({ id: "review", workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });
