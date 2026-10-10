@@ -410,7 +410,7 @@ test("layout: dependents below dependencies, no overlaps, deterministic", () => 
   }
 });
 
-test("sessionGraph adds spec satellites anchored to supported changes", () => {
+test("sessionGraph adds spec chips to supported changes", () => {
   const spec = {
     id: "R", sessionId: "S", type: "SpecReference", status: "verified" as const, createdAt: "3", provenance: { taskId: "t" },
     data: { url: "u", resolved: null, reason: "x", geckoRefs: [] },
@@ -418,10 +418,10 @@ test("sessionGraph adds spec satellites anchored to supported changes", () => {
   const st = state([diff, narrative("N"), spec]);
   st.links = [{ id: "l1", sessionId: "S", from: "R", to: "N#c2", kind: "supports" }];
   const g = sessionGraph(st)!;
-  const r = g.nodes.find((n) => n.id === "R")!;
-  assert.equal(r.data.kind, "spec");
-  assert.deepEqual(r.anchors, ["N#c2"]);
-  assert.ok(g.edges.some((e) => e.source === "R" && e.target === "N#c2"));
+  const change = g.nodes.find((n) => n.id === "N#c2")!;
+  assert.equal(change.data.kind, "change");
+  if (isReviewKind(change.data, "change")) assert.deepEqual(change.data.specs, [{ specId: "R", title: "u" }]);
+  assert.ok(!g.nodes.some((node) => node.id === "R"));
   assert.equal(sessionGraph(state([diff])), null);
 });
 
@@ -433,9 +433,9 @@ test("sessionGraph hosts anchored Phabricator comments and their chat thread", (
   const st = state([diff, narrative("N"), sync, remote, thread, msg]);
   st.links = [{ id: "reply-pc", sessionId: "S", from: "M-PC", to: "T-PC", kind: "reply" }, { id: "phab-reply", sessionId: "S", from: "T-PC", to: "PC", kind: "about" }];
   const g = sessionGraph(st)!;
-  const node = g.nodes.find((n) => n.id === "PC");
-  assert.equal(node?.data.kind, "phab");
-  if (isReviewKind(node?.data, "phab")) assert.deepEqual({ anchors: node.anchors, fromEpoch: node.data.fromEpoch, threadId: node.data.thread?.threadId, message: node.data.thread?.messages[0]?.id }, { anchors: ["N#c1"], fromEpoch: null, threadId: "T-PC", message: "M-PC" });
+  const node = g.nodes.find((n) => n.id === "N#c1");
+  assert.equal(node?.data.kind, "change");
+  if (isReviewKind(node?.data, "change")) assert.deepEqual({ anchorId: node.data.phabThreads[0]?.anchorId, fromEpoch: node.data.phabThreads[0]?.fromEpoch, threadId: node.data.phabThreads[0]?.thread?.threadId, message: node.data.phabThreads[0]?.thread?.messages[0]?.id }, { anchorId: "PC", fromEpoch: null, threadId: "T-PC", message: "M-PC" });
   assert.ok(!g.nodes.some((n) => n.id === "T-PC"));
 });
 
@@ -456,9 +456,9 @@ test("sessionGraph exposes remote comments in summary data and carries root done
     assert.deepEqual(summary.phabGeneral.map((item) => item.id), ["PG"]);
     assert.deepEqual(summary.phabUnanchored.map((group) => [group.diffId, group.oldSide, group.outdatedEpoch, group.comments.map((item) => item.id)]), [[9, false, 1, ["PO"]]]);
   }
-  const thread = graph.nodes.find((node) => node.id === "PC");
-  assert.equal(thread?.data.kind, "phab");
-  if (isReviewKind(thread?.data, "phab")) assert.equal(thread.data.done, true);
+  const change = graph.nodes.find((node) => node.id === "N2#c1");
+  assert.equal(change?.data.kind, "change");
+  if (isReviewKind(change?.data, "change")) assert.equal(change.data.phabThreads[0]?.done, true);
 });
 
 test("sessionGraph exposes unenabled MCP requests per thread", () => {
@@ -630,10 +630,9 @@ test("change chats are hosted while other chats can anchor to specs, chat messag
     { id: "reply", sessionId: "S", from: "M1", to: "T1", kind: "reply" },
   ];
   const g = sessionGraph(st)!;
-  assert.deepEqual(g.nodes.find((n) => n.id === "T2")?.anchors, ["R"]);
-  assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T3"));
+  assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T2" || n.id === "T3"));
   const change = g.nodes.find((n) => n.id === "N#c1")!.data;
-  if (isReviewKind(change, "change")) assert.deepEqual(change.threads.map((thread) => thread.threadId), ["T1", "T3"]);
+  if (isReviewKind(change, "change")) assert.deepEqual(change.threads.map((thread) => thread.threadId), ["T1", "T2", "T3"]);
   assert.ok(!g.nodes.some((n) => n.id === "T4"));
   const summary = g.nodes.find((n) => n.id === "N")!.data;
   if (isReviewKind(summary, "summary")) assert.deepEqual(summary.threads?.map((thread) => thread.threadId), ["T4"]);
@@ -765,24 +764,26 @@ test("a finding's thread lives in its details data, and chats on its messages ke
 test("layerGraph hides spec cards with spec checks, AI findings, or Phabricator comments, and what hangs off them", () => {
   const node = (id: string, data: object, anchors?: string[]) => ({ id, ...(anchors ? { anchors } : {}), data } as unknown as GraphNode);
   const g = { nodes: [
-    node("N", { kind: "summary", phabGeneral: ["general"], phabUnanchored: ["unanchored"] }),
-    node("N#c1", { kind: "change", findings: [{ findingId: "F-ai", ai: true }, { findingId: "F-step", ai: false }] }),
-    node("R", { kind: "spec" }, ["N#c1"]),
-    node("T", { kind: "chat" }, ["R"]),
-    node("P", { kind: "phab" }, ["N#c1"]),
-  ], edges: [{ id: "R->N#c1", source: "R", target: "N#c1" }, { id: "T->R", source: "T", target: "R" }, { id: "P->N#c1", source: "P", target: "N#c1" }] };
+    node("N", { kind: "summary", phabGeneral: ["general"], phabUnanchored: ["unanchored"], phabGeneralThreads: ["general-thread"], phabUnanchoredThreads: ["unanchored-thread"] }),
+    node("N#c1", { kind: "change", specs: ["spec"], phabThreads: ["thread"], findings: [{ findingId: "F-ai", ai: true }, { findingId: "F-step", ai: false }] }),
+  ], edges: [] };
   const ids = (hidden: string[]) => layerGraph(g, new Set(hidden as ("spec" | "review" | "phab")[])).nodes.map((n) => n.id);
   assert.equal(layerGraph(g, new Set()), g);
-  assert.deepEqual(ids(["spec"]), ["N", "N#c1", "P"]);
-  assert.deepEqual(ids(["review"]), ["N", "N#c1", "R", "T", "P"]);
+  assert.deepEqual(ids(["spec"]), ["N", "N#c1"]);
+  assert.deepEqual(ids(["review"]), ["N", "N#c1"]);
+  const withoutSpecs = layerGraph(g, new Set(["spec"]));
+  assert.deepEqual("specs" in withoutSpecs.nodes[1]!.data ? withoutSpecs.nodes[1]!.data.specs : undefined, []);
+  assert.deepEqual("phabThreads" in withoutSpecs.nodes[1]!.data ? withoutSpecs.nodes[1]!.data.phabThreads : undefined, ["thread"]);
   assert.equal(findingOf({ nodes: layerGraph(g, new Set(["spec"])).nodes }, "F-ai")?.findingId, "F-ai");
   assert.equal(findingOf({ nodes: layerGraph(g, new Set(["spec"])).nodes }, "F-step"), undefined);
   assert.equal(findingOf({ nodes: layerGraph(g, new Set(["review"])).nodes }, "F-step")?.findingId, "F-step");
   assert.equal(findingOf({ nodes: layerGraph(g, new Set(["review"])).nodes }, "F-ai"), undefined);
   const phab = layerGraph(g, new Set(["phab"]));
-  assert.deepEqual(phab.nodes.map((n) => n.id), ["N", "N#c1", "R", "T"]);
-  assert.deepEqual(phab.nodes[0]!.data, { kind: "summary", phabGeneral: [], phabUnanchored: [] });
-  assert.deepEqual(layerGraph(g, new Set(["spec"])).edges.map((e) => e.id), ["P->N#c1"]);
+  assert.deepEqual(phab.nodes.map((n) => n.id), ["N", "N#c1"]);
+  assert.deepEqual(phab.nodes[0]!.data, { kind: "summary", phabGeneral: [], phabUnanchored: [], phabGeneralThreads: [], phabUnanchoredThreads: [] });
+  assert.deepEqual("specs" in phab.nodes[1]!.data ? phab.nodes[1]!.data.specs : undefined, ["spec"]);
+  assert.deepEqual("phabThreads" in phab.nodes[1]!.data ? phab.nodes[1]!.data.phabThreads : undefined, []);
+  assert.deepEqual(layerGraph(g, new Set(["spec"])).edges.map((e) => e.id), []);
 });
 test("a review session shows notes as note nodes", () => {
   const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "chat", params: {}, title: "Chat", prompt: "Explain" } , epoch: null} as Artifact<WorkflowStartData>;

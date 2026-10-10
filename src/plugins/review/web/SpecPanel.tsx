@@ -11,12 +11,20 @@ export const SpecStepContext = createContext<SpecStepSelection | null>(null);
 
 const STATUS_LABEL: Record<StepStatus, string> = { implements: "implements", partial: "partial", structural: "structural", deviates: "deviates", substeps: "via substeps", unmapped: "not mapped" };
 
+type SpecPanelProps = { state: SessionState; specId: Id; llm: LlmSelection | null; onClose(): void; onBack?: () => void; onFocusRange(range: LineRange): void; onSelection(selection: SpecStepSelection): void };
+
 /** Spec section details and the selected step's mapped source ranges. */
-export function SpecPanel({ state, specId, llm, onClose, onBack, onFocusRange, onSelection }: { state: SessionState; specId: Id; llm: LlmSelection; onClose(): void; onBack?: () => void; onFocusRange(range: LineRange): void; onSelection(selection: SpecStepSelection): void }) {
-  const spec = state.artifacts.find((a) => a.id === specId) as Artifact<SpecReferenceData> | undefined;
-  const resolved = spec?.data.resolved;
+export function SpecPanel(props: SpecPanelProps) {
+  const spec = props.state.artifacts.find((a) => a.id === props.specId) as Artifact<SpecReferenceData> | undefined;
+  if (!spec) throw new Error(`Unknown spec ${props.specId}`);
+  return spec.data.resolved ? <ResolvedSpecPanel {...props} spec={spec} resolved={spec.data.resolved} /> : <SidePanel className="spec-panel" title={spec.data.url} closeLabel="Close spec" onClose={props.onClose} testId="spec-panel" headerExtra={props.onBack && <button aria-label="Back" onClick={props.onBack}>←</button>}>
+    <div className="spec-panel-content"><span className="badge unverified">unverified</span><p className="failed">{spec.data.reason}</p><a href={spec.data.url} target="_blank" rel="noreferrer">open spec</a></div>
+  </SidePanel>;
+}
+
+function ResolvedSpecPanel({ state, specId, llm, onClose, onBack, onFocusRange, onSelection, spec, resolved }: SpecPanelProps & { spec: Artifact<SpecReferenceData>; resolved: NonNullable<SpecReferenceData["resolved"]> }) {
   const latest = latestNarrative(state);
-  if (!resolved || !latest) throw new Error(`Spec panel needs a resolved spec and a narrative (${specId})`);
+  if (!latest) throw new Error(`Spec panel needs a narrative (${specId})`);
   const narrativeId = latest.narrative.id;
   const steps = useMemo(() => parseSteps(resolved.content), [resolved.content]);
   const map = latestStepMap(state, specId, narrativeId);
@@ -59,9 +67,11 @@ export function SpecPanel({ state, specId, llm, onClose, onBack, onFocusRange, o
   return <>
     <SidePanel className="spec-panel" title={`${resolved.spec}#${resolved.anchor}`} closeLabel="Close spec" onClose={onClose} testId="spec-panel" onKeyDown={keydown} headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
       <div className="spec-panel-content">
-        <header className="spec-panel-heading"><span className="spec-view-title">{resolved.title}</span><a href={resolved.url} target="_blank" rel="noreferrer">open spec</a></header>
+        <header className="spec-panel-heading"><span className="spec-view-title">{resolved.title}</span><a href={resolved.url} target="_blank" rel="noreferrer">open spec</a>{spec.status !== "verified" && <span className="badge unverified">unverified</span>}{spec.status === "verified" && spec.data.origin === "code" && <span className="badge cited">cited in code</span>}{spec.status === "verified" && spec.data.origin === "llm" && <span className="badge inferred">inferred</span>}</header>
+        {spec.data.geckoRefs.length > 0 && <ul className="files">{spec.data.geckoRefs.map((g) => <li key={g.url}><a href={g.url} target="_blank" rel="noreferrer">{g.group}: {g.path}:{g.line}</a></li>)}</ul>}
+        {spec.data.geckoRefsError && <p className="failed">Searchfox: {spec.data.geckoRefsError}</p>}
         <div className="spec-view-status" data-testid="spec-map-status">{running ? "Mapping steps…" : task?.status === "failed" ? `Mapping failed: ${task.error}` : map ? `${mapped} of ${steps.length} steps mapped${deviates ? ` · ${deviates} deviate${deviates === 1 ? "s" : ""}` : ""} · ${unexplainedAdds} added line${unexplainedAdds === 1 ? "" : "s"} unexplained` : "Steps not mapped yet"}{map?.data.dropped.length ? <span className="badge muted" title={map.data.dropped.join("\n")}>{map.data.dropped.length} dropped</span> : null}</div>
-        {!running && <button onClick={() => void action.run(() => api.mapSpecSteps(state.session.id, specId, llm))}>{map || task ? "Map again" : "Map steps"}</button>}<ErrorText error={action.error} />
+        {!running && llm && <button onClick={() => void action.run(() => api.mapSpecSteps(state.session.id, specId, llm))}>{map || task ? "Map again" : "Map steps"}</button>}<ErrorText error={action.error} />
         <p className="spec-section-text">{resolved.content}</p>
         <div className="spec-legend">{(["implements", "partial", "structural", "deviates"] as const).map((kind) => <span key={kind} className={`legend map-${kind}`}>{kind}</span>)}{(["plumbing", "error-path", "test", "unexplained"] as const).map((reason) => <span key={reason} className={`legend map-${reason}`}>{reason}</span>)}<span className="legend map-none">not mapped</span></div>
         <div className="spec-steps"><ol>{steps.map((step) => { const status = statuses.get(step.number)!; const notes = notesFor(step.number); return <li key={step.number} style={{ paddingLeft: `${step.depth * 18}px` }}>

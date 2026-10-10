@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ContextType } from "react";
-import { type Draft, type HostedThread, type Graph, Conversation, SidePanel, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type useClosed } from "../../../web/plugin-api.ts";
+import { useEffect, useRef } from "react";
+import { type Draft, type HostedThread, type Graph, Conversation, SidePanel, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type useClosed, type ChatActions } from "../../../web/plugin-api.ts";
 
 /** Finds the hosted chat of a chat detail. A draft is followed to its thread through the task of its first turn, which outlives the draft. */
 export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string) => HostedThread | null {
@@ -22,7 +22,7 @@ export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string
 /** Panel × and Escape dismiss the panel (an empty draft is discarded); the header × closes the chat itself. */
 export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }: {
   thread: HostedThread;
-  actions: NonNullable<ContextType<typeof ChatActionsContext>>;
+  actions: ChatActions | null;
   closed: ReturnType<typeof useClosed>;
   reveal(nodeId: string, collapseId: string): void;
   onClose(): void;

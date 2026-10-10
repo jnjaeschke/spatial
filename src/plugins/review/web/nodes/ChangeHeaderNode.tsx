@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeHeaderNodeData } from "../graph.ts";
 import { InlineText, AskContext, ChatActionsContext, ReopenClosed, api, Box, ErrorText, useAction, commitColors } from "../../../../web/plugin-api.ts";
-import { Chip, FindingChip } from "../Chip.tsx";
+import { Chip, FindingChip, PhabChip, SpecChip } from "../Chip.tsx";
 import { DetailsContext } from "../details.ts";
 
 export type ChangeHeaderFlowNode = Node<ChangeHeaderNodeData & { sessionId: string } & Record<string, unknown>, "changeHeader">;
@@ -21,7 +21,7 @@ export function ChangeHeaderNode({ id: nodeId, data }: NodeProps<ChangeHeaderFlo
       <div className="body nodrag nopan">
         <p className="explanation"><InlineText text={change.explanation} hunks={hunks} diffId={diffId} /></p>
         <p className="rationale"><b>Why:</b> <InlineText text={change.rationale} hunks={hunks} diffId={diffId} /></p>
-        <div className="chip-strip">{data.findings.map((finding) => <FindingChip key={finding.findingId} finding={finding} />)}{data.threads.map((thread) => <Chip key={thread.threadId ?? thread.draftId} kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />)}</div>
+        <div className="chip-strip">{data.findings.map((finding) => <FindingChip key={finding.findingId} finding={finding} />)}{data.phabThreads.map((thread) => <PhabChip key={thread.anchorId} thread={thread} />)}{data.specs.map((spec) => <SpecChip key={spec.specId} {...spec} />)}{data.threads.map((thread) => <Chip key={thread.threadId ?? thread.draftId} kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />)}</div>
         <ReopenClosed hostId={nodeId} />
       </div>
     </Box>

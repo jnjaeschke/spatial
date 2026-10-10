@@ -50,8 +50,8 @@ export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | 
 export type PluginNodeData = { kind: string; [key: string]: unknown };
 export type GraphNodeData = CoreNodeData | PluginNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[]; position?: FreePosition }
-/** A node with its size, as a layout places it; `dy` offsets a satellite below its anchor's top. */
-export interface PlacedNode { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[]; dy?: number }
+/** A node with its size, as a layout places it. */
+export interface PlacedNode { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[] }
 export interface GraphEdge { id: string; source: string; target: string }
 export type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
@@ -218,7 +218,7 @@ export function sessionGraph(root: (state: SessionState, drafts: Draft[]) => Gra
 const SATELLITE_GAP_X = 80;
 const SATELLITE_GAP_Y = 24;
 
-export function placeSatellites(main: Map<string, { x: number; y: number; width: number; height: number }>, satellites: { id: string; width: number; height: number; anchors: string[]; dy?: number }[]): Map<string, { x: number; y: number }> {
+export function placeSatellites(main: Map<string, { x: number; y: number; width: number; height: number }>, satellites: { id: string; width: number; height: number; anchors: string[] }[]): Map<string, { x: number; y: number }> {
   const maxRight = Math.max(...[...main.values()].map((r) => r.x + r.width));
   const rects = new Map([...main].map(([id, r]) => [id, { ...r, column: 0 }]));
   const out = new Map<string, { x: number; y: number }>();
@@ -227,7 +227,7 @@ export function placeSatellites(main: Map<string, { x: number; y: number; width:
   while (pending.length) {
     const eligible = pending.filter((s) => s.anchors.length > 0 && s.anchors.every((a) => rects.has(a)));
     if (!eligible.length) break;
-    const anchorY = (s: typeof eligible[number]) => Math.min(...s.anchors.map((a) => rects.get(a)!.y)) + (s.dy ?? 0);
+    const anchorY = (s: typeof eligible[number]) => Math.min(...s.anchors.map((a) => rects.get(a)!.y));
     eligible.sort((a, b) => Math.max(...a.anchors.map((id) => rects.get(id)!.column)) - Math.max(...b.anchors.map((id) => rects.get(id)!.column)) || anchorY(a) - anchorY(b));
     for (const s of eligible) {
       const anchorRects = s.anchors.map((id) => rects.get(id)!);

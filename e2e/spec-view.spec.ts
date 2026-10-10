@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { openChange, revealNode, startReview } from "./canvas.ts";
+import { openChange, startReview } from "./canvas.ts";
 
 const dirs: string[] = [];
 test.afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -30,10 +30,10 @@ test("a cited spec opens in the details panel and selecting a step maps its chan
   const { dir, base } = specRepo();
   await startReview(page, dir, `${base}..HEAD`);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-
-  const spec = page.locator(".spec-node");
-  await revealNode(page, spec);
-  await spec.getByRole("button", { name: "Steps" }).click();
+  await openChange(page, "change-c1");
+  const spec = page.locator(".review-chip.kind-spec").first();
+  await expect(spec).toHaveText("navigate");
+  await spec.click();
   const view = page.getByTestId("spec-panel");
   await expect(view.getByText("HTML#navigate")).toBeVisible();
   await expect(view.getByTestId("spec-map-status")).toHaveText("2 of 2 steps mapped · 1 deviates · 2 added lines unexplained", { timeout: 15_000 });
@@ -57,23 +57,23 @@ test("a cited spec opens in the details panel and selecting a step maps its chan
   await expect(view).toHaveCount(0);
 });
 
-test("topbar toggles hide spec cards with spec checks and AI findings, and persist", async ({ page }) => {
+test("topbar toggles hide spec chips with spec checks and AI findings, and persist", async ({ page }) => {
   const { dir, base } = specRepo();
   await startReview(page, dir, `${base}..HEAD`);
   await openChange(page, "change-c1");
   const check = page.getByTestId(/finding-chip/).filter({ hasText: "Step 3 comment describes step 2 of HTML#navigate" });
   await expect(check).toBeAttached({ timeout: 15_000 });
-  await expect(page.locator(".spec-node")).toHaveCount(1);
+  await expect(page.locator(".review-chip.kind-spec")).toHaveCount(1);
   const specs = page.getByRole("group", { name: "Show on canvas" }).getByRole("button", { name: "Specs" });
   await specs.click();
   await expect(specs).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator(".spec-node")).toHaveCount(0);
+  await expect(page.locator(".review-chip.kind-spec")).toHaveCount(0);
   await expect(check).toHaveCount(0);
   await page.reload();
   await expect(page.getByTestId("change-c1")).toBeVisible();
-  await expect(page.locator(".spec-node")).toHaveCount(0);
+  await expect(page.locator(".review-chip.kind-spec")).toHaveCount(0);
   await specs.click();
-  await expect(page.locator(".spec-node")).toHaveCount(1);
+  await expect(page.locator(".review-chip.kind-spec")).toHaveCount(1);
   await expect(check).toBeAttached();
 
   await page.goto("http://127.0.0.1:4178/");

@@ -1,17 +1,15 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
-import { Box, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
-import { PhabComment } from "../PhabComment.tsx";
+import { Box, InlineText, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { commitColors, commitLabel } from "../../../../web/plugin-api.ts";
 import { ReviewPanel } from "../ReviewPanel.tsx";
-import { Chip, FindingChip } from "../Chip.tsx";
+import { Chip, FindingChip, PhabChip } from "../Chip.tsx";
 import { DetailsContext } from "../details.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & Record<string, unknown>, "summary">;
 
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
-  const collapse = useContext(CollapseContext);
   const actions = useContext(ChatActionsContext);
   const details = useContext(DetailsContext);
   const specStatus = data.specStatus;
@@ -37,22 +35,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
             ? <AnswerMarkdown text={summary.data.summary} hunks={data.bugHunks} diffId={data.bugDiffId} />
             : summarizing ? <p>Summarizing…</p> : <p>Summary unavailable.</p>}
         </details>)}
-        {data.phabGeneral.length > 0 && <section className="phab-summary">
-          <h4>Phabricator comments</h4>
-          <ul className="phab-comments">{data.phabGeneral.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} /></li>)}</ul>
-        </section>}
-        {data.phabUnanchored.map((group, index) => {
-          const id = group.outdatedEpoch === null ? null : `phab-outdated:${group.outdatedEpoch}`;
-          const closedGroup = id !== null && (collapse?.collapsed.has(id) ?? false);
-          const revision = group.comments[0]?.data.revision;
-          const title = group.outdatedEpoch !== null ? `Phabricator comments (outdated, epoch ${group.outdatedEpoch})`
-            : group.oldSide ? `Phabricator comments (D${revision}, diff ${group.diffId}, old side)`
-              : `Phabricator comments (D${revision}${group.diffId === null ? ", not matching local" : `, diff ${group.diffId}, not matching local`})`;
-          return <section className="phab-summary" key={`${group.diffId}:${group.oldSide}:${group.outdatedEpoch}:${index}`}>
-            <h4>{title}{id !== null && collapse && <button aria-label={closedGroup ? "Expand" : "Collapse"} className="collapse nodrag" onClick={() => collapse.toggle(id)}>{closedGroup ? "▸" : "▾"}</button>}</h4>
-            {!closedGroup && <ul className="phab-comments">{group.comments.map((comment) => <li key={comment.id}><PhabComment comment={comment} anchorId={data.phabAnchors[comment.data.phid]!} where={`${comment.data.path}:${comment.data.line}`} /></li>)}</ul>}
-          </section>;
-        })}
+        {(data.phabGeneralThreads.length > 0 || data.phabUnanchoredThreads.length > 0) && <section className="phab-summary"><h4>Phabricator comments</h4><div className="chip-strip">{data.phabGeneralThreads.map((thread) => <PhabChip key={thread.anchorId} thread={thread} />)}{data.phabUnanchoredThreads.map((thread) => <PhabChip key={thread.anchorId} thread={thread} />)}</div></section>}
         {actions && data.reviews.map((review) => <ReviewPanel key={review.revision} sessionId={data.sessionId} review={review} />)}
         <div className="chip-strip">{data.findings.map((finding) => <FindingChip key={finding.findingId} finding={finding} />)}</div>
         <div className="chip-strip">{(data.threads ?? []).map((thread) => <Chip key={thread.threadId ?? thread.draftId} kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />)}</div>

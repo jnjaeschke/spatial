@@ -24,6 +24,8 @@ export type ChangeNodeData = {
   commit: number | null;
   reviewed: boolean;
   threads: HostedThread[];
+  phabThreads: PhabThreadData[];
+  specs: { specId: Id; title: string }[];
   comments: { artifact?: Artifact<UserCommentData>; draft?: Draft; lines: UserCommentData["lines"]; revision: number | null; postedTo: number | null }[];
   findings: FindingData[];
 };
@@ -42,6 +44,7 @@ export type HunkNodeData = {
   /** Owning stack commit; null for single-commit diffs. */
   commit: number | null;
   threads: HostedThread[];
+  phabThreads: PhabThreadData[];
   comments: ChangeNodeData["comments"];
   findings: FindingData[];
 };
@@ -78,13 +81,14 @@ export type SummaryNodeData = {
   /** First artifact id of every comment listed here, by `phid`; keys the comment's collapse state. */
   phabAnchors: Record<string, Id>;
   phabUnanchored: { diffId: number | null; oldSide: boolean; outdatedEpoch: number | null; comments: Artifact<PhabCommentData>[] }[];
+  phabGeneralThreads: PhabThreadData[];
+  phabUnanchoredThreads: PhabThreadData[];
   bugs: { report: Artifact<BugReportData>; summary: Artifact<BugSummaryData> | null; summarizing: boolean }[];
   bugHunks: { file: DiffFile; hunk: Hunk }[];
   bugDiffId: string;
   threads?: HostedThread[];
 };
 
-export type SpecNodeData = { kind: "spec"; ref: Artifact<SpecReferenceData> };
 export type DiagramNodeData = { kind: "diagram"; diagram: Artifact<DiagramData>; closable?: boolean };
 
 /** Spreads the finding; the mapped copy keeps the data assignable to `PluginNodeData`, which an interface is not. */
@@ -105,8 +109,7 @@ export type FindingData = { [K in keyof ReviewFindingData]: ReviewFindingData[K]
   fromEpoch: number | null;
 };
 
-export type PhabNodeData = {
-  kind: "phab";
+export type PhabThreadData = {
   anchorId: Id;
   path: string;
   line: number;
@@ -120,7 +123,7 @@ export type PhabNodeData = {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
 };
 
-export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeData | CommitNodeData | SummaryNodeData | SpecNodeData | DiagramNodeData | PhabNodeData;
+export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeData | CommitNodeData | SummaryNodeData | DiagramNodeData;
 
 /** Narrows node data to a review kind. */
 export const isReviewKind = <K extends ReviewNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData, { kind: K }> => data.kind === kind;
@@ -167,14 +170,16 @@ const commitFindingCount = (nodes: GraphNode[], index: number) => nodes.reduce((
 /** The graph without the hidden layers' nodes and what hangs off them; hiding Phabricator also drops the summary's general and unanchored comments. */
 export function layerGraph(g: Graph, hidden: ReadonlySet<Layer>): Graph {
   if (hidden.size === 0) return g;
-  const gone = new Set(g.nodes.filter((n) => isReviewKind(n.data, "spec") ? hidden.has("spec") : isReviewKind(n.data, "phab") && hidden.has("phab")).map((n) => n.id));
-  cascade(g, gone);
-  const kept = g.nodes.filter((n) => !gone.has(n.id)).map((n) => {
-    if ("findings" in n.data) return { ...n, data: { ...n.data, findings: findingsOf(n.data).filter((finding) => !hidden.has(findingLayer(finding))) } } as GraphNode;
-    return isReviewKind(n.data, "summary") && hidden.has("phab") ? { ...n, data: { ...n.data, phabGeneral: [], phabUnanchored: [] } } : n;
+  const kept = g.nodes.map((n) => {
+    let data = n.data;
+    if ("findings" in data) data = { ...data, findings: findingsOf(data).filter((finding) => !hidden.has(findingLayer(finding))) } as typeof data;
+    if (isReviewKind(data, "summary") && hidden.has("phab")) data = { ...data, phabGeneral: [], phabUnanchored: [], phabGeneralThreads: [], phabUnanchoredThreads: [] };
+    if ((isReviewKind(data, "change") || isReviewKind(data, "changeHeader") || isReviewKind(data, "hunk")) && hidden.has("phab")) data = { ...data, phabThreads: [] };
+    if ((isReviewKind(data, "change") || isReviewKind(data, "changeHeader")) && hidden.has("spec")) data = { ...data, specs: [] };
+    return data === n.data ? n : { ...n, data } as GraphNode;
   });
   const nodes = kept.map((n) => isReviewKind(n.data, "commit") ? { ...n, data: { ...n.data, findingCount: commitFindingCount(kept, n.data.index) } } : n);
-  return { nodes, edges: g.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target)) };
+  return { nodes, edges: g.edges };
 }
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
@@ -229,8 +234,8 @@ export const reviewPlaces = {
     const data = node.data;
     const { change, narrativeId, diffId, commit } = data;
     const satellites = subgraph(g, new Set([id]));
-    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${id}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)), findings: data.findings.filter((finding) => finding.lines && rowsOf(finding.lines, file, hunk)) } satisfies HunkNodeData }));
-    const header: GraphNode = { ...node, data: { ...data, kind: "changeHeader", threads: data.threads.filter((thread) => !data.hunks.some(({ file, hunk }) => threadInHunk(thread, file, hunk))), comments: [], findings: data.findings.filter((finding) => !finding.lines) } satisfies ChangeHeaderNodeData };
+    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${id}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), phabThreads: data.phabThreads.filter((thread) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)), findings: data.findings.filter((finding) => finding.lines && rowsOf(finding.lines, file, hunk)) } satisfies HunkNodeData }));
+    const header: GraphNode = { ...node, data: { ...data, kind: "changeHeader", threads: data.threads.filter((thread) => !data.hunks.some(({ file, hunk }) => threadInHunk(thread, file, hunk))), phabThreads: data.phabThreads.filter((thread) => !data.hunks.some(({ file, hunk }) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line))), comments: [], findings: data.findings.filter((finding) => !finding.lines) } satisfies ChangeHeaderNodeData };
     return { nodes: [header, ...cards, ...satellites.nodes.filter((n) => n.id !== id)], edges: satellites.edges };
   },
   open(g: Graph, place: string, nodeId: string): string | null {
@@ -289,7 +294,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
   const nodes: GraphNode[] = [{
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: changes.length, specStatus: null, drafts: [], skipped: 0, reviews: [], sessionId: narrative.sessionId,
-      sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, findings: [], phabGeneral: [], phabAnchors: {}, phabUnanchored: [], bugs: [],
+      sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, findings: [], phabGeneral: [], phabAnchors: {}, phabUnanchored: [], phabGeneralThreads: [], phabUnanchoredThreads: [], bugs: [],
       bugHunks: [...new Set(changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId, threads: [] } satisfies SummaryNodeData,
   }];
   const edges: GraphEdge[] = [];
@@ -327,7 +332,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     const commit = stack ? changeCommit(diff.data, change) : null;
     nodes.push({
       id: ref(change.id),
-      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id), threads: [], comments: commentForHunks(hunks), findings: [] } satisfies ChangeNodeData,
+      data: { kind: "change", narrativeId: narrative.id, diffId: diff.id, change, hunks, files: [...new Set(hunks.map((h) => h.file.path))], commit, reviewed: reviewed.has(change.id), threads: [], phabThreads: [], specs: [], comments: commentForHunks(hunks), findings: [] } satisfies ChangeNodeData,
     });
     const sources = change.dependsOn.length ? change.dependsOn.map(ref) : [commit === null ? narrative.id : commitNodeId(narrative.id, commit)];
     for (const s of sources) edges.push({ id: `${s}->${ref(change.id)}`, source: s, target: ref(change.id) });
@@ -347,6 +352,8 @@ export function anchorNodeId(
   const i = anchor.indexOf("#");
   if (i < 0) {
     if (nodeIds.has(anchor)) return anchor;
+    const supportedChange = links.find((link) => link.kind === "supports" && link.from === anchor)?.to;
+    if (supportedChange && nodeIds.has(supportedChange)) return supportedChange;
     const thread = links.find((l) => l.kind === "reply" && l.from === anchor)?.to;
     return thread && nodeIds.has(thread) ? thread : null;
   }
@@ -422,8 +429,11 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   for (const a of state.artifacts) {
     const anchors = anchorsBySpec.get(a.id);
     if (a.type !== "SpecReference" || !anchors) continue;
-    g.nodes.push({ id: a.id, anchors, data: { kind: "spec", ref: a as Artifact<SpecReferenceData> } satisfies SpecNodeData });
-    for (const t of anchors) g.edges.push({ id: `${a.id}->${t}`, source: a.id, target: t });
+    const ref = a as Artifact<SpecReferenceData>;
+    for (const target of anchors) {
+      const host = g.nodes.find((node) => node.id === target);
+      if (host && isReviewKind(host.data, "change")) host.data.specs.push({ specId: ref.id, title: ref.data.resolved?.title ?? ref.data.resolved?.anchor ?? ref.data.url });
+    }
   }
   const nodeIds = new Set(g.nodes.map((n) => n.id));
   /** Thread id -> host node id, for threads shown inside Phabricator details. */
@@ -447,16 +457,21 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
   summary.phabAnchors = phabAnchorsOf(state.artifacts, [...phab.general, ...phab.unanchored.flatMap((group) => group.comments)]);
+  const makePhabThread = (remote: typeof phab.anchored[number], anchorId = remote.anchorId): PhabThreadData => {
+    const thread = threads.find((item) => item.data.anchor === anchorId);
+    if (thread) { hostOf.set(thread.id, anchorId); nodeIds.add(thread.id); }
+    return { ...remote, anchorId, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null };
+  };
+  const childComments = (rootComment: Artifact<PhabCommentData>) => state.artifacts.filter((item): item is Artifact<PhabCommentData> => item.type === "PhabComment" && (item.data as PhabCommentData).replyTo === rootComment.data.phid);
+  summary.phabGeneralThreads = phab.general.map((comment) => makePhabThread({ anchorId: comment.id, anchor: latest.narrative.id, path: "", line: 0, side: "new", done: comment.data.done, fromEpoch: null, comments: [comment, ...childComments(comment)] }));
+  summary.phabUnanchoredThreads = phab.unanchored.flatMap((group) => {
+    const roots = group.comments.filter((comment) => !comment.data.replyTo || !group.comments.some((parent) => parent.data.phid === comment.data.replyTo));
+    return roots.map((comment) => makePhabThread({ anchorId: comment.id, anchor: latest.narrative.id, path: comment.data.path ?? "", line: comment.data.line ?? 0, side: group.oldSide ? "old" : "new", done: comment.data.done, fromEpoch: group.outdatedEpoch, comments: [comment, ...childComments(comment)] }));
+  });
   for (const remote of phab.anchored) {
     const node = resolve(remote.anchor);
-    if (!node) continue;
-    const thread = threads.find((item) => item.data.anchor === remote.anchorId);
-    if (thread) { hostOf.set(thread.id, remote.anchorId); nodeIds.add(thread.id); }
-    g.nodes.push({ id: remote.anchorId, anchors: [node], data: {
-      kind: "phab", ...remote, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id,
-      hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null,
-    } satisfies PhabNodeData });
-    g.edges.push({ id: `${remote.anchorId}->${node}`, source: remote.anchorId, target: node });
+    const host = node && g.nodes.find((item) => item.id === node);
+    if (host && isReviewKind(host.data, "change")) host.data.phabThreads.push(makePhabThread(remote));
   }
   for (const findingState of findingStates(state, latest.narrative.id)) {
     const finding = findingState.finding;
@@ -497,8 +512,6 @@ const threadsHeight = (threads: HostedThread[]) => threads.reduce((sum, thread) 
 /** First-paint size estimate of the review kinds, unscaled. */
 export function reviewSize(data: GraphNodeData): { width: number; height: number } {
   if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH, data.diagram.data.lanes.length * 170 + 40), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
-  if (isReviewKind(data, "phab")) return { width: SATELLITE_WIDTH, height: 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
-  if (isReviewKind(data, "spec")) return { width: SATELLITE_WIDTH, height: 220 };
   if (isReviewKind(data, "commit")) return { width: NODE_WIDTH, height: 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
@@ -552,7 +565,7 @@ export function stackLayout(nodes: PlacedNode[], edges: { source: string; target
       if (lane !== undefined) { laneOf.set(s.id, lane); changed = true; }
     }
   }
-  const sized = (s: PlacedNode, anchors: string[]) => ({ id: s.id, width: s.width, height: s.height, anchors, ...(s.dy === undefined ? {} : { dy: s.dy }) });
+  const sized = (s: PlacedNode, anchors: string[]) => ({ id: s.id, width: s.width, height: s.height, anchors });
   const out = new Map<string, { x: number; y: number }>();
   const rootSats = satellites.filter((s) => !laneOf.has(s.id)).map((s) => sized(s, (s.anchors ?? []).filter((a) => !laneOf.has(a))));
   const rootPlaced = placeSatellites(new Map([[root.id, { x: 0, y: 0, width: root.width, height: root.height }]]), rootSats);

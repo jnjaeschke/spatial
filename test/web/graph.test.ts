@@ -111,26 +111,6 @@ test("placeSatellites uses columns to the right of placed anchors and preserves 
   assert.equal(pos.get("second")?.y, 0);
 });
 
-test("placeSatellites aligns quoted chats to their quote and stacks by effective y", () => {
-  const main = new Map([["a", { x: 0, y: 0, width: 400, height: 600 }]]);
-  const single = placeSatellites(main, [{ id: "s", width: 300, height: 150, anchors: ["a"], dy: 300 }]);
-  assert.equal(single.get("s")?.y, 300);
-
-  const ordered = placeSatellites(main, [
-    { id: "later", width: 300, height: 150, anchors: ["a"], dy: 300 },
-    { id: "earlier", width: 300, height: 150, anchors: ["a"], dy: 100 },
-  ]);
-  assert.equal(ordered.get("earlier")?.y, 100);
-  assert.equal(ordered.get("later")?.y, 300);
-
-  const stacked = placeSatellites(main, [
-    { id: "later", width: 300, height: 250, anchors: ["a"], dy: 300 },
-    { id: "earlier", width: 300, height: 250, anchors: ["a"], dy: 100 },
-  ]);
-  assert.equal(stacked.get("earlier")?.y, 100);
-  assert.equal(stacked.get("later")?.y, 100 + 250 + 24);
-});
-
 test("visibleGraph hides only collapsed quoted threads and their edges", () => {
   const node = (id: string, data: GraphNode["data"]): GraphNode => ({ id, data });
   const nodes: GraphNode[] = [

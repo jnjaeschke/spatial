@@ -329,27 +329,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
 
   useEffect(() => offsets.current.clear(), [graph]);
 
-  // Offset of each quote below its anchor's top, in flow units. Measured whenever the anchor is rendered, so a
-  // chat placed before its anchor was measured moves to its quote once it is.
-  const quoteDy = useRef(new Map<string, number>());
-  const [quoteDyVersion, setQuoteDyVersion] = useState(0);
-  useEffect(() => quoteDy.current.clear(), [place]);
-  const measureQuoteDy = () => {
-    let changed = false;
-    for (const n of quoted) {
-      if (n.data.kind === "chat") continue;
-      const range = rangeOf(n);
-      const anchorEl = container.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(n.anchors![0]!)}"]`);
-      if (!range || !anchorEl) continue;
-      const dy = (range.getBoundingClientRect().top - anchorEl.getBoundingClientRect().top) / rf.getZoom();
-      if (Math.abs(dy - (quoteDy.current.get(n.id) ?? NaN)) <= 0.5) continue;
-      quoteDy.current.set(n.id, dy);
-      changed = true;
-    }
-    return changed;
-  };
-
-  const arrange = (all: { id: string; width: number; height: number }[], dy?: Map<string, number>) => {
+  const arrange = (all: { id: string; width: number; height: number }[]) => {
     const free = new Map(shown.nodes.filter((n) => n.position).map((n) => [n.id, n.position!]));
     // Satellites hanging (directly or through other satellites) off a freely placed node sit beside that node.
     const rootOf = new Map<string, string>();
@@ -371,14 +351,14 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
     const sized = all.filter((n) => !free.has(n.id) && !rootOf.has(n.id));
     if (model.stack?.is(shown, place)) {
       const byId = new Map(shown.nodes.map((n) => [n.id, n]));
-      return new Map([...model.stack.layout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free, ...freePlaced]);
+      return new Map([...model.stack.layout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [] }; }), shown.edges), ...free, ...freePlaced]);
     }
     const main = sized.filter((n) => !satelliteAnchors.has(n.id));
     const mainEdges = shown.edges.filter((e) => !satelliteAnchors.has(e.source));
     const layoutEdges = model.layoutEdges?.(shown.nodes, mainEdges) ?? mainEdges;
     const mainPos = layout(main, layoutEdges);
     const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
-    const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!, ...(dy?.has(n.id) ? { dy: dy.get(n.id)! } : {}) }));
+    const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)! }));
     return new Map([...mainPos, ...placeSatellites(rects, satellites), ...free, ...freePlaced]);
   };
 
@@ -404,7 +384,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       const size = sizeOf(n.data.kind, n.id);
       return { id: n.id, width: size.width !== undefined ? size.width * textScale : m?.width ?? width * textScale, height: m?.height ?? (size.height ?? estimate.height) * textScale };
     });
-    const pos = arrange(sized, keepMeasured ? quoteDy.current : undefined);
+    const pos = arrange(sized);
     basePos.current = pos;
     laidOutKey.current = "";
     setNodes(shown.nodes.map((n) => ({
@@ -429,11 +409,10 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   useEffect(() => {
     if (nodes.length !== shown.nodes.length || nodes.some((n) => !shown.nodes.some((g) => g.id === n.id))) return;
     if (nodes.length === 0 || nodes.some((n) => !n.measured?.height)) return;
-    const key = `${sizeKey}#${quoteDyVersion}#${JSON.stringify(sizes)}`;
+    const key = `${sizeKey}#${JSON.stringify(sizes)}`;
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
-    measureQuoteDy();
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizeOf(n.type!, n.id).width !== undefined ? sizeOf(n.type!, n.id).width! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
+    const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizeOf(n.type!, n.id).width !== undefined ? sizeOf(n.type!, n.id).width! * textScale : n.measured!.width!, height: n.measured!.height! })));
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: offsetPosition(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
@@ -483,7 +462,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
         void rf.fitView({ maxZoom: Math.max(1, fitFloor.minZoom ?? 0), ...fitFloor }).then(() => { if (savePlaceView.current && autoFit.current) persistView(); });
       }
     }
-  }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, graph]);
+  }, [sizeKey, nodes, rf, setNodes, shown, textScale, sizes, graph]);
 
   useEffect(() => {
     if (autoFit.current) return;
@@ -625,7 +604,6 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       chatStrong.priority = findingStrong.priority = 1;
       CSS.highlights.set("chat-quote-active", chatStrong);
       CSS.highlights.set("finding-quote-active", findingStrong);
-      if (measureQuoteDy()) setQuoteDyVersion((v) => v + 1);
     };
     // Synchronous: the previous run's cleanup deleted the highlights, and a click in this frame must still hit them.
     build();

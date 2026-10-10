@@ -6,7 +6,7 @@
 
 # Interface: PlacedNode
 
-A node with its size, as a layout places it; `dy` offsets a satellite below its anchor's top.
+A node with its size, as a layout places it.
 
 ## Properties
 
@@ -19,12 +19,6 @@ A node with its size, as a layout places it; `dy` offsets a satellite below its 
 ### data
 
 > **data**: [`GraphNodeData`](../type-aliases/GraphNodeData.md)
-
-***
-
-### dy?
-
-> `optional` **dy?**: `number`
 
 ***
 

@@ -114,9 +114,10 @@ test("explanation text is selectable without panning", async ({ page }) => {
 
 test("spec text is selectable without panning", async ({ page }) => {
   await page.goto(URL);
-  await openPatch(page, 0);
+  await openChange(page, "change-c2");
+  await page.getByTestId("spec-chip-R").click();
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
-  await page.getByTestId("spec-R").locator(".spec-text").dblclick();
+  await page.getByTestId("spec-panel").locator(".spec-section-text").dblclick();
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
   expect(selected.length).toBeGreaterThan(0);
   expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
@@ -168,35 +169,25 @@ test("dragging a node by its title survives a relayout until reset", async ({ pa
   expect(Math.abs(dragged - await relX() - offset)).toBeLessThan(1);
 });
 
-test("spec node sits right of the story and diff lines link to Searchfox", async ({ page }) => {
+test("spec sections are change chips and diff lines link to Searchfox", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("summary").locator(".spec-status")).toContainText("Specs: 1 cited in code");
-  const spec = page.getByTestId("spec-R");
-  await expect(spec).toBeVisible();
-  await expect(spec.getByText("unverified")).toHaveCount(0);
-  await expect(spec.getByText("cited in code")).toBeVisible();
-  const specBox = (await spec.boundingBox())!;
-  for (const id of ["change-c1", "change-c2", "change-c3"]) {
-    const b = (await page.getByTestId(id).boundingBox())!;
-    expect(specBox.x).toBeGreaterThan(b.x + b.width);
-  }
   await expect(page.getByTestId("change-c1").locator(".explanation a.code-link")).toHaveCount(0);
   await openChange(page, "change-c2");
+  const spec = page.getByTestId("spec-chip-R");
+  await expect(spec).toBeVisible();
   await expect(page.getByTestId("hunk-f1h0").locator("td.ln a").first())
     .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
   await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
     .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
   await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
     .toHaveAttribute("title", "Searchfox at the patch's base");
-  for (let i = 0; i < 10 && !(await spec.count()); i++) {
-    const x = await page.evaluate(() => [...Array(60).keys()].map((i) => 1200 - i * 20).find((x) => document.elementFromPoint(x, innerHeight / 2)?.classList.contains("react-flow__pane")));
-    expect(x).toBeDefined();
-    await page.mouse.move(x!, 400);
-    await page.mouse.down();
-    await page.mouse.move(x! - 500, 400, { steps: 8 });
-    await page.mouse.up();
-  }
-  await expect(spec.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
+  await spec.click();
+  const panel = page.getByTestId("spec-panel");
+  await expect(panel.getByRole("link", { name: /open spec/ })).toBeAttached();
+  await expect(panel.getByText("cited in code")).toBeVisible();
+  await expect(panel.getByText("unverified")).toHaveCount(0);
+  await expect(panel.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
 });
 
 test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {
@@ -337,7 +328,7 @@ test("zooming with the control buttons from the keyboard stops the automatic fit
   expect(await zoomOf(page)).toBeCloseTo(zoom, 5);
 });
 
-test("resizing a node persists width per zoom level and reset restores defaults", async ({ page }) => {
+test("resizing a node persists its width and reset restores defaults", async ({ page }) => {
   await page.goto(URL);
   await openPatch(page, 0);
   const first = page.getByTestId("change-c1").locator("..");
@@ -350,9 +341,9 @@ test("resizing a node persists width per zoom level and reset restores defaults"
   const box = (await handle.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 10 });
   await page.mouse.up();
-  await expect.poll(() => flowWidth(first)).toBeGreaterThan(beforeWidth + 100);
+  await expect.poll(() => flowWidth(first)).toBeGreaterThan(beforeWidth + 60);
   await waitForCanvasSettled(page);
   const resized = (await first.boundingBox())!;
   const below = (await second.boundingBox())!;
@@ -366,10 +357,10 @@ test("resizing a node persists width per zoom level and reset restores defaults"
   await openChange(page);
   await expect(reloadedFirst).toHaveCSS("width", /\d+px/);
   const codeWidth = await flowWidth(reloadedFirst);
-  expect(codeWidth).toBeGreaterThan(resizedWidth);
+  expect(codeWidth).toBeCloseTo(resizedWidth, -1);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Reset layout" }).click();
-  await expect.poll(() => flowWidth(reloadedFirst)).toBeLessThan(resizedWidth - 100);
+  await expect.poll(() => flowWidth(reloadedFirst)).toBeLessThan(resizedWidth - 60);
 });
 
 async function dragBy(page: Page, target: Locator, dx: number, dy: number) {

@@ -12,7 +12,7 @@ export function findFinding(graph: Graph | null, id: string): FindingData | null
 }
 
 /** The finding, its decision and comment, and its conversation. */
-export function FindingDetails({ data, actions, onClose, onBack }: { data: FindingData; actions: ChatActions; onClose(): void; onBack?(): void }) {
+export function FindingDetails({ data, actions, onClose, onBack }: { data: FindingData; actions: ChatActions | null; onClose(): void; onBack?(): void }) {
   return <ChatActionsContext.Provider value={actions}>
     <SidePanel className="review-detail-panel" title={`Finding · ${data.severity}`} closeLabel="Close finding panel" testId="finding-panel" onClose={onClose}
       onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); onClose(); } }}

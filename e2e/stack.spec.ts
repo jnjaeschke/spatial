@@ -168,9 +168,9 @@ test("a comment on the first stack revision anchors to its commit line", async (
   await revealNode(page, "summary");
   await expect(page.getByTestId("summary")).not.toContainText("Phabricator comments");
   await openPatch(page, 0);
-  const thread = page.getByTestId("phab-thread").filter({ hasText: "Why c?" });
-  await revealNode(page, thread);
-  await expect(thread).toContainText("c.txt:1");
+  await openChange(page, "change-c2");
+  await page.locator(".review-chip.kind-phab").filter({ hasText: "Why c?" }).click();
+  await expect(page.getByTestId("phab-panel")).toContainText("c.txt:1");
 });
 
 test("commits are lanes; the guide walks the reading path and records reviews", async ({ page, request }) => {

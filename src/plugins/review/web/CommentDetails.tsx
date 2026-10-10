@@ -14,10 +14,10 @@ export function findComment(graph: Graph | null, id: string): Found | null {
 }
 
 /** Closing the panel discards an unsaved draft. */
-export function CommentDetails({ comment, actions, onClose, onBack }: { comment: Found; actions: ChatActions; onClose(): void; onBack?(): void }) {
+export function CommentDetails({ comment, actions, onClose, onBack }: { comment: Found; actions: ChatActions | null; onClose(): void; onBack?(): void }) {
   const close = () => {
     const { draft } = comment.item;
-    if (draft) { draftTexts.delete(draft.id); actions.onDiscard(draft.id); }
+    if (draft) { draftTexts.delete(draft.id); actions?.onDiscard(draft.id); }
     onClose();
   };
   return <ChatActionsContext.Provider value={actions}>

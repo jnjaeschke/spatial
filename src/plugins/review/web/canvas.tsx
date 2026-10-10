@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
+import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { DetailsContext } from "./details.ts";
 
@@ -15,8 +14,6 @@ export const DiagramStepContext = createContext<{
   stepTarget(diagram: Artifact<DiagramData>, step: SequenceStep): ReturnType<typeof diagramStepTarget>;
   revealStep(nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }): void;
 } | null>(null);
-
-const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<string, string>) => comments.filter((comment) => comment.data.bot).map((comment) => phabCommentCollapseId(anchors[comment.data.phid]!));
 
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
@@ -89,11 +86,8 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
 
 export const reviewCanvas: CanvasModel = {
   graph: reviewGraph,
-  collapsedByDefault: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "phab") ? [...(n.data.done ? [n.id] : []), ...botCommentIds(n.data.comments, n.data.phabAnchors)]
-      : isReviewKind(n.data, "summary") ? [
-        ...n.data.phabUnanchored.filter((group) => group.outdatedEpoch !== null).map((group) => `phab-outdated:${group.outdatedEpoch}`),
+  collapsedByDefault: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "summary") ? [
         ...n.data.reviews.filter(reviewIsEmpty).map((review) => `review:${review.revision}`),
-        ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : []),
   guide: (graph, place) => guideEntries(graph, place).map(({ change, ...step }) => ({
     ...step,

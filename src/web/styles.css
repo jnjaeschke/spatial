@@ -473,19 +473,15 @@ button.code-link::after {
 .phab-summary { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
 .phab-summary h4 { margin: 0; font-size: 0.85em; font-weight: 650; color: var(--text-2); }
 .summary-node .files .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
-.phab-summary ul { margin: 4px 0; padding-left: 18px; }
-.phab-summary li { margin: 3px 0; overflow-wrap: anywhere; }
 .files { margin: 6px 0 0; padding-left: 18px; font-family: var(--font-mono); font-size: 0.82em; color: var(--text-2); }
 .files li::marker { color: var(--text-3); }
 
 .change-node { --kind: var(--kind-change); }
-.spec-node { --kind: var(--kind-spec); }
 .chat-node { --kind: var(--kind-chat); }
 .hosted-chat { margin: 8px 0; font-family: var(--font-sans); white-space: normal; word-break: normal; }
 .thread-stub { padding: 4px 8px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .note-node { --kind: var(--kind-note); }
 .note-draft { margin-left: 8px; padding: 2px 6px; border-radius: 999px; background: color-mix(in oklab, var(--kind-note) 18%, transparent); font-size: 0.75em; }
-.phab-node { --kind: var(--kind-phab); }
 
 /* Diffs */
 .diff { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; cursor: text; user-select: text; background: var(--surface); }
@@ -516,13 +512,9 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 ::highlight(sym-earlier) { text-decoration: underline dotted var(--text-3); text-underline-offset: 3px; }
 .diff tr.diff-error td { color: var(--danger); padding: 6px; }
 
-/* Spec */
-.spec-node .spec-text { white-space: pre-wrap; max-height: 360px; overflow: auto; font-family: "Iowan Old Style", Charter, Georgia, serif; line-height: 1.5; color: var(--text-2); }
-
 /* Conversations */
-.phab-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
-.phab-node > .title .badge:first-child { margin-left: 0; margin-right: 4px; background: color-mix(in oklab, var(--kind-phab) 16%, transparent); color: var(--kind-phab); }
 .phab-done { background: var(--badge-muted-bg); color: var(--badge-muted-fg); }
+.phab-detail-location { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 0.9em; margin-bottom: 8px; }
 .chat-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .box .messages { margin-top: 6px; scrollbar-width: thin; }
 .chat-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: calc(12px * var(--text-scale, 1)); padding: 4px 0; }
@@ -657,9 +649,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
   *, *::before { transition: none !important; animation: none !important; }
 }
 
-.phab-summary ul.phab-comments { list-style: none; padding-left: 0; }
-.phab-comments > li { margin: 0; padding: 6px 0; }
-.phab-comments > li + li { border-top: 1px solid var(--border); }
 .phab-body :is(h1, h2, h3, h4, h5, h6) { font-size: 1.05em; margin: 0.6em 0 0.3em; }
 .phab-comment-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .phab-comment-head strong { color: var(--kind-phab); }
@@ -727,7 +716,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .step-ranges, .step-cycle { font-family: var(--font-mono); color: var(--text-3); font-size: 0.9em; }
 .hunk-node tr.step-mapped td.sign { box-shadow: inset 3px 0 0 var(--map-color, var(--accent)); }
 .hunk-node tr.step-mapped td.code { background: color-mix(in oklab, var(--map-color, var(--accent)) 10%, transparent); }
-.spec-node button.steps { margin-left: 8px; }
 
 .place-crumbs { display: flex; align-items: center; gap: 4px; font-size: 12.5px; }
 .place-crumbs .sep { color: var(--text-3); }
