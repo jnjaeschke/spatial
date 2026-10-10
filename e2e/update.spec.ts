@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { openPatch, startReview } from "./canvas.ts";
+import { openChange, openPatch, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 
@@ -69,6 +69,23 @@ test("author amends: toast, update, epoch 2, interdiff shows only the author's c
   await expect(panel).toContainText("d.txt");
   await expect(panel.locator("tr.del").filter({ hasText: "THIRTY" })).toHaveCount(1);
   await expect(panel).not.toContainText("c.txt");
+});
+
+test("interdiff Back returns to the file opened from a hunk header", async ({ page, request }) => {
+  const { dir } = await openNarrated(page, request);
+  amend(dir);
+  const toast = page.getByTestId(/^toast-revision:/);
+  await expect(toast).toBeVisible({ timeout: 10_000 });
+  await toast.getByRole("button", { name: "Update" }).click();
+  await expect(page.getByTestId("epoch")).toHaveText("Epoch 2");
+  await expect(page.getByTestId("change-c3")).toBeVisible({ timeout: 30_000 });
+  await openChange(page, "change-c1");
+  await page.getByTestId(/^hunk-card-/).getByRole("button", { name: "a.txt" }).click();
+  await expect(page.getByTestId("file-panel")).toBeVisible();
+  await page.getByRole("button", { name: "Interdiff" }).click();
+  await expect(page.getByTestId("interdiff-panel")).toBeVisible();
+  await page.getByTestId("interdiff-panel").getByRole("button", { name: "Back" }).click();
+  await expect(page.getByTestId("file-panel")).toBeVisible();
 });
 
 test("author rebases onto a moved base: interdiff excludes the base's own changes", async ({ page, request }) => {

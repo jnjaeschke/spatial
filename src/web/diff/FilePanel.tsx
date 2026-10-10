@@ -10,12 +10,13 @@ import { DiffRows, changeStarts } from "./DiffRows.tsx";
 export interface HunkRow { hunkId: string; side: "new" | "old"; line: number }
 
 /** `onJump` reveals a hunk row on the canvas. Previous / Next change (or p / n in the panel) step through the file's changes. */
-export function FilePanel({ sessionId, diff, open, onClose, onJump }: {
+export function FilePanel({ sessionId, diff, open, onClose, onJump, onBack }: {
   sessionId: string;
   diff: Artifact<DiffData>;
   open: FileViewRequest;
   onClose: () => void;
   onJump: (row: HunkRow) => void;
+  onBack?: () => void;
 }) {
   const file = diff.data.files.find((item) => item.path === open.path);
   const [lines, setLines] = useState<string[] | null>(null);
@@ -70,11 +71,12 @@ export function FilePanel({ sessionId, diff, open, onClose, onJump }: {
   }, [rows, open.hunkId, open.text]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || (event.key !== "n" && event.key !== "p")) return;
     event.preventDefault();
     step(event.key === "n" ? 1 : -1);
   };
-  return <SidePanel className="file-panel" title={open.path} closeLabel="Close file" onClose={onClose} testId="file-panel" onKeyDown={onKeyDown} bodyRef={body} headerExtra={<span className="change-nav">{starts.length > 0 && <><button aria-label="Previous change" title="Previous change (p)" disabled={current === 0} onClick={() => step(-1)}>↑</button><span data-testid="change-position">{current + 1}/{starts.length}</span><button aria-label="Next change" title="Next change (n)" disabled={current === starts.length - 1} onClick={() => step(1)}>↓</button></>}</span>}>
+  return <SidePanel className="file-panel" title={open.path} closeLabel="Close file" onClose={onClose} testId="file-panel" onKeyDown={onKeyDown} bodyRef={body} headerExtra={<>{onBack && <button aria-label="Back" onClick={onBack}>←</button>}<span className="change-nav">{starts.length > 0 && <><button aria-label="Previous change" title="Previous change (p)" disabled={current === 0} onClick={() => step(-1)}>↑</button><span data-testid="change-position">{current + 1}/{starts.length}</span><button aria-label="Next change" title="Next change (n)" disabled={current === starts.length - 1} onClick={() => step(1)}>↓</button></>}</span></>}>
       {file && <div className="diff"><table><tbody><DiffRows rows={rows} hunkId={open.hunkId} diffId={diff.id} path={file.path} onRowClick={(row) => onJump(row.new !== undefined ? { hunkId: row.hunkId!, side: "new", line: row.new } : { hunkId: row.hunkId!, side: "old", line: row.old! })} /></tbody></table></div>}
       {error && <p className="file-panel-error">{error}</p>}
   </SidePanel>;

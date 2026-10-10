@@ -18,6 +18,10 @@
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<[`DiffData`](../../../shared/types/interfaces/DiffData.md)\>
 
+#### onBack?
+
+() => `void`
+
 #### onClose
 
 () => `void`
