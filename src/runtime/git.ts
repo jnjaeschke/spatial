@@ -354,14 +354,20 @@ export function makeGit(repo: string): GitCapability {
       const dir = await mkdtemp(join(tmpdir(), "spatial-words-"));
       try {
         const file = join(dir, "words");
-        await writeFile(file, words.join("\n") + "\n");
-        try {
-          const out = await git(repo, ["grep", "-o", "-h", "-w", "-I", "-F", "-f", file, rev]);
-          return new Set(out.split("\n").filter(Boolean));
-        } catch (e) {
-          if ((e as { code?: number }).code === 1) return new Set();
-          throw e;
+        const found = new Set<string>();
+        // `-m 1` keeps the output small (common words match in nearly every file) but hides words after a file's first matching line, so repeat with the words not yet found until a round finds none.
+        for (let pending = words; pending.length; pending = pending.filter((word) => !found.has(word))) {
+          await writeFile(file, pending.join("\n") + "\n");
+          let out: string;
+          try {
+            out = await git(repo, ["grep", "-o", "-h", "-w", "-I", "-F", "-m", "1", "-f", file, rev]);
+          } catch (e) {
+            if ((e as { code?: number }).code === 1) break;
+            throw e;
+          }
+          for (const word of out.split("\n")) if (word) found.add(word);
         }
+        return found;
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

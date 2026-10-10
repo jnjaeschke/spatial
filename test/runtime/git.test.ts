@@ -205,6 +205,13 @@ test("wordsAt searches only whole words in the requested tree", async () => {
 });
 
 // REQUIRES_REAL_GIT
+test("wordsAt finds a word on a later line than another matching word of the same file", async () => {
+  const r = makeRepo();
+  const sha = r.commit({ "a.cpp": "int Common;\nint Common2;\nint Rare;\n", "b.cpp": "int Common;\n" }, "first");
+  assert.deepEqual(await makeGit(r.dir).wordsAt(sha, ["Common", "Common2", "Rare", "Absent"]), new Set(["Common", "Common2", "Rare"]));
+});
+
+// REQUIRES_REAL_GIT
 test("blame returns forward and reverse line ownership", async () => {
   const r = makeRepo();
   const base = r.commit({ "a.txt": "one\ntwo\nthree\n" }, "base");
