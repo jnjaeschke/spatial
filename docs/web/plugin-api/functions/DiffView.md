@@ -42,6 +42,10 @@ Read-only hunk. `nodrag nopan` lets users select text instead of moving the canv
 
 (`thread`) => `ReactNode`
 
+#### rowClass?
+
+(`row`) => `string` \| `undefined`
+
 #### sessionId
 
 `string`

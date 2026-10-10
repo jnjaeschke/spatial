@@ -670,28 +670,27 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .revision-file > summary { cursor: pointer; padding: 4px 0; }
 .revision-file .counts { color: var(--text-2); font-size: 0.85em; }
 
-/* Spec view: steps beside the code of the changes citing the spec, colored by the step map. */
-.spec-view { --map-implements: var(--success); --map-partial: var(--warning); --map-structural: var(--link); --map-deviates: var(--danger); --map-plumbing: var(--text-3); --map-error-path: var(--text-2); --map-test: var(--text-3); --map-unexplained: var(--danger); --map-none: var(--text-3);
-  position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--bg); }
-.spec-view > header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
-.spec-view > header b { font-family: var(--font-mono); }
+/* Spec details and mapped source rows. */
+.spec-panel { --map-implements: var(--success); --map-partial: var(--warning); --map-structural: var(--link); --map-deviates: var(--danger); --map-plumbing: var(--text-3); --map-error-path: var(--text-2); --map-test: var(--text-3); --map-unexplained: var(--danger); --map-none: var(--text-3); }
+.spec-panel-content { padding: 12px 16px; }
+.spec-panel-heading { display: flex; align-items: baseline; gap: 12px; }
+.spec-panel-heading .spec-view-title { flex: 1; }
+.spec-section-text { white-space: pre-wrap; color: var(--text-2); line-height: 1.5; }
+.spec-panel-content > .spec-view-status { margin: 10px 0; }
 .spec-view-title { color: var(--text-2); }
 .spec-view-status { color: var(--text-2); font-size: 0.92em; display: inline-flex; gap: 6px; align-items: center; }
-.spec-view > header .spacer { flex: 1; }
-.spec-view > header button[aria-label="Close spec view"] { box-shadow: none; border-color: transparent; background: transparent; font-size: 16px; line-height: 1; padding: 2px 8px; color: var(--text-3); }
-.spec-legend { display: inline-flex; gap: 6px; }
+.spec-legend { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .legend { font-size: 0.82em; padding: 1px 7px; border-radius: 3px; border-left: 4px solid var(--map-color); background: var(--surface-2); }
-.legend.map-implements, .spec-view tr.map-implements { --map-color: var(--map-implements); }
-.legend.map-partial, .spec-view tr.map-partial { --map-color: var(--map-partial); }
-.legend.map-structural, .spec-view tr.map-structural { --map-color: var(--map-structural); }
-.legend.map-deviates, .spec-view tr.map-deviates { --map-color: var(--map-deviates); }
-.legend.map-plumbing, .spec-view tr.map-plumbing { --map-color: var(--map-plumbing); }
-.legend.map-error-path, .spec-view tr.map-error-path { --map-color: var(--map-error-path); }
-.legend.map-test, .spec-view tr.map-test { --map-color: var(--map-test); }
-.legend.map-unexplained, .spec-view tr.map-unexplained { --map-color: var(--map-unexplained); }
-.legend.map-none, .spec-view tr.map-none { --map-color: var(--map-none); }
-.spec-view-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 2fr) 3fr; }
-.spec-steps { padding: 10px 12px; overflow: auto; border-right: 1px solid var(--border); font-family: "Iowan Old Style", Charter, Georgia, serif; }
+.legend.map-implements, .hunk-node tr.map-implements { --map-color: var(--map-implements); }
+.legend.map-partial, .hunk-node tr.map-partial { --map-color: var(--map-partial); }
+.legend.map-structural, .hunk-node tr.map-structural { --map-color: var(--map-structural); }
+.legend.map-deviates, .hunk-node tr.map-deviates { --map-color: var(--map-deviates); }
+.legend.map-plumbing, .hunk-node tr.map-plumbing { --map-color: var(--map-plumbing); }
+.legend.map-error-path, .hunk-node tr.map-error-path { --map-color: var(--map-error-path); }
+.legend.map-test, .hunk-node tr.map-test { --map-color: var(--map-test); }
+.legend.map-unexplained, .hunk-node tr.map-unexplained { --map-color: var(--map-unexplained); }
+.legend.map-none, .hunk-node tr.map-none { --map-color: var(--map-none); }
+.spec-steps { padding: 10px 0; font-family: "Iowan Old Style", Charter, Georgia, serif; }
 .spec-steps ol { list-style: none; margin: 0; padding: 0; }
 .spec-step { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; width: 100%; text-align: left; align-items: baseline; padding: 4px 8px; margin: 1px 0; border: 0; border-left: 4px solid transparent; border-radius: var(--radius-sm); background: transparent; box-shadow: none; font: inherit; color: var(--text); }
 .spec-step .step-number { font: 600 12px var(--font-mono); color: var(--text-2); }
@@ -700,26 +699,21 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-step:focus-visible { box-shadow: var(--focus-ring); }
 .spec-step.selected .step-text { -webkit-line-clamp: unset; }
 .spec-step .step-status { font: 11px var(--font-sans); color: var(--text-3); white-space: nowrap; }
-.spec-view .spec-step.status-implements { border-left-color: var(--map-implements); }
-.spec-view .spec-step.status-partial { border-left-color: var(--map-partial); }
-.spec-view .spec-step.status-structural { border-left-color: var(--map-structural); }
-.spec-view .spec-step.status-deviates { border-left-color: var(--map-deviates); }
-.spec-view .spec-step.status-plumbing { border-left-color: var(--map-plumbing); }
-.spec-view .spec-step.status-error-path { border-left-color: var(--map-error-path); }
-.spec-view .spec-step.status-test { border-left-color: var(--map-test); }
-.spec-view .spec-step.status-unexplained { border-left-color: var(--map-unexplained); }
+.spec-panel .spec-step.status-implements { border-left-color: var(--map-implements); }
+.spec-panel .spec-step.status-partial { border-left-color: var(--map-partial); }
+.spec-panel .spec-step.status-structural { border-left-color: var(--map-structural); }
+.spec-panel .spec-step.status-deviates { border-left-color: var(--map-deviates); }
+.spec-panel .spec-step.status-plumbing { border-left-color: var(--map-plumbing); }
+.spec-panel .spec-step.status-error-path { border-left-color: var(--map-error-path); }
+.spec-panel .spec-step.status-unexplained { border-left-color: var(--map-unexplained); }
 .spec-step.status-deviates .step-status { color: var(--map-deviates); font-weight: 600; }
-.spec-view .spec-step.status-substeps { border-left-color: color-mix(in oklab, var(--map-implements) 40%, transparent); }
+.spec-panel .spec-step.status-substeps { border-left-color: color-mix(in oklab, var(--map-implements) 40%, transparent); }
 .spec-step.status-unmapped .step-number { color: var(--text-3); }
 .step-notes { list-style: none; margin: 2px 0 8px 30px; padding: 0; font: 0.9em var(--font-sans); color: var(--text-2); }
 .step-notes li { margin: 3px 0; }
 .step-ranges, .step-cycle { font-family: var(--font-mono); color: var(--text-3); font-size: 0.9em; }
-.spec-code { overflow: auto; padding: 10px 14px; }
-.spec-code .diff { margin-bottom: 12px; }
-.spec-view tr[class*="map-"] td.sign { box-shadow: inset 4px 0 0 var(--map-color); }
-.spec-view tr.map-none td.sign { box-shadow: inset 4px 0 0 transparent; background-image: repeating-linear-gradient(45deg, var(--map-none) 0 1px, transparent 1px 4px); background-size: 4px 100%; background-repeat: no-repeat; }
-.spec-view tr.map-selected td.code { background: color-mix(in oklab, var(--map-color) 18%, transparent); }
-.spec-view tr.jumps { cursor: pointer; }
+.hunk-node tr.step-mapped td.sign { box-shadow: inset 3px 0 0 var(--map-color, var(--accent)); }
+.hunk-node tr.step-mapped td.code { background: color-mix(in oklab, var(--map-color, var(--accent)) 10%, transparent); }
 .spec-node button.steps { margin-left: 8px; }
 
 .place-crumbs { display: flex; align-items: center; gap: 4px; font-size: 12.5px; }

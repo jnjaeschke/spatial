@@ -26,7 +26,7 @@ function specRepo() {
   return { dir, base };
 }
 
-test("a cited spec opens beside its code, colored by the step map; Step comments are checked", async ({ page }) => {
+test("a cited spec opens in the details panel and selecting a step maps its change rows", async ({ page }) => {
   const { dir, base } = specRepo();
   await startReview(page, dir, `${base}..HEAD`);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
@@ -35,25 +35,23 @@ test("a cited spec opens beside its code, colored by the step map; Step comments
   const spec = page.locator(".spec-node");
   await revealNode(page, spec);
   await spec.getByRole("button", { name: "Steps" }).click();
-  const view = page.getByTestId("spec-view");
+  const view = page.getByTestId("spec-panel");
+  await expect(view.getByText("HTML#navigate")).toBeVisible();
   await expect(view.getByTestId("spec-map-status")).toHaveText("2 of 2 steps mapped · 1 deviates · 2 added lines unexplained", { timeout: 15_000 });
   await expect(page.getByText("Step 1 comment sits on code mapped to step 2 of HTML#navigate")).toBeAttached();
   await expect(view.getByTestId("step-1")).toHaveClass(/status-implements/);
   await expect(view.getByTestId("step-2")).toHaveClass(/status-deviates/);
-  await expect(view.locator('tr[data-new="5"]')).toHaveClass(/map-none/);
-  await expect(view.locator('tr[data-new="9"]')).toHaveClass(/map-plumbing/);
   await view.getByTestId("unmapped-0").click();
   await expect(view.getByText("Logs the navigation.")).toBeVisible();
-  await expect(view.locator('tr[data-new="9"]')).toHaveClass(/map-selected/);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /change:/);
+  await expect(page.locator('.hunk-node tr[data-new="9"]')).toHaveClass(/step-mapped/);
 
   await view.getByTestId("step-2").click();
   await expect(view.getByText("Calls Other() instead of adding the file.")).toBeVisible();
-  await expect(view.locator('tr[data-new="6"]')).toHaveClass(/map-selected/);
-  await expect(view.locator('tr[data-new="3"]')).not.toHaveClass(/map-selected/);
-
-  await view.locator('tr[data-new="4"]').click();
-  await expect(view.getByTestId("step-1")).toHaveClass(/selected/);
-  await expect(view.locator('tr[data-new="3"]')).toHaveClass(/map-selected/);
+  await expect(page.locator('.hunk-node tr[data-new="6"]')).toHaveClass(/step-mapped/);
+  await expect(page.locator('.hunk-node tr[data-new="6"]')).toHaveClass(/map-deviates/);
+  await expect(page.locator('.hunk-node tr[data-new="6"]')).toHaveClass(/focus/);
+  await expect(page.locator('.hunk-node tr[data-new="3"]')).not.toHaveClass(/step-mapped/);
 
   await page.keyboard.press("Escape");
   await expect(view).toHaveCount(0);
