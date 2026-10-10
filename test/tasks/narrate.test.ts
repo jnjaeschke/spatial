@@ -113,6 +113,15 @@ test("validate: coverage, duplicates, unknown ids, deps, cycles, shape", () => {
   assert.deepEqual(validateNarrative({ summary: "S", changes: [change("c1", ["f0h0", "f0h1", "f2h0"], ["c2"])] }, DIFF), ["Change c1 depends on unknown change c2"]);
 });
 
+test("validate: optionally allows unassigned hunks but still rejects duplicates", () => {
+  const missing = { summary: "S", changes: [change("c1", ["f0h0", "f2h0"])] };
+  assert.deepEqual(validateNarrative(missing, DIFF, { allowUnassigned: true }), []);
+  assert.deepEqual(validateNarrative(missing, DIFF), ["Hunk f0h1 not assigned to any change"]);
+
+  const duplicate = { summary: "S", changes: [change("c1", ["f0h0", "f0h1"]), change("c2", ["f0h0", "f2h0"])] };
+  assert.ok(validateNarrative(duplicate, DIFF, { allowUnassigned: true }).includes("Hunk f0h0 assigned to multiple changes: c1, c2"));
+});
+
 function setup(responses: unknown[]) {
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
@@ -206,10 +215,25 @@ test("narrate: retries once with validation errors, then succeeds", async () => 
 });
 
 test("narrate: fails after second invalid answer", async () => {
-  const bad = { summary: "S", changes: [change("c1", ["f0h0"])] };
+  const bad = { summary: "S", changes: [change("c1", ["f0h0", "f0h1"]), change("c2", ["f0h0", "f2h0"])] };
   const { rt, session, diffId, prompts } = setup([bad, bad]);
-  await assert.rejects(rt.run(session.id, "narrate", { diffId }), /Narrative failed validation:[\s\S]*f0h1/);
+  await assert.rejects(rt.run(session.id, "narrate", { diffId }), /Narrative failed validation:[\s\S]*Hunk f0h0 assigned to multiple changes/);
   assert.equal(prompts.length, 2);
+});
+
+test("narrate: accepts unassigned hunks after the repair retry", async () => {
+  const partial = { summary: "S", changes: [change("c1", ["f0h0", "f2h0"])] };
+  const { store, rt, session, diffId, prompts } = setup([partial, partial]);
+  const { narrativeId } = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId });
+  assert.deepEqual(store.getArtifact<PatchNarrativeData>(narrativeId).data.changes, [change("c1", ["f0h0", "f2h0"])]);
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1].prompt, /Hunk f0h1 not assigned to any change/);
+});
+
+test("narrate: still rejects duplicate assignments after the repair retry", async () => {
+  const duplicate = { summary: "S", changes: [change("c1", ["f0h0", "f0h1"]), change("c2", ["f0h0", "f2h0"])] };
+  const { rt, session, diffId } = setup([duplicate, duplicate]);
+  await assert.rejects(rt.run(session.id, "narrate", { diffId }), /Narrative failed validation:[\s\S]*Hunk f0h0 assigned to multiple changes/);
 });
 
 test("narrate: rejects oversized diffs before calling the LLM", async () => {

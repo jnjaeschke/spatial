@@ -68,7 +68,7 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?:
         "Return a corrected, complete answer.",
       ].join("\n");
       r = await ctx.llm.run({ prompt: retry, system, schema: narrationSchema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
-      errors = validateNarrative(r.json, diff.data);
+      errors = validateNarrative(r.json, diff.data, { allowUnassigned: true });
       if (errors.length) throw new Error(`Narrative failed validation:\n${errors.join("\n")}`);
     }
 

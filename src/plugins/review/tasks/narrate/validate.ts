@@ -1,8 +1,8 @@
 import type { DiffData, SemanticChange } from "../../../../plugin-api.ts";
 import { hunkCommit } from "../../shared/review-path.ts";
 
-/** Deterministic checks the LLM cannot be trusted with. Returns human-readable errors; empty = valid. */
-export function validateNarrative(json: unknown, diff: DiffData): string[] {
+/** Deterministic checks the LLM cannot be trusted with. Returns human-readable errors; empty = valid. `allowUnassigned` accepts hunks no change claims (the web shows them as unassigned changes). */
+export function validateNarrative(json: unknown, diff: DiffData, { allowUnassigned = false }: { allowUnassigned?: boolean } = {}): string[] {
   const n = json as { summary?: unknown; changes?: unknown; commitIntents?: unknown; flowHints?: unknown };
   if (typeof n !== "object" || n === null || typeof n.summary !== "string" || !Array.isArray(n.changes)) {
     return ["Narrative must be an object with string summary and array changes"];
@@ -26,7 +26,7 @@ export function validateNarrative(json: unknown, diff: DiffData): string[] {
   }
   for (const h of known) {
     const o = owners.get(h);
-    if (!o) errors.push(`Hunk ${h} not assigned to any change`);
+    if (!o) { if (!allowUnassigned) errors.push(`Hunk ${h} not assigned to any change`); }
     else if (o.length > 1) errors.push(`Hunk ${h} assigned to multiple changes: ${o.join(", ")}`);
   }
 
