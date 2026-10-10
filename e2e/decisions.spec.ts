@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { revealNode, setLevel, startReview } from "./canvas.ts";
+import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -7,7 +7,7 @@ async function openNarrated(page: Page, request: APIRequestContext): Promise<voi
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
   await startReview(page, fixture.worktree, "HEAD~1..HEAD");
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
 }
 
 test("accept a finding, edit comment, and submit a confirmed review", async ({ page, request }) => {
@@ -24,7 +24,7 @@ test("accept a finding, edit comment, and submit a confirmed review", async ({ p
   await finding.getByRole("button", { name: "Save" }).click();
   const panel = page.getByTestId("review-panel-D1");
   await expect(panel).toBeVisible({ timeout: 5_000 });
-  await setLevel(page, "code");
+  await openChange(page);
   const code = page.locator("tr[data-anchor] .code").first();
   await code.evaluate((element) => {
     const range = document.createRange();
@@ -37,6 +37,7 @@ test("accept a finding, edit comment, and submit a confirmed review", async ({ p
   const inlineDraft = page.getByLabel("Comment for Phabricator");
   await inlineDraft.fill("Check this edge case.");
   await inlineDraft.press("Enter");
+  await openPatch(page, 0);
   await expect(panel).toContainText("2 inline comments pending");
   await panel.getByLabel("General comment").fill("Please address both findings.");
   await panel.getByLabel("General comment").blur();

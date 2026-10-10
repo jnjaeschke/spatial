@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { addDecisions, conversationGraph, estimateSize, fitMinZoom, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, zoomLevel, type Graph, type GraphNode } from "../../src/web/graph.ts";
+import { addDecisions, conversationGraph, estimateSize, fitMinZoom, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";
 
@@ -69,39 +69,11 @@ test("aside threads at the workflow start are chat nodes and use saved free posi
   assert.deepEqual(placed.nodes.find((item) => item.id === "TA")?.position, { x: 123, y: 456 });
 });
 
-test("zoomLevel switches up at the entry thresholds", () => {
-  assert.equal(zoomLevel(0.6, "patch"), "concept");
-  assert.equal(zoomLevel(1.2, "concept"), "code");
-});
-
-test("zoomLevel switches down below the exit thresholds", () => {
-  assert.equal(zoomLevel(0.9, "code"), "code");
-  assert.equal(zoomLevel(0.899, "code"), "concept");
-  assert.equal(zoomLevel(0.45, "concept"), "concept");
-  assert.equal(zoomLevel(0.449, "concept"), "patch");
-});
-
-test("zoomLevel stays in the hysteresis band", () => {
-  assert.equal(zoomLevel(0.5, "patch"), "patch");
-  assert.equal(zoomLevel(0.5, "concept"), "concept");
-  assert.equal(zoomLevel(1, "concept"), "concept");
-  assert.equal(zoomLevel(1, "code"), "code");
-});
-
-test("zoomLevel handles jumps across multiple levels", () => {
-  assert.equal(zoomLevel(1.5, "patch"), "code");
-  assert.equal(zoomLevel(0.3, "code"), "patch");
-});
-
-test("fitMinZoom preserves readable text and expanded stack changes", () => {
-  assert.deepEqual(fitMinZoom(1, "code"), {});
-  assert.deepEqual(fitMinZoom(0.9, "code"), {});
-  assert.deepEqual(fitMinZoom(1.15, "code"), { minZoom: 1.035 });
-  assert.deepEqual(fitMinZoom(1.6, "patch"), {});
-  assert.deepEqual(fitMinZoom(1.6, "concept"), {});
-  assert.deepEqual(fitMinZoom(1.6, "code"), { minZoom: 1.44 });
-  assert.equal(zoomLevel(fitMinZoom(1.6, "code").minZoom!, "code"), "code");
-  assert.deepEqual(fitMinZoom(1, "code", true), { minZoom: 0.6 });
+test("fitMinZoom keeps enlarged text readable", () => {
+  assert.deepEqual(fitMinZoom(1), {});
+  assert.deepEqual(fitMinZoom(0.9), {});
+  assert.deepEqual(fitMinZoom(1.15), { minZoom: 1.035 });
+  assert.deepEqual(fitMinZoom(1.6), { minZoom: 1.44 });
 });
 
 test("placeSatellites: column right of the story, aligned to anchors, no overlap", () => {

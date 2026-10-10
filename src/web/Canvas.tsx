@@ -1,12 +1,11 @@
-import { flushSync } from "react-dom";
-import { createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { Fragment, createContext, createElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import {
   Background, Controls, MiniMap, NodeResizer, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type Node, type NodeProps, type ResizeParams, type Viewport,
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, LEVEL_MAX_ZOOM, LEVEL_MIN_ZOOM, SATELLITE_WIDTH, zoomLevel, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode, type ZoomLevel } from "./graph.ts";
+import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, NODE_WIDTH, SATELLITE_WIDTH, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode, type ZoomLevel } from "./graph.ts";
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
@@ -27,20 +26,23 @@ export interface GuideStep {
   /** Short label before the title (the commit of a stack). */
   tag?: string;
   reviewed: boolean;
-  /** The node to center for this step at a zoom level. */
-  nodeId(level: ZoomLevel): string;
-  toggleReviewed(sessionId: string): Promise<unknown>;
+  /** The node to center for this step. */
+  nodeId: string;
+  /** The place this step opens instead of centering `nodeId`. */
+  place?: string;
+  /** Without it the guide bar offers no reviewed toggle for the step. */
+  toggleReviewed?(sessionId: string): Promise<unknown>;
 }
 /** A diff row to highlight and scroll to; `anchor` is the diff row anchor (`${diffId}#${hunkId}`). */
 export interface FocusedRow { anchor: string; side: "new" | "old"; line: number }
 export interface CanvasProviderProps {
   state: SessionState;
-  /** The graph as shown: after layers and closed nodes, before collapsing and zoom level. */
+  /** The graph as shown: after layers and closed nodes, before places and collapsing. */
   graph: Graph;
   /** No server behind the view (a past epoch or a static export): nothing may be requested. */
   readOnly: boolean;
-  /** Expands the collapse id, centers the node (leaving the zoom level for code), and records the jump in the view history. */
-  reveal(nodeId: string, collapseId: string): void;
+  /** Expands the collapse id, centers the node (first switching to `place` when given), and records the jump in the view history. */
+  reveal(nodeId: string, collapseId: string, place?: string): void;
   /** Highlights a diff row and scrolls it into view. */
   focusRow(row: FocusedRow): void;
   children: ReactNode;
@@ -51,14 +53,27 @@ export interface CanvasModel {
   graph(state: SessionState, drafts: Draft[]): Graph | null;
   /** Collapse ids that start collapsed. */
   collapsedByDefault?(graph: Graph): string[];
-  /** The reading path of the guide bar and its `n`/`p`/`r` keys; none or empty shows no bar. */
-  guide?(graph: Graph): GuideStep[];
+  /** The reading path of the guide bar and its `n`/`p`/`r` keys at a place (null without places); none or empty shows no bar. */
+  guide?(graph: Graph, place: string | null): GuideStep[];
   /** Layers the user can hide ("Show on canvas"); `hide` removes the hidden layers' nodes and what hangs off them. */
   layers?: { list: { id: string; label: string }[]; hide(graph: Graph, hidden: ReadonlySet<string>): Graph };
-  /** The graph at a zoom level, for kinds that fold at low zoom. */
-  levelGraph?(graph: Graph, level: ZoomLevel): Graph;
-  /** Stacks (parallel lanes) lay out with `layout` instead of dagre and need a taller fit at patch zoom. */
-  stack?: { is(graph: Graph): boolean; layout(nodes: PlacedNode[], edges: GraphEdge[]): Map<string, { x: number; y: number }> };
+  /** Named places of a canvas, e.g. a review's stack, one patch, one change. Ids are opaque to core. */
+  places?: {
+    /** The place shown first, and the fallback for a stored place `graph` rejects. */
+    initial(graph: Graph): string;
+    /** The graph shown at `place`, or null when the place does not exist in `graph`. */
+    graph(graph: Graph, place: string): Graph | null;
+    /** The representation of nodes at `place`. */
+    level(place: string): ZoomLevel;
+    /** The place a node opens into, or null when it opens nothing. */
+    open(graph: Graph, place: string, nodeId: string): string | null;
+    /** The enclosing place and the node in it that leads to `place`; null at the top. */
+    up(graph: Graph, place: string): { place: string; nodeId: string } | null;
+    /** Breadcrumb from the top place to `place`. */
+    crumbs(graph: Graph, place: string): { place: string; label: string }[];
+  };
+  /** Stacks (parallel lanes) lay out with `layout` instead of dagre at the places where `is` holds. */
+  stack?: { is(graph: Graph, place: string | null): boolean; layout(nodes: PlacedNode[], edges: GraphEdge[]): Map<string, { x: number; y: number }> };
   /** Edges that only steer the dagre layout; the displayed edges stay as they are. */
   layoutEdges?(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[];
   /** Nodes to center when they first appear after the canvas has loaded (a freshly generated diagram). */
@@ -155,11 +170,27 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   const revealedIds = useMemo(() => model.revealWhenAdded ? graph.nodes.filter(model.revealWhenAdded).map((n) => n.id) : [], [model, graph]);
   const defaults = useMemo(() => new Set(model.collapsedByDefault?.(graph) ?? []), [model, graph]);
   const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
-  const steps = useMemo(() => model.guide?.(graph) ?? NO_STEPS, [model, graph]);
-  const [level, setLevel] = useState<ZoomLevel>(() => storedView.current?.level ?? "code");
-  const levelRef = useRef(level);
-  const open = useMemo(() => visibleGraph(graph, collapsed), [graph, collapsed]);
-  const shown = useMemo(() => model.levelGraph?.(open, level) ?? open, [model, open, level]);
+  const places = model.places;
+  const [placeState, setPlaceState] = useState<string | null>(() => places ? storedView.current?.place ?? null : null);
+  const { place, placed } = useMemo(() => {
+    if (!places) return { place: null, placed: graph };
+    const stored = placeState === null ? null : places.graph(graph, placeState);
+    if (stored) return { place: placeState, placed: stored };
+    const initial = places.initial(graph);
+    const initialGraph = places.graph(graph, initial);
+    if (!initialGraph) throw new Error(`Initial place ${initial} does not exist`);
+    return { place: initial, placed: initialGraph };
+  }, [places, graph, placeState]);
+  const level: ZoomLevel = places && place !== null ? places.level(place) : "code";
+  const placeRef = useRef(place);
+  placeRef.current = place;
+  useEffect(() => {
+    if (place === placeState) return;
+    if (placeState !== null) storedView.current = null;
+    setPlaceState(place);
+  }, [place, placeState]);
+  const steps = useMemo(() => model.guide?.(graph, place) ?? NO_STEPS, [model, graph, place]);
+  const shown = useMemo(() => visibleGraph(placed, collapsed), [placed, collapsed]);
   useLayoutEffect(() => {
     const next = new Set(revealedIds);
     if (!knownRevealed.current) { knownRevealed.current = next; return; }
@@ -191,13 +222,17 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
   // Until the user touches the canvas, every measured layout refits the view, so nodes that arrive later (findings) show up.
   const autoFit = useRef(true);
-  const flying = useRef(false);
-  levelRef.current = level;
   // A new epoch is a new graph: fit it again even if the user moved the previous one.
   const rootId = graph.nodes[0]!.id;
   const previousRootId = useRef(rootId);
   const start = startStep(steps.map((s) => s.reviewed));
   const [guideStep, setGuideStep] = useState<number | null>(() => clampGuideStep(storedView.current?.guideStep ?? null, steps.length));
+  const guideStepRef = useRef(guideStep);
+  guideStepRef.current = guideStep;
+  const guideByPlace = useRef(new Map<string, number | null>());
+  const savePlaceView = useRef(false);
+  const selectAfterLayout = useRef<string | null>(null);
+  const opening = useRef(false);
   useEffect(() => {
     if (previousRootId.current === rootId) return;
     previousRootId.current = rootId;
@@ -207,6 +242,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [focusedRow, setFocusedRow] = useState<FocusedRow | null>(null);
+  const focusedRowRef = useRef(focusedRow);
+  focusedRowRef.current = focusedRow;
   const focusCentered = useRef(false);
   useLayoutEffect(() => {
     const root = container.current;
@@ -225,7 +262,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       void rf.setCenter(point.x, point.y, { zoom: rf.getZoom(), duration: 200 });
     });
   }, [focusedRow, nodes]);
-  const currentId = guideStep === null || !steps[guideStep] ? null : steps[guideStep].nodeId(level);
+  const currentId = guideStep === null || !steps[guideStep] ? null : steps[guideStep].nodeId;
   const currentRef = useRef<string | null>(currentId);
   currentRef.current = currentId;
   const focusNode = (id: string) => {
@@ -236,23 +273,22 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     const zoom = rf.getZoom();
     const view = paneHeight / zoom;
     autoFit.current = false;
-    // The zoom-pan interpolation dips in zoom mid-flight; the level is judged by the final zoom only.
-    flying.current = true;
-    void rf.setCenter(node.position.x + w / 2, h <= view ? node.position.y + h / 2 : node.position.y + view / 2 - 24 / zoom, { zoom, duration: 200 }).then(() => {
-      flying.current = false;
-      onMove(null, rf.getViewport());
-    });
+    void rf.setCenter(node.position.x + w / 2, h <= view ? node.position.y + h / 2 : node.position.y + view / 2 - 24 / zoom, { zoom, duration: 200 });
   };
   const moveGuide = (delta: 1 | -1) => {
     if (!steps.length) return;
-    pushJump(historyView());
     const next = moveStep(steps.length, guideStep, delta, start);
-    setGuideStep(next);
-    focusNode(steps[next]!.nodeId(level));
+    const target = steps[next]!;
+    if (target.place !== undefined && target.place !== place) goTo(target.place, { guideStep: next });
+    else {
+      pushJump(historyView());
+      setGuideStep(next);
+      focusNode(target.nodeId);
+    }
   };
   const toggleReviewed = () => {
     if (guideStep === null || !chatActions) return;
-    void steps[guideStep]!.toggleReviewed(chatActions.sessionId).catch((error: Error) => console.error(error));
+    void steps[guideStep]!.toggleReviewed?.(chatActions.sessionId).catch((error: Error) => console.error(error));
   };
   const guideRef = useRef({ move: moveGuide, toggleReviewed });
   guideRef.current = { move: moveGuide, toggleReviewed };
@@ -284,7 +320,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     if (size.width !== undefined || size.height !== undefined) setSize(level, id, size);
   };
 
-  const place = (id: string, p: { x: number; y: number }) => {
+  const offsetPosition = (id: string, p: { x: number; y: number }) => {
     const o = offsets.current.get(id);
     return o ? { x: p.x + o.dx, y: p.y + o.dy } : p;
   };
@@ -295,7 +331,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   // chat placed before its anchor was measured moves to its quote once it is.
   const quoteDy = useRef(new Map<string, number>());
   const [quoteDyVersion, setQuoteDyVersion] = useState(0);
-  useEffect(() => quoteDy.current.clear(), [level]);
+  useEffect(() => quoteDy.current.clear(), [level, place]);
   const measureQuoteDy = () => {
     let changed = false;
     for (const n of quoted) {
@@ -331,7 +367,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       for (const [id, p] of placeSatellites(rects, satellites)) freePlaced.set(id, p);
     }
     const sized = all.filter((n) => !free.has(n.id) && !rootOf.has(n.id));
-    if (model.stack?.is(shown)) {
+    if (model.stack?.is(shown, place)) {
       const byId = new Map(shown.nodes.map((n) => [n.id, n]));
       return new Map([...model.stack.layout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [], ...(dy?.has(s.id) ? { dy: dy.get(s.id)! } : {}) }; }), shown.edges), ...free, ...freePlaced]);
     }
@@ -373,7 +409,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       id: n.id,
       type: n.data.kind,
       data: { ...n.data, sessionId: state.session.id, level },
-      position: place(n.id, pos.get(n.id)!),
+      position: offsetPosition(n.id, pos.get(n.id)!),
       ...(measured.has(n.id) ? { measured: measured.get(n.id) } : {}),
       style: nodeStyle(n),
       className: nodeClass(n.id, n.data.kind),
@@ -397,7 +433,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     measureQuoteDy();
     const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizeOf(n.type!, n.id).width !== undefined ? sizeOf(n.type!, n.id).width! * textScale : n.measured!.width!, height: n.measured!.height! })), quoteDy.current);
     basePos.current = pos;
-    setNodes((ns) => ns.map((n) => ({ ...n, position: place(n.id, pos.get(n.id)!) })));
+    setNodes((ns) => ns.map((n) => ({ ...n, position: offsetPosition(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
     if (draftToFocus && (nodes.some((n) => n.id === draftToFocus) || graph.nodes.some((node) => hostedThreads(node.data)?.some((thread) => thread.draftId === draftToFocus)))) {
       focusDraft.current = null;
@@ -419,10 +455,19 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     }
     const a = anchor.current && nodes.find((n) => n.id === anchor.current);
     if (a) {
-      const p = place(a.id, pos.get(a.id)!);
-      rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: Math.max(rf.getZoom(), LEVEL_MIN_ZOOM[levelRef.current]) });
+      const p = offsetPosition(a.id, pos.get(a.id)!);
+      const centered = rf.setCenter(p.x + a.measured!.width! / 2, p.y + a.measured!.height! / 2, { zoom: rf.getZoom() });
       anchor.current = null;
       autoFit.current = false;
+      if (selectAfterLayout.current === a.id) {
+        const id = a.id;
+        selectAfterLayout.current = null;
+        setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === id })));
+      }
+      if (savePlaceView.current) {
+        savePlaceView.current = false;
+        void centered.then(persistView);
+      }
     } else if (autoFit.current) {
       if (storedView.current) {
         const view = storedView.current;
@@ -430,8 +475,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
         autoFit.current = false;
         void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
       } else {
-        const fitFloor = fitMinZoom(textScale, levelRef.current, model.stack?.is(shown) ?? false);
-        void rf.fitView({ maxZoom: Math.max(LEVEL_MAX_ZOOM[levelRef.current], fitFloor.minZoom ?? 0), ...fitFloor });
+        const fitFloor = fitMinZoom(textScale);
+        void rf.fitView({ maxZoom: Math.max(1, fitFloor.minZoom ?? 0), ...fitFloor }).then(() => { if (savePlaceView.current && autoFit.current) persistView(); });
       }
     }
   }, [sizeKey, quoteDyVersion, nodes, rf, setNodes, shown, textScale, sizes, level, graph]);
@@ -439,9 +484,9 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   useEffect(() => {
     if (autoFit.current) return;
     const { x, y, zoom } = rf.getViewport();
-    saveViewState(state.session.id, { x, y, zoom, level, guideStep });
-    saveHistoryView({ x, y, zoom, level, guideStep, focusedRow });
-  }, [level, guideStep, focusedRow, rf, state.session.id]);
+    saveViewState(state.session.id, { x, y, zoom, place, guideStep });
+    saveHistoryView({ x, y, zoom, place, guideStep, focusedRow });
+  }, [place, guideStep, focusedRow, rf, state.session.id]);
 
   const quoteAt = (x: number, y: number) => {
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
@@ -495,8 +540,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
         el.classList.toggle("over-collapsed-quote", id !== null && collapsed.has(id));
       });
     };
-    // User input interrupts a guide flight, whose promise then never resolves.
-    const stopAutoFit = () => { autoFit.current = false; flying.current = false; };
+    const stopAutoFit = () => { autoFit.current = false; };
     const leave = () => {
       cancelAnimationFrame(frame);
       setHoveredQuote(null);
@@ -616,7 +660,6 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       if (!step) return;
       event.preventDefault();
       autoFit.current = false;
-      flying.current = false;
       const vp = rf.getViewport();
       void rf.setViewport({ ...vp, x: vp.x - step.x, y: vp.y - step.y });
     };
@@ -624,46 +667,84 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     return () => el.removeEventListener("keydown", keydown);
   }, [rf]);
 
-  const nodeNearestCenter = useCallback((): string | null => {
-    const el = container.current;
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    const c = rf.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    let best: string | null = null;
-    let bestD = Infinity;
-    for (const n of rf.getNodes()) {
-      const w = n.measured?.width ?? 0, h = n.measured?.height ?? 0;
-      const d = Math.hypot(n.position.x + w / 2 - c.x, n.position.y + h / 2 - c.y);
-      if (d < bestD) { bestD = d; best = n.id; }
-    }
-    return best;
-  }, [rf]);
-
-  const onMove = useCallback((_: unknown, vp: Viewport) => {
-    if (flying.current) return;
-    const next = zoomLevel(vp.zoom, levelRef.current);
-    if (next !== levelRef.current) {
-      if (!autoFit.current) anchor.current = nodeNearestCenter();
-      // Not synchronously: a viewport change resolved inside a ResizeObserver callback would resize the nodes within that delivery.
-      requestAnimationFrame(() => flushSync(() => setLevel(next)));
-    }
-  }, [nodeNearestCenter]);
-
+  const persistView = () => {
+    const view = { ...rf.getViewport(), place: placeRef.current, guideStep: guideStepRef.current };
+    saveViewState(state.session.id, view);
+    saveHistoryView({ ...view, focusedRow: focusedRowRef.current });
+  };
   const onMoveEnd = (_: unknown, vp: Viewport) => {
     if (autoFit.current) return;
-    saveViewState(state.session.id, { ...vp, level: zoomLevel(vp.zoom, levelRef.current), guideStep });
-    saveHistoryView({ ...vp, level: zoomLevel(vp.zoom, levelRef.current), guideStep, focusedRow });
+    saveViewState(state.session.id, { ...vp, place, guideStep });
+    saveHistoryView({ ...vp, place, guideStep, focusedRow });
   };
-  const historyView = (): HistoryView => ({ ...rf.getViewport(), level: levelRef.current, guideStep, focusedRow });
+  const historyView = (): HistoryView => ({ ...rf.getViewport(), place: placeRef.current, guideStep, focusedRow });
   useViewHistory((view) => {
     autoFit.current = false;
     anchor.current = null;
-    if (view.level !== levelRef.current) setLevel(view.level);
+    if (view.place !== placeRef.current) {
+      placeRef.current = view.place;
+      setPlaceState(view.place);
+    }
     setGuideStep(view.guideStep);
     focusCentered.current = true;
     setFocusedRow(view.focusedRow);
     void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
   });
+
+  const stepOfPlace = (target: string) => {
+    const index = model.guide?.(graph, target).findIndex((step) => step.place === target) ?? -1;
+    return index < 0 ? null : index;
+  };
+  // Switches the place as one history entry (`from` is the view that Back returns to); then fits the new place, or
+  // centers and selects `center` in it.
+  const goTo = (target: string, how: { guideStep?: number | null; center?: string; select?: boolean }, from: HistoryView = historyView()) => {
+    if (placeRef.current !== null) guideByPlace.current.set(placeRef.current, guideStep);
+    pushJump(from);
+    storedView.current = null;
+    placeRef.current = target;
+    setPlaceState(target);
+    setGuideStep(how.guideStep !== undefined ? how.guideStep : guideByPlace.current.get(target) ?? stepOfPlace(target));
+    savePlaceView.current = true;
+    anchor.current = how.center ?? null;
+    selectAfterLayout.current = how.select ? how.center ?? null : null;
+    autoFit.current = how.center === undefined;
+  };
+  const openNode = async (nodeId: string) => {
+    const target = places && place !== null ? places.open(graph, place, nodeId) : null;
+    const node = rf.getNode(nodeId);
+    if (!target || !node || opening.current) return;
+    opening.current = true;
+    const from = historyView();
+    const zoom = Math.min(2, rf.getZoom() * 2);
+    autoFit.current = false;
+    try {
+      await Promise.race([rf.setCenter(node.position.x + (node.measured?.width ?? 0) / 2, node.position.y + (node.measured?.height ?? 0) / 2, { zoom, duration: 200 }), new Promise((resolve) => setTimeout(resolve, 400))]);
+      goTo(target, {}, from);
+    } finally {
+      opening.current = false;
+    }
+  };
+  const ascend = (target?: string) => {
+    if (!places || place === null) return;
+    for (let at = place; at !== target;) {
+      const up = places.up(graph, at);
+      if (!up) return;
+      if (target === undefined || up.place === target) return goTo(up.place, { center: up.nodeId, select: true });
+      at = up.place;
+    }
+  };
+  const placeKeys = (event: ReactKeyboardEvent) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !places) return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable], dialog")) return;
+    if (event.key === "Escape" || event.key === "Backspace") {
+      event.preventDefault();
+      ascend();
+    } else if (event.key === "Enter" && !(event.target instanceof Element && event.target.closest("button, a, summary"))) {
+      const selected = rf.getNodes().find((n) => n.selected);
+      if (selected) void openNode(selected.id);
+    }
+  };
+  const crumbs = useMemo(() => places && place !== null ? places.crumbs(graph, place) : [], [places, graph, place]);
 
   const reset = () => {
     offsets.current.clear();
@@ -674,12 +755,14 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
     }));
   };
 
-  const reveal = (nodeId: string, collapseId: string) => {
-    pushJump(historyView());
-    const height = rf.getNode(nodeId)?.measured?.height;
-    if (collapsed.has(collapseId) && height !== undefined && levelRef.current === "code") anchorOnResize.current = { id: nodeId, height };
-    else anchor.current = nodeId;
-    if (levelRef.current !== "code") setLevel("code");
+  const reveal = (nodeId: string, collapseId: string, target?: string) => {
+    if (places && target !== undefined && target !== placeRef.current) goTo(target, { center: nodeId });
+    else {
+      pushJump(historyView());
+      const height = rf.getNode(nodeId)?.measured?.height;
+      if (collapsed.has(collapseId) && height !== undefined) anchorOnResize.current = { id: nodeId, height };
+      else anchor.current = nodeId;
+    }
     expandExplicitly(collapseId);
   };
   const focusRow = (row: FocusedRow) => {
@@ -690,7 +773,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" tabIndex={-1} style={{ width: "100%", height: "100%" }} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
+    <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" data-place={place ?? undefined} tabIndex={-1} style={{ width: "100%", height: "100%" }} onKeyDown={placeKeys} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
@@ -701,8 +784,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
-        onMove={onMove}
         onMoveEnd={onMoveEnd}
+        onNodeDoubleClick={(event, node) => { if (!(event.target instanceof Element) || !event.target.closest("button, a, input, textarea, select, summary")) void openNode(node.id); }}
         nodesDraggable
         nodesConnectable={false}
         zoomOnDoubleClick={false}
@@ -718,6 +801,7 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
       >
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
+        {places && <Panel position="top-left"><nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav></Panel>}
         <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap

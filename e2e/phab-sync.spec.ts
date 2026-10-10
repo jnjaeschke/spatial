@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { revealNode, setLevel, startReview } from "./canvas.ts";
+import { openPatch, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 const control = "http://127.0.0.1:4179/control";
@@ -58,7 +58,7 @@ async function openNarratedWithTrailer(page: Page, request: APIRequestContext, r
   const diff = git(dir, "diff", "main", "feature");
   await configure(request, revision, conduit(diff));
   await startReview(page, dir, "main..feature");
-  await setLevel(page, "code");
+  await openPatch(page, 0);
   await revealNode(page, "summary");
   return { dir, diff };
 }

@@ -5,7 +5,7 @@ import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState,
 import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, NODE_WIDTH, SATELLITE_WIDTH, type GraphNode, type GraphNodeData, type ZoomLevel } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
-import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, level: ZoomLevel, textScale = 1) => {
@@ -200,15 +200,6 @@ test("narrativeGraph adds reviewed state and per-commit reviewed counts", () => 
   assert.deepEqual(cards.map((node) => isReviewKind(node.data, "commit") && node.data.reviewedCount), [1, 0]);
 });
 
-test("levelGraph collapses stack changes at patch zoom only", () => {
-  const g = narrativeGraph(stackNarrative, stackDiff, [stackDiff]);
-  assert.deepEqual(levelGraph(g, "patch").nodes.map((n) => n.id), ["NS", "NS#commit-0", "NS#commit-1"]);
-  assert.deepEqual(levelGraph(g, "patch").edges.map(({ source, target }) => [source, target]), [["NS", "NS#commit-0"], ["NS", "NS#commit-1"]]);
-  assert.equal(levelGraph(g, "concept"), g);
-  const single = narrativeGraph(narrative("N"), diff, [diff]);
-  assert.equal(levelGraph(single, "patch"), single);
-});
-
 test("sessionGraph counts active findings on their owning commit cards", () => {
   const finding = (id: string, anchor: string) => ({ id, sessionId: "S", type: "ReviewFinding" as const, status: "proposed" as const, createdAt: id, provenance: { taskId: "t" }, data: { anchor, category: "tests" as const, severity: "low" as const, title: id, body: "Body" } , epoch: null});
   const active = finding("F1", "DS#f0h1"), dismissed = finding("F0", "DS#f0h0");
@@ -331,7 +322,7 @@ test("sessionGraph adds only the latest diagram for each commit in the current d
   assert.equal(diagrams.length, 1);
   assert.equal(diagrams[0]!.id, "D-latest");
   assert.equal(isReviewKind(diagrams[0]!.data, "diagram") ? diagrams[0]!.data.diagram.id : "", "D-latest");
-  assert.deepEqual(levelGraph(graph, "patch").nodes.filter((node) => isReviewKind(node.data, "diagram")), []);
+  assert.deepEqual(reviewPlaces.graph(graph, "patch:1")!.nodes.filter((node) => isReviewKind(node.data, "diagram")).map((node) => node.id), ["D-latest"]);
   assert.equal(sessionGraph(state([stackDiff, stackNarrative, legacy]))!.nodes.some((node) => isReviewKind(node.data, "diagram")), false);
 });
 
@@ -836,10 +827,6 @@ test("a review session shows notes as note nodes", () => {
   assert.equal(review.nodes.find((item) => item.id === "N1")?.data.kind, "note");
 });
 
-test("stepNodeId targets visible change or commit node by zoom level", () => {
-  const change = { id: "c3" } as ChangeNodeData["change"];
-  const step = { narrativeId: "N", commit: 1, change };
-  assert.equal(stepNodeId(step, "patch"), "N#commit-1");
-  assert.equal(stepNodeId(step, "concept"), "N#c3");
-  assert.equal(stepNodeId({ ...step, commit: null }, "patch"), "N#c3");
+test("stepNodeId targets the change node", () => {
+  assert.equal(stepNodeId({ narrativeId: "N", change: { id: "c3" } as ChangeNodeData["change"] }), "N#c3");
 });

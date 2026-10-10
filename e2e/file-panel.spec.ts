@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { openChange, startReview } from "./canvas.ts";
 
 const dirs: string[] = [];
 test.afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -27,7 +27,7 @@ test("the file panel steps through the file's changes", async ({ page }) => {
   writeFileSync(join(dir, "FileNav.txt"), `${lines.join("\n")}\n`);
   git(dir, "commit", "-am", "Edit two places");
   await startReview(page, dir, `${base}..HEAD`);
-  await setLevel(page, "code");
+  await openChange(page);
   await page.getByTestId("hunk-f0h1").getByRole("button", { name: "FileNav.txt" }).click();
 
   const panel = page.getByTestId("file-panel");

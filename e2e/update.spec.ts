@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { openPatch, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 
@@ -45,7 +45,7 @@ async function openNarrated(page: Page, request: APIRequestContext) {
   git(dir, "commit", "-m", "initial patch");
 
   await startReview(page, dir, "main..feature");
-  await setLevel(page, "code");
+  await openPatch(page, 0);
   return { dir };
 }
 

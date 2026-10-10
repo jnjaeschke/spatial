@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, diagramLayoutEdges, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, levelGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, stackLayout, stepNodeId, type Layer } from "./graph.ts";
+import { LAYERS, diagramLayoutEdges, diagramStepTarget, guideEntries, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 
 /** A diff row to reveal and focus; a new object per request. */
 import type { HunkRow } from "../../../web/plugin-api.ts";
@@ -45,7 +45,7 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
     if (!node || !isReviewKind(node.data, "change")) return;
-    reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`);
+    reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`, `change:${nodeId}`);
     focusRow({ anchor: `${node.data.diffId}#${hunkId}`, ...row });
   };
   useEffect(() => {
@@ -68,16 +68,13 @@ export const reviewCanvas: CanvasModel = {
         ...n.data.reviews.filter(reviewIsEmpty).map((review) => `review:${review.revision}`),
         ...botCommentIds([...n.data.phabGeneral, ...n.data.phabUnanchored.flatMap((group) => group.comments)], n.data.phabAnchors),
       ] : []),
-  guide: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "change") ? [n.data] : []).map((step) => ({
-    title: step.change.title,
-    ...(step.commit !== null ? { tag: `C${step.commit + 1}` } : {}),
-    reviewed: step.reviewed,
-    nodeId: (level) => stepNodeId(step, level),
-    toggleReviewed: (sessionId) => api.setReviewed(sessionId, step.narrativeId, step.change.id, !step.reviewed),
+  guide: (graph, place) => guideEntries(graph, place).map(({ change, ...step }) => ({
+    ...step,
+    ...(change ? { toggleReviewed: (sessionId: string) => api.setReviewed(sessionId, change.narrativeId, change.change.id, !change.reviewed) } : {}),
   })),
   layers: { list: LAYERS.map((id) => ({ id, label: LAYER_LABEL[id] })), hide: (graph, hidden) => layerGraph(graph, hidden as ReadonlySet<Layer>) },
-  levelGraph,
-  stack: { is: (graph) => graph.nodes.some((n) => n.data.kind === "commit"), layout: stackLayout },
+  places: reviewPlaces,
+  stack: { is: (_, place) => place === "stack", layout: stackLayout },
   layoutEdges: diagramLayoutEdges,
   revealWhenAdded: (node) => node.data.kind === "diagram",
   Provider: ReviewCanvasProvider,

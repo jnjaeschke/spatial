@@ -722,6 +722,9 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-view tr.jumps { cursor: pointer; }
 .spec-node button.steps { margin-left: 8px; }
 
+.place-crumbs { display: flex; align-items: center; gap: 4px; font-size: 12.5px; }
+.place-crumbs .sep { color: var(--text-3); }
+.place-crumbs > [aria-current="page"] { padding: 4px 6px; color: var(--text-2); }
 .layers { display: inline-flex; margin-right: 8px; }
 .layers button { border-radius: 0; margin-left: -1px; color: var(--text-3); text-decoration: line-through; }
 .layers button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }

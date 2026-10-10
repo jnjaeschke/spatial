@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { revealNode, setLevel, startReview } from "./canvas.ts";
+import { openChange, openPatch, placeUp, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 let revisionCount = 0;
@@ -53,24 +53,26 @@ async function buildStack(request: APIRequestContext, commits: StackCommit[]) {
   return { dir, base, ids, rawDiffs };
 }
 
-async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>, level: "code" | "concept") {
+async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>) {
   const sessionId = await startReview(page, stack.dir, `${stack.base}..feature`);
-  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  await setLevel(page, level);
-  await expect(page.getByTestId("change-c1")).toHaveAttribute("data-level", level);
+  await expect(page.getByTestId("commit-0")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "stack");
   return sessionId;
 }
 
-async function reviewAndPost(page: Page, revision: number) {
+async function reviewAndPost(page: Page, revision: number, commit: number) {
+  await openPatch(page, commit);
   const finding = page.locator(".finding-node");
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
   // The grown comment box can push Save under a neighbouring node, which would take a pointer click.
   await finding.getByRole("button", { name: "Save" }).press("Enter");
+  await placeUp(page);
   const panel = page.getByTestId(`review-panel-D${revision}`);
   const post = panel.getByRole("button", { name: `Submit to D${revision}…` });
   await expect(post).toBeVisible({ timeout: 10_000 });
+  await revealNode(page, post);
   await post.click();
   await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
   await expect(panel.locator(".review-result").first()).toContainText(`Submitted to D${revision}`);
@@ -112,15 +114,15 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  const sessionId = await narrate(page, stack, "concept");
+  const sessionId = await narrate(page, stack);
   const summary = page.getByTestId("summary");
   await expect(summary.locator("li .swatch")).toHaveCount(2);
   await expect(summary).toContainText("C1");
   await expect(summary).toContainText("First stack change");
   await expect(summary).toContainText("C2");
   await expect(summary).toContainText("Rewrite line");
-  await revealNode(page, "change-c1");
-  await setLevel(page, "code");
+  await openPatch(page, 1);
+  await openChange(page, "change-c3");
   const rewritten = page.getByTestId("hunk-f0h1");
   await revealNode(page, rewritten);
   await expect(rewritten.getByTestId("rewrite-flag")).toHaveText("C2 rewrites 1 line added in C1");
@@ -128,7 +130,10 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(latest).toHaveAttribute("data-commit", "1");
   const latestColor = await latest.locator("td.sign").evaluate((element) => getComputedStyle(element).backgroundColor);
   await expect(page.getByTestId("change-c3").locator(".title > .commit-tag")).toHaveText("C2");
-  await page.getByTestId("guide").getByRole("button", { name: "Next step" }).click();
+  await expect(page.getByTestId("guide")).toContainText("Step 3/3");
+  await page.getByTestId("guide").getByRole("button", { name: "Previous step" }).click();
+  await page.getByTestId("guide").getByRole("button", { name: "Previous step" }).click();
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /#c1$/);
   await expect(page.locator(".react-flow__node.guide-current").getByTestId("change-c1")).toBeVisible();
   await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt", exact: true }).click();
   const panel = page.getByTestId("file-panel");
@@ -136,7 +141,7 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(panel.locator('tr[data-commit="1"]')).toHaveCount(1);
   await expect(page.getByTestId("hunk-f0h0").locator("tr.del")).toHaveAttribute("data-commit", "0");
   await page.getByRole("button", { name: "Next step" }).click();
-  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /#c2$/);
   const early = page.getByTestId("hunk-f1h0").locator("tr.add");
   await expect(early).toHaveAttribute("data-commit", "0");
   const diff = (await state(request, sessionId)).artifacts.find((artifact) => artifact.type === "Diff")!.data;
@@ -155,13 +160,14 @@ test("a comment on the first stack revision anchors to its commit line", async (
   const response = await request.post(control, { data: { revision: ids[0]!.revision, transactions: [inlineTx(7000 + revisionCount, ids[0]!.revision, ids[0]!.diff, "c.txt", 1, "Why c?")] } });
   expect(response.ok()).toBeTruthy();
 
-  const sessionId = await narrate(page, stack, "code");
+  const sessionId = await narrate(page, stack);
   await expect.poll(async () => (await state(request, sessionId)).artifacts.some((artifact) => artifact.type === "PhabComment"), { timeout: 10_000 }).toBe(true);
+  await revealNode(page, "summary");
+  await expect(page.getByTestId("summary")).not.toContainText("Phabricator comments");
+  await openPatch(page, 0);
   const thread = page.getByTestId("phab-thread").filter({ hasText: "Why c?" });
   await revealNode(page, thread);
   await expect(thread).toContainText("c.txt:1");
-  await revealNode(page, "summary");
-  await expect(page.getByTestId("summary")).not.toContainText("Phabricator comments");
 });
 
 test("commits are lanes; the guide walks the reading path and records reviews", async ({ page, request }) => {
@@ -170,36 +176,53 @@ test("commits are lanes; the guide walks the reading path and records reviews", 
     { revision: ids[0]!.revision, subject: "First stack change", apply: (dir) => changeLine(dir, "THIRTY") },
     { revision: ids[1]!.revision, subject: "Add c", apply: (dir) => writeFileSync(join(dir, "c.txt"), "c\n") },
   ]);
-  const sessionId = await narrate(page, stack, "concept");
+  const sessionId = await narrate(page, stack);
   const lane0 = page.getByTestId("commit-0"), lane1 = page.getByTestId("commit-1");
   const guide = page.getByTestId("guide");
   const current = page.locator(".react-flow__node.guide-current");
+  const canvas = page.locator(".canvas");
+  await expect(guide).toContainText("Start here");
+  await guide.getByRole("button", { name: "Next step" }).click();
+  await expect(current.getByTestId("commit-0")).toBeVisible();
+  await canvas.focus();
+  await page.keyboard.press("n");
+  await expect(current.getByTestId("commit-1")).toBeVisible();
+  await expect(guide).toContainText("Step 2/2");
+  await expect(guide.getByRole("button", { name: "Toggle reviewed" })).toHaveCount(0);
+
+  await openPatch(page, 0);
   await expect(guide).toContainText("Start here");
   await expect(guide).toContainText("Edit a");
   await guide.getByRole("button", { name: "Next step" }).click();
   await expect(current.getByTestId("change-c1")).toBeVisible();
   await expect(page.getByTestId("change-c1")).toBeInViewport();
-  await page.locator(".canvas").focus();
-  await page.keyboard.press("n");
-  await expect(current.getByTestId("change-c2")).toBeVisible();
-  await expect(guide).toContainText("Step 2/2");
-  await expect(page.getByTestId("change-c2")).toBeInViewport();
-  await expect(page.getByTestId("change-c2").locator(".commit-tag")).toHaveText("C2");
-  await guide.getByRole("button", { name: "Previous step" }).click();
-  await expect(current.getByTestId("change-c1")).toBeVisible();
-  await expect(page.getByTestId("change-c1").locator(".commit-tag")).toHaveText("C1");
-
   await guide.getByRole("button", { name: "Toggle reviewed" }).click();
-  await expect(guide.getByTestId("guide-progress")).toHaveText("1/2 reviewed");
+  await expect(guide.getByTestId("guide-progress")).toHaveText("1/1 reviewed");
   await expect(page.getByLabel("Reviewed c1")).toBeChecked();
   const reviews = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "ChangeReview");
   expect(reviews.map((artifact) => [artifact.data.change, artifact.data.reviewed, artifact.provenance.taskId])).toEqual([["c1", true, "user"]]);
+
+  await openChange(page, "change-c1");
+  await expect(guide).toContainText("Step 1/2");
+  await canvas.focus();
+  await page.keyboard.press("n");
+  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(current.getByTestId("change-c2")).toBeVisible();
+  await expect(guide).toContainText("Step 2/2");
+  await expect(page.getByTestId("place-crumbs")).toContainText("C2");
+  await expect(page.getByTestId("change-c2").locator(".title > .commit-tag")).toHaveText("C2");
+  await guide.getByRole("button", { name: "Previous step" }).click();
+  await expect(canvas).toHaveAttribute("data-place", /#c1$/);
+  await expect(page.getByTestId("place-crumbs")).toContainText("C1");
+  await expect(page.getByTestId("change-c1").locator(".title > .commit-tag")).toHaveText("C1");
 
   await page.reload();
   await expect(guide).toContainText("Step 1/2", { timeout: 15_000 });
   await expect(guide).toContainText("Edit a");
   await expect(guide.getByTestId("guide-progress")).toHaveText("1/2 reviewed");
-  await setLevel(page, "patch", "commit-0");
+  await placeUp(page);
+  await placeUp(page);
+  await expect(canvas).toHaveAttribute("data-place", "stack");
   await expect(page.getByTestId("change-c1")).toHaveCount(0);
   await expect(lane0).toContainText("C1");
   await expect(lane0).toContainText("First stack change");
@@ -218,7 +241,8 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  await narrate(page, stack, "code");
+  await narrate(page, stack);
+  await openPatch(page, 0);
   const firstCard = page.getByTestId("commit-0");
   await revealNode(page, firstCard);
   await firstCard.getByRole("button", { name: "Ask about commit 1" }).click();
@@ -255,6 +279,7 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await expect(changedStep).toBeInViewport();
   await page.goForward();
   await expect(page.getByTestId("change-c2").locator('tr.focus[data-new="1"]')).toBeInViewport();
+  await placeUp(page);
   await expect(diagram.locator('button.sequence-step[data-status="existing"]')).toHaveCount(0);
   const toggle = diagram.locator(".diagram-toggle");
   await revealNode(page, toggle);
@@ -295,7 +320,7 @@ test("a commit card draws the diagram narration suggests", async ({ page, reques
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  await narrate(page, stack, "concept");
+  await narrate(page, stack);
   const card = page.getByTestId("commit-0");
   await expect(card).toContainText("Flow: how the changed value is applied");
   await expect(page.getByTestId("commit-1").getByRole("button", { name: "Draw diagram" })).toHaveCount(0);
@@ -310,8 +335,8 @@ test("posts a C1 line to C1", async ({ page, request }) => {
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  const sessionId = await narrate(page, stack, "concept");
-  await reviewAndPost(page, ids[0]!.revision);
+  const sessionId = await narrate(page, stack);
+  await reviewAndPost(page, ids[0]!.revision, 0);
   const posted = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
   expect(posted).toHaveLength(1);
   expect(posted[0]!.data.revision).toBe(ids[0]!.revision);
@@ -327,8 +352,8 @@ test("posts a C2 line to C2", async ({ page, request }) => {
     { revision: ids[0]!.revision, subject: "First stack change", apply: (dir) => changeLine(dir, "THIRTY") },
     { revision: ids[1]!.revision, subject: "Add c", apply: (dir) => writeFileSync(join(dir, "c.txt"), "c\n") },
   ]);
-  const sessionId = await narrate(page, stack, "concept");
-  await reviewAndPost(page, ids[1]!.revision);
+  const sessionId = await narrate(page, stack);
+  await reviewAndPost(page, ids[1]!.revision, 1);
   const posted = (await state(request, sessionId)).artifacts.filter((artifact) => artifact.type === "PostedComment");
   expect(posted).toHaveLength(1);
   expect(posted[0]!.data.revision).toBe(ids[1]!.revision);
@@ -344,13 +369,15 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
     { revision: ids[0]!.revision, subject: "First stack change", apply: (dir) => changeLine(dir, "THIRTY") },
     { revision: ids[1]!.revision, subject: "Add c", apply: (dir) => writeFileSync(join(dir, "c.txt"), "c\nROUTE-UPDATE-REVIEW\n") },
   ]);
-  await narrate(page, stack, "concept");
+  await narrate(page, stack);
+  await openPatch(page, 0);
   const finding = page.locator(".finding-node").filter({ hasText: "Magic number" });
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
   await revealNode(page, finding.getByRole("button", { name: "Save" }));
   await finding.getByRole("button", { name: "Save" }).click();
+  await placeUp(page);
   const panel = page.getByTestId(`review-panel-D${ids[0]!.revision}`);
   const post = panel.getByRole("button", { name: `Submit to D${ids[0]!.revision}…` });
   await expect(post).toBeVisible({ timeout: 10_000 });
@@ -367,6 +394,7 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   expect(restore.ok()).toBeTruthy();
   await post.click();
   await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
+  await openPatch(page, 0);
   await expect(finding).toContainText(`Posted to D${ids[0]!.revision}`);
   await expect.poll(async () => inlines(request, ids[0]!.revision)).toHaveLength(1);
 });

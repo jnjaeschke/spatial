@@ -6,19 +6,6 @@ import type { FreePosition } from "./free-positions.ts";
 
 export type ZoomLevel = "patch" | "concept" | "code";
 
-const ZOOM_THRESHOLDS = { patchToConcept: 0.6, conceptToCode: 1.2, codeToConcept: 0.9, conceptToPatch: 0.45 };
-
-export function zoomLevel(zoom: number, current: ZoomLevel): ZoomLevel {
-  if (current === "patch") return zoom >= ZOOM_THRESHOLDS.conceptToCode ? "code" : zoom >= ZOOM_THRESHOLDS.patchToConcept ? "concept" : "patch";
-  if (current === "concept") return zoom >= ZOOM_THRESHOLDS.conceptToCode ? "code" : zoom < ZOOM_THRESHOLDS.conceptToPatch ? "patch" : "concept";
-  return zoom < ZOOM_THRESHOLDS.conceptToPatch ? "patch" : zoom < ZOOM_THRESHOLDS.codeToConcept ? "concept" : "code";
-}
-
-/** Highest zoom that still shows each level. Fitting the view stays below it, so a fit never switches to a level with wider nodes. */
-export const LEVEL_MAX_ZOOM: Record<ZoomLevel, number> = { patch: 0.59, concept: 1.19, code: 2 };
-/** Lowest zoom that keeps each level once it is shown. A level set without zooming (reveal) must zoom to at least this, or the next move drops back. */
-export const LEVEL_MIN_ZOOM: Record<ZoomLevel, number> = { patch: 0, concept: ZOOM_THRESHOLDS.conceptToPatch, code: ZOOM_THRESHOLDS.codeToConcept };
-
 export const NODE_WIDTH: Record<ZoomLevel, number> = { patch: 360, concept: 480, code: 760 };
 /** Width of spec and chat satellites at every zoom level. */
 export const SATELLITE_WIDTH = 420;
@@ -277,14 +264,9 @@ export function estimateSize(data: GraphNodeData, level: ZoomLevel, textScale = 
   return { width: size.width * textScale, height: size.height * textScale };
 }
 
-/** With enlarged text a fit at code level scrolls instead of shrinking into concept level. */
-export function fitMinZoom(textScale: number, level: ZoomLevel, stack = false): { minZoom?: number } {
-  const readable = textScale > 1 && level === "code"
-    ? Math.min(LEVEL_MAX_ZOOM[level], Math.round(ZOOM_THRESHOLDS.codeToConcept * textScale * 1000) / 1000)
-    : 0;
-  const visibleStackChanges = stack ? ZOOM_THRESHOLDS.patchToConcept : 0;
-  const minZoom = Math.max(readable, visibleStackChanges);
-  return minZoom > 0 ? { minZoom } : {};
+/** With enlarged text a fit scrolls instead of shrinking the text below its readable size. */
+export function fitMinZoom(textScale: number): { minZoom?: number } {
+  return textScale > 1 ? { minZoom: Math.round(0.9 * textScale * 1000) / 1000 } : {};
 }
 
 export function layout(

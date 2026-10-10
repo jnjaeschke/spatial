@@ -1,10 +1,9 @@
-import type { ZoomLevel } from "./graph.ts";
-
 export interface ViewState {
   x: number;
   y: number;
   zoom: number;
-  level: ZoomLevel;
+  /** The canvas place shown; null for canvases without places. */
+  place: string | null;
   guideStep: number | null;
 }
 
@@ -14,7 +13,7 @@ export function readViewState(sessionId: string): ViewState | null {
   if (!value) return null;
   const parsed = JSON.parse(value) as ViewState;
   if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y) || !Number.isFinite(parsed.zoom)
-    || !["patch", "concept", "code"].includes(parsed.level)
+    || (parsed.place !== null && typeof parsed.place !== "string")
     || (parsed.guideStep !== null && (!Number.isInteger(parsed.guideStep) || parsed.guideStep < 0))) return null;
   return parsed;
 }

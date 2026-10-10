@@ -18,7 +18,7 @@
 
 > **graph**: [`Graph`](../type-aliases/Graph.md)
 
-The graph as shown: after layers and closed nodes, before collapsing and zoom level.
+The graph as shown: after layers and closed nodes, before places and collapsing.
 
 ***
 
@@ -56,9 +56,9 @@ Highlights a diff row and scrolls it into view.
 
 ### reveal()
 
-> **reveal**(`nodeId`, `collapseId`): `void`
+> **reveal**(`nodeId`, `collapseId`, `place?`): `void`
 
-Expands the collapse id, centers the node (leaving the zoom level for code), and records the jump in the view history.
+Expands the collapse id, centers the node (first switching to `place` when given), and records the jump in the view history.
 
 #### Parameters
 
@@ -67,6 +67,10 @@ Expands the collapse id, centers the node (leaving the zoom level for code), and
 `string`
 
 ##### collapseId
+
+`string`
+
+##### place?
 
 `string`
 

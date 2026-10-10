@@ -1,11 +1,12 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { revealNode, setLevel, startReview } from "./canvas.ts";
+import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
 
-async function openCodeReview(page: Page, request: APIRequestContext): Promise<string> {
+async function openCodeReview(page: Page, request: APIRequestContext, place: "patch" | "change" = "change"): Promise<string> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
   const sessionId = await startReview(page, fixture.worktree, "HEAD~1..HEAD");
-  await setLevel(page, "code");
+  if (place === "change") await openChange(page);
+  else await openPatch(page, 0);
   return sessionId;
 }
 
@@ -56,7 +57,7 @@ test("Escape closes an empty comment draft", async ({ page, request }) => {
 });
 
 test("review panel saves its general comment and opens a confirmation dialog", async ({ page, request }) => {
-  const sessionId = await openCodeReview(page, request);
+  const sessionId = await openCodeReview(page, request, "patch");
   const panel = page.getByTestId("review-panel-D1");
   await expect(panel.getByLabel("General comment")).toHaveCount(0);
   await panel.getByRole("button", { name: "Expand review D1" }).click();

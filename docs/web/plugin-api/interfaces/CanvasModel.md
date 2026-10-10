@@ -40,6 +40,130 @@ Layers the user can hide ("Show on canvas"); `hide` removes the hidden layers' n
 
 ***
 
+### places?
+
+> `optional` **places?**: `object`
+
+Named places of a canvas, e.g. a review's stack, one patch, one change. Ids are opaque to core.
+
+#### crumbs()
+
+> **crumbs**(`graph`, `place`): `object`[]
+
+Breadcrumb from the top place to `place`.
+
+##### Parameters
+
+###### graph
+
+[`Graph`](../type-aliases/Graph.md)
+
+###### place
+
+`string`
+
+##### Returns
+
+`object`[]
+
+#### graph()
+
+> **graph**(`graph`, `place`): [`Graph`](../type-aliases/Graph.md) \| `null`
+
+The graph shown at `place`, or null when the place does not exist in `graph`.
+
+##### Parameters
+
+###### graph
+
+[`Graph`](../type-aliases/Graph.md)
+
+###### place
+
+`string`
+
+##### Returns
+
+[`Graph`](../type-aliases/Graph.md) \| `null`
+
+#### initial()
+
+> **initial**(`graph`): `string`
+
+The place shown first, and the fallback for a stored place `graph` rejects.
+
+##### Parameters
+
+###### graph
+
+[`Graph`](../type-aliases/Graph.md)
+
+##### Returns
+
+`string`
+
+#### level()
+
+> **level**(`place`): [`ZoomLevel`](../type-aliases/ZoomLevel.md)
+
+The representation of nodes at `place`.
+
+##### Parameters
+
+###### place
+
+`string`
+
+##### Returns
+
+[`ZoomLevel`](../type-aliases/ZoomLevel.md)
+
+#### open()
+
+> **open**(`graph`, `place`, `nodeId`): `string` \| `null`
+
+The place a node opens into, or null when it opens nothing.
+
+##### Parameters
+
+###### graph
+
+[`Graph`](../type-aliases/Graph.md)
+
+###### place
+
+`string`
+
+###### nodeId
+
+`string`
+
+##### Returns
+
+`string` \| `null`
+
+#### up()
+
+> **up**(`graph`, `place`): \{ `nodeId`: `string`; `place`: `string`; \} \| `null`
+
+The enclosing place and the node in it that leads to `place`; null at the top.
+
+##### Parameters
+
+###### graph
+
+[`Graph`](../type-aliases/Graph.md)
+
+###### place
+
+`string`
+
+##### Returns
+
+\{ `nodeId`: `string`; `place`: `string`; \} \| `null`
+
+***
+
 ### Provider?
 
 > `optional` **Provider?**: `ComponentType`\<[`CanvasProviderProps`](CanvasProviderProps.md)\>
@@ -52,17 +176,21 @@ Wraps the canvas in the plugin's contexts.
 
 > `optional` **stack?**: `object`
 
-Stacks (parallel lanes) lay out with `layout` instead of dagre and need a taller fit at patch zoom.
+Stacks (parallel lanes) lay out with `layout` instead of dagre at the places where `is` holds.
 
 #### is()
 
-> **is**(`graph`): `boolean`
+> **is**(`graph`, `place`): `boolean`
 
 ##### Parameters
 
 ###### graph
 
 [`Graph`](../type-aliases/Graph.md)
+
+###### place
+
+`string` \| `null`
 
 ##### Returns
 
@@ -130,15 +258,19 @@ Root graph (first node = root); null when there is nothing to show. Core adds no
 
 ### guide()?
 
-> `optional` **guide**(`graph`): [`GuideStep`](GuideStep.md)[]
+> `optional` **guide**(`graph`, `place`): [`GuideStep`](GuideStep.md)[]
 
-The reading path of the guide bar and its `n`/`p`/`r` keys; none or empty shows no bar.
+The reading path of the guide bar and its `n`/`p`/`r` keys at a place (null without places); none or empty shows no bar.
 
 #### Parameters
 
 ##### graph
 
 [`Graph`](../type-aliases/Graph.md)
+
+##### place
+
+`string` \| `null`
 
 #### Returns
 
@@ -165,28 +297,6 @@ Edges that only steer the dagre layout; the displayed edges stay as they are.
 #### Returns
 
 [`GraphEdge`](GraphEdge.md)[]
-
-***
-
-### levelGraph()?
-
-> `optional` **levelGraph**(`graph`, `level`): [`Graph`](../type-aliases/Graph.md)
-
-The graph at a zoom level, for kinds that fold at low zoom.
-
-#### Parameters
-
-##### graph
-
-[`Graph`](../type-aliases/Graph.md)
-
-##### level
-
-[`ZoomLevel`](../type-aliases/ZoomLevel.md)
-
-#### Returns
-
-[`Graph`](../type-aliases/Graph.md)
 
 ***
 

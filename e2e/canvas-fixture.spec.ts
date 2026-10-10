@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { setLevel, waitForCanvasSettled } from "./canvas.ts";
+import { openChange, openPatch, waitForCanvasSettled } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
 
@@ -15,29 +15,83 @@ async function assertNoOverlap(page: Page) {
   }
 }
 
-test("semantic zoom swaps representations and relayouts without overlap", async ({ page }) => {
+test("double-click drills into a change, Esc and the breadcrumb go back up, zooming keeps the representation", async ({ page }) => {
   await page.goto(URL);
+  const canvas = page.locator(".canvas");
+  const crumbs = page.getByTestId("place-crumbs");
   await expect(page.getByTestId("change-c1")).toBeVisible();
-
-  await setLevel(page, "patch");
+  await waitForCanvasSettled(page);
+  await expect(canvas).toHaveAttribute("data-place", "patch:0");
+  await expect(crumbs).toHaveText("Patch");
   await expect(page.getByTestId("change-c1").getByText("Introduce pending-commit state")).toBeVisible();
-  await expect(page.getByText("Adds mPendingCommit")).toHaveCount(0);
-  await assertNoOverlap(page);
-
-  await setLevel(page, "concept");
   await expect(page.getByText("Adds mPendingCommit")).toBeVisible();
   await expect(page.getByTestId("hunk-f0h0")).toHaveCount(0);
   await assertNoOverlap(page);
 
-  await setLevel(page, "code");
-  await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
+  await openChange(page, "change-c2");
+  await expect(crumbs).toContainText("Patch");
+  await expect(crumbs).toContainText("Fire navigatesuccess when the commit");
   await expect(page.getByTestId("hunk-f1h0").getByText("mPendingCommit = aPending;")).toBeAttached();
   await assertNoOverlap(page);
+
+  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "zoom out" }).click();
+  await waitForCanvasSettled(page);
+  await expect(page.getByTestId("change-c2")).toHaveAttribute("data-level", "code");
+  await expect(page.getByTestId("hunk-f1h0").getByText("mPendingCommit = aPending;")).toBeAttached();
+
+  await page.keyboard.press("Escape");
+  await expect(canvas).toHaveAttribute("data-place", "patch:0");
+  await expect(page.getByTestId("change-c2").locator("..")).toHaveClass(/\bselected\b/);
+  await waitForCanvasSettled(page);
+  await expect(page.getByTestId("change-c2")).toBeInViewport();
+  await expect(page.getByTestId("hunk-f1h0")).toHaveCount(0);
+
+  await openChange(page, "change-c2");
+  await crumbs.getByRole("button", { name: "Patch" }).click();
+  await expect(canvas).toHaveAttribute("data-place", "patch:0");
+  await expect(crumbs).toHaveText("Patch");
+
+  await page.getByTestId("change-c3").click();
+  await page.keyboard.press("Enter");
+  await expect(canvas).toHaveAttribute("data-place", /#c3$/);
+  await page.keyboard.press("Backspace");
+  await expect(canvas).toHaveAttribute("data-place", "patch:0");
+});
+
+test("Back and Forward walk the places", async ({ page }) => {
+  await page.goto(URL);
+  const canvas = page.locator(".canvas");
+  await openChange(page, "change-c2");
+  await page.goBack();
+  await expect(canvas).toHaveAttribute("data-place", "patch:0");
+  await expect(page.getByTestId("change-c2")).toBeVisible();
+  await page.goForward();
+  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
+});
+
+test("a stored place that does not exist falls back to the first place", async ({ page }) => {
+  await page.goto(URL);
+  await expect(page.getByTestId("change-c1")).toBeVisible();
+  await page.evaluate(() => localStorage.setItem("spatial-ide:view:S", JSON.stringify({ x: 0, y: 0, zoom: 1, place: "change:gone", guideStep: null })));
+  await page.reload();
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "patch:0");
+  await expect(page.getByTestId("change-c1")).toBeVisible();
+  await expect(page.getByTestId("change-c1")).toBeInViewport();
+});
+
+test("the place persists across reloads", async ({ page }) => {
+  await page.goto(URL);
+  await openChange(page, "change-c2");
+  await page.reload();
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /#c2$/);
+  await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
+  await expect(page.getByTestId("place-crumbs")).toContainText("Patch");
 });
 
 test("diff text is selectable without panning the canvas", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "code");
+  await openChange(page, "change-c2");
   const hunk = page.getByTestId("hunk-f1h0");
   await hunk.scrollIntoViewIfNeeded();
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
@@ -49,7 +103,7 @@ test("diff text is selectable without panning the canvas", async ({ page }) => {
 
 test("explanation text is selectable without panning", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openChange(page);
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
   await page.getByTestId("change-c1").locator(".explanation").dblclick();
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
@@ -59,7 +113,7 @@ test("explanation text is selectable without panning", async ({ page }) => {
 
 test("spec text is selectable without panning", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
   await page.getByTestId("spec-R").locator(".spec-text").dblclick();
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
@@ -69,7 +123,7 @@ test("spec text is selectable without panning", async ({ page }) => {
 
 test("interacting with a node selects and raises it until selection moves or clears", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const first = page.getByTestId("change-c1").locator("..");
   const second = page.getByTestId("change-c2").locator("..");
 
@@ -83,16 +137,16 @@ test("interacting with a node selects and raises it until selection moves or cle
   await expect(second).toHaveClass(/\bselected\b/);
   await expect(first).not.toHaveClass(/\bselected\b/);
 
-  await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+  await page.locator(".react-flow__pane").click({ position: { x: 20, y: 80 } });
   await expect(page.locator(".react-flow__node.selected")).toHaveCount(0);
 });
 
 const flowX =(page: Page, id: string) =>
   page.getByTestId(`change-${id}`).locator("..").evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).m41);
 
-test("dragging a node by its title survives relayout until reset", async ({ page }) => {
+test("dragging a node by its title survives a relayout until reset", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const relX = async () => await flowX(page, "c2") - await flowX(page, "c1");
   const computed = await relX();
   const title = page.getByTestId("change-c2").locator(".title");
@@ -104,7 +158,8 @@ test("dragging a node by its title survives relayout until reset", async ({ page
   const offset = await relX() - computed;
   expect(offset).toBeGreaterThan(50);
 
-  await setLevel(page, "code");
+  await page.keyboard.press("Control+=");
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue("--text-scale"))).toBe("1.15");
   await page.waitForTimeout(400);
   const dragged = await relX();
   await page.getByRole("button", { name: "Reset layout" }).click();
@@ -124,7 +179,8 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
     const b = (await page.getByTestId(id).boundingBox())!;
     expect(specBox.x).toBeGreaterThan(b.x + b.width);
   }
-  await setLevel(page, "code");
+  await expect(page.getByTestId("change-c1").locator(".explanation a.code-link")).toHaveCount(0);
+  await openChange(page, "change-c2");
   await expect(page.getByTestId("hunk-f1h0").locator("td.ln a").first())
     .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
   await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
@@ -140,7 +196,6 @@ test("spec node sits right of the story and diff lines link to Searchfox", async
     await page.mouse.up();
   }
   await expect(spec.getByRole("link", { name: /Code: dom\/navigation\/Navigation.cpp:120/ })).toBeAttached();
-  await expect(page.getByTestId("change-c1").locator(".explanation a.code-link")).toHaveCount(0);
 });
 
 test("wheel and arrow keys pan, ctrl+wheel zooms", async ({ page }) => {
@@ -209,21 +264,21 @@ test("canvas and minimap hold every node, also off-screen ones", async ({ page }
   expect(maskFill).not.toBe("rgb(0, 0, 0)");
   const minimapBg = await minimap.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(minimapBg).toBe("rgb(255, 255, 255)");
-  await setLevel(page, "patch");
   await page.waitForTimeout(400);
   const all = await page.locator(".react-flow__node").count();
   await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
-  await setLevel(page, "code");
-  // Every node stays mounted, also off-screen, so the layout can use its measured size.
-  await expect(page.locator(".react-flow__node")).toHaveCount(all);
-  await expect(page.locator(".react-flow__minimap-node")).toHaveCount(all);
+  await openChange(page, "change-c2");
+  // Every node of the place stays mounted, also off-screen, so the layout can use its measured size.
+  const here = await page.locator(".react-flow__node").count();
+  expect(here).toBeLessThan(all);
+  await expect(page.locator(".react-flow__minimap-node")).toHaveCount(here);
 });
 
 const zoomOf = (page: Page) => page.locator(".react-flow__viewport").evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
 
-test("guide Next from a far-away view keeps the zoom level and centers the step", async ({ page }) => {
+test("guide Next from a far-away view keeps the zoom and centers the step", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "code");
+  await openPatch(page, 0);
   await page.locator(".canvas").focus();
   for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowDown");
   await waitForCanvasSettled(page);
@@ -231,28 +286,15 @@ test("guide Next from a far-away view keeps the zoom level and centers the step"
   await page.getByRole("button", { name: "Next step" }).click();
   await waitForCanvasSettled(page);
   const change = page.getByTestId("change-c1");
-  await expect(change).toHaveAttribute("data-level", "code");
   expect(await zoomOf(page)).toBeCloseTo(zoom, 5);
   const box = (await change.boundingBox())!;
   const pane = (await page.locator(".react-flow").boundingBox())!;
   expect(Math.abs(box.x + box.width / 2 - (pane.x + pane.width / 2))).toBeLessThan(5);
 });
 
-test("zooming out during a guide move still switches the zoom level", async ({ page }) => {
-  await page.goto(URL);
-  await setLevel(page, "code");
-  await page.locator(".canvas").focus();
-  for (let i = 0; i < 40; i++) await page.keyboard.press("ArrowDown");
-  await waitForCanvasSettled(page);
-  await page.getByRole("button", { name: "Next step" }).click();
-  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "zoom out" }).click();
-  await waitForCanvasSettled(page);
-  await expect(page.locator("[data-level]").first()).not.toHaveAttribute("data-level", "code");
-});
-
 test("view, guide step, and collapse state persist across reloads", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.locator(".canvas").focus();
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowRight");
@@ -296,11 +338,12 @@ test("zooming with the control buttons from the keyboard stops the automatic fit
 
 test("resizing a node persists width per zoom level and reset restores defaults", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const first = page.getByTestId("change-c1").locator("..");
   const second = page.getByTestId("change-c2").locator("..");
   await first.click();
-  const beforeWidth = (await first.boundingBox())!.width;
+  const flowWidth = async (node: Locator) => (await node.boundingBox())!.width / await zoomOf(page);
+  const beforeWidth = await flowWidth(first);
   const handle = first.locator(".react-flow__resize-control.line.right");
   await expect(handle).toBeVisible();
   const box = (await handle.boundingBox())!;
@@ -308,24 +351,24 @@ test("resizing a node persists width per zoom level and reset restores defaults"
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2, { steps: 10 });
   await page.mouse.up();
-  await expect.poll(async () => (await first.boundingBox())!.width).toBeGreaterThan(beforeWidth + 100);
+  await expect.poll(() => flowWidth(first)).toBeGreaterThan(beforeWidth + 100);
   await waitForCanvasSettled(page);
   const resized = (await first.boundingBox())!;
   const below = (await second.boundingBox())!;
   expect(below.y).toBeGreaterThanOrEqual(resized.y + resized.height);
 
-  const resizedWidth = (await first.boundingBox())!.width;
+  const resizedWidth = await flowWidth(first);
   await page.reload();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const reloadedFirst = page.getByTestId("change-c1").locator("..");
-  await expect.poll(async () => (await reloadedFirst.boundingBox())!.width).toBeCloseTo(resizedWidth, -1);
-  await setLevel(page, "code");
+  await expect.poll(() => flowWidth(reloadedFirst)).toBeCloseTo(resizedWidth, -1);
+  await openChange(page);
   await expect(reloadedFirst).toHaveCSS("width", /\d+px/);
-  const codeWidth = (await reloadedFirst.boundingBox())!.width;
+  const codeWidth = await flowWidth(reloadedFirst);
   expect(codeWidth).toBeGreaterThan(resizedWidth);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Reset layout" }).click();
-  await expect.poll(async () => (await reloadedFirst.boundingBox())!.width).toBeLessThan(resizedWidth - 100);
+  await expect.poll(() => flowWidth(reloadedFirst)).toBeLessThan(resizedWidth - 100);
 });
 
 async function dragBy(page: Page, target: Locator, dx: number, dy: number) {
@@ -338,7 +381,7 @@ async function dragBy(page: Page, target: Locator, dx: number, dy: number) {
 
 test("a node resizes from every edge and corner like a window and keeps a height of its own", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const node = page.getByTestId("change-c1").locator("..");
   await expect(node.locator(".react-flow__resize-control.line.left")).toHaveCSS("cursor", "ew-resize");
   await expect(node.locator(".react-flow__resize-control.line.bottom")).toHaveCSS("cursor", "ns-resize");
@@ -360,13 +403,13 @@ test("a node resizes from every edge and corner like a window and keeps a height
   expect(await page.getByTestId("change-c1").evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
 
   await page.reload();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await expect.poll(async () => (await page.getByTestId("change-c1").locator("..").boundingBox())!.height).toBeCloseTo(shortened.height, -1);
 });
 
 test("a node drags from anywhere on its title bar, including the strip above the title text", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const node = page.getByTestId("change-c1").locator("..");
   const before = (await node.boundingBox())!;
   const title = page.getByTestId("change-c1").locator("> .title");

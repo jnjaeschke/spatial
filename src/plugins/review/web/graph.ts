@@ -151,16 +151,86 @@ export function layerGraph(g: Graph, hidden: ReadonlySet<Layer>): Graph {
 
 export const commitNodeId = (narrativeId: string, index: number) => `${narrativeId}#commit-${index}`;
 
-/** The visible node for a reading-path step, using its commit card at patch zoom in a stack. */
-export function stepNodeId(step: Pick<ChangeNodeData, "narrativeId" | "commit" | "change">, level: ZoomLevel): string {
-  return level === "patch" && step.commit !== null ? commitNodeId(step.narrativeId, step.commit) : `${step.narrativeId}#${step.change.id}`;
+/** The graph node a reading-path step centers. */
+export const stepNodeId = (step: Pick<ChangeNodeData, "narrativeId" | "change">) => `${step.narrativeId}#${step.change.id}`;
+
+const isStack = (g: Graph) => g.nodes.some((n) => n.data.kind === "commit");
+const patchIndex = (place: string) => /^patch:\d+$/.test(place) ? Number(place.slice(6)) : null;
+const changePlaceId = (place: string) => place.startsWith("change:") ? place.slice(7) : null;
+const commitCard = (g: Graph, index: number) => g.nodes.find((n) => isReviewKind(n.data, "commit") && n.data.index === index);
+const changeNode = (g: Graph, id: string) => g.nodes.find((n) => n.id === id && isReviewKind(n.data, "change"));
+
+/** The nodes in `keep` with everything anchored on them (transitively) and the edges among them. */
+function subgraph(g: Graph, keep: Set<string>): Graph {
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const n of g.nodes) if (!keep.has(n.id) && n.anchors?.some((a) => keep.has(a))) { keep.add(n.id); grew = true; }
+  }
+  return { nodes: g.nodes.filter((n) => keep.has(n.id)), edges: g.edges.filter((e) => keep.has(e.source) && keep.has(e.target)) };
 }
 
-/** At patch zoom a stack shows its summary and commit cards only. */
-export function levelGraph(g: Graph, level: ZoomLevel): Graph {
-  if (level !== "patch" || !g.nodes.some((n) => n.data.kind === "commit")) return g;
-  const keep = new Set(g.nodes.filter((n) => n.data.kind === "summary" || n.data.kind === "commit").map((n) => n.id));
-  return { nodes: g.nodes.filter((n) => keep.has(n.id)), edges: g.edges.filter((e) => keep.has(e.source) && keep.has(e.target)) };
+const crumbLabel = (g: Graph, place: string) => {
+  if (place === "stack") return "Stack";
+  const index = patchIndex(place);
+  if (index !== null) return isStack(g) ? `C${index + 1}` : "Patch";
+  const node = changeNode(g, changePlaceId(place) ?? "");
+  const title = node && isReviewKind(node.data, "change") ? node.data.change.title : place;
+  return title.length > 40 ? `${title.slice(0, 39)}…` : title;
+};
+
+/** The review's places: `stack`, `patch:<commit index>` and `change:<change node id>`. */
+export const reviewPlaces = {
+  initial: (g: Graph) => isStack(g) ? "stack" : "patch:0",
+  graph(g: Graph, place: string): Graph | null {
+    if (place === "stack") return isStack(g) ? subgraph(g, new Set(g.nodes.filter((n) => n.data.kind === "summary" || n.data.kind === "commit" || n.data.kind === "diagram").map((n) => n.id))) : null;
+    const index = patchIndex(place);
+    if (index !== null) {
+      if (!isStack(g)) return index === 0 ? g : null;
+      const card = commitCard(g, index);
+      if (!card) return null;
+      const patch = subgraph(g, new Set(g.nodes.filter((n) => n === card || (isReviewKind(n.data, "change") && n.data.commit === index) || (isReviewKind(n.data, "diagram") && n.data.diagram.data.commitIndex === index)).map((n) => n.id)));
+      const reached = new Set(patch.edges.map((e) => e.target));
+      return { nodes: patch.nodes, edges: [...patch.edges, ...patch.nodes.filter((n) => isReviewKind(n.data, "change") && !reached.has(n.id)).map((n) => ({ id: `${card.id}->${n.id}`, source: card.id, target: n.id }))] };
+    }
+    const id = changePlaceId(place);
+    return id !== null && changeNode(g, id) ? subgraph(g, new Set([id])) : null;
+  },
+  level: (place: string): ZoomLevel => place.startsWith("change:") ? "code" : "concept",
+  open(g: Graph, place: string, nodeId: string): string | null {
+    const node = g.nodes.find((n) => n.id === nodeId);
+    if (!node) return null;
+    if (place === "stack") return isReviewKind(node.data, "commit") ? `patch:${node.data.index}` : null;
+    return patchIndex(place) !== null && isReviewKind(node.data, "change") ? `change:${node.id}` : null;
+  },
+  up(g: Graph, place: string): { place: string; nodeId: string } | null {
+    const id = changePlaceId(place);
+    if (id !== null) {
+      const node = changeNode(g, id);
+      return node && isReviewKind(node.data, "change") ? { place: `patch:${node.data.commit ?? 0}`, nodeId: id } : null;
+    }
+    const index = patchIndex(place);
+    const card = index !== null && isStack(g) ? commitCard(g, index) : undefined;
+    return card ? { place: "stack", nodeId: card.id } : null;
+  },
+  crumbs(g: Graph, place: string): { place: string; label: string }[] {
+    const chain: string[] = [];
+    for (let p: string | null = place; p !== null; p = reviewPlaces.up(g, p)?.place ?? null) chain.unshift(p);
+    return chain.map((p) => ({ place: p, label: crumbLabel(g, p) }));
+  },
+};
+
+/** A reading-path step before the canvas adds its reviewed toggle: `change` is set for steps that toggle one change. */
+export interface GuideEntry { title: string; tag?: string; reviewed: boolean; nodeId: string; place?: string; change?: ChangeNodeData }
+
+/** The reading path of a place: commits at the stack, a patch's changes at a patch, every change at a change. */
+export function guideEntries(g: Graph, place: string | null): GuideEntry[] {
+  if (place === null) return [];
+  const changes = g.nodes.flatMap((n) => isReviewKind(n.data, "change") ? [n.data] : []);
+  const step = (data: ChangeNodeData): GuideEntry => ({ title: data.change.title, ...(data.commit !== null ? { tag: `C${data.commit + 1}` } : {}), reviewed: data.reviewed, nodeId: stepNodeId(data), change: data });
+  if (place === "stack") return g.nodes.flatMap((n) => isReviewKind(n.data, "commit") ? [{ title: n.data.intent ?? n.data.commit.subject, tag: `C${n.data.index + 1}`, reviewed: n.data.reviewedCount === n.data.changeCount, nodeId: n.id }] : []);
+  const index = patchIndex(place);
+  if (index !== null) return changes.filter((data) => (data.commit ?? 0) === index).map(step);
+  return changePlaceId(place) === null ? [] : changes.map((data) => ({ ...step(data), place: `change:${stepNodeId(data)}` }));
 }
 
 export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {
@@ -395,7 +465,7 @@ const phabCommentHeight = (comment: PhabCommentData, charsPerLine: number) => 30
 
 /** First-paint size estimate of the review kinds, unscaled. */
 export function reviewSize(data: GraphNodeData, level: ZoomLevel): { width: number; height: number } {
-  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH[level], data.diagram.data.lanes.length * 170), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
+  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH[level], data.diagram.data.lanes.length * 170 + 40), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
   if (isReviewKind(data, "finding")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + lines(data.body, 60) * 20 + (data.thread?.messages.length ?? 0) * 80 };
   if (isReviewKind(data, "phab")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 60 : 110 + data.comments.reduce((sum, item) => sum + phabCommentHeight(item.data, 60), 0) + (data.thread?.messages.length ?? 0) * 80 };
   if (isReviewKind(data, "spec")) return { width: SATELLITE_WIDTH, height: level === "patch" ? 80 : level === "concept" ? 220 : 420 };
@@ -417,7 +487,7 @@ export function reviewSize(data: GraphNodeData, level: ZoomLevel): { width: numb
 /** Adds ordering edges for a single-commit diagram without changing the displayed graph edges. */
 export function diagramLayoutEdges(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] {
   const diagram = nodes.find((node) => node.data.kind === "diagram");
-  const summary = nodes.find((node) => node.data.kind === "summary");
+  const summary = nodes.find((node) => node.data.kind === "summary") ?? nodes.find((node) => node.data.kind === "commit");
   if (!diagram || !summary) return edges;
   const predecessors = new Set(edges.map((edge) => edge.target));
   return [

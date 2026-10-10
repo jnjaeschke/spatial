@@ -2,13 +2,13 @@ import { test, expect } from "@playwright/test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setLevel, startReview } from "./canvas.ts";
+import { openChange, openPatch, startReview } from "./canvas.ts";
 
 test("export saves a read-only copy without closed chats that expands context offline", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
   await startReview(page, fixture.worktree, "HEAD~1..HEAD");
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("Why this change?");
@@ -31,7 +31,7 @@ test("export saves a read-only copy without closed chats that expands context of
   await expect(page.getByTestId("change-c1")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask about c1" })).toHaveCount(0);
   await expect(page.getByLabel("Reviewed c1")).toBeDisabled();
-  await setLevel(page, "code");
+  await openChange(page);
   const hunk = page.getByTestId("hunk-f0h0");
   await expect(hunk.getByText("line 26", { exact: true })).toHaveCount(0);
   await hunk.getByRole("button", { name: "↑ 20 lines" }).click();

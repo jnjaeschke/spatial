@@ -30,7 +30,10 @@
  *
  * The web side of a plugin registers phase views and canvas node kinds through
  * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
- * `src/plugins/web.ts`.
+ * `src/plugins/web.ts`. A canvas model (`CanvasModel`) may split its graph into named **places**
+ * (`CanvasModel.places`): core owns the current place, its history entries, persistence, breadcrumb and
+ * drill-in/out keys, and the model defines each place's graph, node representation and guide steps.
+ * Zoom only scales the canvas.
  *
  * Boundary, checked by `scripts/plugin-boundary.ts` in `npm run check`: plugin code imports only its own
  * directory and these API modules. A plugin may also import the public API of another plugin it lists in

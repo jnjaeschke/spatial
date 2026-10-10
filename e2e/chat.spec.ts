@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { revealNode, setLevel, startReview } from "./canvas.ts";
+import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,7 +11,7 @@ async function openNarrated(page: Page, request: APIRequestContext): Promise<str
 
 test("ask about a change: draft, send, stub answer appears and persists", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
   await expect(chat).toBeVisible();
@@ -30,12 +30,12 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await expect(focused).toBeInViewport();
   await expect(focused).toContainText("THIRTY");
   await expect(page.getByTestId("file-panel")).toHaveCount(0);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const userMessage = page.locator(".msg.user", { hasText: "Why this change?" });
   await expect(userMessage).toBeVisible();
   await expect(userMessage.locator("p")).toHaveCount(0);
   await page.reload();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible();
   await answer.locator("p").first().click({ clickCount: 3 });
@@ -44,7 +44,7 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
 
 test("chat boxes close with their top-right × or Escape; an empty draft is discarded, a draft with text reopens with it", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const drafts = page.locator('[data-testid^="chat-draft-"]');
   const change = page.getByTestId("change-c1");
   await page.getByRole("button", { name: "Ask about c1" }).click();
@@ -70,7 +70,7 @@ test("chat boxes close with their top-right × or Escape; an empty draft is disc
 
 test("a closed chat stays closed after reload and reopens from its change", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("Why this change?");
@@ -81,7 +81,7 @@ test("a closed chat stays closed after reload and reopens from its change", asyn
   await chat.getByRole("button", { name: "Close" }).click();
   await expect(answer).toHaveCount(0);
   await page.reload();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const reopen = page.getByTestId("change-c1").getByRole("button", { name: "Reopen 1 closed chat" });
   await expect(reopen).toBeVisible();
   await expect(answer).toHaveCount(0);
@@ -122,6 +122,7 @@ test("double-clicking empty canvas opens a persistent chat at that spot", async 
   expect(point.y).toBeGreaterThanOrEqual(persistedBox.y);
   expect(point.y).toBeLessThanOrEqual(persistedBox.y + persistedBox.height);
 
+  await openChange(page);
   const before = await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"));
   await page.getByTestId("change-c1").locator(".rationale b").dblclick();
   await expect(page.locator('[data-testid^="chat-draft-"]')).toHaveCount(0);
@@ -176,7 +177,7 @@ test("/note from an aside draft creates a positioned draft note without a chat t
 
 test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   const input = draft.getByLabel("message");
@@ -193,7 +194,7 @@ test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", as
 
 test("saying an answer is wrong strikes it through", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
   await chat.getByLabel("message").fill("Why?");
@@ -206,14 +207,14 @@ test("saying an answer is wrong strikes it through", async ({ page, request }) =
   await expect(original.locator("del")).toHaveText("Stub answer.", { timeout: 10_000 });
   await expect(original).toContainText("Corrected stub answer.");
   await page.reload();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const persisted = page.locator(".msg.assistant").filter({ has: page.locator("del", { hasText: "Stub answer." }) });
   await expect(persisted).toContainText("Corrected stub answer.");
 });
 
 test("a failed first turn shows its error in the chat", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const draft = page.locator('[data-testid^="chat-draft-"]');
   await draft.getByLabel("message").fill("FAIL-THIS-TURN");
@@ -223,7 +224,7 @@ test("a failed first turn shows its error in the chat", async ({ page, request }
 
 test("ask about a hunk anchors the chat to its change", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "code");
+  await openChange(page);
   await revealNode(page, page.getByRole("button", { name: "Ask about f0h0" }));
   await page.getByRole("button", { name: "Ask about f0h0" }).click();
   const chat = page.locator('[data-testid^="chat-draft-"]');
@@ -236,7 +237,7 @@ test("ask about a hunk anchors the chat to its change", async ({ page, request }
 
 test("selecting text in a chat opens a chat anchored to the original chat", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
   const original = page.locator('[data-testid^="chat-draft-"]');
   await original.getByLabel("message").fill("Start a chat");
@@ -257,7 +258,7 @@ test("selecting text in a chat opens a chat anchored to the original chat", asyn
 
 test("selecting text on a change opens a quoted chat; cross-card selection is ignored", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const explanation = page.locator('[data-testid="change-c1"] .explanation');
   const explanationBox = (await explanation.boundingBox())!;
   await page.mouse.move(explanationBox.x + 3, explanationBox.y + explanationBox.height / 2);
@@ -287,7 +288,7 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
 
 test("selecting diff rows stores the selected line range", async ({ page, request }) => {
   const sessionId = await openNarrated(page, request);
-  await setLevel(page, "code");
+  await openChange(page);
   const rows = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand)');
   const first = await rows.nth(0).boundingBox();
   const last = await rows.nth(1).boundingBox();
@@ -317,7 +318,7 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
 
 test("a quoted diff chat sits next to the quote and highlights it", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "code");
+  await openChange(page);
   const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
   const code = row.locator("td.code");
   const selected = await code.innerText();
@@ -355,20 +356,20 @@ test("a quoted diff chat sits next to the quote and highlights it", async ({ pag
   await page.mouse.move(5, 5);
   await expect.poll(() => page.evaluate(() => CSS.highlights.get("chat-quote-active")?.size ?? 0)).toBe(0);
 
-  await setLevel(page, "concept");
-  await setLevel(page, "code");
+  await openPatch(page, 0);
+  await openChange(page);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
 });
 
 test("collapse a change and expand it after reload", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const change = page.getByTestId("change-c1");
   await change.getByRole("button", { name: "Collapse" }).click();
   await expect(change.locator(".explanation")).toBeHidden();
   await expect(change.getByRole("button", { name: "Expand" })).toBeVisible();
   await page.reload();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   const reloaded = page.getByTestId("change-c1");
   await expect(reloaded.locator(".explanation")).toBeHidden();
   await reloaded.getByRole("button", { name: "Expand" }).click();
@@ -377,7 +378,7 @@ test("collapse a change and expand it after reload", async ({ page, request }) =
 
 test("a collapsed quoted chat reopens from its highlight", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "code");
+  await openChange(page);
   const code = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand) td.code').last();
   await code.dblclick();
   const word = await page.evaluate(() => getSelection()!.toString().trim());
@@ -429,7 +430,7 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await expect(finding).toContainText("No test for c");
   await expect(finding.locator(".badge")).toHaveText("medium");
-  await setLevel(page, "code");
+  await openChange(page, "change-c2");
   const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
   await revealNode(page, row);
   await revealNode(page, finding);
@@ -487,7 +488,7 @@ test("a review finding sits next to its quote and is a chat", async ({ page, req
 
 test("a chat on code lines renders directly after its last quoted row", async ({ page, request }) => {
   await openNarrated(page, request);
-  await setLevel(page, "code");
+  await openChange(page);
   const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
   await row.locator("td.code").dblclick();
   await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
@@ -502,6 +503,6 @@ test("a chat on code lines renders directly after its last quoted row", async ({
     const rowBox = await row.boundingBox();
     return threadBox && rowBox ? Math.abs(threadBox.y - (rowBox.y + rowBox.height)) : Infinity;
   }).toBeLessThan(6);
-  await setLevel(page, "patch");
-  await expect(page.getByTestId("change-c1").locator(".title")).toContainText("💬 1");
+  await openPatch(page, 0);
+  await expect(page.getByTestId("change-c1").locator("> .title")).toContainText("💬 1");
 });

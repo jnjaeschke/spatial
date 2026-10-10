@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setLevel, startReview } from "./canvas.ts";
+import { openChange, openPatch, placeUp, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,7 +11,7 @@ test("the fixture session shows the finished analysis", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  await setLevel(page, "code");
+  await openPatch(page, 0);
   await expect(page.getByTestId("task-narrate")).toHaveAttribute("data-status", "succeeded");
   await expect(page.getByText("Edits a and adds c.")).toBeVisible();
   await expect(page.getByTestId("analysis")).toHaveCount(0);
@@ -35,7 +35,7 @@ test("a single-commit review has the guide and reviewed marks", async ({ page })
 test("expand context around a hunk", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  await setLevel(page, "code");
+  await openChange(page);
   const hunk = page.getByTestId("hunk-f0h0");
   await expect(hunk.getByText("line 27", { exact: true })).toBeAttached();
   await expect(hunk.getByText("line 26", { exact: true })).toHaveCount(0);
@@ -78,7 +78,7 @@ test("a failed analysis shows the error and a retry", async ({ page, request }) 
 test("open the whole file in the side panel", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  await setLevel(page, "code");
+  await openChange(page);
   await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt" }).click();
   const panel = page.getByTestId("file-panel");
   await expect(panel.getByText("line 1", { exact: true })).toBeAttached();
@@ -99,7 +99,7 @@ test("open the whole file in the side panel", async ({ page }) => {
 test("code span in an explanation jumps to the matching row of its change", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  await setLevel(page, "concept");
+  await openPatch(page, 0);
   await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
   const focus = page.getByTestId("change-c1").locator('tr.focus[data-new="30"]');
   await expect(focus).toHaveText(/THIRTY/);
@@ -117,6 +117,9 @@ test("the canvas works without the Navigation API", async ({ page }) => {
   await page.locator(".canvas").focus();
   await page.keyboard.press("n");
   await expect(page.getByTestId("guide")).toContainText("1/");
+  await openChange(page, "change-c2");
+  await placeUp(page);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "patch:0");
   expect(errors).toEqual([]);
 });
 

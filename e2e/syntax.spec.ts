@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { setLevel, startReview } from "./canvas.ts";
+import { openChange, startReview } from "./canvas.ts";
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 4178}`;
 let dir = "";
@@ -29,7 +29,7 @@ test("C++ code in a hunk is painted through the highlight registry", async ({ pa
   git("commit", "-m", "change");
 
   await startReview(page, dir, "main..feature");
-  await setLevel(page, "code");
+  await openChange(page);
 
   await expect.poll(() => page.evaluate(painted, "syn-keyword")).toEqual(expect.arrayContaining(["static", "const", "return"]));
   await expect.poll(() => page.evaluate(painted, "syn-number")).toContain("2");

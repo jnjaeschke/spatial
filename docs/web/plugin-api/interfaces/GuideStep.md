@@ -10,6 +10,22 @@ A step of the guide bar's reading path.
 
 ## Properties
 
+### nodeId
+
+> **nodeId**: `string`
+
+The node to center for this step.
+
+***
+
+### place?
+
+> `optional` **place?**: `string`
+
+The place this step opens instead of centering `nodeId`.
+
+***
+
 ### reviewed
 
 > **reviewed**: `boolean`
@@ -30,27 +46,11 @@ Short label before the title (the commit of a stack).
 
 ## Methods
 
-### nodeId()
+### toggleReviewed()?
 
-> **nodeId**(`level`): `string`
+> `optional` **toggleReviewed**(`sessionId`): `Promise`\<`unknown`\>
 
-The node to center for this step at a zoom level.
-
-#### Parameters
-
-##### level
-
-[`ZoomLevel`](../type-aliases/ZoomLevel.md)
-
-#### Returns
-
-`string`
-
-***
-
-### toggleReviewed()
-
-> **toggleReviewed**(`sessionId`): `Promise`\<`unknown`\>
+Without it the guide bar offers no reviewed toggle for the step.
 
 #### Parameters
 

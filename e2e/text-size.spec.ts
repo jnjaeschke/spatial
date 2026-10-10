@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { setLevel } from "./canvas.ts";
+import { openChange } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
 
@@ -8,11 +8,11 @@ const onScreenCodeSize = (page: Page) => page.getByTestId("hunk-f1h0").locator("
 
 const textScaleVar = (page: Page) => page.evaluate(() => document.documentElement.style.getPropertyValue("--text-scale"));
 
-test("Ctrl+= grows node text and the fit keeps it at code level and readable", async ({ page }) => {
+test("Ctrl+= grows node text and the fit keeps it readable", async ({ page }) => {
   await page.goto(URL);
-  await setLevel(page, "code");
+  await openChange(page, "change-c2");
   await page.waitForTimeout(500);
-  const change = page.getByTestId("change-c1");
+  const change = page.getByTestId("change-c2");
   await expect(change).toHaveCSS("font-size", "13px");
   const before = await onScreenCodeSize(page);
 

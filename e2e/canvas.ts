@@ -9,9 +9,6 @@ export async function startReview(page: Page, repoDir: string, range: string): P
   return new URL(page.url()).searchParams.get("session")!;
 }
 
-export type Level = "patch" | "concept" | "code";
-const ORDER: Level[] = ["patch", "concept", "code"];
-
 /** Resolves once the canvas viewport transform has not changed for a number of consecutive animation frames. */
 export async function waitForCanvasSettled(page: Page, frames = 20): Promise<void> {
   await page.locator(".react-flow__viewport").waitFor();
@@ -30,23 +27,46 @@ export async function waitForCanvasSettled(page: Page, frames = 20): Promise<voi
   }), frames);
 }
 
-/**
- * Zooms until the node shows `level`. Waits for the viewport to settle before each read, so a fit-driven level flip
- * cannot race the clicks. The node must be rendered on entry; it is re-found by panning if zooming moves it away.
- */
-export async function setLevel(page: Page, level: Level, testId = "change-c1"): Promise<void> {
-  const node = page.getByTestId(testId);
-  await node.waitFor();
+const placeOf = (page: Page) => page.locator(".canvas").getAttribute("data-place");
+
+async function drillInto(page: Page, node: Locator, place: RegExp): Promise<void> {
+  await revealNode(page, node);
+  await node.locator("> .title").dblclick({ position: { x: 12, y: 8 } });
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", place);
   await waitForCanvasSettled(page);
-  for (let i = 0; i < 20; i++) {
-    await waitForCanvasSettled(page);
-    if (i > 0 && await node.count() === 0) await revealNode(page, node);
-    const current = await node.getAttribute("data-level") as Level | null;
-    if (current === level) return;
-    const zoomOut = current !== null && ORDER.indexOf(current) > ORDER.indexOf(level);
-    await page.getByRole("button", { name: zoomOut ? "zoom out" : "zoom in" }).click();
+}
+
+/** Goes one place up through the breadcrumb: the crumb before the current place. */
+export async function placeUp(page: Page): Promise<void> {
+  const before = await placeOf(page);
+  await page.getByTestId("place-crumbs").locator("button").last().click();
+  await expect(page.locator(".canvas")).not.toHaveAttribute("data-place", before!);
+  await waitForCanvasSettled(page);
+}
+
+/** Opens commit `n` of a stack; a single-commit diff is already at its only patch. */
+export async function openPatch(page: Page, n: number): Promise<void> {
+  const card = page.getByTestId(`commit-${n}`);
+  await page.locator(".canvas[data-place]").waitFor();
+  await waitForCanvasSettled(page);
+  for (let place = await placeOf(page); place !== `patch:${n}`; place = await placeOf(page)) {
+    if (place === "stack") await drillInto(page, card, new RegExp(`^patch:${n}$`));
+    else if (place === "patch:0" && await page.getByTestId("commit-0").count() === 0) return;
+    else await placeUp(page);
   }
-  throw new Error(`never reached level ${level}`);
+}
+
+/** Opens the Change place of the change card `changeTestId` (e.g. `change-c1`), starting from any place that can reach it. */
+export async function openChange(page: Page, changeTestId = "change-c1"): Promise<void> {
+  await page.locator(".canvas[data-place]").waitFor();
+  await waitForCanvasSettled(page);
+  const id = changeTestId.slice("change-".length);
+  const node = page.getByTestId(changeTestId);
+  for (let place = await placeOf(page); !place!.endsWith(`#${id}`); place = await placeOf(page)) {
+    if (place!.startsWith("change:")) await placeUp(page);
+    else if (place === "stack") throw new Error(`open the patch of ${changeTestId} first`);
+    else await drillInto(page, node, /^change:/);
+  }
 }
 
 /**

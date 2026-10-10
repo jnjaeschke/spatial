@@ -15,7 +15,7 @@ export function GuideBar({ steps, step, start, canToggle, onMove, onToggle }: {
     <button aria-label="Previous step" onClick={() => onMove(-1)}>‹ Prev</button>
     <span className="guide-step">{step === null ? "Start here:" : `Step ${step + 1}/${steps.length}`}{shown.tag !== undefined && <span className="commit-tag">{shown.tag}</span>} <InlineText text={shown.title} /></span>
     <button aria-label="Next step" onClick={() => onMove(1)}>Next ›</button>
-    <button aria-label="Toggle reviewed" disabled={step === null || !canToggle} onClick={onToggle}>{shown.reviewed ? "Unmark reviewed" : "Mark reviewed"}</button>
+    {shown.toggleReviewed && <button aria-label="Toggle reviewed" disabled={step === null || !canToggle} onClick={onToggle}>{shown.reviewed ? "Unmark reviewed" : "Mark reviewed"}</button>}
     <span className="guide-progress" data-testid="guide-progress">{reviewed}/{steps.length} reviewed</span>
   </div>;
 }
