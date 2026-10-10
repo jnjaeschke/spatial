@@ -54,6 +54,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
         "void Second() {", "  Changed();", "}",
       ]).join("\n");
     },
+    async wordsAt() { return new Set(); },
   };
   const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [resolveSpecRefs] }], llm: {} as LlmService, git: () => git, webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox });
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "t" });

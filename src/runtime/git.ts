@@ -348,6 +348,24 @@ export function makeGit(repo: string): GitCapability {
         throw new Error(`Cannot read ${path} at ${sha}`);
       }
     },
+    async wordsAt(rev, words) {
+      if (!words.length) return new Set();
+      safeRevision(rev, "revision");
+      const dir = await mkdtemp(join(tmpdir(), "spatial-words-"));
+      try {
+        const file = join(dir, "words");
+        await writeFile(file, words.join("\n") + "\n");
+        try {
+          const out = await git(repo, ["grep", "-o", "-h", "-w", "-I", "-F", "-f", file, rev]);
+          return new Set(out.split("\n").filter(Boolean));
+        } catch (e) {
+          if ((e as { code?: number }).code === 1) return new Set();
+          throw e;
+        }
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
   };
 }
 

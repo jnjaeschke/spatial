@@ -217,3 +217,25 @@ File content at a commit.
 #### Returns
 
 `Promise`\<`string`\>
+
+***
+
+### wordsAt()
+
+> **wordsAt**(`rev`, `words`): `Promise`\<`Set`\<`string`\>\>
+
+Which of `words` occur as whole words in some text file of the tree at `rev` (`git grep -w -F`, one call).
+
+#### Parameters
+
+##### rev
+
+`string`
+
+##### words
+
+`string`[]
+
+#### Returns
+
+`Promise`\<`Set`\<`string`\>\>

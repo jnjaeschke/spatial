@@ -154,7 +154,7 @@ test("chat reply rejects multiple requested phase runs", async () => {
 });
 
 test("chat verifies a proposed diagram and links it to the assistant reply", async () => {
-  const git: GitCapability = { effect: "read-only", isDirty: async () => false, resolve: async () => "", isAncestor: async () => true, mergeBase: async () => null, mainlineRefs: async () => [], blame: async () => [], log: async () => [], diff: async () => "", replay: async () => ({ tree: "", conflicts: [] }), async show() { return "call target()"; } };
+  const git: GitCapability = { effect: "read-only", isDirty: async () => false, resolve: async () => "", isAncestor: async () => true, mergeBase: async () => null, mainlineRefs: async () => [], blame: async () => [], log: async () => [], diff: async () => "", replay: async () => ({ tree: "", conflicts: [] }), async show() { return "call target()"; }, async wordsAt() { return new Set(); } };
   const diagram = { commit: 1, title: "Calls", summary: "Call path", lanes: [{ id: "a", label: "caller", note: null }, { id: "b", label: "target", note: null }],
     steps: [{ from: "a", to: "b", symbol: "call", call: "call target()", what: "Calls target", when: null, guard: null, phase: "run", status: "changed", cite: { path: "dom/A.cpp", line: 1 } }], before: null };
   const { store, turn, narrativeId, session } = setup({ git, replies: [{ answer: "Flow", revisions: [], questions: [], diagram }] });

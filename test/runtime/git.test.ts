@@ -195,6 +195,16 @@ test("resolve, isAncestor, log, diff", async () => {
 });
 
 // REQUIRES_REAL_GIT
+test("wordsAt searches only whole words in the requested tree", async () => {
+  const r = makeRepo();
+  const first = r.commit({ "a.cpp": "int ExistingThing = 1;\n" }, "first");
+  r.commit({ "a.cpp": "int ExistingThing = 1;\nint NewThing = 2;\n" }, "second");
+  const git = makeGit(r.dir);
+  assert.deepEqual(await git.wordsAt(first, ["ExistingThing", "NewThing", "Existing"]), new Set(["ExistingThing"]));
+  assert.deepEqual(await git.wordsAt(first, []), new Set());
+});
+
+// REQUIRES_REAL_GIT
 test("blame returns forward and reverse line ownership", async () => {
   const r = makeRepo();
   const base = r.commit({ "a.txt": "one\ntwo\nthree\n" }, "base");

@@ -50,6 +50,8 @@ export interface GitCapability {
   replay(oldBase: string, newBase: string, oldHead: string): Promise<{ tree: string; conflicts: string[] }>;
   /** File content at a commit. */
   show(sha: string, path: string): Promise<string>;
+  /** Which of `words` occur as whole words in some text file of the tree at `rev` (`git grep -w -F`, one call). */
+  wordsAt(rev: string, words: string[]): Promise<Set<string>>;
 }
 
 /** Everything a task may touch. Tasks get capabilities only through this. */
