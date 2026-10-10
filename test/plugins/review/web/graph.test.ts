@@ -338,9 +338,10 @@ test("sessionGraph links each assistant message to its current diagrams", () => 
     { id: "old-diagram", sessionId: "S", from: "D-old", to: "M", kind: "derivedFrom" },
     { id: "latest-diagram", sessionId: "S", from: "D-latest", to: "M", kind: "derivedFrom" },
   );
-  const chat = sessionGraph(st)!.nodes.find((node) => node.id === "T")!;
-  assert.equal(chat.data.kind, "chat");
-  if (isCoreKind(chat.data, "chat")) assert.deepEqual(chat.data.diagramsByMessage?.M, ["D-latest"]);
+  const graph = sessionGraph(st)!;
+  assert.ok(!graph.nodes.some((node) => node.id === "T"));
+  const summary = graph.nodes.find((node) => node.id === "NS")!.data;
+  if (isReviewKind(summary, "summary")) assert.deepEqual(summary.threads?.[0]?.diagramsByMessage?.M, ["D-latest"]);
   const conversationStart = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "chat", params: {}, title: "t", prompt: "t" } , epoch: null} as Artifact<WorkflowStartData>;
   const conversation = state([conversationStart, thread, message, latest], "chat");
   conversation.links.push({ id: "reply", sessionId: "S", from: "M", to: "T", kind: "reply" }, { id: "diagram", sessionId: "S", from: "D-latest", to: "M", kind: "derivedFrom" });
@@ -640,7 +641,9 @@ test("change chats are hosted while other chats can anchor to specs, chat messag
   assert.ok(!g.nodes.some((n) => n.id === "T1" || n.id === "T3"));
   const change = g.nodes.find((n) => n.id === "N#c1")!.data;
   if (isReviewKind(change, "change")) assert.deepEqual(change.threads.map((thread) => thread.threadId), ["T1", "T3"]);
-  assert.deepEqual(g.nodes.find((n) => n.id === "T4")?.anchors, ["N"]);
+  assert.ok(!g.nodes.some((n) => n.id === "T4"));
+  const summary = g.nodes.find((n) => n.id === "N")!.data;
+  if (isReviewKind(summary, "summary")) assert.deepEqual(summary.threads?.map((thread) => thread.threadId), ["T4"]);
 });
 
 test("sessionGraph adds findings and skips findings from older diffs", () => {

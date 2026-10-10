@@ -111,6 +111,7 @@
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)
 - [useAction](functions/useAction.md)
+- [useClosed](functions/useClosed.md)
 - [useDraftText](functions/useDraftText.md)
 
 ## References

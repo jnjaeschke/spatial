@@ -4,12 +4,15 @@ import type { CommitNodeData } from "../graph.ts";
 import { InlineText, AskContext, ChatActionsContext, api, ReopenClosed, ErrorText, useAction } from "../../../../web/plugin-api.ts";
 import { commitColors } from "../../../../web/plugin-api.ts";
 import { Box } from "../../../../web/plugin-api.ts";
+import { Chip } from "../Chip.tsx";
+import { DetailsContext } from "../details.ts";
 
 export type CommitFlowNode = Node<CommitNodeData & Record<string, unknown>, "commit">;
 
 export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);
+  const details = useContext(DetailsContext);
   const { busy: drawing, error, run } = useAction();
   const draw = (hint: string) => {
     void run(() => api.turn(actions!.sessionId, { anchor: `${data.narrativeId}#commit-${data.index}`, text: `Draw a sequence diagram of ${hint}.`, llm: actions!.models.default }));
@@ -22,6 +25,7 @@ export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
         <p className="counts" data-testid="commit-counts">{data.changeCount} change{data.changeCount === 1 ? "" : "s"} · {data.reviewedCount}/{data.changeCount} reviewed · {data.findingCount} finding{data.findingCount === 1 ? "" : "s"}</p>
         {data.flowHint && actions && <p className="flow-hint">Flow: <InlineText text={data.flowHint} /> <button type="button" className="nodrag" disabled={drawing} onClick={() => draw(data.flowHint!)}>{drawing ? "Drawing…" : "Draw diagram"}</button></p>}
         <ErrorText error={error} />
+        <div className="chip-strip">{(data.threads ?? []).map((thread) => <Chip key={thread.threadId ?? thread.draftId} kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />)}</div>
         <ReopenClosed hostId={id} />
       </div>
     </Box>

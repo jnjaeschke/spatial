@@ -246,11 +246,10 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   const firstCard = page.getByTestId("commit-0");
   await revealNode(page, firstCard);
   await firstCard.getByRole("button", { name: "Ask about commit 1" }).click();
-  const draft = page.locator('[data-testid^="chat-draft-"]').filter({ has: page.getByLabel("message") }).last();
-  await revealNode(page, draft);
+  const draft = page.getByTestId("chat-panel");
   await draft.getByLabel("message").fill("DIAGRAM-PLEASE");
   await draft.getByRole("button", { name: "Send" }).click();
-  const answer = page.locator(".chat-node .msg.assistant").filter({ hasText: "Here is the sequence." });
+  const answer = draft.locator(".msg.assistant").filter({ hasText: "Here is the sequence." });
   await expect(answer).toBeVisible({ timeout: 15_000 });
   const diagram = page.locator('[data-testid^="diagram-"]');
   await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
@@ -296,7 +295,6 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await collapseDiagram.click();
   await expect(diagram.locator(".sequence-step")).toHaveCount(0);
   const showDiagram = answer.getByRole("button", { name: "Show diagram" });
-  await revealNode(page, showDiagram);
   await showDiagram.click();
   await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
   await expect(diagram.locator('.sequence-step[data-verified="true"]')).toHaveCount(2);
@@ -309,7 +307,6 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   expect(Math.abs(revealedBox.y + revealedBox.height / 2 - (paneBox.y + paneBox.height / 2))).toBeLessThan(2);
   await diagram.getByRole("button", { name: "Close" }).click();
   await expect(diagram).toHaveCount(0);
-  await revealNode(page, showDiagram);
   await showDiagram.click();
   await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
 });

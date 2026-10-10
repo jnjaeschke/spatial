@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
+import { openChange, openPatch, startReview } from "./canvas.ts";
 
 async function openCodeReview(page: Page, request: APIRequestContext, place: "patch" | "change" = "change"): Promise<string> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -24,36 +24,36 @@ async function selectDiffText(page: Page): Promise<void> {
 
 test.describe.configure({ mode: "serial" });
 
-test("comment on selected diff lines, edit and delete it", async ({ page, request }) => {
+test("comment on selected diff lines opens as a chip in the details panel", async ({ page, request }) => {
   await openCodeReview(page, request);
   await selectDiffText(page);
   await page.getByRole("button", { name: "Comment", exact: true }).click();
   const draft = page.getByLabel("Comment for Phabricator");
   await draft.fill("Please keep this behavior.");
   await draft.press("Enter");
-  const comment = page.getByTestId("user-comment");
+  const comment = page.getByTestId("comment-panel").getByTestId("user-comment");
   await expect(comment).toContainText("Please keep this behavior.");
   await page.reload();
-  await expect(page.getByTestId("user-comment")).toContainText("Please keep this behavior.");
+  await expect(page.getByRole("button", { name: /^comment: Please keep this behavior\./ })).toBeVisible();
+  await page.getByRole("button", { name: /^comment: Please keep this behavior\./ }).click();
+  await expect(page.getByTestId("comment-panel").getByTestId("user-comment")).toContainText("Please keep this behavior.");
 
-  await revealNode(page, page.getByTestId("user-comment").getByRole("button", { name: "Edit" }));
-  await page.getByTestId("user-comment").getByRole("button", { name: "Edit" }).click();
+  await page.getByTestId("comment-panel").getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Edit comment").fill("Updated review comment.");
-  await revealNode(page, page.getByTestId("user-comment").getByRole("button", { name: "Save" }));
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByTestId("user-comment")).toContainText("Updated review comment.");
-  await page.getByTestId("user-comment").getByRole("button", { name: "Delete" }).click();
-  await expect(page.getByTestId("user-comment")).toHaveCount(0);
+  await page.getByTestId("comment-panel").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByTestId("comment-panel").getByTestId("user-comment")).toContainText("Updated review comment.");
+  await page.getByTestId("comment-panel").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByTestId("comment-panel")).toHaveCount(0);
 });
 
 test("Escape closes an empty comment draft", async ({ page, request }) => {
   await openCodeReview(page, request);
   await selectDiffText(page);
   await page.getByRole("button", { name: "Comment", exact: true }).click();
-  const draft = page.getByLabel("Comment for Phabricator");
+  const draft = page.getByTestId("comment-panel").getByLabel("Comment for Phabricator");
   await expect(draft).toBeVisible();
   await draft.press("Escape");
-  await expect(page.getByLabel("Comment for Phabricator")).toHaveCount(0);
+  await expect(page.getByTestId("comment-panel")).toHaveCount(0);
 });
 
 test("review panel saves its general comment and opens a confirmation dialog", async ({ page, request }) => {

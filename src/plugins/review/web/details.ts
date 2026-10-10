@@ -20,9 +20,14 @@ export function openDetail(state: DetailsState, detail: Detail): DetailsState {
   return { current: detail, back: state.current ? [...state.back, state.current].slice(-20) : state.back };
 }
 
-export function backDetail(state: DetailsState): DetailsState {
-  if (!state.back.length) return state;
-  return { current: state.back[state.back.length - 1]!, back: state.back.slice(0, -1) };
+/** Restores the most recent item that still `resolves`; closes the panel when none does. */
+export function backDetail(state: DetailsState, resolves: (detail: Detail) => boolean = () => true): DetailsState {
+  const index = state.back.findLastIndex(resolves);
+  return index < 0 ? closeDetails() : { current: state.back[index]!, back: state.back.slice(0, index) };
+}
+
+export function canGoBack(state: DetailsState, resolves: (detail: Detail) => boolean): boolean {
+  return state.back.some(resolves);
 }
 
 export function closeDetails(): DetailsState { return { current: null, back: [] }; }

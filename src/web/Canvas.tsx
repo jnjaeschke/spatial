@@ -106,7 +106,7 @@ function ResizableNode(props: NodeProps) {
     />}
   </>;
 }
-export interface CanvasProps { state: SessionState; model: CanvasModel; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
+export interface CanvasProps { state: SessionState; model: CanvasModel; closed?: ReturnType<typeof useClosed>; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
 const NO_DRAFTS: Draft[] = [];
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
@@ -120,7 +120,7 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
+function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
   const nodeKinds = useContext(NodeKindsContext);
   const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
@@ -141,7 +141,8 @@ function CanvasInner({ state, model, models = null, drafts = NO_DRAFTS, onSent =
   const knownRevealed = useRef<Set<string> | null>(null);
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
     [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
-  const { closed: closedIds, close, reopen } = useClosed(state.session.id);
+  const ownClosed = useClosed(state.session.id);
+  const { closed: closedIds, close, reopen } = sharedClosed ?? ownClosed;
   const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers(model.layers?.list.map((layer) => layer.id) ?? []);
   const { graph, closedOn } = useMemo(() => {
     const g = sessionGraph(model.graph, state, drafts, freePositions);

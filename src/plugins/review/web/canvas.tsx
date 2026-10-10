@@ -1,10 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
 import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, isReviewKind, latestNarrative, layerGraph, phabCommentCollapseId, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
-
-/** A diff row to reveal and focus; a new object per request. */
 import type { HunkRow } from "../../../web/plugin-api.ts";
+import { DetailsContext } from "./details.ts";
+
+/** Holds the canvas's reveal function so panels outside the canvas can reveal nodes in it. */
+export const RevealContext = createContext<MutableRefObject<((nodeId: string, collapseId: string) => void) | null> | null>(null);
 /** The latest request to jump to a diff row, provided by the review view around its canvas. */
 export const JumpContext = createContext<HunkRow | null>(null);
 
@@ -19,6 +21,9 @@ const botCommentIds = (comments: Artifact<PhabCommentData>[], anchors: Record<st
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
 function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, children }: CanvasProviderProps) {
+  const details = useContext(DetailsContext);
+  const revealer = useContext(RevealContext);
+  useEffect(() => { if (revealer) revealer.current = reveal; });
   const [resolvedLinks, setResolvedLinks] = useState<Record<string, string | null>>({});
   const requested = useRef(new Set<string>());
   const pending = useRef(new Set<string>());
@@ -42,6 +47,23 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
     return links ? { ...links, links: { ...links.links, ...resolvedLinks } } : null;
   }, [state, request, resolvedLinks]);
   const jump = useContext(JumpContext);
+  useEffect(() => {
+    if (!details) return;
+    const click = (event: MouseEvent) => {
+      const ranges = CSS.highlights.highlightsFromPoint(event.clientX, event.clientY)
+        .filter((hit) => hit.highlight === CSS.highlights.get("chat-quote"))
+        .flatMap((hit) => hit.ranges);
+      if (!ranges.length) return;
+      const quote = ranges.map((range) => range.toString()).join("");
+      for (const node of graph.nodes) {
+        if (!("threads" in node.data) || !Array.isArray(node.data.threads)) continue;
+        const thread = node.data.threads.find((item) => item.quote === quote);
+        if (thread) { details.open({ kind: "chat", id: thread.threadId ?? thread.draftId! }); return; }
+      }
+    };
+    document.addEventListener("click", click);
+    return () => document.removeEventListener("click", click);
+  }, [details, graph]);
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
     if (!node || !isReviewKind(node.data, "change")) return;

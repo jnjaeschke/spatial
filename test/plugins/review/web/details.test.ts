@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { backDetail, closeDetails, openDetail, type DetailsState, type Detail } from "../../../../src/plugins/review/web/details.ts";
+import { backDetail, canGoBack, closeDetails, openDetail, type DetailsState, type Detail } from "../../../../src/plugins/review/web/details.ts";
 
 const initial: DetailsState = { current: null, back: [] };
 const file: Detail = { kind: "file", file: { diffId: "D", path: "a.ts", hunkId: "h" } };
@@ -26,4 +26,15 @@ test("the back stack keeps at most twenty items", () => {
 
 test("closing details resets current and back stack", () => {
   assert.deepEqual(closeDetails(), initial);
+});
+
+test("Back skips items that no longer resolve and closes when none is left", () => {
+  const gone: Detail = { kind: "comment", id: "draft" };
+  const state = openDetail(openDetail(openDetail(initial, file), gone), interdiff);
+  const resolves = (detail: Detail) => detail !== gone;
+  assert.equal(canGoBack(state, resolves), true);
+  assert.deepEqual(backDetail(state, resolves), { current: file, back: [] });
+  const onlyGone = openDetail(openDetail(initial, gone), interdiff);
+  assert.equal(canGoBack(onlyGone, resolves), false);
+  assert.deepEqual(backDetail(onlyGone, resolves), initial);
 });

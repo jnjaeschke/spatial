@@ -1,25 +1,40 @@
-import { useState } from "react";
-import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow } from "../../../web/plugin-api.ts";
-import { latestNarrative } from "./graph.ts";
-import { JumpContext, reviewCanvas } from "./canvas.tsx";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, useClosed } from "../../../web/plugin-api.ts";
+import { latestNarrative, reviewGraph } from "./graph.ts";
+import { JumpContext, RevealContext, reviewCanvas } from "./canvas.tsx";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
 import { RevisionView } from "./RevisionView.tsx";
 import { InterdiffPanel } from "./InterdiffPanel.tsx";
 import { SpecPanel, SpecStepContext, type SpecStepSelection } from "./SpecPanel.tsx";
 import type { LineRange } from "../shared/types.ts";
-import { backDetail, closeDetails, DetailsContext, openDetail, type DetailsState } from "./details.ts";
+import { backDetail, canGoBack, closeDetails, DetailsContext, openDetail, type Detail, type DetailsState } from "./details.ts";
+import { ChatDetails, useChatLookup } from "./ChatDetails.tsx";
+import { CommentDetails, findComment } from "./CommentDetails.tsx";
 
 export function ReviewView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   const [details, setDetails] = useState<DetailsState>(closeDetails);
   const [jump, setJump] = useState<HunkRow | null>(null);
   const [specSelection, setSpecSelection] = useState<SpecStepSelection | null>(null);
+  const closed = useClosed(state.session.id);
+  const knownDrafts = useRef(new Set(drafts.map((draft) => draft.id)));
+  const revealer = useRef<((nodeId: string, collapseId: string) => void) | null>(null);
   const narrative = latestNarrative(state);
+  const graph = useMemo(() => reviewGraph(state, drafts), [state, drafts]);
   const diff = latestDiff(state.artifacts);
   const stack = diff && diff.data.commits.length > 1 ? diff.data.commits : null;
   const epoch = diff ? diffNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
-  const body = narrative ? <JumpContext.Provider value={jump}><Canvas model={reviewCanvas} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider>
+  const chatThread = useChatLookup(graph, drafts);
+  useEffect(() => {
+    for (const draft of drafts) {
+      if (knownDrafts.current.has(draft.id)) continue;
+      knownDrafts.current.add(draft.id);
+      if (!draft.aside) setDetails((current) => openDetail(current, { kind: draft.kind === "comment" ? "comment" : "chat", id: draft.id }));
+    }
+  }, [drafts]);
+  const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : true;
+  const body = narrative ? <RevealContext.Provider value={revealer}><JumpContext.Provider value={jump}><Canvas model={reviewCanvas} closed={closed} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider></RevealContext.Provider>
     : diff && epoch !== null ? <RevisionView sessionId={state.session.id} diff={diff as Artifact<DiffData>} epoch={epoch} state={state} models={models} />
       : <AnalysisStatus state={state} models={models} />;
   const focusSpecRange = (range: LineRange) => {
@@ -32,13 +47,20 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
     });
     if (hunk) setJump({ hunkId: hunk.id, side: range.side, line: range.start });
   };
+  const selectedChat = details.current?.kind === "chat" ? chatThread(details.current.id) : null;
+  const selectedComment = details.current?.kind === "comment" ? findComment(graph, details.current.id) : null;
+  const chatActions = { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard, onNote: () => {} };
+  const back = canGoBack(details, resolves) ? () => setDetails((current) => backDetail(current, resolves)) : undefined;
+  const closePanel = () => setDetails(closeDetails());
   return <SpecStepContext.Provider value={details.current?.kind === "spec" ? specSelection : null}>
     <TopbarExtras>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => setDetails((current) => current.current?.kind === "interdiff" ? closeDetails() : openDetail(current, { kind: "interdiff" }))}>Interdiff</button>}</TopbarExtras>
     {readOnly ? <StackContext.Provider value={stack}><div className="session-body">{body}</div></StackContext.Provider> : <DetailsContext.Provider value={{ current: details.current, open: (detail) => { setSpecSelection(null); setDetails((current) => openDetail(current, detail)); } }}><FileViewContext.Provider value={(file) => { if (file.row && narrative) setJump({ hunkId: file.hunkId, ...file.row }); else { setSpecSelection(null); setDetails((current) => openDetail(current, { kind: "file", file })); } }}>
       <StackContext.Provider value={stack}><div className="session-body">
         {body}
-        {details.current?.kind === "spec" && narrative && <SpecPanel state={state} specId={details.current.specId} llm={models.default} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={details.back.length ? () => setDetails(backDetail) : undefined} onFocusRange={focusSpecRange} onSelection={setSpecSelection} />}
-        {details.current?.kind === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={details.back.length ? () => setDetails(backDetail) : undefined} /> : details.current?.kind === "file" && diff && details.current.file.diffId === diff.id && <FilePanel sessionId={state.session.id} diff={diff} open={details.current.file} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={details.back.length ? () => setDetails(backDetail) : undefined} onJump={setJump} />}
+        {selectedChat && <ChatDetails thread={selectedChat} actions={chatActions} closed={closed} reveal={(nodeId, collapseId) => revealer.current?.(nodeId, collapseId)} onClose={closePanel} onBack={back} />}
+        {selectedComment && <CommentDetails comment={selectedComment} actions={chatActions} onClose={closePanel} onBack={back} />}
+        {details.current?.kind === "spec" && narrative && <SpecPanel state={state} specId={details.current.specId} llm={models.default} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} onFocusRange={focusSpecRange} onSelection={setSpecSelection} />}
+        {details.current?.kind === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} /> : details.current?.kind === "file" && diff && details.current.file.diffId === diff.id && <FilePanel sessionId={state.session.id} diff={diff} open={details.current.file} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} onJump={setJump} />}
       </div></StackContext.Provider>
     </FileViewContext.Provider></DetailsContext.Provider>}
   </SpecStepContext.Provider>;

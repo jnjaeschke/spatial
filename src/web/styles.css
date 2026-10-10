@@ -622,6 +622,19 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .running { color: var(--link); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); }
 .activity .running::before, .activity .pending::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .diff tr.thread-row > td { padding: 0; white-space: normal; word-break: normal; font-family: var(--font-sans); }
+.diff tr.chip-row > td { padding: 2px 4px 4px; }
+.review-chip { --chip-kind: var(--kind-chat); display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 3px 8px; border: 1px solid var(--border); border-left: 3px solid var(--chip-kind); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+.review-chip.kind-comment { --chip-kind: var(--kind-phab); }
+.review-chip.kind-finding { --chip-kind: var(--kind-finding); }
+.review-chip.kind-phab { --chip-kind: var(--kind-phab); }
+.review-chip.kind-spec { --chip-kind: var(--kind-spec); }
+.review-chip > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.review-chip small { flex: none; margin-left: auto; color: var(--text-3); }
+.review-chip[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chip-strip { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.review-detail-panel .side-panel-body { display: flex; flex-direction: column; gap: 8px; }
+.review-detail-panel .messages { max-height: none; }
+.user-comment-discard { position: absolute; top: 4px; right: 4px; }
 .user-comment-node { position: relative; --kind: var(--kind-phab); border-left: 3px solid var(--kind-phab); padding: 8px 10px; background: var(--surface); color: var(--text); }
 .user-comment-node > .title, .user-comment-author { color: var(--kind-phab); font-weight: 600; margin-bottom: 4px; }
 .user-comment-body { white-space: pre-wrap; }

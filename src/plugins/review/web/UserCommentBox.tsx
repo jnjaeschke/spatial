@@ -1,11 +1,13 @@
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
-import { api, ChatActionsContext, Box, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
+import { api, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
+import { DetailsContext } from "./details.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
 
 export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: string }) {
   const actions = useContext(ChatActionsContext);
+  const details = useContext(DetailsContext);
   const [body, setBody, clearDraft] = useDraftText(item.draft?.id, item.artifact?.data.body ?? "");
   const [editing, setEditing] = useState(false);
   const { busy, error, run } = useAction();
@@ -14,9 +16,10 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
   const saveDraft = async () => {
     if (!actions || !item.draft || !body.trim() || busy) return;
     void run(async () => {
-      await api.createComment(actions.sessionId, diffId, item.lines, body.trim());
+      const { artifactId } = await api.createComment(actions.sessionId, diffId, item.lines, body.trim());
       clearDraft();
       actions.onDiscard(item.draft!.id);
+      details?.open({ kind: "comment", id: artifactId });
     });
   };
   const saveEdit = async () => {
@@ -27,7 +30,8 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
     if (!actions || !item.artifact || busy) return;
     void run(() => api.deleteComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id));
   };
-  return <Box nested kind="user-comment" className="nodrag nopan nowheel" testId="user-comment" title={title} closeLabel="Discard" onMouseDown={stop} onClick={stop} onClose={item.draft ? () => { clearDraft(); actions?.onDiscard(item.draft!.id); } : undefined}>
+  return <div className="user-comment-node nodrag nopan nowheel" data-testid="user-comment" aria-label={title} onMouseDown={stop} onClick={stop}>
+    {item.draft && <button className="link-button user-comment-discard" aria-label="Discard comment" onClick={() => { clearDraft(); actions?.onDiscard(item.draft!.id); }}>×</button>}
     {item.draft ? <>
       <Composer label="Comment for Phabricator" value={body} onChange={setBody} canSubmit={!!body.trim() && !busy} onSubmit={() => void saveDraft()} onKeyDown={(event) => { if (event.key === "Escape" && body.trim()) event.preventDefault(); }} />
       <div><button disabled={!body.trim() || busy} onClick={() => void saveDraft()}>Save</button></div>
@@ -37,5 +41,5 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
         : <><div className="user-comment-body">{item.artifact.data.body}</div>{item.postedTo !== null ? <div className="user-comment-status">Posted to D{item.postedTo}</div> : <div><button onClick={() => { setBody(item.artifact!.data.body); setEditing(true); }}>Edit</button><button disabled={busy} onClick={() => void remove()}>Delete</button></div>}</>}
     </>}
     <ErrorText error={error} />
-  </Box>;
+  </div>;
 }

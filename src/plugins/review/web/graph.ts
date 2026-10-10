@@ -55,6 +55,7 @@ export type CommitNodeData = {
   changeCount: number;
   findingCount: number;
   reviewedCount: number;
+  threads?: HostedThread[];
 };
 
 export type SummaryNodeData = {
@@ -76,6 +77,7 @@ export type SummaryNodeData = {
   bugs: { report: Artifact<BugReportData>; summary: Artifact<BugSummaryData> | null; summarizing: boolean }[];
   bugHunks: { file: DiffFile; hunk: Hunk }[];
   bugDiffId: string;
+  threads?: HostedThread[];
 };
 
 export type SpecNodeData = { kind: "spec"; ref: Artifact<SpecReferenceData> };
@@ -279,7 +281,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
     id: narrative.id,
     data: { kind: "summary", narrativeId: narrative.id, summary: narrative.data.summary, commits: diff.data.commits, changeCount: changes.length, specStatus: null, drafts: [], skipped: 0, reviews: [], sessionId: narrative.sessionId,
       sinceEpoch: previousNarrative ? diffNumber(artifacts, previousNarrative.data.diffId) : null, phabGeneral: [], phabAnchors: {}, phabUnanchored: [], bugs: [],
-      bugHunks: [...new Set(changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId } satisfies SummaryNodeData,
+      bugHunks: [...new Set(changes.flatMap((change) => change.hunkIds))].flatMap((id) => byHunk.has(id) ? [byHunk.get(id)!] : []), bugDiffId: narrative.data.diffId, threads: [] } satisfies SummaryNodeData,
   }];
   const edges: GraphEdge[] = [];
   const stack = diff.data.commits.length > 1;
@@ -289,7 +291,7 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
       const cardId = commitNodeId(narrative.id, index);
       nodes.push({ id: cardId, data: { kind: "commit", narrativeId: narrative.id, index, commit, intent: narrative.data.commitIntents?.[index] ?? null, flowHint: narrative.data.flowHints?.[index] ?? null,
         changeCount: changes.filter((change) => changeCommit(diff.data, change) === index).length,
-        reviewedCount: changes.filter((change) => changeCommit(diff.data, change) === index && reviewed.has(change.id)).length, findingCount: 0 } satisfies CommitNodeData });
+        reviewedCount: changes.filter((change) => changeCommit(diff.data, change) === index && reviewed.has(change.id)).length, findingCount: 0, threads: [] } satisfies CommitNodeData });
       edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
     });
   }

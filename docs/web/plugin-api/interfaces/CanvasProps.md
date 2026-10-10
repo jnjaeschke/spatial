@@ -8,6 +8,44 @@
 
 ## Properties
 
+### closed?
+
+> `optional` **closed?**: `object`
+
+#### close
+
+> **close**: (`id`) => `void`
+
+##### Parameters
+
+###### id
+
+`string`
+
+##### Returns
+
+`void`
+
+#### closed
+
+> **closed**: `ReadonlySet`\<`string`\>
+
+#### reopen
+
+> **reopen**: (`ids`) => `void`
+
+##### Parameters
+
+###### ids
+
+`string`[]
+
+##### Returns
+
+`void`
+
+***
+
 ### drafts?
 
 > `optional` **drafts?**: [`Draft`](Draft.md)[]

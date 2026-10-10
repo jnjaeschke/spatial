@@ -5,12 +5,15 @@ import { Box, InlineText, CollapseContext, ChatActionsContext, ReopenClosed, Ans
 import { PhabComment } from "../PhabComment.tsx";
 import { commitColors, commitLabel } from "../../../../web/plugin-api.ts";
 import { ReviewPanel } from "../ReviewPanel.tsx";
+import { Chip } from "../Chip.tsx";
+import { DetailsContext } from "../details.ts";
 
 export type SummaryFlowNode = Node<SummaryNodeData & Record<string, unknown>, "summary">;
 
 export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
   const collapse = useContext(CollapseContext);
   const actions = useContext(ChatActionsContext);
+  const details = useContext(DetailsContext);
   const specStatus = data.specStatus;
   const specText = specStatus && (
     specStatus.code + specStatus.inferred + specStatus.unverified === 0
@@ -51,6 +54,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
           </section>;
         })}
         {actions && data.reviews.map((review) => <ReviewPanel key={review.revision} sessionId={data.sessionId} review={review} />)}
+        <div className="chip-strip">{(data.threads ?? []).map((thread) => <Chip key={thread.threadId ?? thread.draftId} kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />)}</div>
         <ul className="files">
           {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
         </ul>
