@@ -39,6 +39,7 @@
 - [PhaseViewProps](interfaces/PhaseViewProps.md)
 - [PlacedNode](interfaces/PlacedNode.md)
 - [PluginSessionView](interfaces/PluginSessionView.md)
+- [ReplyActionProps](interfaces/ReplyActionProps.md)
 - [RootGraphParts](interfaces/RootGraphParts.md)
 - [RowMark](interfaces/RowMark.md)
 - [SearchfoxLinks](interfaces/SearchfoxLinks.md)

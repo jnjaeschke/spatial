@@ -26,6 +26,12 @@
 
 ***
 
+### replyActions?
+
+> `optional` **replyActions?**: `Record`\<`string`, `ComponentType`\<[`ReplyActionProps`](ReplyActionProps.md)\>\>
+
+***
+
 ### sessionViews?
 
 > `optional` **sessionViews?**: [`PluginSessionView`](PluginSessionView.md)[]

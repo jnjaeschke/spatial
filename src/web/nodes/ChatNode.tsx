@@ -15,6 +15,7 @@ import { Box } from "../Box.tsx";
 import { Composer, useDraftText } from "../Composer.tsx";
 import { COMPOSER_HINT } from "../composer-key.ts";
 import { ErrorText, useAction } from "../action.tsx";
+import { ReplyActionsContext } from "../reply-actions.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & Record<string, unknown>, "chat">;
 
@@ -37,6 +38,7 @@ export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
   const actions = useContext(ChatActionsContext);
+  const replyActions = useContext(ReplyActionsContext);
   const collapse = useContext(CollapseContext);
   const closer = useContext(ClosedContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
@@ -66,6 +68,7 @@ export function Conversation(data: ConversationProps) {
             {m.data.role === "assistant" && m.data.questions?.length ? <ul className="chat-questions">{m.data.questions.map((question, i) => <li key={i}>{question}</li>)}</ul> : null}
             {m.data.role === "assistant" && m.data.revisionErrors?.length ? <p className="revision-errors">{m.data.revisionErrors.map((revisionError, i) => <span key={i}>{i > 0 ? " " : ""}Could not apply revision: {revisionError}</span>)}</p> : null}
             {m.data.role === "assistant" && m.data.replyErrors?.map(({ label, error }) => <p className="revision-errors" key={label}>{label} dropped: {error}</p>)}
+            {m.data.role === "assistant" && replyActions?.derived(m.id).map((artifact) => { const Action = replyActions.components[artifact.type]; return Action ? <Action key={artifact.id} artifact={artifact} sessionId={replyActions.sessionId} /> : null; })}
             {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <IconButton label="Show diagram" key={diagramId} type="button" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</IconButton>)}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>

@@ -20,6 +20,8 @@ import { EpochStrip } from "./EpochStrip.tsx";
 import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
 import { RouteContext, routeUrl, sessionViewOf, showSessionView } from "./routes.ts";
 import { Segmented } from "./Segmented.tsx";
+import { ReplyActionsContext, derivedArtifacts } from "./reply-actions.ts";
+import { webReplyActions } from "../plugins/web.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -56,6 +58,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const onOpenAside = useCallback((draft: Draft) => setDrafts((current) => [...current, draft]), []);
   const commentsOnSelection = state ? activePhaseView(webPlugins, state).view?.commentsOnSelection === true : false;
   const askContext = useMemo(() => ({ ask, ...(commentsOnSelection ? { comment } : {}) }), [ask, comment, commentsOnSelection]);
+  const replyActions = useMemo(() => state && { sessionId, components: webReplyActions, derived: (messageId: string) => derivedArtifacts(state, messageId) }, [sessionId, state]);
   if (error) return <p className="empty failed">{error}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
@@ -81,7 +84,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
     {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
-    <ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}>{body}<AskOnSelect /></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider>
+    <ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}>{body}<AskOnSelect /></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}

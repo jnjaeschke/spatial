@@ -9,6 +9,7 @@ import type { SessionState, ModelsResponse, NotifyPayload, Epoch } from "../shar
 import type { Draft } from "./chat-context.ts";
 import type { GraphNodeData } from "./graph-api.ts";
 import type { NodeProps } from "@xyflow/react";
+import type { ReplyActionProps } from "./reply-actions.ts";
 
 export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; /** The epoch being shown; null before the first epoch. A past epoch comes with the session state as it was then and `readOnly`. */ epoch: Epoch | null; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
 /** What a static export embeds of the latest diff: its id, its commit shas, and the paths of files whose full text is included. */
@@ -34,7 +35,7 @@ export interface NodeKind {
   /** False: no width handle and the width always comes from `size` (diagram). Default true. */
   resizable?: boolean;
 }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -66,6 +67,7 @@ export { DiagramStepContext } from "./diagram-steps.ts";
 export { ReopenClosed } from "./ReopenClosed.tsx";
 export { api } from "./api.ts";
 export { Conversation } from "./nodes/ChatNode.tsx";
+export type { ReplyActionProps } from "./reply-actions.ts";
 export type { CanvasModel, GuideStep, FocusedRow, CanvasProviderProps } from "./Canvas.tsx";
 export type { SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";
