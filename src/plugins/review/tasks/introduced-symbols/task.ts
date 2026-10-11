@@ -1,6 +1,6 @@
 import { type DiffData, type Id, defineTask } from "../../../../plugin-api.ts";
 import type { IntroducedSymbolsData } from "../../shared/types.ts";
-import { addedIdentifiers, definitionSite } from "../../runtime/introduced-symbols.ts";
+import { addedIdentifiers, definitionSites } from "../../runtime/introduced-symbols.ts";
 
 /** Records added identifiers absent from the base tree when an added line looks like their definition. */
 export const introducedSymbols = defineTask<{ diffId: Id }, { artifactId: Id }>({
@@ -20,8 +20,8 @@ export const introducedSymbols = defineTask<{ diffId: Id }, { artifactId: Id }>(
     const symbols: IntroducedSymbolsData["symbols"] = {};
     for (const name of names) {
       if (existing.has(name)) continue;
-      const site = definitionSite(diff, name);
-      if (site) symbols[name] = site;
+      const sites = definitionSites(diff, name);
+      if (sites.length) symbols[name] = { sites };
     }
     const result = ctx.artifacts.put<IntroducedSymbolsData>("IntroducedSymbols", "verified", { diffId, symbols });
     ctx.links.put(result.id, diffId, "derivedFrom");

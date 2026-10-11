@@ -10,7 +10,7 @@ export type Detail =
   | { kind: "finding"; id: string }
   | { kind: "phab"; anchorId: string }
   | { kind: "spec"; specId: string }
-  | { kind: "symbol"; name: string };
+  | { kind: "symbol"; name: string; site: number };
 
 /** The shown detail and up to twenty details that Back can restore. */
 export interface DetailsState { current: Detail | null; back: Detail[] }

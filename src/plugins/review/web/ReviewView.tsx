@@ -44,7 +44,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
       if (thread) inline.move(draft.id, thread.id);
     }
   }, [drafts, state.artifacts, inline.move]);
-  const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : detail.kind === "finding" ? findFinding(graph, detail.id) !== null : detail.kind === "phab" ? findPhabThread(graph, detail.anchorId) !== null : detail.kind === "symbol" ? findSymbol(state, diff, detail.name) !== null : true;
+  const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : detail.kind === "finding" ? findFinding(graph, detail.id) !== null : detail.kind === "phab" ? findPhabThread(graph, detail.anchorId) !== null : detail.kind === "symbol" ? findSymbol(state, diff, detail.name, detail.site) !== null : true;
   const back = canGoBack(details, resolves) ? () => setDetails((current) => backDetail(current, resolves)) : undefined;
   const closePanel = () => setDetails(closeDetails());
   const body = narrative ? <RevealContext.Provider value={revealer}><JumpContext.Provider value={jump}><Canvas model={reviewCanvas} closed={closed} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider></RevealContext.Provider>
@@ -64,7 +64,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   const selectedComment = details.current?.kind === "comment" ? findComment(graph, details.current.id) : null;
   const selectedFinding = details.current?.kind === "finding" ? findFinding(graph, details.current.id) : null;
   const selectedPhab = details.current?.kind === "phab" ? findPhabThread(graph, details.current.anchorId) : null;
-  const selectedSymbol = details.current?.kind === "symbol" ? findSymbol(state, diff, details.current.name) : null;
+  const selectedSymbol = details.current?.kind === "symbol" ? findSymbol(state, diff, details.current.name, details.current.site) : null;
   const chatActions = readOnly ? null : { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard, onNote: () => {} };
   const panels = <>
     {selectedChat && <ChatDetails thread={selectedChat} actions={chatActions} closed={closed} reveal={(nodeId, collapseId) => revealer.current?.(nodeId, collapseId)} onClose={closePanel} onBack={back} />}

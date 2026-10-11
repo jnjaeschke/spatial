@@ -15,7 +15,7 @@ export function symbolMarks(text: string, rowCommit: number, symbols: Introduced
   const marks: SymbolMark[] = [];
   for (const match of text.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
     const name = match[0]!;
-    const definition = symbols[name];
+    const definition = symbols[name]?.sites.reduce((earliest, site) => !earliest || site.commit < earliest.commit ? site : earliest, undefined as typeof symbols[string]["sites"][number] | undefined);
     if (!definition || definition.commit > rowCommit) continue;
     const start = match.index!;
     marks.push({ start, end: start + name.length, name, highlight: definition.commit === rowCommit ? "sym-this" : "sym-earlier", title: definition.commit === rowCommit ? "New in this patch" : `New in C${definition.commit + 1}` });

@@ -54,20 +54,20 @@ export type HunkNodeData = {
   symbols?: IntroducedSymbolsData["symbols"];
 };
 
-/** Edges from each symbol definition hunk to distinct hunks in this change that use it. */
+/** Edges from each symbol site hunk to distinct hunks in this change that use it. */
 export function introducedSymbolEdges(changeNodeId: string, hunks: { file: DiffFile; hunk: Hunk }[], symbols: IntroducedSymbolsData["symbols"]): (GraphEdge & { label: string })[] {
   const namesByPair = new Map<string, { source: string; target: string; names: string[] }>();
-  for (const [name, definition] of Object.entries(symbols)) {
-    const sourceIndex = hunks.findIndex(({ hunk }) => hunk.id === definition.hunkId);
+  for (const [name, symbol] of Object.entries(symbols)) for (const site of symbol.sites) {
+    const sourceIndex = hunks.findIndex(({ file, hunk }) => file.path === site.path && hunk.id === site.hunkId);
     if (sourceIndex < 0) continue;
     for (let i = 0; i < hunks.length; i++) {
       if (i === sourceIndex) continue;
       const { hunk } = hunks[i]!;
-      const usesName = hunk.lines.some((line) => symbolMarks(line.text, definition.commit, symbols).some((mark) => mark.name === name));
+      const usesName = hunk.lines.some((line) => symbolMarks(line.text, site.commit, symbols).some((mark) => mark.name === name));
       if (!usesName) continue;
-      const source = `${changeNodeId}/${definition.hunkId}`, target = `${changeNodeId}/${hunk.id}`, key = `${source}->${target}`;
+      const source = `${changeNodeId}/${site.hunkId}`, target = `${changeNodeId}/${hunk.id}`, key = `${source}->${target}`;
       const pair = namesByPair.get(key) ?? { source, target, names: [] };
-      pair.names.push(name);
+      if (!pair.names.includes(name)) pair.names.push(name);
       namesByPair.set(key, pair);
     }
   }

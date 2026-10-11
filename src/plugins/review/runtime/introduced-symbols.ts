@@ -11,20 +11,20 @@ export function addedIdentifiers(diff: DiffData): string[] {
   return [...names];
 }
 
-const HEADER = /\.(?:h|hh|hpp|idl|webidl)$/i;
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The added line that defines `name`, preferring header-like files, else the first in diff order; null when no added line looks like a definition. */
-export function definitionSite(diff: DiffData, name: string): { path: string; hunkId: string; line: number; commit: number } | null {
+/** Added lines that declare or define `name`, in diff order. */
+export function definitionSites(diff: DiffData, name: string): { path: string; hunkId: string; line: number; commit: number; kind: "declaration" | "definition" }[] {
   const escaped = escapeRegExp(name);
   const keywordDef = new RegExp(`\\b(?:fn|struct|enum|class|interface|function|const|let|var|def|type|impl|trait|union|namespace|typedef|using|define)\\s+(?:\\w+::)*${escaped}\\b`);
   const declaration = new RegExp(`^(?!\\s*(?:return|else|case|delete|new|throw|co_return|co_await)\\b)\\s*[\\w:<>,*&\\s]*[\\w>*&]\\s*[*&]*\\s*\\b(?:\\w+::)*${escaped}\\s*[;=({\\[]`);
-  const matches: { path: string; hunkId: string; line: number; commit: number }[] = [];
+  const matches: { path: string; hunkId: string; line: number; commit: number; kind: "declaration" | "definition" }[] = [];
   for (const file of diff.files) for (const hunk of file.hunks) {
     for (const row of numberLines(hunk)) {
       if (row.kind !== "add" || (!keywordDef.test(row.text) && !declaration.test(row.text))) continue;
-      matches.push({ path: file.path, hunkId: hunk.id, line: row.new!, commit: row.commit ?? 0 });
+      const definition = /\{/.test(row.text) || new RegExp(`\\b${escaped}\\s*=`).test(row.text) || !/;\s*$/.test(row.text);
+      matches.push({ path: file.path, hunkId: hunk.id, line: row.new!, commit: row.commit ?? 0, kind: definition ? "definition" : "declaration" });
     }
   }
-  return matches.find((site) => HEADER.test(site.path)) ?? matches[0] ?? null;
+  return matches;
 }

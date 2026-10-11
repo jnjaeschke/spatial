@@ -28,7 +28,7 @@ export function HunkNode({ id, data }: NodeProps<HunkFlowNode>) {
       <div className="body nodrag nopan">
         <DiffView sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} rowClass={rowClass}
           marks={data.symbols ? (row) => symbolMarks(row.text, row.commit ?? commit ?? 0, data.symbols!) : undefined}
-          onMark={(mark) => details?.open({ kind: "symbol", name: mark.name })}
+          onMark={(mark) => details?.open({ kind: "symbol", name: mark.name, site: 0 })}
           afterRow={(row) => <>{data.threads.filter((thread) => thread.lines?.path === file.path && thread.lines.end === (thread.lines.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row inline-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}><ChatItem thread={thread} /></td></tr>)}{data.phabThreads.filter((thread) => thread.path === file.path && thread.line === (thread.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row inline-row" key={thread.anchorId}><td colSpan={4}><PhabItem thread={thread} /></td></tr>)}{data.comments.filter((comment) => comment.lines.path === file.path && comment.lines.end === (comment.lines.side === "new" ? row.new : row.old)).map((item) => <tr className="thread-row inline-row" key={commentId(item)}><td colSpan={4}><UserCommentItem item={item} diffId={diffId} /></td></tr>)}{data.findings.filter((finding) => finding.lines?.path === file.path && finding.lines.end === (finding.lines.side === "new" ? row.new : row.old)).map((finding) => <tr className="thread-row inline-row" key={finding.findingId}><td colSpan={4}><FindingItem finding={finding} /></td></tr>)}</>} />
         <ReopenClosed hostId={id} />
       </div>

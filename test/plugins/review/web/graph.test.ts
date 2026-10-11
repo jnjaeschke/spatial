@@ -211,7 +211,7 @@ test("narrativeGraph creates ordered commit cards and assigns changes to lanes",
   assert.ok(single.nodes.filter((n) => isReviewKind(n.data, "change")).every((n) => isReviewKind(n.data, "change") && n.data.commit === null));
 });
 
-test("introducedSymbolEdges connects a definition hunk to each using hunk once", () => {
+test("introducedSymbolEdges connects every site hunk to each using hunk once", () => {
   const definition = { ...hunk("def"), lines: [{ kind: "add" as const, text: "class NewWidget {}; void NewThing() {}", commit: 0 }] };
   const useOne = { ...hunk("use1"), lines: [{ kind: "add" as const, text: "NewThing(); NewWidget item;", commit: 0 }] };
   const useTwo = { ...hunk("use2"), lines: [{ kind: "ctx" as const, text: "NewThing(); NewWidget item;" }] };
@@ -222,11 +222,13 @@ test("introducedSymbolEdges connects a definition hunk to each using hunk once",
     { file: { ...diff.data.files[1]!, hunks: [useTwo] }, hunk: useTwo },
     { file: { ...diff.data.files[1]!, hunks: [unrelated] }, hunk: unrelated },
   ], {
-    NewThing: { path: "a.cpp", hunkId: "def", line: 1, commit: 0 },
-    NewWidget: { path: "a.cpp", hunkId: "def", line: 1, commit: 0 },
+    NewThing: { sites: [{ path: "a.cpp", hunkId: "def", line: 1, commit: 0, kind: "definition" }, { path: "b.h", hunkId: "use2", line: 1, commit: 0, kind: "declaration" }] },
+    NewWidget: { sites: [{ path: "a.cpp", hunkId: "def", line: 1, commit: 0, kind: "definition" }] },
   }), [
     { id: "change/def->change/use1", source: "change/def", target: "change/use1", label: "NewThing, NewWidget" },
     { id: "change/def->change/use2", source: "change/def", target: "change/use2", label: "NewThing, NewWidget" },
+    { id: "change/use2->change/def", source: "change/use2", target: "change/def", label: "NewThing" },
+    { id: "change/use2->change/use1", source: "change/use2", target: "change/use1", label: "NewThing" },
   ]);
 });
 

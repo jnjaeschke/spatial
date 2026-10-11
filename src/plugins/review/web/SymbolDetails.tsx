@@ -2,11 +2,11 @@ import { type Artifact, type DiffData, type DiffFile, type Hunk, type SessionSta
 import type { IntroducedSymbolsData } from "../shared/types.ts";
 import { latestSymbols } from "./symbols.ts";
 
-export interface SymbolDefinition { name: string; site: IntroducedSymbolsData["symbols"][string]; file: DiffFile; hunk: Hunk }
+export interface SymbolDefinition { name: string; site: IntroducedSymbolsData["symbols"][string]["sites"][number]; file: DiffFile; hunk: Hunk }
 
-/** Where the latest `IntroducedSymbols` of `diff` says `name` is defined; null when it does not list the name. */
-export function findSymbol(state: SessionState, diff: Artifact<DiffData> | null, name: string): SymbolDefinition | null {
-  const site = diff && latestSymbols(state, diff.id)?.symbols[name];
+/** The selected site where the latest `IntroducedSymbols` for `diff` records `name`; null when it cannot be resolved. */
+export function findSymbol(state: SessionState, diff: Artifact<DiffData> | null, name: string, siteIndex: number): SymbolDefinition | null {
+  const site = diff && latestSymbols(state, diff.id)?.symbols[name]?.sites[siteIndex];
   const file = site && diff.data.files.find((item) => item.path === site.path);
   const hunk = site && file?.hunks.find((item) => item.id === site.hunkId);
   return site && file && hunk ? { name, site, file, hunk } : null;

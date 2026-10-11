@@ -3,9 +3,9 @@ import test from "node:test";
 import { latestSymbols, symbolMarks } from "../../../../src/plugins/review/web/symbols.ts";
 
 const symbols = {
-  NewThing: { path: "a.ts", hunkId: "h1", line: 4, commit: 0 },
-  Later: { path: "a.ts", hunkId: "h2", line: 9, commit: 2 },
-  Earlier: { path: "a.ts", hunkId: "h0", line: 1, commit: 0 },
+  NewThing: { sites: [{ path: "a.ts", hunkId: "h1", line: 4, commit: 1, kind: "declaration" as const }, { path: "b.cpp", hunkId: "h2", line: 9, commit: 0, kind: "definition" as const }] },
+  Later: { sites: [{ path: "a.ts", hunkId: "h3", line: 9, commit: 2, kind: "definition" as const }] },
+  Earlier: { sites: [{ path: "a.ts", hunkId: "h0", line: 1, commit: 0, kind: "definition" as const }] },
 };
 
 test("symbolMarks matches whole identifiers and marks every occurrence", () => {
@@ -32,4 +32,8 @@ test("latestSymbols returns the last artifact for the diff", () => {
   const state = { artifacts: [first, other, last] } as any;
   assert.deepEqual(latestSymbols(state, "d1"), last.data);
   assert.equal(latestSymbols(state, "d3"), null);
+});
+
+test("symbolMarks uses the earliest site's commit", () => {
+  assert.deepEqual(symbolMarks("NewThing", 0, symbols), [{ start: 0, end: 8, name: "NewThing", highlight: "sym-this", title: "New in this patch" }]);
 });

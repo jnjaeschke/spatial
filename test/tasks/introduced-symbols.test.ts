@@ -11,7 +11,7 @@ test("introducedSymbols stores only new defined names and links the Diff", async
   const store = new Store(":memory:");
   const searched: string[] = [];
   const git = {
-    async show(sha: string, path: string) { assert.deepEqual([sha, path], ["base", "a.h"]); return "void LocalThing();\n"; },
+    async show(sha: string, path: string) { assert.equal(sha, "base"); assert.ok(["a.h", "a.cpp"].includes(path)); return path === "a.h" ? "void LocalThing();\n" : ""; },
     async wordsAt(_rev: string, words: string[]) { searched.push(...words); return new Set(words.filter((word) => word === "ExistingThing")); },
   } as unknown as GitCapability;
   const llm = { defaultSelection: { backend: "claude" as const, model: "m", effort: "low" as const }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService;
@@ -19,13 +19,13 @@ test("introducedSymbols stores only new defined names and links the Diff", async
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diff: DiffData = { baseSha: "base", headSha: "head", commits: [{ sha: "commit", subject: "add", body: "" }], files: [{ path: "a.h", status: "modified", binary: false, hunks: [{ id: "h0", header: "", oldStart: 1, oldLines: 0, newStart: 1, newLines: 4, lines: [
     { kind: "add", text: "void ExistingThing();" }, { kind: "add", text: "void NewThing();" }, { kind: "add", text: "CallOnlyName();" }, { kind: "add", text: "void LocalThing(int);" },
-  ] }] }] };
+  ] }] }, { path: "a.cpp", status: "modified", binary: false, hunks: [{ id: "h1", header: "", oldStart: 1, oldLines: 0, newStart: 1, newLines: 1, lines: [{ kind: "add", text: "void NewThing() {" }] }] }] };
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diff, provenance: { taskId: "x" } }).id;
   const { artifactId } = await rt.run<{ artifactId: string }>(session.id, "introducedSymbols", { diffId });
   const artifact = store.getArtifact<IntroducedSymbolsData>(artifactId);
   assert.equal(artifact.type, "IntroducedSymbols");
   assert.equal(artifact.status, "verified");
-  assert.deepEqual(artifact.data, { diffId, symbols: { NewThing: { path: "a.h", hunkId: "h0", line: 2, commit: 0 } } });
+  assert.deepEqual(artifact.data, { diffId, symbols: { NewThing: { sites: [{ path: "a.h", hunkId: "h0", line: 2, commit: 0, kind: "declaration" }, { path: "a.cpp", hunkId: "h1", line: 1, commit: 0, kind: "definition" }] } } });
   assert.ok(!searched.includes("LocalThing"), "names in the base version of a touched file skip the tree-wide search");
   assert.deepEqual(store.listLinks(session.id).map((link) => [link.from, link.to, link.kind]), [[artifactId, diffId, "derivedFrom"]]);
 });

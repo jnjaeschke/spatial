@@ -18,4 +18,4 @@ Data of an `IntroducedSymbols` artifact: identifiers the diff adds that occur no
 
 ### symbols
 
-> **symbols**: `Record`\<`string`, \{ `commit`: `number`; `hunkId`: `string`; `line`: `number`; `path`: `string`; \}\>
+> **symbols**: `Record`\<`string`, \{ `sites`: `object`[]; \}\>

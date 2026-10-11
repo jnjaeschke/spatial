@@ -87,7 +87,7 @@ export interface InterdiffData { fromDiff: Id; toDiff: Id; files: DiffFile[]; co
 /** Data of an `IntroducedSymbols` artifact: identifiers the diff adds that occur nowhere in the base tree, by name, with the added line that defines them. */
 export interface IntroducedSymbolsData {
   diffId: Id;
-  symbols: Record<string, { path: string; hunkId: string; line: number; commit: number }>;
+  symbols: Record<string, { sites: { path: string; hunkId: string; line: number; commit: number; kind: "declaration" | "definition" }[] }>;
 }
 
 /** A reviewer's mark on a change of a narrative; the latest per (narrative, change) wins. Linked `about → <narrative>#<change>`. Provenance: user. */
