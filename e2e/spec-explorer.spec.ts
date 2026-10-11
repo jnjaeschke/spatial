@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
 import { openPatch, startReview, waitForCanvasSettled } from "./canvas.ts";
 
-export async function exploreNavigate(page: Page) {
+async function exploreNavigate(page: Page) {
   const repo = makeRepo();
   repo.commit({ "a.txt": "a\n" }, "base");
   await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(repo.dir)}`);

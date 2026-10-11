@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow } from "../../../web/plugin-api.ts";
 import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { latestTraces, traceSequence, type TraceRow } from "../shared/traces.ts";
@@ -11,22 +11,26 @@ import type { SummaryView } from "../runtime/summaries.ts";
 
 function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderProps) {
   const view = useContext(ExplorerViewContext)!;
+  // Canvas recreates `reveal` and `graph` every render; refs keep the context value, and with it every box, stable.
+  const latest = useRef({ graph, reveal });
+  latest.current = { graph, reveal };
   const value = useMemo(() => ({
     readOnly,
-    reveal(nodeId: string) { reveal(nodeId, nodeId); },
+    reveal(nodeId: string) { latest.current.reveal(nodeId, nodeId); },
     async open(target: string, from: SpecOpenedData["from"]) {
       const id = specNodeId(target);
-      if (view.closed.closed.has(id)) view.closed.reopen([id]);
       await specClient.open(view.sessionId, target, from);
-      if (graph.nodes.some((node) => node.id === id)) reveal(id, id);
+      // A new or reopened box is revealed by `revealWhenAdded` once it is in the graph; an open one is focused here.
+      if (view.closed.closed.has(id)) view.closed.reopen([id]);
+      else if (latest.current.graph.nodes.some((node) => node.id === id)) latest.current.reveal(id, id);
     },
     async showPath(ref: string, effectId: string) { await specClient.showEffectPath(view.sessionId, ref, effectId); },
     addToTrace: view.addToTrace,
     focus: view.focus,
     summaries: view.summaries,
     flag: view.flag,
-  }), [view, graph, readOnly, reveal]);
-  useEffect(() => { if (view.focus) reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view.focus]);
+  }), [view, readOnly]);
+  useEffect(() => { if (view.focus) latest.current.reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view.focus]);
   return <ExplorerContext.Provider value={value}>{children}</ExplorerContext.Provider>;
 }
 
@@ -43,20 +47,20 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
   useEffect(() => { specClient.summaries(state.session.id).then(setSummaries, (error: Error) => console.error(error)); }, [state.session.id, state.lastEventId]);
   const algorithms = useMemo(() => new Map(state.artifacts.filter((a) => a.type === "SpecAlgorithm").map((a) => { const d = a.data as SpecAlgorithmData; return [d.ref, { title: d.title, url: d.url }] as const; })), [state.artifacts]);
-  const addToTrace = async (anchor: string, step: string) => {
+  const addToTrace = useCallback(async (anchor: string, step: string) => {
     const entry = { anchor, step, note: "" };
     if (active) { await specClient.saveTrace(state.session.id, { ...active, entries: [...active.entries, entry] }); return; }
     const trace: SpecTraceData = { traceId: crypto.randomUUID(), title: `Trace ${traces.length + 1}`, entries: [entry] };
     await specClient.saveTrace(state.session.id, trace);
     setActive(trace.traceId);
-  };
+  }, [state.session.id, active, traces.length, setActive]);
   const model = useMemo<CanvasModel>(() => ({
     graph: (current, currentDrafts) => explorerGraph(current, currentDrafts, closed.closed, active),
     stack: { is: () => true, layout: explorerLayout },
     revealWhenAdded: (node) => node.data.kind === "spec-algorithm",
     Provider: ExplorerProvider,
   }), [closed.closed, active]);
-  const flag = async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummaries(await specClient.summaries(state.session.id)); };
+  const flag = useCallback(async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummaries(await specClient.summaries(state.session.id)); }, [state.session.id]);
   const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, summaries, flag }), [state.session.id, closed, addToTrace, focus, summaries, flag]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>

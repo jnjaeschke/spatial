@@ -1,4 +1,4 @@
-import { createContext, useCallback, useState } from "react";
+import { createContext, useCallback, useMemo, useState } from "react";
 import type { ClosedItem } from "./graph.ts";
 
 /** Closed chat, note and diagram ids. Client-only view state, kept per session in localStorage. */
@@ -15,5 +15,5 @@ export function useClosed(sessionId: string) {
   }), [key]);
   const close = useCallback((id: string) => update((ids) => ids.add(id)), [update]);
   const reopen = useCallback((ids: string[]) => update((current) => { for (const id of ids) current.delete(id); }), [update]);
-  return { closed, close, reopen };
+  return useMemo(() => ({ closed, close, reopen }), [closed, close, reopen]);
 }

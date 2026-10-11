@@ -724,10 +724,11 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-summary ol { margin: 4px 0; padding-left: 18px; }
 .spec-cites { color: var(--text-2); font-size: 0.85em; }
 .spec-no-summary { margin: 4px 12px; color: var(--text-2); font-size: 0.85em; }
-.spec-steps li.step-highlight { background: color-mix(in oklab, var(--kind-spec) 18%, transparent); }
-.spec-steps { max-height: 560px; overflow: auto; padding: 0 12px 8px; font-family: "Iowan Old Style", Charter, Georgia, serif; }
-.spec-steps.far { position: relative; }
-.spec-steps.far > :not(.spec-far-summary) { visibility: hidden; }
+.algorithm-steps li.step-highlight { background: color-mix(in oklab, var(--kind-spec) 18%, transparent); }
+.spec-steps { padding: 10px 0; font-family: "Iowan Old Style", Charter, Georgia, serif; }
+.algorithm-steps { max-height: 560px; overflow: auto; padding: 0 12px 8px; }
+.algorithm-steps.far { position: relative; }
+.algorithm-steps.far > :not(.spec-far-summary) { visibility: hidden; }
 .spec-far-summary { position: absolute; inset: 0; padding: 12px; font-size: 1.6em; overflow: hidden; }
 .react-flow__edge.trace-hop path { stroke: var(--kind-chat); stroke-width: 2; }
 .spec-add-trace { opacity: 0; font-size: 0.8em; padding: 0 4px; }

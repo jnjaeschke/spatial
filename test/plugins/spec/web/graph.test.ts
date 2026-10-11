@@ -53,3 +53,15 @@ test("explorerLayout: root left, each box right of its parent, stacked in its co
   const positions = explorerLayout([{ id: "R", width: 300, height: 200, data: { kind: "conversation" } as never }, box("A", "R", 0, 400), box("C", "A", 2, 100), box("B", "A", 1, 100), box("X", "free", 3, 50)], []);
   assert.deepEqual(Object.fromEntries(positions), { R: { x: 0, y: 0 }, A: { x: 420, y: 0 }, B: { x: 1040, y: 0 }, C: { x: 1040, y: 148 }, X: { x: 420, y: 448 } });
 });
+
+test("explorerLayout places a parent opened after its child first", () => {
+  const box = (id: string, parent: string, order: number) => ({ id, width: 500, height: 100, data: { kind: "spec-algorithm", parent, order } as never });
+  const positions = explorerLayout([{ id: "R", width: 300, height: 200, data: { kind: "conversation" } as never }, box("X", "D", 0), box("D", "R", 1)], []);
+  assert.deepEqual(Object.fromEntries(positions), { R: { x: 0, y: 0 }, D: { x: 420, y: 0 }, X: { x: 1040, y: 0 } });
+});
+
+test("explorerGraph offers a closed root box on the conversation", () => {
+  const g = explorerGraph(state([algorithm("HTML#r"), artifact("SpecOpened", link("HTML#r"))]), [], new Set([specNodeId("HTML#r")]), null)!;
+  assert.equal((g.nodes.find((node) => node.id === "spec:HTML#r")!.data as AlgorithmNodeData).reopenOn, start.id);
+  assert.deepEqual(closeGraph(g, new Set(["spec:HTML#r"])).closedOn.get(start.id), [{ id: "spec:HTML#r", kind: "box" }]);
+});

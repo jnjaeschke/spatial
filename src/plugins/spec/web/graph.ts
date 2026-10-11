@@ -61,7 +61,7 @@ export function explorerGraph(state: SessionState, drafts: Draft[], closed: Read
 
 const GAP_X = 120, GAP_Y = 48;
 
-/** Explorer positions: the conversation at the left, each box right of its parent below what that column already holds, in open order; a box whose parent was placed freely starts in the first box column; satellites beside what they hang off. */
+/** Explorer positions: the conversation at the left, each box right of its parent below what that column already holds, in open order but after its parent; a box whose parent was placed freely starts in the first box column; satellites beside what they hang off. */
 export function explorerLayout(nodes: PlacedNode[], _edges: { source: string; target: string }[]): Map<string, { x: number; y: number }> {
   const rects = new Map<string, { x: number; y: number; width: number; height: number }>();
   const bottoms = new Map<number, number>();
@@ -75,10 +75,17 @@ export function explorerLayout(nodes: PlacedNode[], _edges: { source: string; ta
   if (!root) return new Map();
   place(root, 0, 0);
   const boxes = main.filter((node) => node.data.kind === "spec-algorithm").sort((a, b) => (a.data as AlgorithmNodeData).order - (b.data as AlgorithmNodeData).order);
-  for (const box of boxes) {
-    const parent = rects.get((box.data as AlgorithmNodeData).parent) ?? rects.get(root.id)!;
+  // A box can be opened before the box that is its parent now (its first link's source was closed), so it waits for that parent.
+  const laidOut = new Set(boxes.map((box) => box.id));
+  const placeBox = (box: PlacedNode) => {
+    if (rects.has(box.id)) return;
+    const parentId = (box.data as AlgorithmNodeData).parent;
+    const parentBox = laidOut.has(parentId) ? boxes.find((node) => node.id === parentId) : undefined;
+    if (parentBox) { laidOut.delete(box.id); placeBox(parentBox); }
+    const parent = rects.get(parentId) ?? rects.get(root.id)!;
     place(box, parent.x + parent.width + GAP_X, parent.y);
-  }
+  };
+  for (const box of boxes) placeBox(box);
   for (const node of main) if (!rects.has(node.id)) place(node, 0, 0);
   const out = new Map([...rects].map(([id, rect]) => [id, { x: rect.x, y: rect.y }]));
   const satellites = nodes.filter(isSatellite).map((node) => ({ id: node.id, width: node.width, height: node.height, anchors: node.anchors ?? [] }));
