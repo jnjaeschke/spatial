@@ -37,6 +37,7 @@
  * (`places.open`), and a breadcrumb bar above the canvas: the place crumbs, then a focus segment labelled by
  * `CanvasModel.focusLabel` for the focused diff row or the selected node. A model may add controls to the
  * canvas panel next to Expand all and Reset layout (`CanvasModel.PanelExtras`, rendered inside the model's `Provider`).
+ * A model may add colored inline-item lines to minimap nodes with `CanvasModel.minimapMarks`.
  *
  * Boundary, checked by `scripts/plugin-boundary.ts` in `npm run check`: plugin code imports only its own
  * directory and these API modules. A plugin may also import the public API of another plugin it lists in

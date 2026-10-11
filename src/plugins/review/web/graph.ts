@@ -160,6 +160,26 @@ export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeDat
 /** Narrows node data to a review kind. */
 export const isReviewKind = <K extends ReviewNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData, { kind: K }> => data.kind === kind;
 
+/** Lines for inline items hosted by a review card, positioned from top to bottom in the minimap. */
+export function minimapMarks(data: GraphNodeData): { at: number; kind: string }[] {
+  if (!isReviewKind(data, "hunk") && !isReviewKind(data, "changeHeader") && !isReviewKind(data, "change")) return [];
+  const items = [
+    ...data.threads.map((item) => ({ kind: "chat", path: item.lines?.path, side: item.lines?.side, line: item.lines?.end })),
+    ...data.comments.map((item) => ({ kind: "comment", path: item.lines?.path, side: item.lines?.side, line: item.lines?.end })),
+    ...data.findings.map((item) => ({ kind: "finding", path: item.lines?.path, side: item.lines?.side, line: item.lines?.end })),
+    ...data.phabThreads.map((item) => ({ kind: "phab", path: item.path, side: item.side, line: item.line })),
+    ...(data.kind === "change" || data.kind === "changeHeader" ? data.specs.map(() => ({ kind: "spec", path: undefined, side: undefined, line: undefined })) : []),
+  ];
+  if (data.kind === "changeHeader") return items.map(({ kind }) => ({ at: 0.1, kind }));
+  if (data.kind === "change") return items.map(({ kind }, index) => ({ at: (index + 1) / (items.length + 1), kind }));
+  const rows = numberLines(data.hunk);
+  return items.flatMap(({ kind, path, side, line }) => {
+    if (path !== data.file.path || side === undefined || line === undefined) return [];
+    const index = rows.findIndex((row) => (side === "new" ? row.new : row.old) === line);
+    return index < 0 ? [] : [{ at: (index + 1) / (rows.length + 1), kind }];
+  });
+}
+
 export const phabCommentCollapseId = (anchorId: Id) => `phab-comment:${anchorId}`;
 
 export function phabAnchorsOf(artifacts: Artifact[], comments: Artifact<PhabCommentData>[]): Record<string, Id> {

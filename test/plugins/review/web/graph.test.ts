@@ -5,7 +5,7 @@ import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState,
 import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
-import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, introducedSymbolEdges, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, introducedSymbolEdges, isReviewKind, latestNarrative, layerGraph, minimapMarks, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, textScale = 1) => {
@@ -13,6 +13,28 @@ const estimateSize = (data: GraphNodeData, textScale = 1) => {
   return { width: size.width * textScale, height: size.height * textScale };
 };
 const findingOf = (graph: { nodes: GraphNode[] }, id: string) => graph.nodes.flatMap((node) => findingsOf(node.data)).find((finding) => finding.findingId === id);
+
+test("minimap marks place hunk items after their anchored rows", () => {
+  const data = {
+    kind: "hunk", file: { path: "a.cpp" }, hunk: { id: "h", oldStart: 1, oldLines: 3, newStart: 1, newLines: 3, lines: Array.from({ length: 3 }, (_, i) => ({ kind: "ctx", text: `l${i}` })) },
+    threads: [{ lines: { path: "a.cpp", side: "new", end: 2 } }],
+    comments: [{ lines: { path: "a.cpp", side: "new", end: 1 } }],
+    findings: [{ lines: { path: "a.cpp", side: "new", end: 3 } }],
+    phabThreads: [{ path: "a.cpp", side: "new", line: 2 }],
+  } as unknown as GraphNodeData;
+  assert.deepEqual(minimapMarks(data), [
+    { at: 2 / 4, kind: "chat" }, { at: 1 / 4, kind: "comment" },
+    { at: 3 / 4, kind: "finding" }, { at: 2 / 4, kind: "phab" },
+  ]);
+});
+
+test("minimap marks put header items near the top and spread change items evenly", () => {
+  const itemArrays = { threads: [{}], comments: [{ lines: null }], findings: [{}], phabThreads: [{}], specs: [{}] };
+  assert.deepEqual(minimapMarks({ kind: "changeHeader", ...itemArrays } as unknown as GraphNodeData), [
+    { at: 0.1, kind: "chat" }, { at: 0.1, kind: "comment" }, { at: 0.1, kind: "finding" }, { at: 0.1, kind: "phab" }, { at: 0.1, kind: "spec" },
+  ]);
+  assert.deepEqual(minimapMarks({ kind: "change", ...itemArrays } as unknown as GraphNodeData).map(({ at }) => at), [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+});
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,

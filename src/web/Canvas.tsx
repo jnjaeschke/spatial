@@ -1,7 +1,7 @@
 import { Fragment, createContext, createElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import {
   Background, Controls, MiniMap, NodeResizer, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
-  type Edge, type Node, type NodeProps, type ResizeParams, type Viewport,
+  type Edge, type MiniMapNodeProps, type Node, type NodeProps, type ResizeParams, type Viewport,
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
@@ -77,6 +77,8 @@ export interface CanvasModel {
   layoutEdges?(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[];
   /** Quoted items a node hosts besides its chats (e.g. findings), highlighted in the text of their `anchor`. */
   quotes?(data: GraphNodeData): { id: string; kind: string; anchor: string; quote: string; lines?: ChatNodeData["lines"] }[];
+  /** Lines drawn across a node in the minimap, `at` from 0 (top) to 1 (bottom); `kind` becomes a class. */
+  minimapMarks?(data: GraphNodeData): { at: number; kind: string }[];
   /** Nodes to center when they first appear after the canvas has loaded (a freshly generated diagram). */
   revealWhenAdded?(node: GraphNode): boolean;
   /** Wraps the canvas in the plugin's contexts. */
@@ -248,6 +250,17 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
     setGuideStep(null);
   }, [rootId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  // The minimap node component keeps its identity across renders (a new one would remount every minimap node); it reads the current marks from a ref.
+  const marksById = useRef(new Map<string, { at: number; kind: string }[]>());
+  marksById.current = useMemo(() => new Map(nodes.map((node) => [node.id, model.minimapMarks?.(node.data as GraphNodeData) ?? []])), [nodes, model]);
+  const minimapNode = useMemo(() => {
+    return function CanvasMiniMapNode({ id, x, y, width, height, borderRadius, className, color, strokeColor, strokeWidth, shapeRendering, selected }: MiniMapNodeProps) {
+      return <g className={className} transform={`translate(${x},${y})`}>
+        <rect x={0} y={0} width={width} height={height} rx={borderRadius} ry={borderRadius} fill={color} stroke={strokeColor} strokeWidth={strokeWidth} shapeRendering={shapeRendering} className={selected ? "selected" : undefined} />
+        {(marksById.current.get(id) ?? []).map((mark, index) => <line key={index} className={`minimap-mark kind-${mark.kind}`} x1={0} x2={width} y1={height * mark.at} y2={height * mark.at} strokeWidth={2} vectorEffect="non-scaling-stroke" />)}
+      </g>;
+    };
+  }, []);
   const [focusedRow, setFocusedRow] = useState<FocusedRow | null>(null);
   const focusedRowRef = useRef(focusedRow);
   focusedRowRef.current = focusedRow;
@@ -814,6 +827,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
           if (!kind) throw new Error(`Unknown node type: ${n.type}`);
           return kind.minimapColor;
         }}
+        nodeComponent={minimapNode}
         bgColor="var(--minimap-bg)"
         maskColor="var(--minimap-mask)"
       />

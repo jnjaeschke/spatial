@@ -318,6 +318,24 @@ Edges that only steer the dagre layout; the displayed edges stay as they are.
 
 ***
 
+### minimapMarks()?
+
+> `optional` **minimapMarks**(`data`): `object`[]
+
+Lines drawn across a node in the minimap, `at` from 0 (top) to 1 (bottom); `kind` becomes a class.
+
+#### Parameters
+
+##### data
+
+[`GraphNodeData`](../type-aliases/GraphNodeData.md)
+
+#### Returns
+
+`object`[]
+
+***
+
 ### quotes()?
 
 > `optional` **quotes**(`data`): `object`[]

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
+import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "./inline-state.ts";
 
@@ -104,6 +104,7 @@ export const reviewCanvas: CanvasModel = {
   stack: { is: (_, place) => place === "stack", layout: stackLayout },
   layoutEdges: (nodes, edges) => changeLayoutEdges(nodes, diagramLayoutEdges(nodes, edges)),
   quotes: (data) => findingsOf(data).flatMap((finding) => finding.quote ? [{ id: finding.findingId, kind: "finding", anchor: finding.anchor, quote: finding.quote, lines: finding.lines }] : []),
+  minimapMarks,
   revealWhenAdded: (node) => node.data.kind === "diagram",
   PanelExtras: CompactToggle,
   Provider: ReviewCanvasProvider,
