@@ -23,6 +23,9 @@ function parseTrace(value: unknown): SpecTraceData {
   return { traceId: trace.traceId, title: trace.title, entries: trace.entries.map(({ anchor, step, note }) => ({ anchor, step, note })) };
 }
 
+const isOpen = (rt: Runtime, sessionId: string, anchor: string) => rt.store.listArtifacts(sessionId, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === anchor);
+const lookupStatus = (error: unknown) => (error as Error).cause instanceof SpecNotFoundError ? 404 : 502;
+
 /** HTTP routes of the spec explorer: user actions stored as user artifacts. */
 export function specRoutes(rt: Runtime): Route[] {
   return [
@@ -32,10 +35,10 @@ export function specRoutes(rt: Runtime): Route[] {
       const anchor = text(body, "anchor");
       if (!isSpecQuery(anchor)) throw new HttpError(400, "anchor must be SPEC#anchor or a spec URL with a fragment");
       const from = parseFrom(body.from);
-      if (from && !rt.store.listArtifacts(session.id, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === from.anchor)) throw new HttpError(409, `${from.anchor} is not open`);
+      if (from && !isOpen(rt, session.id, from.anchor)) throw new HttpError(409, `${from.anchor} is not open`);
       let result;
       try { result = await openSpec(rt, session.id, anchor, from); }
-      catch (error) { throw new HttpError((error as Error).cause instanceof SpecNotFoundError ? 404 : 502, (error as Error).message); }
+      catch (error) { throw new HttpError(lookupStatus(error), (error as Error).message); }
       send(res, 201, { openedId: result.opened.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/explore$/, async ({ req, res, params }) => {
@@ -43,7 +46,7 @@ export function specRoutes(rt: Runtime): Route[] {
       const request = requireArtifact(rt, session.id, text(await readJson(req), "requestId"), "SpecExploreRequest", "explore request");
       const { anchors } = request.data as SpecExploreRequestData;
       try { for (const anchor of anchors) await openSpec(rt, session.id, anchor, null); }
-      catch (error) { const message = (error as Error).message; throw new HttpError(message.startsWith("Spec section not found") ? 404 : 502, message); }
+      catch (error) { throw new HttpError(lookupStatus(error), (error as Error).message); }
       send(res, 201, { opened: anchors.length });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces$/, async ({ req, res, params }) => {
@@ -51,21 +54,24 @@ export function specRoutes(rt: Runtime): Route[] {
       const trace = parseTrace((await readJson(req)).trace);
       const start = rt.store.listArtifacts(session.id, "WorkflowStart").at(-1);
       if (!start) throw new HttpError(409, "Session has no start request");
+      for (const { anchor } of trace.entries) if (!isOpen(rt, session.id, anchor)) throw new HttpError(409, `${anchor} is not open`);
       send(res, 201, { artifactId: putUserArtifact(rt, session.id, "SpecTrace", trace, start.id).id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/effect-path$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const body = await readJson(req);
       const ref = text(body, "ref"), effectId = text(body, "effectId");
+      if (!isSpecQuery(ref)) throw new HttpError(400, "ref must be SPEC#anchor or a spec URL with a fragment");
+      if (!isOpen(rt, session.id, ref)) throw new HttpError(409, `${ref} is not open`);
       let hops: SpecHop[];
       try { ({ hops } = await rt.run<{ hops: SpecHop[] }>(session.id, "loadEffectPath", { ref, effectId })); }
-      catch (error) { throw new HttpError(502, (error as Error).message); }
+      catch (error) { throw new HttpError(lookupStatus(error), (error as Error).message); }
       const opens = pathOpens(hops);
       if (!opens.length) throw new HttpError(409, "The witness path stays in this algorithm");
       try {
         await Promise.all([...new Set(opens.map((open) => open.anchor))].map((anchor) => rt.run(session.id, "loadSpecAlgorithm", { ref: anchor })));
         for (const open of opens) await openSpec(rt, session.id, open.anchor, open.from);
-      } catch (error) { throw new HttpError(502, (error as Error).message); }
+      } catch (error) { throw new HttpError(lookupStatus(error), (error as Error).message); }
       send(res, 201, { opened: opens.length });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/summaries$/, async ({ params }) => summaryViews(rt, requireSession(rt, params[0]!).id)],
@@ -74,6 +80,8 @@ export function specRoutes(rt: Runtime): Route[] {
       const ref = text(await readJson(req), "ref");
       const algorithm = rt.store.listArtifacts(session.id, "SpecAlgorithm").findLast((a) => (a.data as SpecAlgorithmData).ref === ref);
       if (!algorithm) throw new HttpError(404, `Unknown algorithm: ${ref}`);
+      const read = rt.knowledge.get("global", "spec", summaryKey(algorithm.data as SpecAlgorithmData));
+      if (read.state !== "current") throw new HttpError(409, `${ref} has no current summary`);
       const entry = rt.knowledge.put("global", "spec", summaryKey(algorithm.data as SpecAlgorithmData), null, { by: "user", sessionId: session.id });
       rt.emit(session.id, "user", "spec.summary", { ref });
       send(res, 201, { entryId: entry.id });

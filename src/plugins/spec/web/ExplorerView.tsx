@@ -3,9 +3,9 @@ import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type Canva
 import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { latestTraces, traceSequence, type TraceRow } from "../shared/traces.ts";
 import { explorerGraph, explorerLayout, specNodeId } from "./graph.ts";
-import { ExplorerContext, ExplorerViewContext } from "./context.ts";
+import { ExplorerContext, ExplorerViewContext, type SpecFocus } from "./context.ts";
 import { specClient } from "./client.ts";
-import { useActiveTrace } from "./trace-state.ts";
+import { useActiveTrace, useTraceWriter } from "./trace-state.ts";
 import { TracePanel } from "./TracePanel.tsx";
 import type { SummaryView } from "../runtime/summaries.ts";
 
@@ -30,7 +30,7 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
     summaries: view.summaries,
     flag: view.flag,
   }), [view, readOnly]);
-  useEffect(() => { if (view.focus) latest.current.reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view.focus]);
+  useEffect(() => { if (view.focus && view.takeFocus(view.focus)) latest.current.reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view]);
   return <ExplorerContext.Provider value={value}>{children}</ExplorerContext.Provider>;
 }
 
@@ -43,28 +43,40 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const active = traces.find((trace) => trace.traceId === activeId) ?? null;
   const [mode, setMode] = useState<"map" | "sequence">("map");
   const [panel, setPanel] = useState(false);
-  const [focus, setFocus] = useState<{ anchor: string; step: string } | null>(null);
+  const [focus, setFocus] = useState<SpecFocus | null>(null);
+  const focusNonce = useRef(0);
+  const focusTaken = useRef(0);
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
-  useEffect(() => { specClient.summaries(state.session.id).then(setSummaries, (error: Error) => console.error(error)); }, [state.session.id, state.lastEventId]);
+  const [summariesRefresh, setSummariesRefresh] = useState(0);
+  useEffect(() => {
+    let current = true;
+    specClient.summaries(state.session.id).then((fetched) => { if (current) setSummaries(fetched); }, (error: Error) => console.error(error));
+    return () => { current = false; };
+  }, [state.session.id, state.lastEventId, summariesRefresh]);
   const algorithms = useMemo(() => new Map(state.artifacts.filter((a) => a.type === "SpecAlgorithm").map((a) => { const d = a.data as SpecAlgorithmData; return [d.ref, { title: d.title, url: d.url }] as const; })), [state.artifacts]);
+  const writer = useTraceWriter(state.session.id, state.artifacts);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const selectTrace = useCallback((traceId: string) => { activeIdRef.current = traceId; setActive(traceId); }, [setActive]);
   const addToTrace = useCallback(async (anchor: string, step: string) => {
     const entry = { anchor, step, note: "" };
-    if (active) { await specClient.saveTrace(state.session.id, { ...active, entries: [...active.entries, entry] }); return; }
-    const trace: SpecTraceData = { traceId: crypto.randomUUID(), title: `Trace ${traces.length + 1}`, entries: [entry] };
-    await specClient.saveTrace(state.session.id, trace);
-    setActive(trace.traceId);
-  }, [state.session.id, active, traces.length, setActive]);
+    await writer.edit((known) => {
+      const current = known.find((trace) => trace.traceId === activeIdRef.current);
+      return current ? { ...current, entries: [...current.entries, entry] } : { traceId: crypto.randomUUID(), title: `Trace ${known.length + 1}`, entries: [entry] };
+    }, (trace) => selectTrace(trace.traceId));
+  }, [writer, selectTrace]);
   const model = useMemo<CanvasModel>(() => ({
     graph: (current, currentDrafts) => explorerGraph(current, currentDrafts, closed.closed, active),
     stack: { is: () => true, layout: explorerLayout },
     revealWhenAdded: (node) => node.data.kind === "spec-algorithm",
     Provider: ExplorerProvider,
   }), [closed.closed, active]);
-  const flag = useCallback(async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummaries(await specClient.summaries(state.session.id)); }, [state.session.id]);
-  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, summaries, flag }), [state.session.id, closed, addToTrace, focus, summaries, flag]);
+  const flag = useCallback(async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummariesRefresh((n) => n + 1); }, [state.session.id]);
+  const takeFocus = useCallback((taken: SpecFocus) => { if (focusTaken.current === taken.nonce) return false; focusTaken.current = taken.nonce; return true; }, []);
+  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, flag }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, flag]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
-    <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step }); setMode("map"); }} />}{panel && <TracePanel sessionId={state.session.id} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={setActive} onClose={() => setPanel(false)} />}</div>
+    <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={selectTrace} onClose={() => setPanel(false)} />}</div>
   </></ExplorerViewContext.Provider>;
 }
 

@@ -11,7 +11,7 @@ export const specExploreField: ChatReplyField = {
 
 Set \`specExplore\` only when the question is about how a web spec algorithm flows (what it calls, in which order, under which conditions); otherwise use \`null\`. \`anchors\` are 1 to 5 spec sections as \`SPEC#anchor\` refs, the most relevant first. The user decides whether to open them.`,
   async accept(ctx, value) {
-    const anchors = (value as { anchors?: unknown }).anchors;
+    const anchors = typeof value === "object" && value !== null ? (value as { anchors?: unknown }).anchors : undefined;
     if (!Array.isArray(anchors) || anchors.length < 1 || anchors.length > 5 || !anchors.every((anchor) => typeof anchor === "string" && REF.test(anchor))) return { ok: false, error: SHAPE_ERROR };
     for (const anchor of anchors as string[]) {
       const result = await ctx.webspec.query(anchor, ctx.signal);

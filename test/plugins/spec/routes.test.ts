@@ -39,6 +39,7 @@ test("open rejects a source that was never opened, an unknown section, a malform
 
 test("traces store user versions and reject malformed ones", async () => {
   const { rt, session, routes } = setup();
+  await openSpec(rt, session.id, "HTML#navigate", null);
   const trace = { traceId: "t1", title: "Trace 1", entries: [{ anchor: "HTML#navigate", step: "2", note: "" }] };
   const r = await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace });
   assert.equal(r.status, 201);
@@ -63,4 +64,42 @@ test("explore opens a root box per requested anchor", async () => {
   const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#navigate", "HTML#setup"] } });
   assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/explore`, { requestId: request.id }), { status: 201, body: { opened: 2 } });
   assert.deepEqual(rt.store.listArtifacts(session.id, "SpecOpened").map((a) => a.data), [{ anchor: "HTML#navigate", from: null }, { anchor: "HTML#setup", from: null }]);
+});
+
+test("traces reject entries whose anchors are not open", async () => {
+  const { rt, session, routes } = setup();
+  const trace = { traceId: "t1", title: "Trace 1", entries: [{ anchor: "HTML#navigate", step: "2", note: "" }] };
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace })).status, 409);
+  await openSpec(rt, session.id, "HTML#navigate", null);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace })).status, 201);
+});
+
+test("effect-path rejects a malformed or unopened ref", async () => {
+  const { session, routes } = setup();
+  const path = `/api/sessions/${session.id}/spec/effect-path`;
+  assert.equal((await routeCall(routes, "POST", path, { ref: "--help", effectId: "e" })).status, 400);
+  assert.equal((await routeCall(routes, "POST", path, { ref: "HTML#navigate", effectId: "e" })).status, 409);
+});
+
+test("explore maps a missing section to 404", async () => {
+  const { rt, session, routes } = setup();
+  const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#missing"] } });
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/explore`, { requestId: request.id })).status, 404);
+});
+
+test("opening the same link twice stores one SpecOpened", async () => {
+  const { rt, session } = setup();
+  const first = await openSpec(rt, session.id, "HTML#navigate", null);
+  const second = await openSpec(rt, session.id, "HTML#navigate", null);
+  const link = await openSpec(rt, session.id, "HTML#setup", { anchor: "HTML#navigate", step: "1" });
+  await openSpec(rt, session.id, "HTML#setup", { anchor: "HTML#navigate", step: "2" });
+  assert.equal(second.opened.id, first.opened.id);
+  assert.equal((await openSpec(rt, session.id, "HTML#setup", { anchor: "HTML#navigate", step: "1" })).opened.id, link.opened.id);
+  assert.equal(rt.store.listArtifacts(session.id, "SpecOpened").length, 3);
+});
+
+test("flag rejects an algorithm without a current summary", async () => {
+  const { rt, session, routes } = setup();
+  await openSpec(rt, session.id, "HTML#setup", null);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/summaries/flag`, { ref: "HTML#setup" })).status, 409);
 });

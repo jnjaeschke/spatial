@@ -21,3 +21,9 @@ test("specExplore rejects a section webspec-index does not know", async () => {
   const unknown = { webspec: { query: async () => ({ found: false, reason: "Section not found: HTML#gone" }) }, signal: new AbortController().signal } as never;
   assert.deepEqual(await specExploreField.accept(unknown, { anchors: ["HTML#gone"] }), { ok: false, error: "unknown spec section HTML#gone: Section not found: HTML#gone" });
 });
+
+test("specExplore rejects a non-object value", async () => {
+  for (const value of [null, "HTML#navigate", 3, undefined]) {
+    assert.deepEqual(await specExploreField.accept(ctx, value), { ok: false, error: "specExplore needs 1 to 5 SPEC#anchor refs" });
+  }
+});
