@@ -1,4 +1,4 @@
-import type { LineRange, SpecStepMapData, StepLink, StepLinkKind, UnmappedLines } from "../shared/types.ts";
+import type { LineRange, SpecStepMapData, StepLink, StepLinkKind, UnmappedLines } from "../../spec/api.ts";
 import type { Artifact, Id, SessionState } from "../../../web/plugin-api.ts";
 import type { SpecStep } from "../shared/spec-text.ts";
 

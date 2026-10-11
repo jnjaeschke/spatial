@@ -7,7 +7,7 @@ import { AnalysisStatus } from "./AnalysisStatus.tsx";
 import { RevisionView } from "./RevisionView.tsx";
 import { InterdiffPanel } from "./InterdiffPanel.tsx";
 import { SpecPanel, SpecStepContext, type SpecStepSelection } from "./SpecPanel.tsx";
-import type { LineRange } from "../shared/types.ts";
+import type { LineRange } from "../../spec/api.ts";
 import { backDetail, canGoBack, closeDetails, DetailsContext, openDetail, type Detail, type DetailsState } from "./details.ts";
 import { ChatDetails, useChatLookup } from "./ChatDetails.tsx";
 import { CommentDetails, findComment } from "./CommentDetails.tsx";

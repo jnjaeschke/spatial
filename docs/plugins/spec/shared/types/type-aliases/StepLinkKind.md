@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / StepLinkKind
+[spatial](../../../../../README.md) / [plugins/spec/shared/types](../README.md) / StepLinkKind
 
 # Type Alias: StepLinkKind
 

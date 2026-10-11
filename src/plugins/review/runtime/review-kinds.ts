@@ -1,5 +1,6 @@
-import type { PhabCommentData, ReviewDraftData, ReviewFindingData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
+import type { PhabCommentData, ReviewDraftData, ReviewFindingData, UserCommentData } from "../shared/types.ts";
 import type { Artifact, DiffData, PatchNarrativeData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
+import type { SpecReferenceData } from "../../spec/api.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { findingStates } from "../shared/findings.ts";
 import { latestPhabComments, phabLatest, phabThread } from "../shared/phab-comments.ts";
@@ -19,10 +20,6 @@ const search: ArtifactKind["search"] = (view, artifact) => {
   if (artifact.type === "PatchNarrative") {
     const n = artifact.data as PatchNarrativeData;
     return [{ ref: artifact.id, kind: "summary", body: n.summary }, ...n.changes.map((change) => ({ ref: artifact.id + "#" + change.id, kind: "change", body: change.title + "\n" + change.explanation + "\n" + change.rationale }))];
-  }
-  if (artifact.type === "SpecReference") {
-    const spec = artifact.data as SpecReferenceData;
-    return [{ ref: artifact.id, kind: "spec", body: spec.resolved ? spec.resolved.title + "\n" + spec.resolved.content : spec.url + "\n" + (spec.reason ?? "") }];
   }
   if (artifact.type === "ReviewFinding") {
     const f = artifact.data as ReviewFindingData;
@@ -74,12 +71,6 @@ const render: ArtifactKind["render"] = (view, artifact, subId, renderRef) => {
     const changes = narrative ? (narrative.data as PatchNarrativeData).changes.filter((change) => change.hunkIds.includes(subId)).map((change) => "## " + change.title + "\n" + change.explanation) : [];
     return [renderHunk(found.file, found.hunk), ...changes].join("\n\n");
   }
-  if (artifact.type === "SpecReference" && subId === undefined) {
-    const spec = artifact.data as SpecReferenceData;
-    const supported = view.links.filter((link) => link.from === artifact.id && link.kind === "supports").map((link) => link.to);
-    const gecko = spec.geckoRefs.map((item) => "- " + item.group + ": " + item.path + ":" + item.line + " (" + item.url + ")").join("\n");
-    return ["# " + (spec.resolved?.title ?? "Unresolved spec reference"), "Spec: " + (spec.resolved?.spec ?? "Unknown"), "URL: " + (spec.resolved?.url ?? spec.url), "Origin: " + (spec.origin ?? "unknown"), spec.resolved?.content ?? (spec.url + "\n" + (spec.reason ?? "No resolution reason provided.")), "## Gecko references\n" + (gecko || "None"), "## Supported changes\n" + (supported.join("\n") || "None")].join("\n\n");
-  }
   if (artifact.type === "ReviewFinding" && subId === undefined) {
     const data = artifact.data as ReviewFindingData;
     return ["# Finding " + artifact.id + ": " + data.title, "Category: " + data.category + ", severity: " + data.severity, "Anchor: " + data.anchor, ...(data.quote ? ["> " + data.quote] : []), data.body].join("\n\n");
@@ -95,8 +86,8 @@ const render: ArtifactKind["render"] = (view, artifact, subId, renderRef) => {
   return null;
 };
 
-export const artifactKinds: Record<string, ArtifactKind> = Object.fromEntries(["Diff", "PatchNarrative", "SpecReference", "ReviewFinding", "PhabComment", "UserComment", "ReviewDraft"].map((type) => [type, { search, render }]));
-export const searchKinds: string[] = ["change", "summary", "hunk", "commit", "spec", "finding", "comment", "review-draft"];
+export const artifactKinds: Record<string, ArtifactKind> = Object.fromEntries(["Diff", "PatchNarrative", "ReviewFinding", "PhabComment", "UserComment", "ReviewDraft"].map((type) => [type, { search, render }]));
+export const searchKinds: string[] = ["change", "summary", "hunk", "commit", "finding", "comment", "review-draft"];
 
 /** Review sections used in the session overview. */
 export function reviewOverview(view: SessionView): string[] {

@@ -7,6 +7,7 @@ import type { FindingVerdictData, ReviewFindingData } from "../../src/plugins/re
 import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
 import { findingStates } from "../../src/plugins/review/shared/findings.ts";
 import { reviewPlugin } from "../../src/plugins/review/index.ts";
+import { specPlugin } from "../../src/plugins/spec/index.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const diffData: DiffData = {
@@ -31,7 +32,7 @@ function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [reviewPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       instructions: repoPrompt ? "Review by repo rules." : null,

@@ -46,6 +46,8 @@
 - [plugins/review/workflow/narrate-patch](plugins/review/workflow/narrate-patch/README.md)
 - [plugins/review/workflow/review-range](plugins/review/workflow/review-range/README.md)
 - [plugins/review/workflow/update-revision](plugins/review/workflow/update-revision/README.md)
+- [plugins/spec/api](plugins/spec/api/README.md)
+- [plugins/spec/shared/types](plugins/spec/shared/types/README.md)
 - [runtime/blame](runtime/blame/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/diagram](runtime/diagram/README.md)

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ResolvedSpec, SearchfoxCapability, WebspecCapability } from "../../../../src/plugin-api.ts";
-import { lookupSpec, resolveSpecReference } from "../../../../src/plugins/review/runtime/spec-ref.ts";
+import type { ResolvedSpec, SearchfoxCapability, WebspecCapability } from "../../../src/plugin-api.ts";
+import { lookupSpec, resolveSpecReference } from "../../../src/plugins/spec/runtime/spec-ref.ts";
 
 const spec: ResolvedSpec = { spec: "HTML", anchor: "a", title: "T", type: "dfn", url: "https://html.spec/#a", content: "c" };
 const env = (resolve: WebspecCapability["resolve"], repo = "/nonexistent", specRefs: SearchfoxCapability["specRefs"] = async () => []) =>
@@ -34,4 +34,12 @@ test("in a Gecko repo the Searchfox references are added, and their failure is r
   assert.deepEqual((await resolveSpecReference(env(async () => ({ found: true, spec }), repo, async () => refs), "u", "code")).geckoRefs, refs);
   const failed = await resolveSpecReference(env(async () => ({ found: true, spec }), repo, async () => { throw new Error("searchfox down"); }), "u", "code");
   assert.deepEqual([failed.geckoRefs, failed.geckoRefsError], [[], "searchfox down"]);
+});
+
+
+test("lookupSpec turns a crashing lookup into not found, unless the task was cancelled", async () => {
+  const webspec = { resolve: async () => { throw new Error("webspec-index exited with code 101: boom"); } } as never;
+  assert.deepEqual(await lookupSpec({ webspec, signal: new AbortController().signal }, "u"), { found: false, reason: "webspec-index exited with code 101: boom" });
+  const aborted = new AbortController(); aborted.abort();
+  await assert.rejects(lookupSpec({ webspec, signal: aborted.signal }, "u"), /boom/);
 });

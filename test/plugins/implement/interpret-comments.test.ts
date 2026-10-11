@@ -9,6 +9,7 @@ import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import type { PhabCommentData } from "../../../src/plugins/review/api.ts";
 import type { CommentInterpretationData } from "../../../src/plugins/implement/shared/types.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
@@ -23,7 +24,7 @@ function setup(json: unknown) {
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "comments" });
   const add = (data: PhabCommentData) => store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data, provenance: { taskId: "test" } });
   const first = add({ revision: 7, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, byMe: false, body: "Please name the constant.", path: "dom/a.cpp", line: 12, length: 1, quote: "const int kMax = 20;", diffId: 70, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 });

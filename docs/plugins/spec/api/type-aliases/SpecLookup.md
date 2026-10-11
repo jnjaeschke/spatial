@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../README.md) / [plugins/review/api](../README.md) / SpecLookup
+[spatial](../../../../README.md) / [plugins/spec/api](../README.md) / SpecLookup
 
 # Type Alias: SpecLookup
 

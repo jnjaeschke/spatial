@@ -1,4 +1,5 @@
-import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
+import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
+import type { SpecReferenceData } from "../../spec/api.ts";
 import type { FocusedRow, PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
 import { NODE_WIDTH, SATELLITE_WIDTH, cascade, diagramSize, isCoreKind, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type DiagramNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";

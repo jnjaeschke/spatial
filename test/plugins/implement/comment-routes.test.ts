@@ -6,12 +6,13 @@ import { Store } from "../../../src/runtime/store.ts";
 import { Runtime } from "../../../src/runtime/tasks.ts";
 import type { GitCapability } from "../../../src/runtime/tasks.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { createHttpServer } from "../../../src/server/http.ts";
 
 test("reviewer comment routes validate triage and require a reviewer comments epoch", async () => {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin], llm: {} as never, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm: {} as never, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "implement" });
   const comment = store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data: { phid: "PHID-XCMT-1" }, provenance: { taskId: "test" } });
   const server = createHttpServer(rt);

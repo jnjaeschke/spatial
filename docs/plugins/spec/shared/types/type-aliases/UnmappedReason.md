@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / UnmappedReason
+[spatial](../../../../../README.md) / [plugins/spec/shared/types](../README.md) / UnmappedReason
 
 # Type Alias: UnmappedReason
 

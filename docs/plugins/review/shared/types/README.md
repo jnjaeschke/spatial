@@ -16,7 +16,6 @@
 - [FindingVerdictData](interfaces/FindingVerdictData.md)
 - [InterdiffData](interfaces/InterdiffData.md)
 - [IntroducedSymbolsData](interfaces/IntroducedSymbolsData.md)
-- [LineRange](interfaces/LineRange.md)
 - [PhabCommentData](interfaces/PhabCommentData.md)
 - [PhabSyncData](interfaces/PhabSyncData.md)
 - [PhabThreadSummaryData](interfaces/PhabThreadSummaryData.md)
@@ -26,15 +25,9 @@
 - [ReviewFindingData](interfaces/ReviewFindingData.md)
 - [ReviewPostedCommentData](interfaces/ReviewPostedCommentData.md)
 - [ReviewSubmissionData](interfaces/ReviewSubmissionData.md)
-- [SpecReferenceData](interfaces/SpecReferenceData.md)
-- [SpecStepMapData](interfaces/SpecStepMapData.md)
-- [StepLink](interfaces/StepLink.md)
 - [SuggestedReplyData](interfaces/SuggestedReplyData.md)
-- [UnmappedLines](interfaces/UnmappedLines.md)
 - [UserCommentData](interfaces/UserCommentData.md)
 
 ## Type Aliases
 
 - [FindingVerdictValue](type-aliases/FindingVerdictValue.md)
-- [StepLinkKind](type-aliases/StepLinkKind.md)
-- [UnmappedReason](type-aliases/UnmappedReason.md)

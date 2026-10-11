@@ -1,5 +1,5 @@
 import { createContext, useMemo, useState, type KeyboardEvent } from "react";
-import type { LineRange, SpecReferenceData, StepLink } from "../shared/types.ts";
+import type { LineRange, SpecReferenceData, StepLink } from "../../spec/api.ts";
 import { type Artifact, type Id, type LlmSelection, type SessionState, SidePanel, api, numberLines } from "../../../web/plugin-api.ts";
 import { parseSteps } from "../shared/spec-text.ts";
 import { latestNarrative } from "./graph.ts";

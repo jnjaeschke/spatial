@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../README.md) / [plugins/review/api](../README.md) / resolveSpecReference
+[spatial](../../../../README.md) / [plugins/spec/api](../README.md) / resolveSpecReference
 
 # Function: resolveSpecReference()
 

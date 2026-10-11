@@ -10,6 +10,7 @@ import type { LlmSelection } from "../../../src/shared/types.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
 import type { CommandRunData } from "../../../src/plugin-api.ts";
 import type { PhabSubmissionData, PhabSubmitInput } from "../../../src/plugins/gecko/shared/types.ts";
@@ -35,7 +36,7 @@ function setup() {
   chmodSync(binary, 0o755);
   const store = new Store(":memory:");
   const llm: LlmService = { defaultSelection: selection, async run(chosen) { return { text: "", json: null, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const run = (input: PhabSubmitInput) => rt.run<{ submissionId: string }>(session.id, "phabSubmit", input);
   return { repo, base, head, run, store, session, rt };

@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / SpecReferenceData
+[spatial](../../../../../README.md) / [plugins/spec/shared/types](../README.md) / SpecReferenceData
 
 # Interface: SpecReferenceData
 

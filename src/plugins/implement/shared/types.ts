@@ -1,5 +1,5 @@
 import type { DiagramData, Id, LlmSelection, WriteMode } from "../../../plugin-api.ts";
-import type { SpecReferenceData } from "../../review/api.ts";
+import type { SpecReferenceData } from "../../spec/api.ts";
 
 /** Comment phids to interpret in the order shown, with an optional model choice. */
 export interface ReviewerCommentsInput { comments: string[]; llm?: LlmSelection }

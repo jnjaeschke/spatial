@@ -10,6 +10,7 @@ import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { Artifact, CommandRunData, LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import type { ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
 import type { ImplementInput } from "../../../src/plugins/implement/tasks/implement/task.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
@@ -33,7 +34,7 @@ function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof 
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
   const branch = put("ImplementBranch", { branch: "spatial/x", baseSha: base, baseRef: "main", profile, checkout: "new-branch" });

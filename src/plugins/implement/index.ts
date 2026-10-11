@@ -16,4 +16,4 @@ function server(rt: Runtime) {
 }
 
 /** Implementation workflow plugin and its generic git profile. */
-export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments], artifactKinds, repoProfiles: [plainGitProfile], server });
+export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments], artifactKinds, repoProfiles: [plainGitProfile], server });

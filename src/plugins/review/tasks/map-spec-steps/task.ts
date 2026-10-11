@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
-import type { LineRange, ReviewFindingData, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../shared/types.ts";
+import type { ReviewFindingData } from "../../shared/types.ts";
+import type { LineRange, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../../spec/api.ts";
+import { lookupSpec, type SpecLookup } from "../../../spec/api.ts";
 import { type Artifact, type DiffData, type Id, type Link, type LlmSelection, type PatchNarrativeData, defineTask } from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { parseSteps } from "../../shared/spec-text.ts";
@@ -108,12 +110,9 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
       if (hunkByLine.size) mappedByFile.set(file.path, hunkByLine);
     }
     const carried = new Set(findingStates(ctx.artifacts.view(), narrativeId).filter((state) => !state.outdated).map((state) => `${state.finding.data.title}\n${state.quote}`));
-    const resolvedByUrl = new Map<string, Awaited<ReturnType<typeof ctx.webspec.resolve>>>();
+    const resolvedByUrl = new Map<string, SpecLookup>();
     const resolve = async (url: string) => {
-      if (!resolvedByUrl.has(url)) {
-        try { resolvedByUrl.set(url, await ctx.webspec.resolve(url, ctx.signal)); }
-        catch (error) { if (ctx.signal.aborted) throw error; resolvedByUrl.set(url, { found: false, reason: (error as Error).message }); }
-      }
+      if (!resolvedByUrl.has(url)) resolvedByUrl.set(url, await lookupSpec(ctx, url));
       return resolvedByUrl.get(url)!;
     };
     const current = spec.data.resolved;

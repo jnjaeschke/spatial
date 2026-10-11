@@ -6,12 +6,13 @@ import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import type { RuntimeEvent, WorkflowStartData } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { implementWorkflow } from "../../../src/plugins/implement/workflow/implement.ts";
 
 const llm: LlmService = { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const make = (worktree: string) => store.createSession({ worktree, repoDir: `${worktree}/.git`, title: "t", workflow: "implement" });
   return { store, rt, make };
 }

@@ -74,7 +74,7 @@ The contract any investigate phase must produce (artifact `Investigation`, statu
 
 ### specRefs?
 
-> `optional` **specRefs?**: [`SpecReferenceData`](../../../../review/shared/types/interfaces/SpecReferenceData.md)[]
+> `optional` **specRefs?**: [`SpecReferenceData`](../../../../spec/shared/types/interfaces/SpecReferenceData.md)[]
 
 ***
 

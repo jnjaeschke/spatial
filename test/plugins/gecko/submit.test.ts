@@ -11,6 +11,7 @@ import type { LlmSelection } from "../../../src/shared/types.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
 import { REVIEWERS_PATTERN } from "../../../src/plugins/gecko/runtime/submit-command.ts";
 import type { ReviewerSuggestionData } from "../../../src/plugins/gecko/shared/types.ts";
@@ -34,7 +35,7 @@ function setup() {
   repo.commit({ "dom/b.txt": "b\n" }, "Bug 1 - B");
   const store = new Store(":memory:");
   const llm: LlmService = { defaultSelection: selection, async run(chosen) { return { text: "", json: null, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   return { repo, base, head: repo.git("rev-parse", "HEAD").trim(), rt, store, session };
 }

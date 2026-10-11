@@ -33,4 +33,4 @@ function server(rt: Runtime, opts: { intervalMs?: number }) {
   const syncer = new PhabricatorSyncer(rt, watcher, { intervalMs: opts.intervalMs });
   return { routes: reviewRoutes(rt), watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
 }
-export const reviewPlugin = definePlugin({ id: "review", workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });
+export const reviewPlugin = definePlugin({ id: "review", dependsOn: ["spec"], workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });

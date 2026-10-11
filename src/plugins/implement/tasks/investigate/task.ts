@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type ChatThreadData, type Id, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, verifyDiagramAtBase } from "../../../../plugin-api.ts";
-import { resolveSpecReference } from "../../../review/api.ts";
+import { resolveSpecReference } from "../../../spec/api.ts";
 import type { InvestigationData } from "../../shared/types.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
 

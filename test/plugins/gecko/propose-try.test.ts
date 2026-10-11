@@ -9,6 +9,7 @@ import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
 import type { Plugin } from "../../../src/plugin-api.ts";
 import type { TryProposalData } from "../../../src/plugins/gecko/shared/types.ts";
@@ -22,7 +23,7 @@ function setup(json: unknown) {
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   store.putArtifact({ sessionId: session.id, type: "CommandRun", status: "verified", provenance: { taskId: "t" }, data: { command: "./mach test dom/base/test/test_a.html", exitCode: 0, durationMs: 1, output: "", test: true } });
   store.putArtifact({ sessionId: session.id, type: "CommandRun", status: "verified", provenance: { taskId: "t" }, data: { command: "ls", exitCode: 0, durationMs: 1, output: "", test: false } });

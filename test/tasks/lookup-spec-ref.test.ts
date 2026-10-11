@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { SpecReferenceData } from "../../src/plugins/review/shared/types.ts";
+import type { SpecReferenceData } from "../../src/plugins/spec/api.ts";
 import { lookupSpecRef } from "../../src/plugins/review/tasks/lookup-spec-ref/task.ts";
 
 function setup(found: boolean) {

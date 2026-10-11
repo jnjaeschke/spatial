@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../README.md) / [plugins/review/api](../README.md) / specReferenceData
+[spatial](../../../../README.md) / [plugins/spec/api](../README.md) / specReferenceData
 
 # Function: specReferenceData()
 

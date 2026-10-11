@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../README.md) / [plugins/review/api](../README.md) / lookupSpec
+[spatial](../../../../README.md) / [plugins/spec/api](../README.md) / lookupSpec
 
 # Function: lookupSpec()
 

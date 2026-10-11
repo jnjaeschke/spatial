@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / SpecStepMapData
+[spatial](../../../../../README.md) / [plugins/spec/shared/types](../README.md) / SpecStepMapData
 
 # Interface: SpecStepMapData
 

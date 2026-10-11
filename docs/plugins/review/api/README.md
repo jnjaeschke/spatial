@@ -10,16 +10,9 @@
 
 - [ReviewPhaseInput](interfaces/ReviewPhaseInput.md)
 
-## Type Aliases
-
-- [SpecLookup](type-aliases/SpecLookup.md)
-
 ## Functions
 
-- [lookupSpec](functions/lookupSpec.md)
 - [postInlineReplies](functions/postInlineReplies.md)
-- [resolveSpecReference](functions/resolveSpecReference.md)
-- [specReferenceData](functions/specReferenceData.md)
 
 ## References
 
@@ -92,9 +85,3 @@ Re-exports [PostedReplyData](../shared/types/interfaces/PostedReplyData.md)
 ### ReviewFindingData
 
 Re-exports [ReviewFindingData](../shared/types/interfaces/ReviewFindingData.md)
-
-***
-
-### SpecReferenceData
-
-Re-exports [SpecReferenceData](../shared/types/interfaces/SpecReferenceData.md)
