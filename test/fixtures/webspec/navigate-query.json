@@ -1,0 +1,449 @@
+{
+ "anchor": "navigate",
+ "content": "To **navigate** a [navigable](HTML#navigable) *navigable* to a [URL](URL#concept-url) *url* using an optional [`Document`](HTML#document)-or-null *sourceDocument* (default null), with an optional [POST resource](HTML#post-resource), string, or null ***documentResource*** (default null), an optional [response](FETCH#concept-response)-or-null ***response*** (default null), an optional boolean ***exceptionsEnabled*** (default false), an optional [`NavigationHistoryBehavior`](HTML#navigationhistorybehavior) ***historyHandling*** (default \"[`auto`](HTML#navigationhistorybehavior-auto)\"), an optional [serialized state](HTML#serialized-state)-or-null ***navigationAPIState*** (default null), an optional [entry list](HTML#entry-list) or null ***formDataEntryList*** (default null), an optional [referrer policy](WEBAPPSEC-REFERRER-POLICY#referrer-policy) ***referrerPolicy*** (default the empty string), an optional [user navigation involvement](HTML#user-navigation-involvement) ***userInvolvement*** (default \"[`none`](HTML#uni-none)\"), an optional [`Element`](DOM#interface-element) ***sourceElement*** (default null), an optional boolean ***initialInsertion*** (default false), and an optional [navigation API method tracker](HTML#navigation-api-method-tracker)-or-null ***apiMethodTracker*** (default null):\n\n1. Let *cspNavigationType* be \"`form-submission`\" if *formDataEntryList* is non-null; otherwise \"`other`\".\n2. Let *sourceSnapshotParams* be the result of [snapshotting source snapshot params](HTML#snapshotting-source-snapshot-params) given *sourceDocument*.\n3. Let *initiatorOriginSnapshot* be a new [opaque origin](HTML#concept-origin-opaque).\n4. Let *initiatorBaseURLSnapshot* be [`about:blank`](HTML#about:blank).\n5. If *sourceDocument* is null:\n\n    1. [Assert](INFRA#assert): *userInvolvement* is \"[`browser UI`](HTML#uni-browser-ui)\".\n    2. If *url*'s [scheme](URL#concept-url-scheme) is \"[`javascript`](HTML#the-javascript:-url-special-case)\", then set *initiatorOriginSnapshot* to *navigable*'s [active document](HTML#nav-document)'s [origin](DOM#concept-document-origin).\n6. Otherwise:\n\n    1. [Assert](INFRA#assert): *userInvolvement* is not \"[`browser UI`](HTML#uni-browser-ui)\".\n    2. If *sourceDocument*'s [node navigable](HTML#node-navigable) is not [allowed by sandboxing to navigate](HTML#allowed-to-navigate) *navigable* given *sourceSnapshotParams*:\n\n        1. If *exceptionsEnabled* is true, then throw a [\"`SecurityError`\"](WEBIDL#securityerror) [`DOMException`](WEBIDL#dfn-DOMException).\n        2. Return.\n    3. Set *initiatorOriginSnapshot* to *sourceDocument*'s [origin](DOM#concept-document-origin).\n    4. Set *initiatorBaseURLSnapshot* to *sourceDocument*'s [document base URL](HTML#document-base-url).\n7. Let *navigationId* be the result of [generating a random UUID](WEBCRYPTO#dfn-generate-a-random-uuid). [\\[WEBCRYPTO\\]](HTML#refsWEBCRYPTO)\n8. If the [surrounding agent](ECMA-262#surrounding-agent) is equal to *navigable*'s [active document](HTML#nav-document)'s [relevant agent](HTML#relevant-agent), then continue these steps. Otherwise, [queue a global task](HTML#queue-a-global-task) on the [navigation and traversal task source](HTML#navigation-and-traversal-task-source) given *navigable*'s [active window](HTML#nav-window) to continue these steps.\n\n    > **Note:** We do this because we are about to look at a lot of properties of *navigable*'s [active document](HTML#nav-document), which are in theory only accessible over in the appropriate [event loop](HTML#event-loop). (But, we do not want to unconditionally queue a task, since — for example — same-event-loop [fragment navigations](HTML#navigate-fragid) need to take effect synchronously.)\n    >\n    > Another implementation strategy would be to replicate the relevant information across event loops, or into a canonical \"browser process\", so that it can be consulted without queueing a task. This could give different results than what we specify here in edge cases, where the relevant properties have changed over in the target event loop but not yet been replicated. Further testing is needed to determine which of these strategies best matches browser behavior, in such racy edge cases.\n9. If *navigable*'s [active document](HTML#nav-document)'s [unload counter](HTML#unload-counter) is greater than 0, then invoke [WebDriver BiDi navigation failed](WEBDRIVER-BIDI#webdriver-bidi-navigation-failed) with *navigable* and a [WebDriver BiDi navigation status](WEBDRIVER-BIDI#webdriver-bidi-navigation-status) whose [id](WEBDRIVER-BIDI#navigation-status-id) is *navigationId*, [status](WEBDRIVER-BIDI#navigation-status-status) is \"[`canceled`](WEBDRIVER-BIDI#navigation-status-canceled)\", and [url](WEBDRIVER-BIDI#navigation-status-url) is *url*, and return.\n10. Let *container* be *navigable*'s [container](HTML#nav-container).\n11. If *container* is an [`iframe`](HTML#the-iframe-element) element and [will lazy load element steps](HTML#will-lazy-load-element-steps) given *container* returns true, then [stop intersection-observing a lazy loading element](HTML#stop-intersection-observing-a-lazy-loading-element) *container* and set *container*'s [lazy load resumption steps](HTML#lazy-load-resumption-steps) to null.\n12. If *navigable*'s [allowed to perform a navigation or history update](HTML#allowed-to-perform-a-navigation-or-history-update) returns [blocked](INFRA#blocked), then invoke [WebDriver BiDi navigation failed](WEBDRIVER-BIDI#webdriver-bidi-navigation-failed) with *navigable* and a [WebDriver BiDi navigation status](WEBDRIVER-BIDI#webdriver-bidi-navigation-status) whose [id](WEBDRIVER-BIDI#navigation-status-id) is *navigationId*, [status](WEBDRIVER-BIDI#navigation-status-status) is \"[`canceled`](WEBDRIVER-BIDI#navigation-status-canceled)\", and [url](WEBDRIVER-BIDI#navigation-status-url) is *url*, and return.\n13. If *historyHandling* is \"[`auto`](HTML#navigationhistorybehavior-auto)\":\n\n    1. If *url* [equals](URL#concept-url-equals) *navigable*'s [active document](HTML#nav-document)'s [URL](DOM#concept-document-url), and either *userInvolvement* is \"[`browser UI`](HTML#uni-browser-ui)\" or *initiatorOriginSnapshot* is [same origin](HTML#same-origin) with *navigable*'s [active document](HTML#nav-document)'s [origin](DOM#concept-document-origin), then set *historyHandling* to \"[`replace`](HTML#navigationhistorybehavior-replace)\".\n    2. Otherwise, set *historyHandling* to \"[`push`](HTML#navigationhistorybehavior-push)\".\n14. If [the navigation must be a replace](HTML#the-navigation-must-be-a-replace) given *url* and *navigable*'s [active document](HTML#nav-document), then set *historyHandling* to \"[`replace`](HTML#navigationhistorybehavior-replace)\".\n15. If all of the following are true:\n\n    * *documentResource* is null;\n    * *response* is null;\n    * *url* [equals](URL#concept-url-equals) *navigable*'s [active session history entry](HTML#nav-active-history-entry)'s [URL](HTML#she-url) with [*exclude fragments*](URL#url-equals-exclude-fragments) set to true; and\n    * *url*'s [fragment](URL#concept-url-fragment) is non-null,\n\n\n    then:\n\n    1. [Navigate to a fragment](HTML#navigate-fragid) given *navigable*, *url*, *historyHandling*, *userInvolvement*, *sourceElement*, *navigationAPIState*, and *navigationId*.\n    2. Return.\n16. If *navigable*'s [parent](HTML#nav-parent) is non-null, then set *navigable*'s [is delaying `load` events](HTML#delaying-load-events-mode) to true.\n17. Let *targetSnapshotParams* be the result of [snapshotting target snapshot params](HTML#snapshotting-target-snapshot-params) given *navigable*.\n18. Invoke [WebDriver BiDi navigation started](WEBDRIVER-BIDI#webdriver-bidi-navigation-started) with *navigable* and a new [WebDriver BiDi navigation status](WEBDRIVER-BIDI#webdriver-bidi-navigation-status) whose [id](WEBDRIVER-BIDI#navigation-status-id) is *navigationId*, [status](WEBDRIVER-BIDI#navigation-status-status) is \"[`pending`](WEBDRIVER-BIDI#navigation-status-pending)\", and [url](WEBDRIVER-BIDI#navigation-status-url) is *url*.\n19. If *navigable*'s [ongoing navigation](HTML#ongoing-navigation) is \"`traversal`\":\n\n    1. Invoke [WebDriver BiDi navigation failed](WEBDRIVER-BIDI#webdriver-bidi-navigation-failed) with *navigable* and a new [WebDriver BiDi navigation status](WEBDRIVER-BIDI#webdriver-bidi-navigation-status) whose [id](WEBDRIVER-BIDI#navigation-status-id) is *navigationId*, [status](WEBDRIVER-BIDI#navigation-status-status) is \"[`canceled`](WEBDRIVER-BIDI#navigation-status-canceled)\", and [url](WEBDRIVER-BIDI#navigation-status-url) is *url*.\n    2. Return.\n\n\n    > **Note:** Any attempts to navigate a [navigable](HTML#navigable) that is currently [traversing](HTML#apply-the-traverse-history-step) are ignored.\n20. [Set the ongoing navigation](HTML#set-the-ongoing-navigation) for *navigable* to *navigationId*.\n\n    > **Note:** This will have the effect of aborting other ongoing navigations of *navigable*, since at certain points during navigation changes to the [ongoing navigation](HTML#ongoing-navigation) will cause further work to be abandoned.\n21. If *url*'s [scheme](URL#concept-url-scheme) is \"[`javascript`](HTML#the-javascript:-url-special-case)\":\n\n    1. Let *request* be a new [request](FETCH#concept-request), with\n\n        | Field | Value |\n        |-------|-------|\n        | [URL](FETCH#concept-request-url) | *url* |\n        | [client](FETCH#concept-request-client) | *sourceSnapshotParams*'s [fetch client](HTML#source-snapshot-params-client) |\n        | [policy container](FETCH#concept-request-policy-container) | *sourceSnapshotParams*'s [source policy container](HTML#source-snapshot-params-policy-container) |\n\n        > **Note:** This is a synthetic [request](FETCH#concept-request), needed because the Content Security Policy check in [navigate to a `javascript:` URL](HTML#navigate-to-a-javascript:-url) operates on a [request](FETCH#concept-request). It will never hit the network.\n    2. [Queue a global task](HTML#queue-a-global-task) on the [navigation and traversal task source](HTML#navigation-and-traversal-task-source) given *navigable*'s [active window](HTML#nav-window) to [navigate to a `javascript:` URL](HTML#navigate-to-a-javascript:-url) given *navigable*, *request*, *historyHandling*, *initiatorOriginSnapshot*, *userInvolvement*, *cspNavigationType*, *initialInsertion*, and *navigationId*.\n    3. Return.\n22. If all of the following are true:\n\n    * *userInvolvement* is not \"[`browser\n         UI`](HTML#uni-browser-ui)\";\n    * *navigable*'s [active document](HTML#nav-document)'s [origin](DOM#concept-document-origin) is [same origin-domain](HTML#same-origin-domain) with *sourceDocument*'s [origin](DOM#concept-document-origin);\n    * *navigable*'s [active document](HTML#nav-document)'s [is initial `about:blank`](HTML#is-initial-about:blank) is false; and\n    * *url*'s [scheme](URL#concept-url-scheme) is a [fetch scheme](FETCH#fetch-scheme),\n\n\n    then:\n\n    1. Let *navigation* be *navigable*'s [active window](HTML#nav-window)'s [navigation API](HTML#window-navigation-api).\n    2. Let *entryListForFiring* be *formDataEntryList* if *documentResource* is a [POST resource](HTML#post-resource); otherwise, null.\n    3. Let *navigationAPIStateForFiring* be *navigationAPIState* if *navigationAPIState* is not null; otherwise, [StructuredSerializeForStorage](HTML#structuredserializeforstorage)(undefined).\n    4. Let *continue* be the result of [firing a push/replace/reload `navigate` event](HTML#fire-a-push/replace/reload-navigate-event) at *navigation* with *[navigationType](HTML#fire-navigate-prr-navigationtype)* set to *historyHandling*, *[isSameDocument](HTML#fire-navigate-prr-issamedocument)* set to false, *[userInvolvement](HTML#fire-navigate-prr-userinvolvement)* set to *userInvolvement*, *[sourceElement](HTML#fire-navigate-prr-sourceelement)* set to *sourceElement*, *[formDataEntryList](HTML#fire-navigate-prr-formdataentrylist)* set to *entryListForFiring*, *[destinationURL](HTML#fire-navigate-prr-destinationurl)* set to *url*, *[navigationAPIState](HTML#fire-navigate-prr-navigationapistate)* set to *navigationAPIStateForFiring*, and *[apiMethodTracker](HTML#fire-navigate-prr-api-method-tracker)* set to *apiMethodTracker*.\n    5. If *continue* is false, then return.\n\n\n    > **Note:** It is possible for navigations with *userInvolvement* of \"[`browser UI`](HTML#uni-browser-ui)\" or initiated by a [cross origin-domain](HTML#same-origin-domain) *sourceDocument* to fire [`navigate`](HTML#event-navigate) events, if they go through the earlier [navigate to a fragment](HTML#navigate-fragid) path.\n23. If *sourceDocument* is *navigable*'s [container document](HTML#nav-container-document), then [reserve deferred fetch quota](FETCH#reserve-deferred-fetch-quota) for *navigable*'s [container](HTML#nav-container) given *url*'s [origin](URL#concept-url-origin).\n24. [In parallel](HTML#in-parallel), run these steps:\n\n    1. Let *unloadPromptCanceled* be the result of [checking if unloading is canceled](HTML#checking-if-unloading-is-canceled) for *navigable*'s [active document](HTML#nav-document)'s [inclusive descendant navigables](HTML#inclusive-descendant-navigables).\n    2. If *unloadPromptCanceled* is not \"`continue`\", or *navigable*'s [ongoing navigation](HTML#ongoing-navigation) is no longer *navigationId*:\n\n        1. Invoke [WebDriver BiDi navigation failed](WEBDRIVER-BIDI#webdriver-bidi-navigation-failed) with *navigable* and a new [WebDriver BiDi navigation status](WEBDRIVER-BIDI#webdriver-bidi-navigation-status) whose [id](WEBDRIVER-BIDI#navigation-status-id) is *navigationId*, [status](WEBDRIVER-BIDI#navigation-status-status) is \"[`canceled`](WEBDRIVER-BIDI#navigation-status-canceled)\", and [url](WEBDRIVER-BIDI#navigation-status-url) is *url*.\n        2. Abort these steps.\n    3. [Queue a global task](HTML#queue-a-global-task) on the [navigation and traversal task source](HTML#navigation-and-traversal-task-source) given *navigable*'s [active window](HTML#nav-window) to [abort a document and its descendants](HTML#abort-a-document-and-its-descendants) given *navigable*'s [active document](HTML#nav-document).\n    4. Let *documentState* be a new [document state](HTML#document-state-2) with\n\n        | Field | Value |\n        |-------|-------|\n        | [request referrer policy](HTML#document-state-request-referrer-policy) | *referrerPolicy* |\n        | [initiator origin](HTML#document-state-initiator-origin) | *initiatorOriginSnapshot* |\n        | [resource](HTML#document-state-resource) | *documentResource* |\n        | [navigable target name](HTML#document-state-nav-target-name) | *navigable*'s [target name](HTML#nav-target) |\n\n        > **Note:** The [navigable target name](HTML#document-state-nav-target-name) can get cleared under various conditions later in the navigation process, before the document state is finalized.\n    5. If *url* [matches `about:blank`](HTML#matches-about:blank) or is [`about:srcdoc`](HTML#about:srcdoc):\n\n        1. Set *documentState*'s [origin](HTML#document-state-origin) to *initiatorOriginSnapshot*.\n        2. Set *documentState*'s [about base URL](HTML#document-state-about-base-url) to *initiatorBaseURLSnapshot*.\n    6. Let *historyEntry* be a new [session history entry](HTML#session-history-entry), with its [URL](HTML#she-url) set to *url* and its [document state](HTML#she-document-state) set to *documentState*.\n    7. Let *navigationParams* be null.\n    8. If *response* is non-null:\n\n        > **Note:** The [navigate](HTML#navigate) algorithm is only supplied with a [response](FETCH#concept-response) as part of the [`object`](HTML#the-object-element) and [`embed`](HTML#the-embed-element) processing models, or for processing parts of [`multipart/x-mixed-replace` responses](HTML#navigate-multipart-x-mixed-replace) after the initial response.\n\n        1. Let *sourcePolicyContainer* be a [clone](HTML#clone-a-policy-container) of the *sourceDocument*'s [policy container](HTML#concept-document-policy-container), if *sourceDocument* is not null; otherwise null.\n        2. Let *policyContainer* be the result of [determining navigation params policy container](HTML#determining-navigation-params-policy-container) given *response*'s [URL](FETCH#concept-response-url), null, *sourcePolicyContainer*, *navigable*'s [container document](HTML#nav-container-document)'s [policy container](HTML#concept-document-policy-container), and null.\n        3. Let *finalSandboxFlags* be the [union](INFRA#set-union) of *targetSnapshotParams*'s [sandboxing flags](HTML#target-snapshot-params-sandbox) and *policyContainer*'s [CSP list](HTML#policy-container-csp-list)'s [CSP-derived sandboxing flags](HTML#csp-derived-sandboxing-flags).\n        4. Let *responseOrigin* be the result of [determining the origin](HTML#determining-the-origin) given *response*'s [URL](FETCH#concept-response-url), *finalSandboxFlags*, and *documentState*'s [initiator origin](HTML#document-state-initiator-origin).\n        5. Let *coop* be a new [opener policy](HTML#cross-origin-opener-policy).\n        6. Let *coopEnforcementResult* be a new [opener policy enforcement result](HTML#coop-enforcement-result) with\n\n            | Field | Value |\n            |-------|-------|\n            | [url](HTML#coop-enforcement-url) | *response*'s [URL](FETCH#concept-response-url) |\n            | [origin](HTML#coop-enforcement-origin) | *responseOrigin* |\n            | [opener policy](HTML#coop-enforcement-coop) | *coop* |\n        7. Set *navigationParams* to a new [navigation params](HTML#navigation-params), with\n\n            | Field | Value |\n            |-------|-------|\n            | [id](HTML#navigation-params-id) | *navigationId* |\n            | [navigable](HTML#navigation-params-navigable) | *navigable* |\n            | [request](HTML#navigation-params-request) | null |\n            | [response](HTML#navigation-params-response) | *response* |\n            | [fetch controller](HTML#navigation-params-fetch-controller) | null |\n            | [commit early hints](HTML#navigation-params-commit-early-hints) | null |\n            | [COOP enforcement result](HTML#navigation-params-coop-enforcement-result) | *coopEnforcementResult* |\n            | [reserved environment](HTML#navigation-params-reserved-environment) | null |\n            | [origin](HTML#navigation-params-origin) | *responseOrigin* |\n            | [policy container](HTML#navigation-params-policy-container) | *policyContainer* |\n            | [final sandboxing flag set](HTML#navigation-params-sandboxing) | *finalSandboxFlags* |\n            | [`iframe` element referrer policy](HTML#navigation-params-iframe-referrer-policy) | *targetSnapshotParams*'s [`iframe` element referrer policy](HTML#target-snapshot-params-iframe-referrer-policy) |\n            | [opener policy](HTML#navigation-params-coop) | *coop* |\n            | [navigation timing type](HTML#navigation-params-nav-timing-type) | \"[`navigate`](NAVIGATION-TIMING#dom-navigationtimingtype-navigate)\" |\n            | [about base URL](HTML#navigation-params-about-base-url) | *documentState*'s [about base URL](HTML#document-state-about-base-url) |\n            | [user involvement](HTML#navigation-params-user-involvement) | *userInvolvement* |\n    9. [Attempt to populate the history entry's document](HTML#attempt-to-populate-the-history-entry's-document) for *historyEntry*, given *navigable*, \"[`navigate`](NAVIGATION-TIMING#dom-navigationtimingtype-navigate)\", *sourceSnapshotParams*, *targetSnapshotParams*, *userInvolvement*, *navigationId*, *navigationParams*, *cspNavigationType*, with *[allowPOST](HTML#attempt-to-populate-allow-post)* set to true and *[completionSteps](HTML#attempt-to-populate-completion-steps)* set to the following step:\n\n        1. [Append session history traversal steps](HTML#tn-append-session-history-traversal-steps) to *navigable*'s [traversable navigable](HTML#nav-traversable) to [finalize a cross-document navigation](HTML#finalize-a-cross-document-navigation) given *navigable*, *historyHandling*, *userInvolvement*, and *historyEntry*.",
+ "effects": [
+  {
+   "additional_locations": 1,
+   "execution": [
+    "inline",
+    "separate"
+   ],
+   "id": "ef_e6c5f8c3e2980985",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "consider-speculative-loads",
+    "spec": "HTML",
+    "step_path": [
+     4
+    ],
+    "url": "https://html.spec.whatwg.org#speculation-rules-processing-model:queue-a-microtask"
+   },
+   "other_locations": [
+    {
+     "anchor": "wait-for-all",
+     "spec": "WEBIDL",
+     "step_path": [
+      6,
+      1
+     ],
+     "url": "https://webidl.spec.whatwg.org#ref-for-queue-a-microtask"
+    }
+   ],
+   "params": {
+    "queue": "microtask",
+    "source": null
+   }
+  },
+  {
+   "additional_locations": 13,
+   "execution": [
+    "inline",
+    "separate",
+    "unknown"
+   ],
+   "id": "ef_009154a5783874c9",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "call-the-update-callback",
+    "spec": "CSS-VIEW-TRANSITIONS",
+    "step_path": [
+     9,
+     2
+    ],
+    "url": "https://drafts.csswg.org/css-view-transitions#ref-for-queue-a-global-task①"
+   },
+   "other_locations": [
+    {
+     "anchor": "schedule-the-update-callback",
+     "spec": "CSS-VIEW-TRANSITIONS",
+     "step_path": [
+      2
+     ],
+     "url": "https://drafts.csswg.org/css-view-transitions#ref-for-queue-a-global-task②"
+    },
+    {
+     "anchor": "view-transition-page-visibility-change-steps",
+     "spec": "CSS-VIEW-TRANSITIONS",
+     "step_path": [
+      1
+     ],
+     "url": "https://drafts.csswg.org/css-view-transitions#ref-for-queue-a-global-task③"
+    }
+   ],
+   "params": {
+    "queue": "task",
+    "source": "DOM manipulation task source"
+   }
+  },
+  {
+   "additional_locations": 19,
+   "execution": [
+    "inline",
+    "separate",
+    "unknown"
+   ],
+   "id": "ef_b8c412b527c87b09",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "abort-a-document-and-its-descendants",
+    "spec": "HTML",
+    "step_path": [
+     3
+    ],
+    "url": "https://html.spec.whatwg.org#aborting-a-document-load:queue-a-global-task"
+   },
+   "other_locations": [
+    {
+     "anchor": "apply-the-history-step",
+     "spec": "HTML",
+     "step_path": [
+      8,
+      3
+     ],
+     "url": "https://html.spec.whatwg.org#updating-the-traversable:queue-a-global-task"
+    },
+    {
+     "anchor": "apply-the-history-step",
+     "spec": "HTML",
+     "step_path": [
+      12
+     ],
+     "url": "https://html.spec.whatwg.org#updating-the-traversable:queue-a-global-task-2"
+    }
+   ],
+   "params": {
+    "queue": "task",
+    "source": "navigation and traversal task source"
+   }
+  },
+  {
+   "additional_locations": 2,
+   "execution": [
+    "inline",
+    "separate"
+   ],
+   "id": "ef_3fbd716a8d86dfb3",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "navigate-html",
+    "spec": "HTML",
+    "step_path": [
+     3
+    ],
+    "url": "https://html.spec.whatwg.org#read-html:queue-a-global-task"
+   },
+   "other_locations": [
+    {
+     "anchor": "navigate-text",
+     "spec": "HTML",
+     "step_path": [
+      4
+     ],
+     "url": "https://html.spec.whatwg.org#read-text:queue-a-global-task"
+    },
+    {
+     "anchor": "start-a-referrer-initiated-navigational-prefetch",
+     "spec": "NAV-SPECULATION-PREFETCH",
+     "step_path": [
+      15,
+      4
+     ],
+     "url": "https://wicg.github.io/nav-speculation/prefetch.html#ref-for-queue-a-global-task"
+    }
+   ],
+   "params": {
+    "queue": "task",
+    "source": "networking task source"
+   }
+  },
+  {
+   "execution": [
+    "inline",
+    "separate"
+   ],
+   "id": "ef_a5d4d07bdc29fd58",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "process-the-speculation-rules-header",
+    "spec": "HTML",
+    "step_path": [
+     3,
+     4,
+     2
+    ],
+    "url": "https://html.spec.whatwg.org#the-speculation-rules-header:queue-a-global-task"
+   },
+   "params": {
+    "queue": "task",
+    "source": "speculation rules task source"
+   }
+  },
+  {
+   "additional_locations": 5,
+   "execution": [
+    "inline",
+    "separate",
+    "unknown"
+   ],
+   "id": "ef_caaaa988dbc1eb1d",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "abort-a-document",
+    "spec": "HTML",
+    "step_path": [
+     2
+    ],
+    "url": "https://html.spec.whatwg.org#aborting-a-document-load:queue-a-task"
+   },
+   "other_locations": [
+    {
+     "anchor": "abort-a-document",
+     "spec": "HTML",
+     "step_path": [
+      2
+     ],
+     "url": "https://html.spec.whatwg.org#aborting-a-document-load:queue-a-task-2"
+    },
+    {
+     "anchor": "queue-a-global-task",
+     "spec": "HTML",
+     "step_path": [
+      3
+     ],
+     "url": "https://html.spec.whatwg.org#queuing-tasks:queue-a-task-2"
+    }
+   ],
+   "params": {
+    "queue": "task",
+    "source": null
+   }
+  },
+  {
+   "additional_locations": 5,
+   "execution": [
+    "inline",
+    "separate"
+   ],
+   "id": "ef_729af2c0780d9303",
+   "kind": "scheduling.enqueue",
+   "location": {
+    "anchor": "commit-a-navigate-event",
+    "spec": "HTML",
+    "step_path": [
+     7,
+     2,
+     4
+    ],
+    "url": "https://html.spec.whatwg.org#navigate-event-firing:tn-append-session-history-traversal-steps"
+   },
+   "other_locations": [
+    {
+     "anchor": "deactivate-a-document-for-a-cross-document-navigation",
+     "spec": "HTML",
+     "step_path": [
+      6,
+      1,
+      1
+     ],
+     "url": "https://html.spec.whatwg.org#updating-the-traversable:tn-append-session-history-traversal-steps"
+    },
+    {
+     "anchor": "navigate",
+     "spec": "HTML",
+     "step_path": [
+      24,
+      9,
+      1
+     ],
+     "url": "https://html.spec.whatwg.org#beginning-navigation:tn-append-session-history-traversal-steps"
+    }
+   ],
+   "params": {
+    "queue": "traversal",
+    "source": null
+   }
+  },
+  {
+   "additional_locations": 18,
+   "execution": [
+    "inline",
+    "separate"
+   ],
+   "id": "ef_1f3cd71bb6dfabd0",
+   "kind": "scheduling.parallel",
+   "location": {
+    "anchor": "call-the-update-callback",
+    "spec": "CSS-VIEW-TRANSITIONS",
+    "step_path": [
+     9
+    ],
+    "url": "https://drafts.csswg.org/css-view-transitions#ref-for-in-parallel"
+   },
+   "other_locations": [
+    {
+     "anchor": "call-the-update-callback",
+     "spec": "CSS-VIEW-TRANSITIONS-2",
+     "step_path": [
+      9
+     ],
+     "url": "https://drafts.csswg.org/css-view-transitions-2#ref-for-in-parallel④"
+    },
+    {
+     "anchor": "setup-cross-document-view-transition",
+     "spec": "CSS-VIEW-TRANSITIONS-2",
+     "step_path": [
+      8,
+      2
+     ],
+     "url": "https://drafts.csswg.org/css-view-transitions-2#ref-for-in-parallel③"
+    }
+   ],
+   "params": {}
+  },
+  {
+   "execution": [
+    "inline",
+    "separate"
+   ],
+   "id": "ef_7185cecba7f35a16",
+   "kind": "scheduling.promise-continuation",
+   "location": {
+    "anchor": "wait-for-all",
+    "spec": "WEBIDL",
+    "url": "https://webidl.spec.whatwg.org#wait-for-all"
+   },
+   "params": {}
+  },
+  {
+   "additional_locations": 4,
+   "execution": [
+    "inline",
+    "separate",
+    "unknown"
+   ],
+   "id": "ef_50a1019f945d2d1f",
+   "kind": "script.invoke",
+   "location": {
+    "anchor": "call-the-update-callback",
+    "spec": "CSS-VIEW-TRANSITIONS",
+    "step_path": [
+     5
+    ],
+    "url": "https://drafts.csswg.org/css-view-transitions#ref-for-invoke-a-callback-function"
+   },
+   "other_locations": [
+    {
+     "anchor": "call-the-update-callback",
+     "spec": "CSS-VIEW-TRANSITIONS-2",
+     "step_path": [
+      5
+     ],
+     "url": "https://drafts.csswg.org/css-view-transitions-2#ref-for-invoke-a-callback-function"
+    },
+    {
+     "anchor": "inner-navigate-event-firing-algorithm",
+     "spec": "HTML",
+     "step_path": [
+      31,
+      3,
+      1
+     ],
+     "url": "https://html.spec.whatwg.org#navigate-event-firing:es-invoking-callback-functions"
+    }
+   ],
+   "params": {
+    "mechanism": "callback-function"
+   }
+  },
+  {
+   "additional_locations": 1,
+   "execution": [
+    "inline",
+    "separate",
+    "unknown"
+   ],
+   "id": "ef_a438de3869cfed51",
+   "kind": "script.invoke",
+   "location": {
+    "anchor": "evaluate-a-javascript:-url",
+    "spec": "HTML",
+    "step_path": [
+     7
+    ],
+    "url": "https://html.spec.whatwg.org#the-javascript:-url-special-case:run-a-classic-script"
+   },
+   "other_locations": [
+    {
+     "anchor": "report-an-exception",
+     "spec": "HTML",
+     "step_path": [
+      3
+     ],
+     "url": "https://html.spec.whatwg.org#runtime-script-errors:run-a-classic-script"
+    }
+   ],
+   "params": {
+    "mechanism": "classic-script"
+   }
+  },
+  {
+   "execution": [
+    "inline",
+    "separate",
+    "unknown"
+   ],
+   "id": "ef_d09aaa2e6411d3ef",
+   "kind": "script.invoke",
+   "location": {
+    "anchor": "concept-event-listener-inner-invoke",
+    "spec": "DOM",
+    "step_path": [
+     2,
+     13
+    ],
+    "url": "https://dom.spec.whatwg.org#ref-for-call-a-user-objects-operation"
+   },
+   "params": {
+    "mechanism": "user-object-operation"
+   }
+  }
+ ],
+ "effects_status": {
+  "analysis_id": "an_31122e8cb30a25ae",
+  "coverage": "partial",
+  "issues": [
+   "missing_spec",
+   "missing_anchor",
+   "unsupported_structure",
+   "unresolved_invocation",
+   "unresolved_body_binding",
+   "unresolved_argument"
+  ],
+  "omitted": 27,
+  "semantics": "may",
+  "state": "ready"
+ },
+ "incoming_refs": {
+  "command": "webspec-index refs HTML#navigate -d incoming -l 72",
+  "total": 72
+ },
+ "navigation": {
+  "children": [],
+  "next": null,
+  "parent": {
+   "anchor": "beginning-navigation",
+   "number": "7.4.2.2",
+   "title": "Beginning navigation"
+  },
+  "prev": null
+ },
+ "outgoing_refs": {
+  "command": "webspec-index refs HTML#navigate -d outgoing -l 153",
+  "total": 153
+ },
+ "sha": "hash:4c08305bbab261f62e20447bf2b539a725868ea48073f47b8ae7dd144f079300",
+ "spec": "HTML",
+ "title": "navigate",
+ "type": "algorithm",
+ "url": "https://html.spec.whatwg.org/#navigate"
+}

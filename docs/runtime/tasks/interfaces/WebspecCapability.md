@@ -40,6 +40,54 @@ Step comments of a source file checked against the spec algorithms it links (`we
 
 ***
 
+### effectPaths()
+
+> **effectPaths**(`ref`, `effectId`, `signal`): `Promise`\<[`SpecEffectPaths`](../../../shared/types/interfaces/SpecEffectPaths.md)\>
+
+The effects of `ref` with their witness paths: of one effect, or of all of them when `effectId` is null.
+
+#### Parameters
+
+##### ref
+
+`string`
+
+##### effectId
+
+`string` \| `null`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<[`SpecEffectPaths`](../../../shared/types/interfaces/SpecEffectPaths.md)\>
+
+***
+
+### query()
+
+> **query**(`ref`, `signal`): `Promise`\<\{ `found`: `true`; `section`: [`SpecSection`](../../../shared/types/interfaces/SpecSection.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>
+
+One section (`webspec-index query <ref>`); `ref` is a `SPEC#anchor` or a spec URL.
+
+#### Parameters
+
+##### ref
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<\{ `found`: `true`; `section`: [`SpecSection`](../../../shared/types/interfaces/SpecSection.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>
+
+***
+
 ### resolve()
 
 > **resolve**(`url`, `signal`): `Promise`\<\{ `found`: `true`; `spec`: [`ResolvedSpec`](../../../shared/types/interfaces/ResolvedSpec.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>
@@ -57,3 +105,25 @@ Step comments of a source file checked against the spec algorithms it links (`we
 #### Returns
 
 `Promise`\<\{ `found`: `true`; `spec`: [`ResolvedSpec`](../../../shared/types/interfaces/ResolvedSpec.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>
+
+***
+
+### search()
+
+> **search**(`phrase`, `signal`): `Promise`\<[`SpecSearchResult`](../../../shared/types/interfaces/SpecSearchResult.md)[]\>
+
+Sections matching a phrase, best first.
+
+#### Parameters
+
+##### phrase
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<[`SpecSearchResult`](../../../shared/types/interfaces/SpecSearchResult.md)[]\>

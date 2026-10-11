@@ -108,6 +108,21 @@ export interface ResolvedSpec {
   content: string;
 }
 
+/** A location in a specification, optionally narrowed to a step path. */
+export interface SpecSite { spec: string; anchor: string; step_path?: number[] }
+/** An effect extracted from a specification algorithm. */
+export interface SpecEffect { id: string; kind: string; params: Record<string, string | number | boolean | null>; execution: string[]; location?: SpecSite & { url: string }; other_locations?: (SpecSite & { url: string })[]; additional_locations?: number }
+/** Coverage and extraction status for a section's effects. */
+export interface SpecEffectsStatus { state: string; semantics: string; coverage?: string; issues: string[]; omitted: number }
+/** A specification section with its extracted effects and content hash. */
+export interface SpecSection { spec: string; anchor: string; title: string; type: string; url: string; content: string; outgoingRefs: number; effects: SpecEffect[]; effectsStatus: SpecEffectsStatus; sha: string }
+/** A specification section matching a search phrase. */
+export interface SpecSearchResult { spec: string; anchor: string; title: string; type: string; snippet: string }
+/** One hop in an effect witness path. */
+export interface SpecHop { from: SpecSite; to: SpecSite; site: SpecSite }
+/** Effects and their witness paths. */
+export interface SpecEffectPaths { effects: SpecEffect[]; explanations: { effectId: string; witnesses: SpecHop[][] }[] }
+
 export interface GeckoSpecRef {
   group: string;
   path: string;

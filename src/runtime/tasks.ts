@@ -1,5 +1,5 @@
 import type {
-  Actor, Artifact, ArtifactStatus, Commit, DecisionData, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent,
+  Actor, Artifact, ArtifactStatus, Commit, DecisionData, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecSearchResult, SpecSection,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -14,6 +14,12 @@ export interface StepCommentCheck { line: number; step: string; text: string; re
 export interface WebspecCapability {
   readonly effect: "read-only";
   resolve(url: string, signal: AbortSignal): Promise<{ found: true; spec: ResolvedSpec } | { found: false; reason: string }>;
+  /** One section (`webspec-index query <ref>`); `ref` is a `SPEC#anchor` or a spec URL. */
+  query(ref: string, signal: AbortSignal): Promise<{ found: true; section: SpecSection } | { found: false; reason: string }>;
+  /** Sections matching a phrase, best first. */
+  search(phrase: string, signal: AbortSignal): Promise<SpecSearchResult[]>;
+  /** The effects of `ref` with their witness paths: of one effect, or of all of them when `effectId` is null. */
+  effectPaths(ref: string, effectId: string | null, signal: AbortSignal): Promise<SpecEffectPaths>;
   /** Step comments of a source file checked against the spec algorithms it links (`webspec-index analyze`, as its LSP does). `name` is the file's base name. */
   analyze(name: string, text: string, signal: AbortSignal): Promise<StepCommentCheck[]>;
 }

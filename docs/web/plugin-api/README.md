@@ -472,6 +472,48 @@ Re-exports [SessionState](../../shared/types/interfaces/SessionState.md)
 
 ***
 
+### SpecEffect
+
+Re-exports [SpecEffect](../../shared/types/interfaces/SpecEffect.md)
+
+***
+
+### SpecEffectPaths
+
+Re-exports [SpecEffectPaths](../../shared/types/interfaces/SpecEffectPaths.md)
+
+***
+
+### SpecEffectsStatus
+
+Re-exports [SpecEffectsStatus](../../shared/types/interfaces/SpecEffectsStatus.md)
+
+***
+
+### SpecHop
+
+Re-exports [SpecHop](../../shared/types/interfaces/SpecHop.md)
+
+***
+
+### SpecSearchResult
+
+Re-exports [SpecSearchResult](../../shared/types/interfaces/SpecSearchResult.md)
+
+***
+
+### SpecSection
+
+Re-exports [SpecSection](../../shared/types/interfaces/SpecSection.md)
+
+***
+
+### SpecSite
+
+Re-exports [SpecSite](../../shared/types/interfaces/SpecSite.md)
+
+***
+
 ### StartQuestion
 
 Re-exports [StartQuestion](../../shared/types/interfaces/StartQuestion.md)

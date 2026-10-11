@@ -8,6 +8,9 @@ import { makeWebspec } from "../../src/runtime/webspec.ts";
 import { isGeckoRepo, makeSearchfox, parseSpecRefs } from "../../src/runtime/searchfox.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
+const FAKE = fileURLToPath(new URL("../stubs/fake-webspec.mjs", import.meta.url));
+const NAVIGATE = readFileSync(new URL("../fixtures/webspec/navigate-query.json", import.meta.url), "utf8");
+const NAVIGATE_EFFECTS = readFileSync(new URL("../fixtures/webspec/navigate-effects.json", import.meta.url), "utf8");
 const signal = new AbortController().signal;
 let dir: string;
 
@@ -37,6 +40,53 @@ test("webspec: not found is a value, other failures throw", async () => {
   process.env.FAKE_LLM_STDERR = "thread 'main' panicked";
   await assert.rejects(makeWebspec({ bin: STUB }).resolve("x", signal), /webspec-index exited with code 101: thread 'main' panicked/);
   await assert.rejects(makeWebspec({ bin: "/nonexistent/webspec-index" }).resolve("x", signal), /Cannot run/);
+});
+
+test("webspec: query keeps the section fields", async () => {
+  stdout(NAVIGATE);
+  const r = await makeWebspec({ bin: STUB }).query("HTML#navigate", signal);
+  assert.equal(r.found, true);
+  if (!r.found) return;
+  assert.deepEqual({ ...r.section, content: r.section.content.slice(0, 16), effects: r.section.effects.length }, { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: "https://html.spec.whatwg.org/#navigate", content: "To **navigate** ", outgoingRefs: 153, effects: 12, effectsStatus: JSON.parse(NAVIGATE).effects_status, sha: JSON.parse(NAVIGATE).sha });
+  assert.deepEqual(argv()[0], ["query", "HTML#navigate", "--format", "json"]);
+});
+
+test("webspec: query not found is a value; output without a sha throws", async () => {
+  process.env.FAKE_LLM_EXIT = "1";
+  process.env.FAKE_LLM_STDERR = "Error: Unknown spec: FOO\n";
+  assert.deepEqual(await makeWebspec({ bin: STUB }).query("FOO#bar", signal), { found: false, reason: "Unknown spec: FOO" });
+  delete process.env.FAKE_LLM_EXIT; delete process.env.FAKE_LLM_STDERR;
+  stdout(JSON.stringify({ ...JSON.parse(NAVIGATE), sha: undefined }));
+  await assert.rejects(makeWebspec({ bin: STUB }).query("HTML#navigate", signal), /webspec-index query output for HTML#navigate lacks sha, effects or outgoing_refs/);
+});
+
+test("webspec: search maps the results", async () => {
+  stdout(JSON.stringify({ query: "navigate", results: [{ spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", snippet: "s", extra: 1 }] }));
+  assert.deepEqual(await makeWebspec({ bin: STUB }).search("navigate", signal), [{ spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", snippet: "s" }]);
+  assert.deepEqual(argv()[0], ["search", "navigate", "--format", "json"]);
+});
+
+test("webspec: effectPaths reduces witness hops to their sites", async () => {
+  stdout(NAVIGATE_EFFECTS);
+  const paths = await makeWebspec({ bin: STUB }).effectPaths("HTML#navigate", "ef_e6c5f8c3e2980985", signal);
+  assert.equal(paths.effects.length, 39);
+  assert.equal(paths.explanations[0]!.effectId, "ef_e6c5f8c3e2980985");
+  assert.deepEqual(paths.explanations[0]!.witnesses[0]![0], { from: { spec: "HTML", anchor: "navigate" }, to: { spec: "HTML", anchor: "navigate", step_path: [8] }, site: { spec: "HTML", anchor: "navigate", step_path: [8] } });
+  assert.deepEqual(argv()[0], ["effects", "HTML#navigate", "--effect-id", "ef_e6c5f8c3e2980985"]);
+  await makeWebspec({ bin: STUB }).effectPaths("HTML#navigate", null, signal);
+  assert.deepEqual(argv()[1], ["effects", "HTML#navigate"]);
+});
+
+test("fake webspec serves the navigate fixtures, generic algorithms and search", async () => {
+  const webspec = makeWebspec({ bin: FAKE });
+  const navigate = await webspec.query("HTML#navigate", signal);
+  assert.equal(navigate.found && navigate.section.sha, JSON.parse(NAVIGATE).sha);
+  const other = await webspec.query("WEBIDL#wait-for-all", signal);
+  assert.deepEqual(other.found && { spec: other.section.spec, sha: other.section.sha, effects: other.section.effects }, { spec: "WEBIDL", sha: "fake-wait-for-all", effects: [] });
+  assert.equal((await webspec.effectPaths("HTML#navigate", null, signal)).explanations.length, 39);
+  assert.deepEqual(await webspec.effectPaths("HTML#setup", null, signal), { effects: [], explanations: [] });
+  assert.deepEqual((await webspec.search("navigate", signal)).map((r) => `${r.spec}#${r.anchor}`), ["HTML#navigate", "HTML#navigate-fragid"]);
+  assert.deepEqual(await webspec.query("nope", signal), { found: false, reason: "URL not recognized: nope" });
 });
 
 const SPEC_REFS = `## Gecko references for https://html.spec.whatwg.org/#navigate

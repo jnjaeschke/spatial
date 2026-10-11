@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// Stub for webspec-index. `query <url> --format json` resolves every URL with a fragment to a two-step algorithm;
-// `analyze <file>` checks `// Step N. text` comments against those steps, scoped to the nearest URL above.
+// Stub for webspec-index. `query HTML#navigate` and `effects HTML#navigate` print captured fixtures. `query <ref>` resolves any other
+// ref or URL with a fragment to a two-step algorithm of the ref's spec without effects; `effects <ref>` of those has none.
+// `search <phrase>` returns navigate and navigate-fragid. `analyze <file>` checks `// Step N. text` comments against the two steps,
+// scoped to the nearest URL above.
 import { readFileSync } from "node:fs";
 
 const STEPS = ["Edit the line.", "Add the file."];
+const fixture = (name) => readFileSync(new URL(`../fixtures/webspec/${name}`, import.meta.url), "utf8");
 const [command, arg] = process.argv.slice(2);
 if (command === "analyze") {
   const scopes = new Map();
@@ -20,9 +23,25 @@ if (command === "analyze") {
   if (scopes.size) process.stdout.write(JSON.stringify({ file: arg, scopes: [...scopes.values()] }));
   process.exit(0);
 }
+if (command === "search") {
+  process.stdout.write(JSON.stringify({ query: arg, results: [
+    { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", snippet: "To navigate a navigable" },
+    { spec: "HTML", anchor: "navigate-fragid", title: "navigate to a fragment", type: "algorithm", snippet: "To navigate to a fragment" },
+  ] }));
+  process.exit(0);
+}
 const anchor = arg?.split("#")[1];
-if (command !== "query" || !anchor) {
+if ((command !== "query" && command !== "effects") || !anchor) {
   process.stderr.write(`Error: URL not recognized: ${arg}`);
   process.exit(1);
 }
-process.stdout.write(JSON.stringify({ spec: "HTML", anchor, title: anchor, type: "algorithm", url: `https://html.spec.whatwg.org/#${anchor}`, content: `To do it, see [the setup](HTML#setup):\n\n${STEPS.map((step, i) => `${i + 1}. ${step}`).join("\n")}` }));
+if (arg === "HTML#navigate") {
+  process.stdout.write(fixture(command === "query" ? "navigate-query.json" : "navigate-effects.json"));
+  process.exit(0);
+}
+if (command === "effects") {
+  process.stdout.write(JSON.stringify({ effects: [], explanations: [] }));
+  process.exit(0);
+}
+const spec = /^[A-Za-z0-9-]+#/.test(arg) ? arg.split("#")[0] : "HTML";
+process.stdout.write(JSON.stringify({ spec, anchor, title: anchor, type: "algorithm", url: `https://html.spec.whatwg.org/#${anchor}`, content: `To do it, see [the setup](HTML#setup):\n\n${STEPS.map((step, i) => `${i + 1}. ${step}`).join("\n")}`, outgoing_refs: { total: 1 }, effects: [], effects_status: { state: "ready", semantics: "may", issues: [], omitted: 0 }, sha: `fake-${anchor}` }));
