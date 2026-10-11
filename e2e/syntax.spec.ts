@@ -35,16 +35,18 @@ test("C++ code in a hunk is painted through the highlight registry", async ({ pa
   await expect.poll(() => page.evaluate(painted, "syn-number")).toContain("2");
 });
 
-test("introduced symbols are marked, peek at their definition, and jump to its change", async ({ page }) => {
+test("introduced symbols show all sites in a hover card and jump to the selected site", async ({ page }) => {
   dir = mkdtempSync(join(tmpdir(), "spatial-symbols-"));
   git("init", "-b", "main");
-  writeFileSync(join(dir, "api.cpp"), "void existing() {}\n");
-  writeFileSync(join(dir, "caller.cpp"), "void caller() {}\n");
+  writeFileSync(join(dir, "api.h"), "void existing();\n");
+  writeFileSync(join(dir, "api.cpp"), '#include "api.h"\nvoid existing() {}\n');
+  writeFileSync(join(dir, "caller.cpp"), '#include "api.h"\nvoid caller() {}\n');
   git("add", "-A");
   git("commit", "-m", "base");
   git("checkout", "-b", "feature");
-  writeFileSync(join(dir, "api.cpp"), "void existing() {}\nvoid introducedFunction() {}\n");
-  writeFileSync(join(dir, "caller.cpp"), "void caller() { introducedFunction(); }\n");
+  writeFileSync(join(dir, "api.h"), "void existing();\nvoid introducedFunction();\n");
+  writeFileSync(join(dir, "api.cpp"), '#include "api.h"\nvoid existing() {}\nvoid introducedFunction() {}\n');
+  writeFileSync(join(dir, "caller.cpp"), '#include "api.h"\nvoid caller() { introducedFunction(); }\n');
   git("add", "-A");
   git("commit", "-m", "Introduce function and call");
 
@@ -61,9 +63,18 @@ test("introduced symbols are marked, peek at their definition, and jump to its c
     const rect = range.getBoundingClientRect();
     return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
   });
+  await page.mouse.move(point.x, point.y);
+  await expect.poll(() => target.evaluate((cell) => getComputedStyle(cell).cursor)).toBe("pointer");
+  const card = page.getByTestId("symbol-card");
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId("symbol-site-0")).toContainText("declared in api.h:2");
+  await expect(card.getByTestId("symbol-site-1")).toContainText("defined in api.cpp:3");
   await page.mouse.click(point.x, point.y);
+  await page.mouse.move(point.x + 100, point.y + 100);
+  await expect(card).toBeVisible();
+  await card.getByTestId("symbol-site-1").click();
   await expect(page.getByTestId("symbol-panel")).toContainText("introducedFunction");
-  await expect(page.getByTestId("symbol-panel").locator("tr[data-new=\"2\"]")).toHaveClass(/focus/);
+  await expect(page.getByTestId("symbol-panel").locator("tr[data-new=\"3\"]")).toHaveClass(/focus/);
   await page.getByTestId("symbol-go-to-change").click();
   await expect(page.locator(".canvas")).toHaveAttribute("data-place", /^change:/);
   await expect(page.locator(`.canvas tr[data-anchor$="#f0h0"][data-new="2"]`)).toHaveClass(/focus/);

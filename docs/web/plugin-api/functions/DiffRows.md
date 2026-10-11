@@ -36,7 +36,11 @@ Renders numbered diff rows and optional content inserted after each row.
 
 #### onMark?
 
-(`mark`) => `void`
+(`mark`, `rect`) => `void`
+
+#### onMarkHover?
+
+(`mark`, `rect`) => `void`
 
 #### onRowClick?
 

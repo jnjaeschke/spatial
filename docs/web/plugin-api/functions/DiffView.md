@@ -36,7 +36,11 @@ Read-only hunk. `nodrag nopan` lets users select text instead of moving the canv
 
 #### onMark?
 
-(`mark`) => `void`
+(`mark`, `rect`) => `void`
+
+#### onMarkHover?
+
+(`mark`, `rect`) => `void`
 
 #### renderThread?
 
