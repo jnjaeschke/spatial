@@ -151,14 +151,15 @@ test("hunks no change claims are reachable from an unassigned change of their co
   assert.deepEqual(guideEntries(stacked, "stack").map((s) => s.reviewed), [false, false]);
 });
 
-test("focus label is the row of a hunk, else the title of a hunk, change or commit, and nothing for other nodes", () => {
+test("focus label names rows, hunks and commits without repeating a change header", () => {
   const g = stack();
   const change = reviewPlaces.graph(g, "change:N#c2")!;
   const row = { anchor: "D#h2", side: "new" as const, line: 7 };
   assert.equal(focusLabel(change, "N#c2/h2", row), "b.h:7");
   assert.equal(focusLabel(change, "N#c2/h2", null), "b.h");
-  assert.equal(focusLabel(change, "N#c2", null), "c2");
+  assert.equal(focusLabel(change, "N#c2", null), null);
   assert.equal(focusLabel(change, "N#c2", row), "b.h:7");
+  assert.equal(focusLabel(g, "N#c2", null), "c2");
   assert.equal(focusLabel(g, "N#commit-1", null), "C2 Part 2");
   assert.equal(focusLabel(g, "SS", null), null);
   assert.equal(focusLabel(g, "N", null), null);

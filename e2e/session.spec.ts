@@ -111,8 +111,14 @@ test("the focus crumb names the jumped-to row and re-centers it", async ({ page 
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
   await openPatch(page, 0);
+  await openChange(page, "change-c1");
+  const placeCrumbs = page.getByTestId("place-crumbs");
+  await expect(placeCrumbs).toHaveText(/^Patch\s*›\s*Edit a$/);
   const crumb = page.getByTestId("focus-crumb");
   await expect(crumb).toHaveCount(0);
+  await page.getByTestId("place-up").click();
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "patch:0");
+  await openChange(page, "change-c1");
   await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
   await expect(crumb).toHaveText("a.txt:30");
   const focus = page.locator('tr.focus[data-new="30"]');

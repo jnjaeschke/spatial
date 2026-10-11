@@ -314,12 +314,13 @@ export const reviewPlaces = {
   },
 };
 
-/** What the breadcrumb's focus segment shows: `path:line` for the focused row of a hunk, else the title of a hunk, change or commit. */
+/** What the breadcrumb's focus segment shows: `path:line` for the focused row, else the title of a hunk or commit. */
 export function focusLabel(g: Graph, nodeId: string, row: FocusedRow | null): string | null {
   const data = g.nodes.find((n) => n.id === nodeId)?.data;
   if (!data) return null;
   if (isReviewKind(data, "commit")) return `C${data.index + 1} ${data.commit.subject}`;
   if (isReviewKind(data, "hunk")) return row ? `${data.file.path}:${row.line}` : data.file.path;
+  if (isReviewKind(data, "changeHeader") && !row) return null;
   if (isReviewKind(data, "change") || isReviewKind(data, "changeHeader")) {
     const file = row && data.hunks.find(({ hunk }) => `${data.diffId}#${hunk.id}` === row.anchor)?.file;
     return file ? `${file.path}:${row!.line}` : data.change.title;

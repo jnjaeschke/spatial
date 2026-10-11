@@ -15,13 +15,14 @@ async function assertNoOverlap(page: Page) {
   }
 }
 
-test("double-click drills into a change, Esc and the breadcrumb go back up, zooming keeps the representation", async ({ page }) => {
+test("double-click drills into a change, Up and the breadcrumb go back up, zooming keeps the representation", async ({ page }) => {
   await page.goto(URL);
   const canvas = page.locator(".canvas");
   const crumbs = page.getByTestId("place-crumbs");
   await expect(page.getByTestId("change-c1")).toBeVisible();
   await waitForCanvasSettled(page);
   await expect(canvas).toHaveAttribute("data-place", "patch:0");
+  await expect(page.getByTestId("place-up")).toBeDisabled();
   await expect(crumbs).toHaveText("Patch");
   await expect(page.getByTestId("change-c1").getByText("Introduce pending-commit state")).toBeVisible();
   await expect(page.getByText("Adds mPendingCommit")).toBeVisible();
@@ -40,6 +41,8 @@ test("double-click drills into a change, Esc and the breadcrumb go back up, zoom
   await expect(page.getByTestId("hunk-f1h0").getByText("mPendingCommit = aPending;")).toBeAttached();
 
   await page.keyboard.press("Escape");
+  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await page.getByTestId("place-up").click();
   await expect(canvas).toHaveAttribute("data-place", "patch:0");
   await expect(page.getByTestId("change-c2").locator("..")).toHaveClass(/\bselected\b/);
   await waitForCanvasSettled(page);

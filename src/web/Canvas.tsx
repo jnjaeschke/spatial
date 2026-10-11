@@ -18,7 +18,7 @@ import { useNodeSizes, type NodeSize } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
 import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
 import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
-import { NodeKindsContext } from "./plugin-api.ts";
+import { IconButton, NodeKindsContext } from "./plugin-api.ts";
 import { OpenPlaceContext } from "./open-place.ts";
 
 /** A step of the guide bar's reading path. */
@@ -737,7 +737,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const placeKeys = (event: ReactKeyboardEvent) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !places) return;
     if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable], dialog")) return;
-    if (event.key === "Escape" || event.key === "Backspace") {
+    if (event.key === "Backspace") {
       event.preventDefault();
       ascend();
     } else if (event.key === "Enter" && !(event.target instanceof Element && event.target.closest("button, a, summary"))) {
@@ -785,7 +785,6 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   return (
     <ChatActionsContext.Provider value={chatActions}>
     <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" data-place={place ?? undefined} tabIndex={-1} style={{ width: "100%", height: "100%" }} onKeyDown={placeKeys} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step, button.focus-crumb")) setFocusedRow(null); }}>
-    {(crumbs.length > 0 || focus) && <div className="crumb-bar">{crumbs.length > 0 && <nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav>}{focus && <>{crumbs.length > 0 && <span className="sep" aria-hidden="true">›</span>}<button type="button" data-testid="focus-crumb" className="focus-crumb" title="Center on this" onClick={centerFocus}>{focus}</button></>}</div>}
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
@@ -814,6 +813,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       >
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
+        {(crumbs.length > 0 || focus) && <Panel position="top-left" className="place-panel"><IconButton className="place-up" data-testid="place-up" label="Up one level" disabled={!places || place === null || !places.up(graph, place)} onClick={() => ascend()}>↑</IconButton>{crumbs.length > 0 && <nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav>}{focus && <>{crumbs.length > 0 && <span className="sep" aria-hidden="true">›</span>}<button type="button" data-testid="focus-crumb" className="focus-crumb" title={focus} onClick={centerFocus}>{focus}</button></>}</Panel>}
         <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}{model.PanelExtras && <model.PanelExtras />}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap
