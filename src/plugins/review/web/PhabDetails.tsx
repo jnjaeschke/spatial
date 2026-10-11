@@ -68,7 +68,7 @@ export function PhabDetails({ data, actions, onClose, onBack, reveal }: { data: 
   return <ChatActionsContext.Provider value={actions}>
     <SidePanel className="review-detail-panel" title={`Phabricator · ${data.comments.length}`} closeLabel="Close Phabricator panel" testId="phab-panel" onClose={onClose}
       onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); onClose(); } }}
-      headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+      onBack={onBack}>
       <PhabBody data={data} reveal={reveal} />
     </SidePanel>
   </ChatActionsContext.Provider>;

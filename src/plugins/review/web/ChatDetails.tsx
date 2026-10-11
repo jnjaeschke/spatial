@@ -42,7 +42,7 @@ export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }
       <CollapseContext.Provider value={{ collapsed: new Set(), toggle: () => {}, reveal }}>
         <SidePanel className="review-detail-panel" title={`Chat · ${thread.messages.length}`} closeLabel="Close chat panel" testId="chat-panel" onClose={dismiss}
           onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); dismiss(); } }}
-          headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+          onBack={onBack}>
           <ChatBody thread={thread} />
         </SidePanel>
       </CollapseContext.Provider>

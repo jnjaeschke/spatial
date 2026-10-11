@@ -1,6 +1,6 @@
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
-import { api, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
+import { IconButton, api, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "./inline-state.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
@@ -31,7 +31,7 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
     void run(() => api.deleteComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id));
   };
   return <div className="user-comment-node nodrag nopan nowheel" data-testid="user-comment" aria-label={title} onMouseDown={stop} onClick={stop}>
-    {item.draft && <button className="link-button user-comment-discard" aria-label="Discard comment" onClick={() => { clearDraft(); actions?.onDiscard(item.draft!.id); }}>×</button>}
+    {item.draft && <IconButton label="Discard comment" className="link-button user-comment-discard" onClick={() => { clearDraft(); actions?.onDiscard(item.draft!.id); }}>×</IconButton>}
     {item.draft ? <>
       <Composer label="Comment for Phabricator" value={body} onChange={setBody} canSubmit={!!body.trim() && !busy} onSubmit={() => void saveDraft()} onKeyDown={(event) => { if (event.key === "Escape" && body.trim()) event.preventDefault(); }} />
       <div><button disabled={!body.trim() || busy} onClick={() => void saveDraft()}>Save</button></div>

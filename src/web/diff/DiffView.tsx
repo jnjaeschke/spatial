@@ -1,3 +1,4 @@
+import { IconButton } from "../IconButton.tsx";
 import { useContext, useState, type ReactNode } from "react";
 import type { DiffFile, Hunk } from "../../shared/types.ts";
 import type { HostedThread } from "../graph-api.ts";
@@ -55,7 +56,7 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
-      <div className="diff-head">{openFile ? <button className="link-button file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <button aria-label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</button>}</div>
+      <div className="diff-head">{openFile ? <button className="link-button file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <IconButton label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</IconButton>}</div>
       {hunk.rewrites?.map(({ by, of, lines }) => <div className="rewrite-flag" data-testid="rewrite-flag" key={`${by}-${of}`}>C{by + 1} rewrites {lines} line{lines === 1 ? "" : "s"} added in C{of + 1}</div>)}
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}

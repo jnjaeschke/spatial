@@ -1,3 +1,4 @@
+import { IconButton } from "./IconButton.tsx";
 import { useState } from "react";
 import type { NotifyPayload } from "../shared/types.ts";
 import { api } from "./api.ts";
@@ -13,7 +14,7 @@ export function Toasts({ items, onDismiss }: { items: NotifyPayload[]; onDismiss
         {n.action && <button onClick={() => {
           void api.runAction(n.action!.path).then(() => onDismiss(n.id), (e: Error) => setErrors((current) => ({ ...current, [n.id]: e.message })));
         }}>{n.action.label}</button>}
-        <button aria-label="Dismiss notification" onClick={() => onDismiss(n.id)}>Dismiss</button>
+        <IconButton label="Dismiss notification" onClick={() => onDismiss(n.id)}>Dismiss</IconButton>
       </div>
     </div>)}
   </div>;

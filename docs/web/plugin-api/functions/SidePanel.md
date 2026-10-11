@@ -46,6 +46,8 @@ A side panel with a shared header, close button and scrolling body; the body is 
 
 `ReactNode`
 
+#### onBack?
+
 #### onClose
 
 ## Returns

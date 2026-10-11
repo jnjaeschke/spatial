@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { CommitNodeData } from "../graph.ts";
-import { InlineText, AskContext, ChatActionsContext, api, ReopenClosed, ErrorText, useAction } from "../../../../web/plugin-api.ts";
+import { IconButton, InlineText, AskContext, ChatActionsContext, api, ReopenClosed, ErrorText, useAction } from "../../../../web/plugin-api.ts";
 import { commitColors } from "../../../../web/plugin-api.ts";
 import { Box } from "../../../../web/plugin-api.ts";
 import { ChatItem, FindingItem } from "../InlineItem.tsx";
@@ -17,7 +17,7 @@ export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
   };
   const { swatch } = commitColors(data.index);
   return (
-    <Box kind="commit" testId={`commit-${data.index}`} handles={{ target: Position.Top, source: Position.Bottom }} title={<><span className="swatch" style={{ background: swatch }} />C{data.index + 1} <InlineText text={data.commit.subject} /></>} actions={ask && <button aria-label={`Ask about commit ${data.index + 1}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#commit-${data.index}`)}>Ask</button>}>
+    <Box kind="commit" testId={`commit-${data.index}`} handles={{ target: Position.Top, source: Position.Bottom }} title={<><span className="swatch" style={{ background: swatch }} />C{data.index + 1} <InlineText text={data.commit.subject} /></>} actions={ask && <IconButton label={`Ask about commit ${data.index + 1}`} className="ask nodrag" onClick={() => ask.ask(`${data.narrativeId}#commit-${data.index}`)}>Ask</IconButton>}>
       <div className="body nodrag nopan">
         {data.intent && <p className="intent"><InlineText text={data.intent} /></p>}
         <p className="counts" data-testid="commit-counts">{data.changeCount} change{data.changeCount === 1 ? "" : "s"} · {data.reviewedCount}/{data.changeCount} reviewed · {data.findingCount} finding{data.findingCount === 1 ? "" : "s"}</p>

@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { type Graph, type ChatActions, api, SidePanel, ChatActionsContext, AnswerMarkdown, Conversation, Composer, ErrorText, useAction } from "../../../web/plugin-api.ts";
+import { IconButton, type Graph, type ChatActions, api, SidePanel, ChatActionsContext, AnswerMarkdown, Conversation, Composer, ErrorText, useAction } from "../../../web/plugin-api.ts";
 import { findingsOf, type FindingData } from "./graph.ts";
 
 /** Finds the finding of a finding detail. */
@@ -16,7 +16,7 @@ export function FindingDetails({ data, actions, onClose, onBack }: { data: Findi
   return <ChatActionsContext.Provider value={actions}>
     <SidePanel className="review-detail-panel" title={`Finding · ${data.severity}`} closeLabel="Close finding panel" testId="finding-panel" onClose={onClose}
       onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); onClose(); } }}
-      headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+      onBack={onBack}>
       <FindingBody data={data} />
     </SidePanel>
   </ChatActionsContext.Provider>;
@@ -34,7 +34,7 @@ export function FindingBody({ data }: { data: FindingData }) {
   };
   return <section className={`finding-details severity-${data.severity}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`} data-testid={`finding-details-${data.findingId}`}>
     <header className="finding-detail-title"><span className={`badge severity-${data.severity}`}>{data.severity}</span><span className="category">{data.category}</span>{!data.ai && <span className="badge muted" title="Found by the runtime, not an LLM">spec check</span>}{data.status !== "open" && <span className={`badge status-${data.status}`} data-testid="finding-status">{statusLabel}</span>}{data.outdated && <span className="badge outdated" data-testid="finding-outdated">outdated</span>}{data.fromEpoch !== null && <span className="epoch-marker" data-testid="finding-epoch">epoch {data.fromEpoch}</span>}<strong>{data.title}</strong></header>
-    {actions && <div className="finding-actions">{data.decision !== "accepted" && <button aria-label="Accept finding" className="accept" onClick={() => decide("accepted")}>Accept</button>}{data.decision !== "dismissed" && <button aria-label="Dismiss finding" className="dismiss" onClick={() => decide("dismissed")}>Dismiss</button>}</div>}
+    {actions && <div className="finding-actions">{data.decision !== "accepted" && <IconButton label="Accept finding" className="accept" onClick={() => decide("accepted")}>Accept</IconButton>}{data.decision !== "dismissed" && <IconButton label="Dismiss finding" className="dismiss" onClick={() => decide("dismissed")}>Dismiss</IconButton>}</div>}
     {data.verdict && <div className="verdict-reason" data-testid="finding-verdict">{data.verdict.reason}</div>}
     <ErrorText error={error} />
     {!dismissed && <>

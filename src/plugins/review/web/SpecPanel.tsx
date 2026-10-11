@@ -17,7 +17,7 @@ type SpecPanelProps = { state: SessionState; specId: Id; llm: LlmSelection | nul
 export function SpecPanel(props: SpecPanelProps) {
   const spec = props.state.artifacts.find((a) => a.id === props.specId) as Artifact<SpecReferenceData> | undefined;
   if (!spec) throw new Error(`Unknown spec ${props.specId}`);
-  return spec.data.resolved ? <ResolvedSpecPanel {...props} spec={spec} resolved={spec.data.resolved} /> : <SidePanel className="spec-panel" title={spec.data.url} closeLabel="Close spec" onClose={props.onClose} testId="spec-panel" headerExtra={props.onBack && <button aria-label="Back" onClick={props.onBack}>←</button>}>
+  return spec.data.resolved ? <ResolvedSpecPanel {...props} spec={spec} resolved={spec.data.resolved} /> : <SidePanel className="spec-panel" title={spec.data.url} closeLabel="Close spec" onClose={props.onClose} testId="spec-panel" onBack={props.onBack}>
     <div className="spec-panel-content"><span className="badge unverified">unverified</span><p className="failed">{spec.data.reason}</p><a href={spec.data.url} target="_blank" rel="noreferrer">open spec</a></div>
   </SidePanel>;
 }
@@ -65,7 +65,7 @@ function ResolvedSpecPanel({ state, specId, llm, onClose, onBack, onFocusRange, 
   };
 
   return <>
-    <SidePanel className="spec-panel" title={`${resolved.spec}#${resolved.anchor}`} closeLabel="Close spec" onClose={onClose} testId="spec-panel" onKeyDown={keydown} headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+    <SidePanel className="spec-panel" title={`${resolved.spec}#${resolved.anchor}`} closeLabel="Close spec" onClose={onClose} testId="spec-panel" onKeyDown={keydown} onBack={onBack}>
       <div className="spec-panel-content">
         <header className="spec-panel-heading"><span className="spec-view-title">{resolved.title}</span><a href={resolved.url} target="_blank" rel="noreferrer">open spec</a>{spec.status !== "verified" && <span className="badge unverified">unverified</span>}{spec.status === "verified" && spec.data.origin === "code" && <span className="badge cited">cited in code</span>}{spec.status === "verified" && spec.data.origin === "llm" && <span className="badge inferred">inferred</span>}</header>
         {spec.data.geckoRefs.length > 0 && <ul className="files">{spec.data.geckoRefs.map((g) => <li key={g.url}><a href={g.url} target="_blank" rel="noreferrer">{g.group}: {g.path}:{g.line}</a></li>)}</ul>}

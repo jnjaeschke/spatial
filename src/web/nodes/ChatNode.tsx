@@ -1,3 +1,4 @@
+import { IconButton } from "../IconButton.tsx";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
@@ -65,7 +66,7 @@ export function Conversation(data: ConversationProps) {
             {m.data.role === "assistant" && m.data.questions?.length ? <ul className="chat-questions">{m.data.questions.map((question, i) => <li key={i}>{question}</li>)}</ul> : null}
             {m.data.role === "assistant" && m.data.revisionErrors?.length ? <p className="revision-errors">{m.data.revisionErrors.map((revisionError, i) => <span key={i}>{i > 0 ? " " : ""}Could not apply revision: {revisionError}</span>)}</p> : null}
             {m.data.role === "assistant" && m.data.replyErrors?.map(({ label, error }) => <p className="revision-errors" key={label}>{label} dropped: {error}</p>)}
-            {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <button key={diagramId} type="button" aria-label="Show diagram" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</button>)}
+            {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <IconButton label="Show diagram" key={diagramId} type="button" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</IconButton>)}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>
         ))}

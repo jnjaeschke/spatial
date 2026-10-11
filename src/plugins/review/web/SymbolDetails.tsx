@@ -14,7 +14,7 @@ export function findSymbol(state: SessionState, diff: Artifact<DiffData> | null,
 
 /** The hunk defining an introduced symbol, its defining row focused. */
 export function SymbolDetails({ sessionId, diffId, symbol, stack, onGo, onClose, onBack }: { sessionId: string; diffId: string; symbol: SymbolDefinition; stack: boolean; onGo(): void; onClose(): void; onBack?: () => void }) {
-  return <SidePanel className="review-detail-panel" title={<>{symbol.name}{stack ? ` · defined in C${symbol.site.commit + 1}` : ""}</>} closeLabel="Close symbol panel" testId="symbol-panel" onClose={onClose} headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+  return <SidePanel className="review-detail-panel" title={<>{symbol.name}{stack ? ` · defined in C${symbol.site.commit + 1}` : ""}</>} closeLabel="Close symbol panel" testId="symbol-panel" onClose={onClose} onBack={onBack}>
     <div className="hunk-node"><DiffView sessionId={sessionId} diffId={diffId} file={symbol.file} hunk={symbol.hunk} rowClass={(row) => row.new === symbol.site.line ? "focus" : undefined} /></div>
     <button data-testid="symbol-go-to-change" onClick={onGo}>Go to change</button>
   </SidePanel>;

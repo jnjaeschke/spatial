@@ -1,6 +1,6 @@
 import { useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { PhabCommentData } from "../shared/types.ts";
-import { type Artifact, type DiffFile, type Hunk, type Id, AnswerMarkdown, CollapseContext } from "../../../web/plugin-api.ts";
+import { IconButton, type Artifact, type DiffFile, type Hunk, type Id, AnswerMarkdown, CollapseContext } from "../../../web/plugin-api.ts";
 import { phabCommentCollapseId } from "./graph.ts";
 import { phabPreview } from "./phab-preview.ts";
 
@@ -32,7 +32,7 @@ export function PhabComment({ comment, anchorId, where, hunks = [], diffId = "" 
       <strong>@{author}</strong>
       {bot && <span className="badge phab-bot">bot</span>}
       {done && <span className="badge phab-done">Done</span>}
-      {bot && collapse && <button aria-label={closed ? "Expand comment" : "Collapse comment"} className="collapse nodrag" onClick={() => collapse.toggle(id)}>{closed ? "▸" : "▾"}</button>}
+      {bot && collapse && <IconButton label={closed ? "Expand comment" : "Collapse comment"} className="collapse nodrag" onClick={() => collapse.toggle(id)}>{closed ? "▸" : "▾"}</IconButton>}
     </div>
     {closed ? <div className="phab-preview">{phabPreview(body)}</div>
       : bot ? <div className="phab-body">{markdown}</div> : <ClampedBody>{markdown}</ClampedBody>}

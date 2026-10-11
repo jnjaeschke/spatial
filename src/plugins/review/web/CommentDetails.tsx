@@ -26,7 +26,7 @@ export function CommentDetails({ comment, actions, onClose, onBack }: { comment:
   return <ChatActionsContext.Provider value={actions}>
     <SidePanel className="review-detail-panel" title="Comment" closeLabel="Close comment panel" testId="comment-panel" onClose={close}
       onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); close(); } }}
-      headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+      onBack={onBack}>
       <UserCommentBox item={comment.item} diffId={comment.diffId} />
     </SidePanel>
   </ChatActionsContext.Provider>;

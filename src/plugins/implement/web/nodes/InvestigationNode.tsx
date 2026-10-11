@@ -1,14 +1,14 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { InvestigationNodeData } from "../graph.ts";
-import { AskContext, InlineText, Box } from "../../../../web/plugin-api.ts";
+import { IconButton, AskContext, InlineText, Box } from "../../../../web/plugin-api.ts";
 
 export type InvestigationFlowNode = Node<InvestigationNodeData & Record<string, unknown>, "investigation">;
 
 export function InvestigationNode({ data }: NodeProps<InvestigationFlowNode>) {
   const ask = useContext(AskContext);
   const d = data.data;
-  return <Box kind="investigation" testId="investigation" data={{ "data-anchor": data.investigationId }} handles={{ target: Position.Top, source: Position.Bottom }} title={<>Investigation <span className="badge">{d.kind}</span>{d.bug !== null && <span className="badge">Bug {d.bug}</span>}</>} actions={ask && <button aria-label="Ask about the investigation" className="ask nodrag" onClick={() => ask.ask(data.investigationId)}>Ask</button>}>
+  return <Box kind="investigation" testId="investigation" data={{ "data-anchor": data.investigationId }} handles={{ target: Position.Top, source: Position.Bottom }} title={<>Investigation <span className="badge">{d.kind}</span>{d.bug !== null && <span className="badge">Bug {d.bug}</span>}</>} actions={ask && <IconButton label="Ask about the investigation" className="ask nodrag" onClick={() => ask.ask(data.investigationId)}>Ask</IconButton>}>
     <div className="body nodrag nopan">
       <p><InlineText text={d.summary} /></p>
       {d.architecture && <p className="architecture"><InlineText text={d.architecture} /></p>}

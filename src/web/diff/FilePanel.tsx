@@ -1,3 +1,4 @@
+import { IconButton } from "../IconButton.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Artifact, DiffData } from "../../shared/types.ts";
 import { loadFileLines } from "../file-lines.ts";
@@ -76,7 +77,7 @@ export function FilePanel({ sessionId, diff, open, onClose, onJump, onBack }: {
     event.preventDefault();
     step(event.key === "n" ? 1 : -1);
   };
-  return <SidePanel className="file-panel" title={open.path} closeLabel="Close file" onClose={onClose} testId="file-panel" onKeyDown={onKeyDown} bodyRef={body} headerExtra={<>{onBack && <button aria-label="Back" onClick={onBack}>←</button>}<span className="change-nav">{starts.length > 0 && <><button aria-label="Previous change" title="Previous change (p)" disabled={current === 0} onClick={() => step(-1)}>↑</button><span data-testid="change-position">{current + 1}/{starts.length}</span><button aria-label="Next change" title="Next change (n)" disabled={current === starts.length - 1} onClick={() => step(1)}>↓</button></>}</span></>}>
+  return <SidePanel className="file-panel" title={open.path} closeLabel="Close file" onClose={onClose} onBack={onBack} testId="file-panel" onKeyDown={onKeyDown} bodyRef={body} headerExtra={<span className="change-nav">{starts.length > 0 && <><IconButton label="Previous change" disabled={current === 0} onClick={() => step(-1)}>↑</IconButton><span data-testid="change-position">{current + 1}/{starts.length}</span><IconButton label="Next change" disabled={current === starts.length - 1} onClick={() => step(1)}>↓</IconButton></>}</span>}>
       {file && <div className="diff"><table><tbody><DiffRows rows={rows} hunkId={open.hunkId} diffId={diff.id} path={file.path} onRowClick={(row) => onJump(row.new !== undefined ? { hunkId: row.hunkId!, side: "new", line: row.new } : { hunkId: row.hunkId!, side: "old", line: row.old! })} /></tbody></table></div>}
       {error && <p className="file-panel-error">{error}</p>}
   </SidePanel>;

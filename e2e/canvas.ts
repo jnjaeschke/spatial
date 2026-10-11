@@ -131,5 +131,5 @@ export async function expandItem(item: Locator): Promise<void> {
 
 /** Shows an inline item in the side panel. */
 export async function openInPanel(item: Locator): Promise<void> {
-  await item.getByRole("button", { name: "Open in panel" }).click();
+  await item.getByRole("button", { name: "Open in side panel" }).click();
 }

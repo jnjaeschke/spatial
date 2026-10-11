@@ -1,6 +1,6 @@
 import { useContext, type ReactNode } from "react";
 import type { ChangeNodeData, FindingData, PhabThreadData } from "./graph.ts";
-import { ChatActionsContext, ClosedContext, CollapseContext, closeChat, type HostedThread } from "../../../web/plugin-api.ts";
+import { IconButton, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type HostedThread } from "../../../web/plugin-api.ts";
 import { DetailsContext } from "./details.ts";
 import { useInlineState } from "./inline-state.ts";
 import { plainText } from "./plain-text.ts";
@@ -24,9 +24,9 @@ export function InlineItem({ kind, id, who, count, text, badges, dimmed, severit
       {head}
       {state === "line" && <button type="button" className="inline-text" onClick={open}>{text}</button>}
       <span className="inline-actions">
-        <button type="button" className="link-button" aria-label={expanded ? "Collapse item" : state === "line" ? "Show preview" : "Show as line"} aria-expanded={expanded} onClick={toggle}>{expanded ? "▴" : state === "preview" ? "▾" : "▸"}</button>
-        <button type="button" className="link-button" aria-label="Open in panel" onClick={onOpenPanel}>⤢</button>
-        {onClose && <button type="button" className="link-button" aria-label="Close chat" onClick={onClose}>×</button>}
+        <IconButton label={expanded ? "Collapse item" : state === "line" ? "Show preview" : "Show as line"} type="button" className="link-button" aria-expanded={expanded} onClick={toggle}>{expanded ? "▴" : state === "preview" ? "▾" : "▸"}</IconButton>
+        <IconButton label="Open in side panel" type="button" className="link-button" onClick={onOpenPanel}>⤢</IconButton>
+        {onClose && <IconButton label="Close chat" type="button" className="link-button" onClick={onClose}>×</IconButton>}
       </span>
     </div>
     {state === "preview" && <button type="button" className="inline-text inline-preview" onClick={open}>{text}</button>}

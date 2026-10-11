@@ -48,6 +48,7 @@ export { Canvas } from "./Canvas.tsx";
 export { Box } from "./Box.tsx";
 export type { BoxProps } from "./Box.tsx";
 export { Dialog } from "./Dialog.tsx";
+export { IconButton } from "./IconButton.tsx";
 export { Composer, useDraftText } from "./Composer.tsx";
 export type { ComposerProps } from "./Composer.tsx";
 export { composerKey, COMPOSER_HINT } from "./composer-key.ts";

@@ -93,6 +93,7 @@
 - [ErrorText](functions/ErrorText.md)
 - [FilePanel](functions/FilePanel.md)
 - [fileUrl](functions/fileUrl.md)
+- [IconButton](functions/IconButton.md)
 - [InlineText](functions/InlineText.md)
 - [isSatellite](functions/isSatellite.md)
 - [latestStart](functions/latestStart.md)
