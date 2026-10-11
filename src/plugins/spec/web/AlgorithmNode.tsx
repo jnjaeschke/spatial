@@ -1,9 +1,10 @@
-import { useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import { Box, ClosedContext, ReopenClosed } from "../../../web/plugin-api.ts";
 import { SpecLinkContext, SpecMarkdown } from "./SpecMarkdown.tsx";
 import type { AlgorithmNodeData } from "./graph.ts";
 import { ExplorerContext } from "./context.ts";
+import { EffectBadges } from "./EffectBadges.tsx";
 
 export type AlgorithmFlowNode = Node<Record<string, unknown> & AlgorithmNodeData, "spec-algorithm">;
 const ORDERED_LIST = /^\s*\d+\. /m;
@@ -14,8 +15,9 @@ export function AlgorithmNode({ id, data }: NodeProps<AlgorithmFlowNode>) {
   const closer = useContext(ClosedContext);
   const algorithm = data.algorithm.data;
   const links = useMemo(() => explorer && !explorer.readOnly ? { follow: (target: string, step: string | null) => explorer.open(target, { anchor: algorithm.ref, step: step ?? "" }) } : null, [explorer, algorithm.ref]);
+  const stepExtras = useCallback((step: string) => <EffectBadges algorithm={algorithm} step={step} onShowPath={explorer && !explorer.readOnly ? (effectId) => explorer.showPath(algorithm.ref, effectId) : null} />, [algorithm, explorer]);
   return <Box kind="spec-algorithm" testId={`spec-box-${algorithm.ref}`} title={<><code className="spec-ref">{algorithm.ref}</code><span className="spec-title">{algorithm.title}</span></>} handles={{ target: Position.Left, source: Position.Right }} onClose={closer ? () => { closer.close(id); explorer?.reveal(data.reopenOn); } : undefined} closeLabel={`Close ${algorithm.ref}`}>
-    <SpecLinkContext.Provider value={links}><div className="spec-steps nodrag nowheel"><SpecMarkdown text={algorithm.content} steps={ORDERED_LIST.test(algorithm.content)} /></div></SpecLinkContext.Provider>
+    <SpecLinkContext.Provider value={links}><div className="spec-steps nodrag nowheel"><SpecMarkdown text={algorithm.content} steps={ORDERED_LIST.test(algorithm.content)} stepExtras={stepExtras} /></div></SpecLinkContext.Provider>
     <ReopenClosed hostId={id} />
   </Box>;
 }

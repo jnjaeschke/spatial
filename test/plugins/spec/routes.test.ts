@@ -47,3 +47,13 @@ test("traces store user versions and reject malformed ones", async () => {
     assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace: bad })).status, 400);
   }
 });
+
+test("effect-path opens the boxes of the first witness path in order", async () => {
+  const { rt, session, routes } = setup();
+  await openSpec(rt, session.id, "HTML#navigate", null);
+  const r = await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/effect-path`, { ref: "HTML#navigate", effectId: "ef_e6c5f8c3e2980985" });
+  assert.deepEqual(r, { status: 201, body: { opened: 3 } });
+  assert.deepEqual(rt.store.listArtifacts(session.id, "SpecOpened").slice(1).map((a) => (a.data as { anchor: string; from: { anchor: string; step: string } }).from), [
+    { anchor: "HTML#navigate", step: "22.4" }, { anchor: "HTML#fire-a-push/replace/reload-navigate-event", step: "12" }, { anchor: "HTML#inner-navigate-event-firing-algorithm", step: "31.4" },
+  ]);
+});

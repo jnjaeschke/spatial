@@ -10,4 +10,5 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 /** HTTP calls of the spec explorer. */
 export const specClient = {
   open: (sessionId: string, anchor: string, from: SpecOpenedData["from"]) => post<{ openedId: string }>(`/api/sessions/${sessionId}/spec/open`, { anchor, from }),
+  showEffectPath: (sessionId: string, ref: string, effectId: string) => post<{ opened: number }>(`/api/sessions/${sessionId}/spec/effect-path`, { ref, effectId }),
 };

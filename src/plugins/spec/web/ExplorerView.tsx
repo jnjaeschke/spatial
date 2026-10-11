@@ -16,6 +16,7 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
       await specClient.open(view.sessionId, target, from);
       if (graph.nodes.some((node) => node.id === id)) reveal(id, id);
     },
+    async showPath(ref: string, effectId: string) { await specClient.showEffectPath(view.sessionId, ref, effectId); },
   }), [view, graph, readOnly, reveal]);
   return <ExplorerContext.Provider value={value}>{children}</ExplorerContext.Provider>;
 }

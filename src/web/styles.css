@@ -723,6 +723,10 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-steps { max-height: 560px; overflow: auto; padding: 0 12px 8px; font-family: "Iowan Old Style", Charter, Georgia, serif; }
 .react-flow__edge.trace-hop path { stroke: var(--kind-chat); stroke-width: 2; }
 .spec-steps ol { list-style: none; margin: 0; padding: 0; }
+.spec-effects { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
+.spec-effect { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8em; padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); }
+.spec-effect.via-path { border-style: dashed; }
+.spec-effect-details { flex-basis: 100%; font-size: 0.85em; padding: 4px 8px; border-left: 2px solid var(--kind-spec); }
 .spec-step { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; width: 100%; text-align: left; align-items: baseline; padding: 4px 8px; margin: 1px 0; border: 0; border-left: 4px solid transparent; border-radius: var(--radius-sm); background: transparent; box-shadow: none; font: inherit; color: var(--text); }
 .spec-step .step-number { font: 600 12px var(--font-mono); color: var(--text-2); }
 .spec-step .step-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.45; }

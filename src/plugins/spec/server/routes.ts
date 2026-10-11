@@ -1,8 +1,10 @@
 import { HttpError, putUserArtifact, readJson, requireSession, send, text, type Route, type Runtime } from "../../../plugin-api.ts";
+import type { SpecHop } from "../../../plugin-api.ts";
 import type { SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
 import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
+import { pathOpens } from "../shared/effect-path.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -41,6 +43,21 @@ export function specRoutes(rt: Runtime): Route[] {
       const start = rt.store.listArtifacts(session.id, "WorkflowStart").at(-1);
       if (!start) throw new HttpError(409, "Session has no start request");
       send(res, 201, { artifactId: putUserArtifact(rt, session.id, "SpecTrace", trace, start.id).id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/effect-path$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const ref = text(body, "ref"), effectId = text(body, "effectId");
+      let hops: SpecHop[];
+      try { ({ hops } = await rt.run<{ hops: SpecHop[] }>(session.id, "loadEffectPath", { ref, effectId })); }
+      catch (error) { throw new HttpError(502, (error as Error).message); }
+      const opens = pathOpens(hops);
+      if (!opens.length) throw new HttpError(409, "The witness path stays in this algorithm");
+      try {
+        await Promise.all([...new Set(opens.map((open) => open.anchor))].map((anchor) => rt.run(session.id, "loadSpecAlgorithm", { ref: anchor })));
+        for (const open of opens) await openSpec(rt, session.id, open.anchor, open.from);
+      } catch (error) { throw new HttpError(502, (error as Error).message); }
+      send(res, 201, { opened: opens.length });
     }],
   ];
 }
