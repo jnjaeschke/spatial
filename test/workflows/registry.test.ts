@@ -28,7 +28,7 @@ test("workflow parsers validate review and chat arguments", () => {
 });
 
 test("plugins register their initial phases", () => {
-  assert.deepEqual(plugins.flatMap((plugin) => plugin.phases?.map((phase) => phase.id) ?? []), ["review", "chat", "try", "tryPush", "submit", "phabSubmit", "investigate", "implement", "reviewerComments"]);
+  assert.deepEqual(plugins.flatMap((plugin) => plugin.phases?.map((phase) => phase.id) ?? []), ["review", "chat", "try", "tryPush", "submit", "phabSubmit", "investigate", "implement", "reviewerComments", "explore"]);
 });
 
 test("parseCommand handles workflow arguments and rejects unknown names", () => {
@@ -38,14 +38,14 @@ test("parseCommand handles workflow arguments and rejects unknown names", () => 
   for (const command of ["/review", "/review   "]) assert.deepEqual(parseCommand(workflowList, command), { ok: true, workflow: "review", params: { base: null, head: null, revision: null }, prompt: "" });
   const unknown = parseCommand(workflowList, "/nope x");
   assert.equal(unknown.ok, false);
-  if (!unknown.ok) assert.match(unknown.error, /Unknown command \/nope; available: \/review, \/chat, \/implement/);
+  if (!unknown.ok) assert.match(unknown.error, /Unknown command \/nope; available: \/review, \/chat, \/implement, \/explore/);
   const constructor = parseCommand(workflowList, "/constructor");
   assert.equal(constructor.ok, false);
   if (!constructor.ok) assert.match(constructor.error, /Unknown command/);
   const slash = parseCommand(workflowList, "/");
   assert.equal(slash.ok, false);
   if (!slash.ok) assert.match(slash.error, /Unknown command/);
-  assert.deepEqual(workflowInfo(workflowList).map(({ id }) => id), ["review", "chat", "implement"]);
+  assert.deepEqual(workflowInfo(workflowList).map(({ id }) => id), ["review", "chat", "implement", "explore"]);
   assert.ok(workflowInfo(workflowList).every(({ argHint }) => argHint.length > 0));
 });
 

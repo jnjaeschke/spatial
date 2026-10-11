@@ -1,4 +1,22 @@
-import type { GeckoSpecRef, Id, ResolvedSpec } from "../../../plugin-api.ts";
+import type { GeckoSpecRef, Id, ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSearchResult } from "../../../plugin-api.ts";
+
+/** The effects attributed to one step: `direct` at the effect's own site, `path` where a witness path leaves the algorithm. */
+export interface StepEffect { effectId: string; via: "direct" | "path" }
+/** Data of a `SpecAlgorithm` artifact (verified source fact): one webspec-index section at `sha`, stored once per (`ref`, `sha`) per session. `effects` lists all effects of the section; `stepEffects` is keyed by dotted step path. */
+export interface SpecAlgorithmData { ref: string; spec: string; anchor: string; title: string; type: string; url: string; content: string; sha: string; outgoingRefs: number; effects: SpecEffect[]; effectsStatus: SpecEffectsStatus; stepEffects: Record<string, StepEffect[]> }
+/** Data of a `SpecOpened` artifact (user): a box was opened as a root (`from` null) or from step `from.step` (empty when the link is outside any step) of box `from.anchor`. Refs are `SPEC#anchor`. */
+export interface SpecOpenedData { anchor: string; from: { anchor: string; step: string } | null }
+export interface SpecTraceEntry { anchor: string; step: string; note: string }
+/** Data of a `SpecTrace` artifact (user); the latest artifact per `traceId` is the trace. */
+export interface SpecTraceData { traceId: string; title: string; entries: SpecTraceEntry[] }
+/** Data of a `SpecExploreRequest` artifact: sections a chat reply proposed to explore. */
+export interface SpecExploreRequestData { anchors: string[] }
+/** Data of a `SummaryRejected` artifact: the summary of `anchor` at `sha` failed a check in this session. */
+export interface SummaryRejectedData { anchor: string; sha: string; reasons: string[] }
+/** Data of a `SpecSearch` artifact: the results of a search phrase, best first. */
+export interface SpecSearchData { phrase: string; results: SpecSearchResult[] }
+/** A verified summary, stored in the knowledge store under `spec` / `<ref>@<sha>`. */
+export interface SpecSummary { clauses: { text: string; steps: string[] }[] }
 
 /** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
 export interface SpecReferenceData {

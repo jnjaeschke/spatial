@@ -31,7 +31,7 @@ test("typing / shows commands; filter, keyboard completion and Escape", async ({
   const box = page.getByLabel("start");
   await box.fill("/");
   const list = page.getByRole("listbox", { name: "commands" });
-  await expect(list.getByRole("option")).toHaveCount(3);
+  await expect(list.getByRole("option")).toHaveCount(4);
   await expect(list.getByRole("option").nth(0)).toContainText("/review");
   await expect(list.getByRole("option").nth(0)).toContainText("[D-number | base..head]");
   await expect(list.getByRole("option").nth(1)).toContainText("/chat");
@@ -39,6 +39,8 @@ test("typing / shows commands; filter, keyboard completion and Escape", async ({
   await expect(list.getByRole("option").nth(2)).toContainText("/implement");
   await expect(list.getByRole("option").nth(2)).toContainText("<what to fix or build>");
   const name = list.getByRole("option").nth(2).locator("b");
+  await expect(list.getByRole("option").nth(3)).toContainText("/explore");
+  await expect(list.getByRole("option").nth(3)).toContainText("<SPEC#anchor | URL | search phrase>");
   expect((await name.boundingBox())!.height).toBeLessThan(2 * await name.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)));
 
   await list.getByRole("option").nth(2).hover();

@@ -1,5 +1,6 @@
 import type { ArtifactKind } from "../../../plugin-api.ts";
 import type { SpecReferenceData } from "../shared/types.ts";
+import type { SpecAlgorithmData } from "../shared/types.ts";
 
 const search: ArtifactKind["search"] = (_view, artifact) => {
   const spec = artifact.data as SpecReferenceData;
@@ -13,5 +14,5 @@ const render: ArtifactKind["render"] = (view, artifact) => {
   return ["# " + (spec.resolved?.title ?? "Unresolved spec reference"), "Spec: " + (spec.resolved?.spec ?? "Unknown"), "URL: " + (spec.resolved?.url ?? spec.url), "Origin: " + (spec.origin ?? "unknown"), spec.resolved?.content ?? (spec.url + "\n" + (spec.reason ?? "No resolution reason provided.")), "## Gecko references\n" + (gecko || "None"), "## Supported changes\n" + (supported.join("\n") || "None")].join("\n\n");
 };
 
-export const artifactKinds: Record<string, ArtifactKind> = { SpecReference: { search, render } };
+export const artifactKinds: Record<string, ArtifactKind> = { SpecReference: { search, render }, SpecAlgorithm: { render: (_view, artifact, subId) => { if (subId !== undefined) return null; const data = artifact.data as SpecAlgorithmData; return `# ${data.ref}: ${data.title}\n\nURL: ${data.url}\n\n${data.content}`; } } };
 export const searchKinds = ["spec"];
