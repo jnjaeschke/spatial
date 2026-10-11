@@ -352,7 +352,8 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     return { width: width * textScale, ...(size.height !== undefined ? { height: size.height * textScale } : {}) };
   };
   const keepPosition = (id: string, position: { x: number; y: number }) => {
-    if (graph.nodes.find((item) => item.id === id)?.position) setFreePosition(id, position);
+    const node = graph.nodes.find((item) => item.id === id);
+    if (node?.position || (node && "movable" in node.data && node.data.movable === true)) setFreePosition(id, position);
     else {
       const b = basePos.current.get(id);
       if (b) offsets.current.set(id, { dx: position.x - b.x, dy: position.y - b.y });

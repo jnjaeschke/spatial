@@ -8,7 +8,7 @@
 
 > **ReopenClosed**(`__namedParameters`): `Element` \| `null`
 
-Reopens the chats and notes closed on this node; renders nothing when there are none.
+Reopens the chats, notes and boxes closed on this node; renders nothing when there are none.
 
 ## Parameters
 

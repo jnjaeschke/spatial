@@ -45,15 +45,16 @@ export type DiagramNodeData = { kind: "diagram"; diagram: Artifact<DiagramData>;
 export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DecisionNodeData | DiagramNodeData;
 /**
  * Data of a node kind a plugin registers. Core reads only the optional fields it documents:
- * `threads` (a `HostedThread[]` hosted inside the node), `quote` with `foldsToQuote`, and `closable`
- * (the node disappears while its id is closed).
+ * `threads` (a `HostedThread[]` hosted inside the node), `quote` with `foldsToQuote`, `closable`
+ * (the node disappears while its id is closed), `movable` (dragged positions persist as free positions),
+ * and `reopenOn` (with `closable`, the node that offers this closed node for reopening).
  */
 export type PluginNodeData = { kind: string; [key: string]: unknown };
 export type GraphNodeData = CoreNodeData | PluginNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[]; position?: FreePosition }
 /** A node with its size, as a layout places it. */
 export interface PlacedNode { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[] }
-export interface GraphEdge { id: string; source: string; target: string }
+export interface GraphEdge { id: string; source: string; target: string; /** Text drawn on the edge. */ label?: string; /** Extra class of the edge element. */ className?: string }
 export type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 export const isCoreKind = <K extends CoreNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<CoreNodeData, { kind: K }> => data.kind === kind;
@@ -75,7 +76,7 @@ export function visibleGraph(g: Graph, collapsed: ReadonlySet<string>): Graph {
   return { nodes: g.nodes.filter((n) => !hidden.has(n.id)), edges: g.edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)) };
 }
 
-export interface ClosedItem { id: string; kind: "chat" | "note" }
+export interface ClosedItem { id: string; kind: "chat" | "note" | "box" }
 
 /** Adds to `gone` every node whose anchors are all gone. */
 export function cascade(g: Graph, gone: Set<string>): void {
@@ -92,7 +93,10 @@ export function closeGraph(g: Graph, closed: ReadonlySet<string>): { graph: Grap
   const gone = new Set<string>();
   for (const n of g.nodes) {
     if (!closed.has(n.id)) continue;
-    if ("closable" in n.data && n.data.closable === true) gone.add(n.id);
+    if ("closable" in n.data && n.data.closable === true) {
+      gone.add(n.id);
+      if ("reopenOn" in n.data && typeof n.data.reopenOn === "string") addClosed(n.data.reopenOn, n.id, "box");
+    }
     if (isCoreKind(n.data, "chat")) { gone.add(n.id); addClosed(n.anchors![0]!, n.id); }
     if (n.data.kind === "note") { gone.add(n.id); addClosed(n.anchors![0]!, n.id, "note"); }
   }
@@ -264,7 +268,7 @@ export function sessionGraph(root: (state: SessionState, drafts: Draft[]) => Gra
   const graph = state.session.workflow ? root(state, drafts) : null;
   if (graph) {
     addDecisions(graph, state);
-    for (const node of graph.nodes) if (node.data.kind === "chat" || node.data.kind === "note") node.position = freePositions[node.id];
+    for (const node of graph.nodes) if (node.data.kind === "chat" || node.data.kind === "note" || ("movable" in node.data && node.data.movable === true)) node.position = freePositions[node.id];
   }
   return graph;
 }

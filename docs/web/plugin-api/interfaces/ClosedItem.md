@@ -16,4 +16,4 @@
 
 ### kind
 
-> **kind**: `"note"` \| `"chat"`
+> **kind**: `"note"` \| `"chat"` \| `"box"`

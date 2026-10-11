@@ -8,9 +8,21 @@
 
 ## Properties
 
+### className?
+
+> `optional` **className?**: `string`
+
+***
+
 ### id
 
 > **id**: `string`
+
+***
+
+### label?
+
+> `optional` **label?**: `string`
 
 ***
 

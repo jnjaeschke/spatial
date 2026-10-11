@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { addDecisions, conversationGraph, diagramSize, diagramsByMessage, estimateSize, fitMinZoom, isCoreKind, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
+import { addDecisions, closeGraph, conversationGraph, diagramSize, diagramsByMessage, estimateSize, fitMinZoom, isCoreKind, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";
 
@@ -189,4 +189,14 @@ test("diagram nodes are a core kind sized by lanes and steps", () => {
   const data = { kind: "diagram" as const, diagram: { data: { lanes: [{}, {}, {}, {}], steps: [{}, {}] } } } as never;
   assert.equal(isCoreKind(data, "diagram"), true);
   assert.deepEqual(diagramSize(data), { width: 760, height: 370 });
+});
+
+test("a closed node with reopenOn is offered on its host; movable nodes take their free position", () => {
+  const g = { nodes: [{ id: "H", data: { kind: "x" } }, { id: "B", data: { kind: "x", closable: true, reopenOn: "H" } }], edges: [{ id: "e", source: "H", target: "B" }] };
+  const { graph, closedOn } = closeGraph(g, new Set(["B"]));
+  assert.deepEqual(graph.nodes.map((n) => n.id), ["H"]);
+  assert.deepEqual(closedOn.get("H"), [{ id: "B", kind: "box" }]);
+  const state = { session: { workflow: "x" }, artifacts: [], links: [] } as unknown as SessionState;
+  const placed = buildSessionGraph(() => ({ nodes: [{ id: "M", data: { kind: "x", movable: true } }, { id: "N", data: { kind: "x" } }], edges: [] }), state, [], { M: { x: 1, y: 2 }, N: { x: 3, y: 4 } })!;
+  assert.deepEqual(placed.nodes.map((n) => n.position), [{ x: 1, y: 2 }, undefined]);
 });
