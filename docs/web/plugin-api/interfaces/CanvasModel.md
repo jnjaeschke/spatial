@@ -226,6 +226,32 @@ Collapse ids that start collapsed.
 
 ***
 
+### focusLabel()?
+
+> `optional` **focusLabel**(`graph`, `nodeId`, `row`): `string` \| `null`
+
+The breadcrumb's focus segment: a label for the focused row of `nodeId` (`row` is null when no row has focus), or for the selected node. `graph` is the graph at the current place. Null shows nothing.
+
+#### Parameters
+
+##### graph
+
+[`Graph`](../type-aliases/Graph.md)
+
+##### nodeId
+
+`string`
+
+##### row
+
+[`FocusedRow`](FocusedRow.md) \| `null`
+
+#### Returns
+
+`string` \| `null`
+
+***
+
 ### graph()
 
 > **graph**(`state`, `drafts`): [`Graph`](../type-aliases/Graph.md) \| `null`

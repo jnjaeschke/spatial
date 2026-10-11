@@ -1,5 +1,5 @@
 import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
-import type { PostedCommentData } from "../../../web/plugin-api.ts";
+import type { FocusedRow, PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
 import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
@@ -285,6 +285,19 @@ export const reviewPlaces = {
     return chain.map((p) => ({ place: p, label: crumbLabel(g, p) }));
   },
 };
+
+/** What the breadcrumb's focus segment shows: `path:line` for the focused row of a hunk, else the title of a hunk, change or commit. */
+export function focusLabel(g: Graph, nodeId: string, row: FocusedRow | null): string | null {
+  const data = g.nodes.find((n) => n.id === nodeId)?.data;
+  if (!data) return null;
+  if (isReviewKind(data, "commit")) return `C${data.index + 1} ${data.commit.subject}`;
+  if (isReviewKind(data, "hunk")) return row ? `${data.file.path}:${row.line}` : data.file.path;
+  if (isReviewKind(data, "change") || isReviewKind(data, "changeHeader")) {
+    const file = row && data.hunks.find(({ hunk }) => `${data.diffId}#${hunk.id}` === row.anchor)?.file;
+    return file ? `${file.path}:${row!.line}` : data.change.title;
+  }
+  return null;
+}
 
 /** A reading-path step before the canvas adds its reviewed toggle: `change` is set for steps that toggle one change. */
 export interface GuideEntry { title: string; tag?: string; reviewed: boolean; nodeId: string; place?: string; change?: ChangeNodeData }

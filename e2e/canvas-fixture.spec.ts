@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { expandItem, openChange, openInPanel, openPatch, waitForCanvasSettled } from "./canvas.ts";
+import { expandItem, openChange, openInPanel, openPatch, revealNode, waitForCanvasSettled } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
 
@@ -57,6 +57,20 @@ test("double-click drills into a change, Esc and the breadcrumb go back up, zoom
   await expect(canvas).toHaveAttribute("data-place", /#c3$/);
   await page.keyboard.press("Backspace");
   await expect(canvas).toHaveAttribute("data-place", "patch:0");
+});
+
+test("the Open button opens a change, and only nodes that open a place have one", async ({ page }) => {
+  await page.goto(URL);
+  const canvas = page.locator(".canvas");
+  await expect(page.getByTestId("change-c2")).toBeVisible();
+  await waitForCanvasSettled(page);
+  const open = page.getByTestId("change-c2").getByRole("button", { name: "Open" });
+  await expect(open).toHaveAttribute("title", "Open (Enter, double-click)");
+  await revealNode(page, open);
+  await open.click();
+  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
+  await expect(page.getByTestId("open-place")).toHaveCount(0);
 });
 
 test("Back and Forward walk the places", async ({ page }) => {

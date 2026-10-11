@@ -8,7 +8,7 @@
 
 > **Box**(`__namedParameters`): `ReactElement`
 
-The frame of a box: title row with kind color, actions, collapse and close, and the body.
+The frame of a box: title row with kind color, actions, Open (for nodes that open a place), collapse and close, and the body.
 
 ## Parameters
 

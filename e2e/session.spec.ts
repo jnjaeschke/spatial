@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openChange, openPatch, placeUp, startReview } from "./canvas.ts";
+import { openChange, openPatch, placeUp, startReview, waitForCanvasSettled } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -105,6 +105,25 @@ test("code span in an explanation jumps to the matching row of its change", asyn
   await expect(focus).toHaveText(/THIRTY/);
   await expect(focus).toBeInViewport();
   await expect(page.getByTestId("file-panel")).toHaveCount(0);
+});
+
+test("the focus crumb names the jumped-to row and re-centers it", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  await openPatch(page, 0);
+  const crumb = page.getByTestId("focus-crumb");
+  await expect(crumb).toHaveCount(0);
+  await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
+  await expect(crumb).toHaveText("a.txt:30");
+  const focus = page.locator('tr.focus[data-new="30"]');
+  await expect(focus).toBeInViewport();
+  await waitForCanvasSettled(page);
+  await page.locator(".canvas").focus();
+  for (let i = 0; i < 25; i++) await page.keyboard.press("ArrowRight");
+  await expect(focus).not.toBeInViewport();
+  await crumb.click();
+  await expect(focus).toBeInViewport();
+  await expect(crumb).toHaveText("a.txt:30");
 });
 
 test("the canvas works without the Navigation API", async ({ page }) => {

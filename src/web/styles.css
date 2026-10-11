@@ -721,10 +721,13 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .hunk-node tr.step-mapped td.sign { box-shadow: inset 3px 0 0 var(--map-color, var(--accent)); }
 .hunk-node tr.step-mapped td.code { background: color-mix(in oklab, var(--map-color, var(--accent)) 10%, transparent); }
 
-.place-crumbs { display: flex; align-items: center; gap: 4px; font-size: 12.5px; }
-.place-crumbs .sep { color: var(--text-3); }
+.crumb-bar { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.place-crumbs { display: flex; align-items: center; gap: 4px; }
+.crumb-bar .sep { color: var(--text-3); }
 .place-crumbs > [aria-current="page"] { padding: 4px 6px; color: var(--text-2); }
-.react-flow__panel.top.right { display: flex; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; max-width: calc(100% - 260px); }
+.crumb-bar .focus-crumb { font-family: var(--font-mono); }
+.box > .title > .open { margin-left: 8px; font-size: 0.8em; font-weight: 500; }
+.react-flow__panel.top.right { display: flex; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 .layers { display: inline-flex; margin-right: 8px; }
 .layers button { border-radius: 0; margin-left: -1px; color: var(--text-3); text-decoration: line-through; }
 .layers button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }

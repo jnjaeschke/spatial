@@ -19,6 +19,7 @@ import { useFreePositions } from "./free-positions.ts";
 import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
 import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
 import { NodeKindsContext } from "./plugin-api.ts";
+import { OpenPlaceContext } from "./open-place.ts";
 
 /** A step of the guide bar's reading path. */
 export interface GuideStep {
@@ -80,6 +81,8 @@ export interface CanvasModel {
   revealWhenAdded?(node: GraphNode): boolean;
   /** Wraps the canvas in the plugin's contexts. */
   Provider?: ComponentType<CanvasProviderProps>;
+  /** The breadcrumb's focus segment: a label for the focused row of `nodeId` (`row` is null when no row has focus), or for the selected node. `graph` is the graph at the current place. Null shows nothing. */
+  focusLabel?(graph: Graph, nodeId: string, row: FocusedRow | null): string | null;
   /** Controls shown in the canvas panel (top right) after the layer toggles; rendered inside `Provider`. */
   PanelExtras?: ComponentType;
 }
@@ -249,12 +252,13 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const focusedRowRef = useRef(focusedRow);
   focusedRowRef.current = focusedRow;
   const focusCentered = useRef(false);
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   useLayoutEffect(() => {
     const root = container.current;
     if (!root) return;
     root.querySelector("tr.focus")?.classList.remove("focus");
-    if (!focusedRow) return;
-    const row = root.querySelector(`tr[data-anchor="${CSS.escape(focusedRow.anchor)}"][data-${focusedRow.side}="${focusedRow.line}"]`);
+    const row = focusedRow && root.querySelector(`tr[data-anchor="${CSS.escape(focusedRow.anchor)}"][data-${focusedRow.side}="${focusedRow.line}"]`);
+    setFocusNodeId(row?.closest(".react-flow__node[data-id]")?.getAttribute("data-id") ?? null);
     if (!row) return;
     row.classList.add("focus");
     if (focusCentered.current) return;
@@ -729,6 +733,16 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
     }
   };
   const crumbs = useMemo(() => places && place !== null ? places.crumbs(graph, place) : [], [places, graph, place]);
+  const openPlace = useMemo(() => ({ can: (nodeId: string) => !!places && place !== null && places.open(graph, place, nodeId) !== null, open: (nodeId: string) => void openNode(nodeId) }), [places, graph, place]);
+  const selectedId = nodes.find((n) => n.selected)?.id;
+  const focusId = focusNodeId ?? selectedId;
+  const focus = model.focusLabel && focusId ? model.focusLabel(placed, focusId, focusNodeId ? focusedRow : null) : null;
+  const centerFocus = () => {
+    if (focusNodeId && focusedRow) {
+      focusCentered.current = false;
+      setFocusedRow({ ...focusedRow });
+    } else if (focusId) focusNode(focusId);
+  };
 
   const reset = () => {
     offsets.current.clear();
@@ -757,10 +771,12 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" data-place={place ?? undefined} tabIndex={-1} style={{ width: "100%", height: "100%" }} onKeyDown={placeKeys} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step")) setFocusedRow(null); }}>
+    <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" data-place={place ?? undefined} tabIndex={-1} style={{ width: "100%", height: "100%" }} onKeyDown={placeKeys} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step, button.focus-crumb")) setFocusedRow(null); }}>
+    {(crumbs.length > 0 || focus) && <div className="crumb-bar">{crumbs.length > 0 && <nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav>}{focus && <>{crumbs.length > 0 && <span className="sep" aria-hidden="true">›</span>}<button type="button" data-testid="focus-crumb" className="focus-crumb" title="Center on this" onClick={centerFocus}>{focus}</button></>}</div>}
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
+      <OpenPlaceContext.Provider value={openPlace}>
       <ResizeContext.Provider value={{ textScale, resized }}>
       <div className="canvas-layout">
       <ReactFlow
@@ -785,7 +801,6 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       >
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
-        {places && <Panel position="top-left"><nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav></Panel>}
         <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}{model.PanelExtras && <model.PanelExtras />}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap
@@ -804,6 +819,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       />
       </div>
       </ResizeContext.Provider>
+      </OpenPlaceContext.Provider>
     </CollapseContext.Provider>
     </ClosedContext.Provider>
     </div></Provider>

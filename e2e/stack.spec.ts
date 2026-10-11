@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { expandItem, openChange, openInPanel, openPatch, placeUp, revealNode, startReview } from "./canvas.ts";
+import { expandItem, openChange, openInPanel, openPatch, placeUp, revealNode, startReview, waitForCanvasSettled } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 let revisionCount = 0;
@@ -197,6 +197,14 @@ test("commits are lanes; the guide walks the reading path and records reviews", 
   await expect(current.getByTestId("commit-1")).toBeVisible();
   await expect(guide).toContainText("Step 2/2");
   await expect(guide.getByRole("button", { name: "Toggle reviewed" })).toHaveCount(0);
+
+  await expect(lane0.getByTestId("open-place")).toBeVisible();
+  await expect(page.getByTestId("summary").getByTestId("open-place")).toHaveCount(0);
+  await revealNode(page, lane1);
+  await lane1.getByTestId("open-place").click();
+  await expect(canvas).toHaveAttribute("data-place", "patch:1");
+  await waitForCanvasSettled(page);
+  await placeUp(page);
 
   await openPatch(page, 0);
   await expect(guide).toContainText("Start here");

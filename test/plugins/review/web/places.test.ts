@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData } from "../../../../src/shared/types.ts";
 import { layout, type Graph, type GraphNode, type HostedThread } from "../../../../src/web/graph.ts";
-import { changeLayoutEdges, guideEntries, isReviewKind, narrativeGraph, reviewPlaces, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
+import { changeLayoutEdges, focusLabel, guideEntries, isReviewKind, narrativeGraph, reviewPlaces, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const hunk = (id: string) => ({ id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ kind: "ctx" as const, text: "l" }] });
 const diff = (commits: number): Artifact<DiffData> => ({
@@ -149,4 +149,18 @@ test("hunks no change claims are reachable from an unassigned change of their co
   assert.deepEqual(reviewPlaces.graph(stacked, "patch:1")!.nodes.map((n) => n.id).sort(), ["N#commit-1", "N#unassigned-C2"]);
   assert.deepEqual(guideEntries(stacked, "patch:1").map((s) => [s.title, s.tag]), [["Unassigned changes", "C2"]]);
   assert.deepEqual(guideEntries(stacked, "stack").map((s) => s.reviewed), [false, false]);
+});
+
+test("focus label is the row of a hunk, else the title of a hunk, change or commit, and nothing for other nodes", () => {
+  const g = stack();
+  const change = reviewPlaces.graph(g, "change:N#c2")!;
+  const row = { anchor: "D#h2", side: "new" as const, line: 7 };
+  assert.equal(focusLabel(change, "N#c2/h2", row), "b.h:7");
+  assert.equal(focusLabel(change, "N#c2/h2", null), "b.h");
+  assert.equal(focusLabel(change, "N#c2", null), "c2");
+  assert.equal(focusLabel(change, "N#c2", row), "b.h:7");
+  assert.equal(focusLabel(g, "N#commit-1", null), "C2 Part 2");
+  assert.equal(focusLabel(g, "SS", null), null);
+  assert.equal(focusLabel(g, "N", null), null);
+  assert.equal(focusLabel(g, "missing", null), null);
 });
