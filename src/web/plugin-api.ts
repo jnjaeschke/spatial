@@ -59,6 +59,7 @@ export { InlineText } from "./InlineText.tsx";
 export { AskContext, ChatActionsContext, closeChat, draftTexts } from "./chat-context.ts";
 export { CollapseContext } from "./collapse.ts";
 export { ClosedContext, useClosed } from "./closed.ts";
+export { DiagramStepContext } from "./diagram-steps.ts";
 export { ReopenClosed } from "./ReopenClosed.tsx";
 export { api } from "./api.ts";
 export { Conversation } from "./nodes/ChatNode.tsx";

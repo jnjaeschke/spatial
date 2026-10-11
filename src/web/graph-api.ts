@@ -5,9 +5,13 @@
 export type { Draft } from "./chat-context.ts";
 /** Markdown as one line of plain text. */
 export { plainText } from "../shared/plain-text.ts";
-export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
+export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, DiagramNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
 /** Width of cards and of satellites. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";
+/** Diagram node size estimate. */
+export { diagramSize } from "./graph.ts";
+/** Core node kind check. */
+export { isCoreKind } from "./graph.ts";
 /** Dagre layout of sized nodes; and column placement of satellites beside their anchors. */
 export { layout, placeSatellites } from "./graph.ts";
 /** Whether a node hangs beside the node it is anchored on; adds to `gone` every node whose anchors are all gone. */

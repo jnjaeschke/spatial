@@ -62,9 +62,21 @@ Re-exports [DecisionNodeData](../plugin-api/interfaces/DecisionNodeData.md)
 
 ***
 
+### DiagramNodeData
+
+Re-exports [DiagramNodeData](../plugin-api/type-aliases/DiagramNodeData.md)
+
+***
+
 ### diagramsByMessage
 
 Re-exports [diagramsByMessage](../plugin-api/functions/diagramsByMessage.md)
+
+***
+
+### diagramSize
+
+Re-exports [diagramSize](../plugin-api/functions/diagramSize.md)
 
 ***
 
@@ -107,6 +119,12 @@ Re-exports [GraphNodeData](../plugin-api/type-aliases/GraphNodeData.md)
 ### HostedThread
 
 Re-exports [HostedThread](../plugin-api/type-aliases/HostedThread.md)
+
+***
+
+### isCoreKind
+
+Re-exports [isCoreKind](../plugin-api/functions/isCoreKind.md)
 
 ***
 

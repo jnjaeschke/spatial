@@ -8,7 +8,6 @@ import { ChangeHeaderNode } from "./nodes/ChangeHeaderNode.tsx";
 import { HunkNode } from "./nodes/HunkNode.tsx";
 import { CommitNode } from "./nodes/CommitNode.tsx";
 import { SummaryNode } from "./nodes/SummaryNode.tsx";
-import { DiagramNode } from "./nodes/DiagramNode.tsx";
 
 const reviewNodeKinds: Record<string, NodeKind> = {
   change: { component: ChangeNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
@@ -16,7 +15,6 @@ const reviewNodeKinds: Record<string, NodeKind> = {
   hunk: { component: HunkNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
   commit: { component: CommitNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
   summary: { component: SummaryNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
-  diagram: { component: DiagramNode as NodeKind["component"], minimapColor: "var(--kind-diagram)", size: reviewSize, resizable: true },
 };
 
 function exportDiff(state: SessionState): ExportDiff | null {

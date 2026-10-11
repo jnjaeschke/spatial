@@ -1,5 +1,5 @@
 import type { InvestigationData, InvestigationLocation } from "../shared/types.ts";
-import type { DiagramNodeData } from "../../review/web/api.ts";
+import type { DiagramNodeData } from "../../../web/graph-api.ts";
 import type { Artifact, SessionState } from "../../../web/plugin-api.ts";
 import { SATELLITE_WIDTH, latestStart, lines, rootGraph, type Draft, type Graph, type GraphNodeData } from "../../../web/graph-api.ts";
 

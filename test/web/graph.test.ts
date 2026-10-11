@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { addDecisions, conversationGraph, diagramsByMessage, estimateSize, fitMinZoom, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
+import { addDecisions, conversationGraph, diagramSize, diagramsByMessage, estimateSize, fitMinZoom, isCoreKind, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";
 
@@ -178,4 +178,10 @@ test("diagramsByMessage maps the graph's diagram nodes to the messages they were
   const links = [{ id: "1", sessionId: "s", from: "D1", to: "M", kind: "derivedFrom" }, { id: "2", sessionId: "s", from: "X", to: "M", kind: "derivedFrom" }];
   assert.deepEqual(diagramsByMessage(g, rgState([], links)), { M: ["D1"] });
   assert.equal(diagramsByMessage({ nodes: [], edges: [] }, rgState([], links)), undefined);
+});
+
+test("diagram nodes are a core kind sized by lanes and steps", () => {
+  const data = { kind: "diagram" as const, diagram: { data: { lanes: [{}, {}, {}, {}], steps: [{}, {}] } } } as never;
+  assert.equal(isCoreKind(data, "diagram"), true);
+  assert.deepEqual(diagramSize(data), { width: 760, height: 370 });
 });

@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, DecisionData, DiffFile, Hunk, Id, McpServerData, NoteData, Ref, RevisionData, SessionState, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DecisionData, DiagramData, DiffFile, Hunk, Id, McpServerData, NoteData, Ref, RevisionData, SessionState, WorkflowStartData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 import type { FreePosition } from "./free-positions.ts";
@@ -41,7 +41,8 @@ export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "dif
 /** The open decision of the session, drawn beside the root node. */
 export interface DecisionNodeData { kind: "decision"; sessionId: string; repoDir: string; decision: Artifact<DecisionData> }
 
-export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DecisionNodeData;
+export type DiagramNodeData = { kind: "diagram"; diagram: Artifact<DiagramData>; closable?: boolean };
+export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DecisionNodeData | DiagramNodeData;
 /**
  * Data of a node kind a plugin registers. Core reads only the optional fields it documents:
  * `threads` (a `HostedThread[]` hosted inside the node), `quote` with `foldsToQuote`, and `closable`
@@ -56,6 +57,12 @@ export interface GraphEdge { id: string; source: string; target: string }
 export type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 export const isCoreKind = <K extends CoreNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<CoreNodeData, { kind: K }> => data.kind === kind;
+
+/** First-paint size of a diagram node: lanes set the width, steps the height. */
+export const diagramSize = (data: GraphNodeData) => {
+  const { lanes, steps } = (data as DiagramNodeData).diagram.data;
+  return { width: Math.max(NODE_WIDTH, lanes.length * 180 + 40), height: 150 + steps.length * 110 };
+};
 
 /** The threads hosted inside a node, or null when its data has none. */
 export function hostedThreads(data: GraphNodeData): HostedThread[] | null {

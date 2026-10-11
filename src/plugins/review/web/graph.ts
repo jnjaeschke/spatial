@@ -1,7 +1,7 @@
 import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { FocusedRow, PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, cascade, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
+import { NODE_WIDTH, SATELLITE_WIDTH, cascade, diagramSize, isCoreKind, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type DiagramNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
@@ -114,7 +114,6 @@ export type SummaryNodeData = {
   threads?: HostedThread[];
 };
 
-export type DiagramNodeData = { kind: "diagram"; diagram: Artifact<DiagramData>; closable?: boolean };
 
 /** Spreads the finding; the mapped copy keeps the data assignable to `PluginNodeData`, which an interface is not. */
 export type FindingData = { [K in keyof ReviewFindingData]: ReviewFindingData[K] } & {
@@ -155,10 +154,10 @@ export type PhabThreadData = {
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
 };
 
-export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeData | CommitNodeData | SummaryNodeData | DiagramNodeData;
+export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeData | CommitNodeData | SummaryNodeData;
 
 /** Narrows node data to a review kind. */
-export const isReviewKind = <K extends ReviewNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData, { kind: K }> => data.kind === kind;
+export const isReviewKind = <K extends ReviewNodeData["kind"] | "diagram">(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData | DiagramNodeData, { kind: K }> => data.kind === kind;
 
 /** Lines for inline items hosted by a review card, positioned from top to bottom in the minimap. */
 export function minimapMarks(data: GraphNodeData): { at: number; kind: string }[] {
@@ -270,7 +269,7 @@ export const reviewPlaces = {
       if (!isStack(g)) return index === 0 ? g : null;
       const card = commitCard(g, index);
       if (!card) return null;
-      const patch = subgraph(g, new Set(g.nodes.filter((n) => n === card || (isReviewKind(n.data, "change") && n.data.commit === index) || (isReviewKind(n.data, "diagram") && n.data.diagram.data.commitIndex === index)).map((n) => n.id)));
+      const patch = subgraph(g, new Set(g.nodes.filter((n) => n === card || (isReviewKind(n.data, "change") && n.data.commit === index) || (isCoreKind(n.data, "diagram") && n.data.diagram.data.commitIndex === index)).map((n) => n.id)));
       const reached = new Set(patch.edges.map((e) => e.target));
       return { nodes: patch.nodes, edges: [...patch.edges, ...patch.nodes.filter((n) => isReviewKind(n.data, "change") && !reached.has(n.id)).map((n) => ({ id: `${card.id}->${n.id}`, source: card.id, target: n.id }))] };
     }
@@ -579,7 +578,7 @@ const threadsHeight = (threads: HostedThread[]) => threads.reduce((sum, thread) 
 
 /** First-paint size estimate of the review kinds, unscaled. */
 export function reviewSize(data: GraphNodeData): { width: number; height: number } {
-  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH, data.diagram.data.lanes.length * 180 + 40), height: 150 + data.diagram.data.steps.length * 110 };
+  if (data.kind === "diagram") return diagramSize(data);
   if (isReviewKind(data, "commit")) return { width: NODE_WIDTH, height: 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
@@ -622,7 +621,7 @@ export function stackLayout(nodes: PlacedNode[], edges: { source: string; target
   for (const n of nodes) {
     if (isReviewKind(n.data, "commit")) laneOf.set(n.id, n.data.index);
     if (isReviewKind(n.data, "change")) laneOf.set(n.id, n.data.commit!);
-    if (isReviewKind(n.data, "diagram")) laneOf.set(n.id, n.data.diagram.data.commitIndex);
+    if (isCoreKind(n.data, "diagram")) laneOf.set(n.id, n.data.diagram.data.commitIndex);
   }
   const satellites = nodes.filter(isSatellite);
   for (let changed = true; changed;) {

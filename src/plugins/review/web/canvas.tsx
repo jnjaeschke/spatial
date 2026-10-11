@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
+import { type Artifact, type CanvasModel, type CanvasProviderProps, DiagramStepContext, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
 import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "./inline-state.ts";
@@ -9,11 +9,6 @@ export const RevealContext = createContext<MutableRefObject<((nodeId: string, co
 /** The latest request to jump to a diff row, provided by the review view around its canvas. */
 export const JumpContext = createContext<HunkRow | null>(null);
 
-/** Where a verified sequence step's citation sits in the rendered diff, and revealing it. */
-export const DiagramStepContext = createContext<{
-  stepTarget(diagram: Artifact<DiagramData>, step: SequenceStep): ReturnType<typeof diagramStepTarget>;
-  revealStep(nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }): void;
-} | null>(null);
 
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
@@ -80,7 +75,7 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
     // Only a new request jumps; graph updates must not re-reveal.
   }, [jump]);
   return <SearchfoxContext.Provider value={searchfox}>
-    <DiagramStepContext.Provider value={{ stepTarget: (diagram, step) => diagramStepTarget(graph.nodes, diagram, step), revealStep }}>{children}</DiagramStepContext.Provider>
+    <DiagramStepContext.Provider value={{ onStep: (diagram, step) => { const target = diagramStepTarget(graph.nodes, diagram, step); return target ? () => revealStep(target.changeNodeId, target.hunkId, target.row) : null; } }}>{children}</DiagramStepContext.Provider>
   </SearchfoxContext.Provider>;
 }
 

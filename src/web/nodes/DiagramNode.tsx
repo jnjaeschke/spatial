@@ -1,8 +1,7 @@
 import { Fragment, useContext, useMemo, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DiagramNodeData } from "../graph.ts";
-import { Box, ClosedContext } from "../../../../web/plugin-api.ts";
-import { DiagramStepContext } from "../canvas.tsx";
+import { Box, ClosedContext, DiagramStepContext } from "../plugin-api.ts";
 
 export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData, "diagram">;
 
@@ -49,8 +48,8 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
           const loopAt = from === to ? `${((from - firstLane) * 2 + 1) * 50 / (lastLane - firstLane + 1)}%` : undefined;
           const direction = from !== to ? from < to ? "right" : "left" : "self";
           const cite = `${step.cite.path}:${step.cite.line}`;
-          const target = !showBefore ? diagramSteps?.stepTarget(diagram, step) ?? null : null;
-          const stepProps = { className: `sequence-step ${direction}${target ? " clickable nodrag nopan" : ""}`, "data-status": step.status, "data-verified": String(step.verified), style: { gridColumn: `${firstLane + 1} / ${lastLane + 2}`, gridRow: stepRow, "--sequence-span": lastLane - firstLane + 1, "--sequence-loop": loopAt } as React.CSSProperties, title: `${step.verified ? cite : `citation not found near ${cite}`}${step.text ? ` — ${step.text}` : ""}` };
+          const onStep = !showBefore ? diagramSteps?.onStep(diagram, step) ?? null : null;
+          const stepProps = { className: `sequence-step ${direction}${onStep ? " clickable nodrag nopan" : ""}`, "data-status": step.status, "data-verified": String(step.verified), style: { gridColumn: `${firstLane + 1} / ${lastLane + 2}`, gridRow: stepRow, "--sequence-span": lastLane - firstLane + 1, "--sequence-loop": loopAt } as React.CSSProperties, title: `${step.verified ? cite : `citation not found near ${cite}`}${step.text ? ` — ${step.text}` : ""}` };
           const label = <><div className="sequence-label">
                 {step.guard && <span className="sequence-guard">[{step.guard}]</span>}
                 <span className="sequence-badge">{index + 1}</span><code className="sequence-call">{step.call}</code>
@@ -61,7 +60,7 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
               <span className="sequence-arrow" /></>;
           return <Fragment key={`${cite}:${index}`}>
             {phaseRow !== null && <div className="sequence-phase" style={{ gridColumn: "1 / -1", gridRow: phaseRow }}>{step.phase}</div>}
-            {target ? <button {...stepProps} onClick={() => diagramSteps?.revealStep(target.changeNodeId, target.hunkId, target.row)}>{label}</button> : <div {...stepProps}>{label}</div>}
+            {onStep ? <button {...stepProps} onClick={onStep}>{label}</button> : <div {...stepProps}>{label}</div>}
           </Fragment>;
         })}
       </div>
