@@ -1,4 +1,4 @@
-import type { GeckoSpecRef, Id, ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSearchResult } from "../../../plugin-api.ts";
+import type { Engine, GeckoSpecRef, Id, ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSearchResult } from "../../../plugin-api.ts";
 
 /** The effects attributed to one step: `direct` at the effect's own site, `path` where a witness path leaves the algorithm. */
 export interface StepEffect { effectId: string; via: "direct" | "path" }
@@ -17,6 +17,19 @@ export interface SummaryRejectedData { anchor: string; sha: string; reasons: str
 export interface SpecSearchData { phrase: string; results: SpecSearchResult[] }
 /** A verified summary, stored in the knowledge store under `spec` / `<ref>@<sha>`. */
 export interface SpecSummary { clauses: { text: string; steps: string[] }[] }
+
+/** A Step comment inside a mapped function: the comment's line, whether it matches the step's text, and why (`detail`, shown as its tooltip). */
+export interface EngineStep { step: string; line: number; verdict: "match" | "mismatch"; detail: string }
+/**
+ * Where an engine implements an algorithm: a function (`symbol` its code-search symbol, `signature` its first line, `line` the first line of
+ * its definition) or, for concepts, a declaration (`symbol` ""). `quote` is the code at `line` when stored. `method`: found through spec-link
+ * comments (on lines `refs`), proposed by the LLM (`why`), or confirmed by the user. `stale`: the quote is gone at the mapping's revision.
+ */
+export interface EngineSite { path: string; line: number; symbol: string; signature: string; quote: string; method: "spec-link" | "llm" | "user"; refs: number[]; steps: EngineStep[]; why?: string; stale?: true }
+/** A test line linking the algorithm; `group` as code search reports it (`Web-Platform Test`, `Test`, …). */
+export interface EngineTest { group: string; path: string; line: number }
+/** Knowledge value under `spec` / `impl|<engine>|<SPEC#anchor>`: an algorithm's sites and tests in one engine at revision `rev` of `repoBase`; `rejected` are proposals the user rejected, never proposed again. */
+export interface EngineMapping { engine: Engine; repoBase: string; rev: string; sites: EngineSite[]; tests: EngineTest[]; rejected: Pick<EngineSite, "path" | "line" | "symbol" | "signature">[]; checkedAt: string }
 
 /** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
 export interface SpecReferenceData {

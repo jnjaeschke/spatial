@@ -8,6 +8,10 @@
 
 ## Interfaces
 
+- [EngineMapping](interfaces/EngineMapping.md)
+- [EngineSite](interfaces/EngineSite.md)
+- [EngineStep](interfaces/EngineStep.md)
+- [EngineTest](interfaces/EngineTest.md)
 - [LineRange](interfaces/LineRange.md)
 - [SpecAlgorithmData](interfaces/SpecAlgorithmData.md)
 - [SpecExploreRequestData](interfaces/SpecExploreRequestData.md)
