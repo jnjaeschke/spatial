@@ -27,8 +27,8 @@ function writeLines(dir: string, values: string[]) {
   writeFileSync(join(dir, "a.txt"), `${values.join("\n")}\n`);
 }
 
-function inlineTx(id: number, path: string, line: number, body: string, options: { diffId: number; isNewFile?: boolean; isDone?: boolean; phid?: string }) {
-  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: "PHID-USER-alice", objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: options.phid ?? `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: options.diffId, phid: `PHID-DIFF-${options.diffId}` }, path, line, length: 1, isNewFile: options.isNewFile ?? true, replyToCommentPHID: null, isDone: options.isDone ?? false, hasSuggestion: false, suggestionText: null } };
+function inlineTx(id: number, path: string, line: number, body: string, options: { diffId: number; isNewFile?: boolean; isDone?: boolean; phid?: string; author?: string; replyTo?: string }) {
+  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: `PHID-USER-${options.author ?? "alice"}`, objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: options.phid ?? `PHID-XCMT-${id}`, version: 1, authorPHID: `PHID-USER-${options.author ?? "alice"}`, dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: options.diffId, phid: `PHID-DIFF-${options.diffId}` }, path, line, length: 1, isNewFile: options.isNewFile ?? true, replyToCommentPHID: options.replyTo ?? null, isDone: options.isDone ?? false, hasSuggestion: false, suggestionText: null } };
 }
 
 function commentTx(id: number, body: string, author = "alice", replyTo?: string) {
@@ -231,26 +231,26 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
 
 test("Phabricator summaries appear for four comments; shorter threads preview the last author and comment", async ({ page, request }) => {
   const ids = newRevision();
-  const { diff } = await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [
-    commentTx(250, "SUMMARY-E2E-THREAD: should name the issue", "alice"),
-    commentTx(251, "The implementation misses one case", "bob", "PHID-XCMT-250"),
-    commentTx(252, "I have fixed that case", "alice", "PHID-XCMT-250"),
-    commentTx(253, "Agreed, this resolves it", "bob", "PHID-XCMT-250"),
-    commentTx(260, "Two comment opener", "alice"),
-    commentTx(261, "Short thread last word", "bob", "PHID-XCMT-260"),
+  const reply = (id: number, body: string, author: string, root: number) => inlineTx(id, "a.txt", 30, body, { diffId: ids.d1, author, replyTo: `PHID-XCMT-${root}` });
+  await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [
+    inlineTx(250, "a.txt", 30, "SUMMARY-E2E-THREAD: should name the issue", { diffId: ids.d1 }),
+    reply(251, "The implementation misses one case", "bob", 250),
+    reply(252, "I have fixed that case", "alice", 251),
+    reply(253, "Agreed, this resolves it", "bob", 252),
+    inlineTx(260, "a.txt", 30, "Two comment opener", { diffId: ids.d1 }),
+    reply(261, "Short thread last word", "bob", 260),
   ] }));
-  const summary = page.getByTestId("summary");
-  const resolved = summary.locator('.inline-item.kind-phab:has(.inline-count:text-is("4"))');
+  await openChange(page);
+  const resolved = page.locator(".inline-item.kind-phab").filter({ hasText: "AI summary" });
+  await expect(resolved).toContainText("The reviewers question the implementation, then agree the change addresses the concern.", { timeout: 15_000 });
   await expect(resolved.locator(".inline-who")).toHaveText("@alice, @bob");
-  await expect(resolved).toContainText("AI summary", { timeout: 10_000 });
-  await expect(resolved).toContainText("The reviewers question the implementation, then agree the change addresses the concern.");
   await expect(resolved.locator(".inline-count")).toHaveText("4");
-  const short = summary.locator(".inline-item.kind-phab").filter({ hasText: "Short thread last word" });
+  const short = page.locator(".inline-item.kind-phab").filter({ hasText: "Short thread last word" });
   await expect(short).toContainText("@bob: Short thread last word");
   await expect(short.locator(".inline-count")).toHaveText("2");
+  await expect(short).not.toContainText("AI summary");
   await expandItem(resolved);
   await expect(resolved.locator(".phab-thread-summary")).toContainText("The reviewers question the implementation");
   await openInPanel(resolved);
-  await expect(page.getByTestId("phab-panel").locator(".phab-thread-summary")).toBeVisible();
-  await expect(page.getByTestId("phab-panel")).toContainText("AI summary");
+  await expect(page.getByTestId("phab-panel").locator(".phab-thread-summary")).toContainText("AI summary");
 });

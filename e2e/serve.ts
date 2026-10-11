@@ -228,7 +228,7 @@ const conduit = createServer(async (req, res) => {
               })()
             : method === "transaction.search" ? { data: conduitState.transactions, cursor: { limit: "50", after: null, before: null } }
               : method === "user.whoami" ? { phid: "PHID-USER-me", userName: "me", realName: "Me" }
-                : method === "user.search" ? { data: [{ phid: "PHID-USER-alice", fields: { username: "alice", realName: "Alice" } }, { phid: "PHID-USER-reviewbot", fields: { username: "reviewbot", realName: "Code Review Bot" } }] }
+                : method === "user.search" ? { data: [{ phid: "PHID-USER-alice", fields: { username: "alice", realName: "Alice" } }, { phid: "PHID-USER-reviewbot", fields: { username: "reviewbot", realName: "Code Review Bot" } }, { phid: "PHID-USER-bob", fields: { username: "bob", realName: "Bob" } }] }
           : null;
   res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ error_code: null, error_info: null, result }));
 });

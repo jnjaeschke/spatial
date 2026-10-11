@@ -41,7 +41,8 @@ export function phabView(artifacts: Artifact[], diff: Artifact<DiffData>, narrat
   const byPhid = new Map(latest.map((comment) => [comment.data.phid, comment]));
   const children = new Map<string, Artifact<PhabCommentData>[]>();
   for (const item of latest) if (item.data.replyTo && byPhid.has(item.data.replyTo)) children.set(item.data.replyTo, [...(children.get(item.data.replyTo) ?? []), item]);
-  const commentsFor = (root: Artifact<PhabCommentData>) => [root, ...(children.get(root.data.phid) ?? []).sort((a, b) => a.data.txId - b.data.txId)];
+  const replies = (phid: string): Artifact<PhabCommentData>[] => (children.get(phid) ?? []).flatMap((reply) => [reply, ...replies(reply.data.phid)]);
+  const commentsFor = (root: Artifact<PhabCommentData>) => [root, ...replies(root.data.phid).sort((a, b) => a.data.txId - b.data.txId)];
   const roots = latest.filter((item) => !item.data.replyTo || !byPhid.has(item.data.replyTo));
   const anchored: AnchoredPhabThread[] = [];
   const groups = new Map<string, PhabView["unanchored"][number]>();

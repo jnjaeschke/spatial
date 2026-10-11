@@ -510,7 +510,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     const summary = covered && currentSummary(phabSummaries, covered.rootPhid, covered.comments.map((comment) => comment.data.phid));
     return { ...remote, anchorId, summary: summary?.data.summary ?? null, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null };
   };
-  const childComments = (rootComment: Artifact<PhabCommentData>) => state.artifacts.filter((item): item is Artifact<PhabCommentData> => item.type === "PhabComment" && (item.data as PhabCommentData).replyTo === rootComment.data.phid);
+  const childComments = (rootComment: Artifact<PhabCommentData>): Artifact<PhabCommentData>[] => phabComments.filter((item) => item.data.replyTo === rootComment.data.phid).flatMap((reply) => [reply, ...childComments(reply)]);
   summary.phabGeneralThreads = phab.general.map((comment) => makePhabThread({ anchorId: comment.id, anchor: latest.narrative.id, path: "", line: 0, side: "new", done: comment.data.done, fromEpoch: null, comments: [comment, ...childComments(comment)] }));
   summary.phabUnanchoredThreads = phab.unanchored.flatMap((group) => {
     const roots = group.comments.filter((comment) => !comment.data.replyTo || !group.comments.some((parent) => parent.data.phid === comment.data.replyTo));

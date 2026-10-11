@@ -93,3 +93,13 @@ test("phabView groups replies after their root, uses root done state, and omits 
   assert.deepEqual(view.general.map((item) => item.id), ["general"]);
   assert.ok(!view.anchored.some((item) => item.anchorId === "own"));
 });
+
+test("phabView keeps a reply to a reply in its root's thread", () => {
+  const d = diff("D1", [{ kind: "add", text: "one" }, { kind: "add", text: "target" }, { kind: "add", text: "three" }, { kind: "add", text: "four" }, { kind: "add", text: "five" }, { kind: "add", text: "six" }, { kind: "add", text: "seven" }]);
+  const root = comment("root", { phid: "ROOT", line: 29, txId: 1 });
+  const reply = comment("reply", { phid: "REPLY", replyTo: "ROOT", line: 29, txId: 2 });
+  const nested = comment("nested", { phid: "NESTED", replyTo: "REPLY", line: 29, txId: 3 });
+  const arts = [d, narrative("N", "D1", "D1h0"), sync("D1", 1), root, reply, nested];
+  const view = phabView(arts, d, arts[1]!.data as PatchNarrativeData);
+  assert.deepEqual(view.anchored.map((thread) => thread.comments.map((item) => item.id)), [["root", "reply", "nested"]]);
+});
