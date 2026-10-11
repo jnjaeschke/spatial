@@ -18,6 +18,8 @@ export interface WebspecCapability {
   query(ref: string, signal: AbortSignal): Promise<{ found: true; section: SpecSection } | { found: false; reason: string }>;
   /** Sections matching a phrase, best first. */
   search(phrase: string, signal: AbortSignal): Promise<SpecSearchResult[]>;
+  /** Sections whose steps link `ref` (`incoming`) and that `ref`'s steps link (`outgoing`), as `SPEC#anchor` refs without repeats (`webspec-index refs <ref> --kind step`). */
+  refs(ref: string, signal: AbortSignal): Promise<{ incoming: string[]; outgoing: string[] }>;
   /** The effects of `ref` with their witness paths: of one effect, or of all of them when `effectId` is null. */
   effectPaths(ref: string, effectId: string | null, signal: AbortSignal): Promise<SpecEffectPaths>;
   /** Step comments of a source file checked against the spec algorithms it links (`webspec-index analyze`, as its LSP does). `name` is the file's base name. */

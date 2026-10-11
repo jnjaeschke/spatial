@@ -121,6 +121,15 @@ test("webspec: search maps the results", async () => {
   assert.deepEqual(argv()[0], ["search", "--format", "json", "--", "navigate"]);
 });
 
+test("webspec: refs lists linked sections both ways without repeats", async () => {
+  stdout(readFileSync(new URL("../fixtures/webspec/navigate-refs.json", import.meta.url), "utf8"));
+  assert.deepEqual(await makeWebspec({ bin: STUB }).refs("HTML#navigate", signal), {
+    incoming: ["HTML#change-the-encoding", "HTML#concept-form-submit", "HTML#create-a-fresh-top-level-traversable"],
+    outgoing: ["HTML#snapshotting-source-snapshot-params", "HTML#concept-origin-opaque", "HTML#about:blank", "INFRA#assert"],
+  });
+  assert.deepEqual(argv()[0], ["refs", "--kind", "step", "--", "HTML#navigate"]);
+});
+
 test("webspec: effectPaths reduces witness hops to their sites", async () => {
   stdout(NAVIGATE_EFFECTS);
   const paths = await makeWebspec({ bin: STUB }).effectPaths("HTML#navigate", "ef_e6c5f8c3e2980985", signal);
@@ -141,6 +150,8 @@ test("fake webspec serves the navigate fixtures, generic algorithms and search",
   assert.equal((await webspec.effectPaths("HTML#navigate", null, signal)).explanations.length, 39);
   assert.deepEqual(await webspec.effectPaths("HTML#setup", null, signal), { effects: [], explanations: [] });
   assert.deepEqual((await webspec.search("navigate", signal)).map((r) => `${r.spec}#${r.anchor}`), ["HTML#navigate", "HTML#navigate-fragid"]);
+  assert.equal((await webspec.refs("HTML#navigate", signal)).incoming.length, 3);
+  assert.deepEqual(await webspec.refs("HTML#setup", signal), { incoming: [], outgoing: [] });
   assert.deepEqual(await webspec.query("nope", signal), { found: false, reason: "URL not recognized: nope" });
 });
 

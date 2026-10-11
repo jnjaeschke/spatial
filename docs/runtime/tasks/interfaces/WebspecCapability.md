@@ -88,6 +88,28 @@ One section (`webspec-index query <ref>`); `ref` is a `SPEC#anchor` or a spec UR
 
 ***
 
+### refs()
+
+> **refs**(`ref`, `signal`): `Promise`\<\{ `incoming`: `string`[]; `outgoing`: `string`[]; \}\>
+
+Sections whose steps link `ref` (`incoming`) and that `ref`'s steps link (`outgoing`), as `SPEC#anchor` refs without repeats (`webspec-index refs <ref> --kind step`).
+
+#### Parameters
+
+##### ref
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<\{ `incoming`: `string`[]; `outgoing`: `string`[]; \}\>
+
+***
+
 ### resolve()
 
 > **resolve**(`url`, `signal`): `Promise`\<\{ `found`: `true`; `spec`: [`ResolvedSpec`](../../../shared/types/interfaces/ResolvedSpec.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>

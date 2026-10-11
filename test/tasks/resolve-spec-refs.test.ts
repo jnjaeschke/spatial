@@ -14,7 +14,7 @@ import { resolveSpecRefs } from "../../src/plugins/review/tasks/resolve-spec-ref
 const CANON = "https://html.spec.whatwg.org/#navigate";
 const webspecFor = (failing?: string, checks: StepCommentCheck[] = [], analyzed: string[] = []): WebspecCapability => ({
   effect: "read-only",
-  async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
+  async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
   async analyze(name, text) {
     analyzed.push(name);
     if (text.includes("ANALYZE-FAILS")) throw new Error("webspec-index analyze exited with code 101: panicked");

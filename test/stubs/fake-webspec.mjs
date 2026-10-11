@@ -2,7 +2,7 @@
 // Stub for webspec-index. `query HTML#navigate` and `effects HTML#navigate` print captured fixtures. `query <ref>` resolves any other
 // ref or URL with a fragment to a two-step algorithm of the ref's spec without effects, except `#missing` (not found) and `#broken`
 // (crash); `effects <ref>` of those has none.
-// `search <phrase>` returns navigate and navigate-fragid. `analyze <file>` checks `// Step N. text` comments against the two steps,
+// `search <phrase>` returns navigate and navigate-fragid. `refs <ref>` returns captured navigate refs, or empty lists. `analyze <file>` checks `// Step N. text` comments against the two steps,
 // scoped to the nearest URL above.
 import { readFileSync } from "node:fs";
 
@@ -30,6 +30,11 @@ if (command === "search") {
     { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", snippet: "To navigate a navigable" },
     { spec: "HTML", anchor: "navigate-fragid", title: "navigate to a fragment", type: "algorithm", snippet: "To navigate to a fragment" },
   ] }));
+  process.exit(0);
+}
+if (command === "refs") {
+  if (arg === "HTML#navigate") process.stdout.write(fixture("navigate-refs.json"));
+  else process.stdout.write(JSON.stringify({ query: arg, direction: "both", matches: [{ spec: arg.split("#")[0], anchor: arg.split("#")[1] ?? "", type: "unknown", resolution: "exact", outgoing: [], incoming: [] }] }));
   process.exit(0);
 }
 const anchor = arg?.split("#")[1];

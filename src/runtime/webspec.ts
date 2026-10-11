@@ -39,6 +39,12 @@ export function makeWebspec(opts: { bin?: string } = {}): WebspecCapability {
       const { stdout } = await runChecked(bin, ["search", "--format", "json", "--", phrase], { stdin: "", signal, label: "webspec-index search" });
       return (JSON.parse(stdout) as { results: SpecSearchResult[] }).results.map(({ spec, anchor, title, type, snippet }) => ({ spec, anchor, title, type, snippet }));
     },
+    async refs(ref, signal) {
+      const { stdout } = await runChecked(bin, ["refs", "--kind", "step", "--", ref], { stdin: "", signal, label: "webspec-index refs" });
+      const match = (JSON.parse(stdout) as { matches: { incoming?: { spec: string; anchor: string }[]; outgoing?: { spec: string; anchor: string }[] }[] }).matches[0];
+      const refsOf = (sites: { spec: string; anchor: string }[] = []) => [...new Set(sites.map((site) => `${site.spec}#${site.anchor}`))];
+      return { incoming: refsOf(match?.incoming), outgoing: refsOf(match?.outgoing) };
+    },
     async effectPaths(ref, effectId, signal) {
       const { stdout } = await runChecked(bin, ["effects", ...(effectId ? ["--effect-id", effectId] : []), "--", ref], { stdin: "", signal, label: "webspec-index effects" });
       const out = JSON.parse(stdout) as EffectsOutput;

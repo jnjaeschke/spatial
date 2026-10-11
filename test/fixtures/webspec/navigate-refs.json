@@ -1,0 +1,72 @@
+{
+  "query": "HTML#navigate",
+  "direction": "both",
+  "matches": [
+    {
+      "spec": "HTML",
+      "anchor": "navigate",
+      "title": "navigate",
+      "type": "algorithm",
+      "resolution": "exact",
+      "outgoing": [
+        {
+          "spec": "HTML",
+          "anchor": "snapshotting-source-snapshot-params",
+          "step_path": "2",
+          "step_text": "Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.",
+          "call_site_id": "beginning-navigation:snapshotting-source-snapshot-params",
+          "kind": "step"
+        },
+        {
+          "spec": "HTML",
+          "anchor": "concept-origin-opaque",
+          "step_path": "3",
+          "step_text": "Let initiatorOriginSnapshot be a new opaque origin.",
+          "call_site_id": "beginning-navigation:concept-origin-opaque",
+          "kind": "step"
+        },
+        {
+          "spec": "HTML",
+          "anchor": "about:blank",
+          "step_path": "4",
+          "step_text": "Let initiatorBaseURLSnapshot be about:blank.",
+          "kind": "step"
+        },
+        {
+          "spec": "INFRA",
+          "anchor": "assert",
+          "step_path": "5.1",
+          "step_text": "Assert: userInvolvement is \"browser UI\".",
+          "call_site_id": "beginning-navigation:assert",
+          "kind": "step"
+        }
+      ],
+      "incoming": [
+        {
+          "spec": "HTML",
+          "anchor": "change-the-encoding",
+          "step_path": "6",
+          "step_text": "Otherwise, restart the navigate algorithm, with historyHandling set to \"replace\" and other inputs kept the same, but this time skip the encoding sniffing algorithm and instead just set the encoding to the new encoding and the confidence to certain. Whenever possible, this should be done without actually contacting the network layer (the bytes should be re-parsed from memory), even if, e.g., the document is marked as not being cacheable. If this is not possible and contacting the network layer would involve repeating a request that uses a method other than `GET`, then instead set the confidence to certain and ignore the new encoding. The resource will be misinterpreted. User agents may notify the user of the situation, to aid in application development.",
+          "call_site_id": "changing-the-encoding-while-parsing:navigate",
+          "kind": "step"
+        },
+        {
+          "spec": "HTML",
+          "anchor": "concept-form-submit",
+          "step_path": "26.4.2",
+          "step_text": "Navigate targetNavigable to url using the form element's node document, with historyHandling set to historyHandling, userInvolvement set to userInvolvement, sourceElement set to submitter, referrerPolicy set to referrerPolicy, documentResource set to postResource, and formDataEntryList set to entry list.",
+          "call_site_id": "form-submission-algorithm:navigate",
+          "kind": "step"
+        },
+        {
+          "spec": "HTML",
+          "anchor": "create-a-fresh-top-level-traversable",
+          "step_path": "2",
+          "step_text": "Navigate traversable to initialNavigationURL using traversable's active document, with documentResource set to initialNavigationPostResource.",
+          "call_site_id": "top-level-traversables:navigate",
+          "kind": "step"
+        }
+      ]
+    }
+  ]
+}

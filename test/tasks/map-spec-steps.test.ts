@@ -22,7 +22,7 @@ function setup(reply: unknown, opts: { head?: string; checks?: { line: number; s
   const git = { async show() { return opts.head ?? ""; } } as unknown as GitCapability;
   const webspec = {
     effect: "read-only" as const,
-    async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
+    async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
     async analyze() { if (opts.analyzeFails) throw new Error("analysis failed"); return opts.checks ?? []; },
     async resolve(url: string) { return { found: true as const, spec: { spec: opts.otherSpec ? "OTHER" : "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: opts.otherSpec ? "https://example.com/#other" : url, content: STEPS } }; },
   } as WebspecCapability;
