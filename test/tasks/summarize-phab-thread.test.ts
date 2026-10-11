@@ -28,3 +28,9 @@ test("summarizePhabThread rejects threads with fewer than four comments", async 
   const ctx: any = { artifacts: { view: () => ({ artifacts: [comment("ROOT", 1), comment("R2", 2, "ROOT"), comment("R3", 3, "ROOT")] }) }, llm: { run: async () => { throw new Error("must not run"); } } };
   await assert.rejects(summarizePhabThread.run(ctx, { revision: 42, rootPhid: "ROOT" }), /at least 4 comments/);
 });
+
+test("summarizePhabThread rejects a reply without a summary", async () => {
+  const comments = [comment("ROOT", 1), comment("R2", 2, "ROOT"), comment("R3", 3, "R2"), comment("R4", 4, "R3")];
+  const ctx: any = { llm: { defaultSelection: { backend: "claude" }, run: async () => ({ json: {}, selection: { backend: "claude", model: "haiku", effort: "low" } }) }, artifacts: { view: () => ({ artifacts: comments }) } };
+  await assert.rejects(summarizePhabThread.run(ctx, { revision: 42, rootPhid: "ROOT" }), /Phab thread summary failed validation:\n\$\.summary is missing/);
+});

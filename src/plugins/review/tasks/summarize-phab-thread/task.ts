@@ -1,9 +1,9 @@
 import type { PhabCommentData, PhabThreadSummaryData } from "../../shared/types.ts";
 import { phabThreads } from "../../shared/phab-threads.ts";
-import { type Artifact, type LlmSelection, defineTask } from "../../../../plugin-api.ts";
+import { type Artifact, type JsonSchema, type LlmSelection, defineTask, runStructured } from "../../../../plugin-api.ts";
 
 const SYSTEM = "Summarize the discussion in one or two plain sentences: what is asked or disputed and where it stands; no markdown.";
-const SCHEMA = { type: "object", additionalProperties: false, required: ["summary"], properties: { summary: { type: "string" } } };
+const SCHEMA: JsonSchema = { type: "object", additionalProperties: false, required: ["summary"], properties: { summary: { type: "string" } } };
 
 export const summarizePhabThread = defineTask<{ revision: number; rootPhid: string }, { summaryId: string }>({
   kind: "summarizePhabThread",
@@ -15,9 +15,7 @@ export const summarizePhabThread = defineTask<{ revision: number; rootPhid: stri
     const selection: LlmSelection = ctx.llm.defaultSelection.backend === "claude"
       ? { backend: "claude", model: "haiku", effort: "low" }
       : { backend: "codex", model: "gpt-6-luna", effort: "low" };
-    const result = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none" }, selection);
-    const json = result.json as { summary?: unknown } | undefined;
-    if (typeof json?.summary !== "string") throw new Error("Phab thread summary response is missing summary");
+    const { json, result } = await runStructured<{ summary: string }>(ctx.llm, { prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none", label: "Phab thread summary" }, selection);
     const data: PhabThreadSummaryData = { revision, rootPhid, commentPhids: thread.comments.map((comment) => comment.data.phid), summary: json.summary };
     const summary = ctx.artifacts.put("PhabThreadSummary", "proposed", data, result.selection);
     for (const comment of thread.comments) ctx.links.put(summary.id, comment.id, "derivedFrom");
