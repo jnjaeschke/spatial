@@ -16,7 +16,7 @@ const reviewNodeKinds: Record<string, NodeKind> = {
   hunk: { component: HunkNode as NodeKind["component"], minimapColor: "var(--kind-change)", size: reviewSize },
   commit: { component: CommitNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
   summary: { component: SummaryNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: reviewSize },
-  diagram: { component: DiagramNode as NodeKind["component"], minimapColor: "var(--kind-diagram)", size: reviewSize, resizable: false },
+  diagram: { component: DiagramNode as NodeKind["component"], minimapColor: "var(--kind-diagram)", size: reviewSize, resizable: true },
 };
 
 function exportDiff(state: SessionState): ExportDiff | null {

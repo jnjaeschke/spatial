@@ -538,7 +538,7 @@ const threadsHeight = (threads: HostedThread[]) => threads.reduce((sum, thread) 
 
 /** First-paint size estimate of the review kinds, unscaled. */
 export function reviewSize(data: GraphNodeData): { width: number; height: number } {
-  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH, data.diagram.data.lanes.length * 170 + 40), height: 150 + Math.max(data.diagram.data.steps.length, data.diagram.data.before?.length ?? 0) * 92 };
+  if (isReviewKind(data, "diagram")) return { width: Math.max(NODE_WIDTH, data.diagram.data.lanes.length * 180 + 40), height: 150 + data.diagram.data.steps.length * 110 };
   if (isReviewKind(data, "commit")) return { width: NODE_WIDTH, height: 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);
