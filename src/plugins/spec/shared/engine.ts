@@ -58,6 +58,16 @@ export function followQuote(lines: string[], line: number, quote: string): numbe
   return found.length && (found.length === 1 || Math.abs(found[0]! - line) !== Math.abs(found[1]! - line)) ? found[0]! : null;
 }
 
+/** Why a quoted code line does not hold: the file is missing, has no such line, or the line does not contain the trimmed, non-empty quote. Null when it holds. */
+export function quoteProblem(text: string | null, ref: { path: string; line: number; quote: string }): string | null {
+  if (text === null) return `${ref.path} does not exist`;
+  const quote = ref.quote.trim();
+  if (!quote) return "the quote is empty";
+  const actual = text.split("\n")[ref.line - 1];
+  if (actual === undefined) return `${ref.path} has no line ${ref.line}`;
+  return actual.includes(quote) ? null : `${ref.path}:${ref.line} does not read \`${ref.quote}\``;
+}
+
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */
 export function engineMapping(value: unknown): EngineMapping {
   const m = value as Partial<EngineMapping> | null;

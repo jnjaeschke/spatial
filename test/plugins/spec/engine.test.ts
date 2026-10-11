@@ -2,10 +2,20 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { byPlace, codeUrl, engineMapping, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappingKey, mergeLatest, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { byPlace, codeUrl, engineMapping, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");
+
+test("quoteProblem: the trimmed quote must be on its line of an existing file", () => {
+  const file = "int a;\nvoid Navigate() {\n  if (!doc) return;\n}";
+  const ref = (line: number, quote: string, path = "a.cc") => ({ path, line, quote });
+  assert.equal(quoteProblem(file, ref(3, " if (!doc) return; ")), null);
+  assert.equal(quoteProblem(file, ref(2, "if (!doc) return;")), "a.cc:2 does not read `if (!doc) return;`");
+  assert.equal(quoteProblem(file, ref(9, "x")), "a.cc has no line 9");
+  assert.equal(quoteProblem(file, ref(1, "  ")), "the quote is empty");
+  assert.equal(quoteProblem(null, ref(1, "int a;")), "a.cc does not exist");
+});
 
 test("linksAnchor needs the exact fragment, in single-page and multipage URLs (lines from mozilla-central)", () => {
   assert.equal(linksAnchor("// https://html.spec.whatwg.org/#navigate", "navigate"), true);
