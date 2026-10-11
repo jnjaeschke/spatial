@@ -18,9 +18,12 @@
 ## Functions
 
 - [createHttpServer](functions/createHttpServer.md)
+- [llmField](functions/llmField.md)
 - [putUserArtifact](functions/putUserArtifact.md)
 - [readJson](functions/readJson.md)
 - [requireArtifact](functions/requireArtifact.md)
 - [requireSession](functions/requireSession.md)
 - [send](functions/send.md)
+- [startTask](functions/startTask.md)
 - [str](functions/str.md)
+- [text](functions/text.md)

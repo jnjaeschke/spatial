@@ -59,6 +59,28 @@ export const str = (v: unknown, name: string): string => {
   return v;
 };
 
+/** A non-blank string field, returned as sent; `label` names it in the error. */
+export const text = (body: Record<string, unknown>, name: string, label = name): string => {
+  const value = str(body[name], name);
+  if (!value.trim()) throw new HttpError(400, `${label} must not be blank`);
+  return value;
+};
+
+/** The optional `llm` field: absent, or a `{ backend, model, effort }` selection. */
+export function llmField(body: Record<string, unknown>): LlmSelection | undefined {
+  if (body.llm === undefined) return undefined;
+  const candidate = body.llm as Partial<LlmSelection> | null;
+  if (typeof candidate !== "object" || candidate === null || (candidate.backend !== "claude" && candidate.backend !== "codex") || typeof candidate.model !== "string" || typeof candidate.effort !== "string") throw new HttpError(400, "llm must be { backend, model, effort }");
+  return { backend: candidate.backend, model: candidate.model, effort: candidate.effort };
+}
+
+/** Starts a task in the background and logs its failure; returns the task id. */
+export function startTask(rt: Runtime, sessionId: string, kind: string, input: unknown): string {
+  const { taskId, done } = rt.start(sessionId, kind, input);
+  done.catch((e) => console.error(`${kind} ${taskId} failed: ${(e as Error).message}`));
+  return taskId;
+}
+
 export function requireSession(rt: Runtime, id: string) {
   try {
     return rt.store.getSession(id);
@@ -102,13 +124,8 @@ function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionD
   if (trimmed && !option.takesText) throw new HttpError(400, `Option ${option.id} takes no text`);
   if (option.requiresText && !trimmed) throw new HttpError(400, `Option ${option.id} requires text`);
   if (trimmed && option.textPattern && !new RegExp(option.textPattern).test(trimmed)) throw new HttpError(400, `Text for ${option.id} must match ${option.textPattern}`);
-  let selection: LlmSelection | undefined;
-  if (llm !== undefined) {
-    const candidate = llm as Partial<LlmSelection> | null;
-    if (!option.takesModel) throw new HttpError(400, `Option ${option.id} takes no model`);
-    if (typeof candidate !== "object" || candidate === null || (candidate.backend !== "claude" && candidate.backend !== "codex") || typeof candidate.model !== "string" || typeof candidate.effort !== "string") throw new HttpError(400, "llm must be { backend, model, effort }");
-    selection = { backend: candidate.backend, model: candidate.model, effort: candidate.effort };
-  }
+  if (llm !== undefined && !option.takesModel) throw new HttpError(400, `Option ${option.id} takes no model`);
+  const selection = llmField({ llm });
   const answered = rt.store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: "verified", epoch: open.epoch, data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
   const link = rt.store.putLink({ sessionId, from: answered.id, to: open.id, kind: "revises" });
   rt.emit(sessionId, "user", "artifact.created", { artifactId: answered.id, type: "Decision" });
@@ -135,7 +152,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const answer = body.answer;
       if (answer !== undefined && (!Number.isInteger(answer))) throw new HttpError(400, "Invalid answer");
       let result: Session | StartQuestion;
-      try { result = await startSession(rt, path, text, body.llm as LlmSelection | undefined, { writeMode: writeMode as WriteMode | undefined, answer: answer as number | undefined }); }
+      try { result = await startSession(rt, path, text, llmField(body), { writeMode: writeMode as WriteMode | undefined, answer: answer as number | undefined }); }
       catch (e) { throw new HttpError(400, (e as Error).message); }
       send(res, "question" in result ? 200 : 201, result);
     }],
@@ -265,7 +282,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       if (!question) throw new HttpError(409, "No open selector question");
       if (artifacts.some((artifact) => artifact.type === "SelectorAnswer" && (artifact.data as SelectorAnswerData).question === question.id)) throw new HttpError(409, "Question already answered");
       const answer = putUserArtifact(rt, session.id, "SelectorAnswer", { question: question.id, text } satisfies SelectorAnswerData, question.id);
-      continueSelection(rt, session.id, question, text, body.llm as LlmSelection | undefined);
+      continueSelection(rt, session.id, question, text, llmField(body));
       send(res, 201, { artifactId: answer.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/notes$/, async ({ req, res, params }) => {
@@ -297,7 +314,8 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const id = requireSession(rt, params[0]).id;
       const body = await readJson(req);
       const text = str(body.text, "text");
-      if (typeof body.llm !== "object" || body.llm === null) throw new HttpError(400, "Missing field: llm");
+      const llm = llmField(body);
+      if (!llm) throw new HttpError(400, "Missing field: llm");
       if (body.quote !== undefined && (typeof body.quote !== "string" || body.quote.length > 20_000)) throw new HttpError(400, "Invalid quote");
       if (body.lines !== undefined) {
         const lines = body.lines as Record<string, unknown>;
@@ -313,7 +331,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
         t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") && (t.input as { threadId?: string }).threadId === threadId)) {
         throw new HttpError(409, "A turn is already running in this thread");
       }
-      const { taskId, done } = rt.start<{ threadId: string; messageId: string }>(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, aside: body.aside as boolean | undefined, text, llm: body.llm, quote: body.quote, lines: body.lines });
+      const { taskId, done } = rt.start<{ threadId: string; messageId: string }>(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, aside: body.aside as boolean | undefined, text, llm, quote: body.quote, lines: body.lines });
       done.then(({ messageId }) => {
         const run = rt.store.getArtifact<ChatMessageData>(messageId).data.run;
         if (!run) return;

@@ -52,7 +52,7 @@ export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";
 export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";
-export { HttpError, send, readJson, str, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
+export { HttpError, send, readJson, str, text, llmField, startTask, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
 /** Creates a session after resolving its repository path. */
 export { createSession } from "./runtime/git.ts";
 /** Runs the workflow selected by a WorkflowStart artifact. */

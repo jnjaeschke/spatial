@@ -11,7 +11,7 @@ import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
 import type { ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
-import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type DiffData, type LlmSelection, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
+import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, text, llmField, startTask, type Artifact, type DiffData, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
 const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();
@@ -40,12 +40,12 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, params[0]);
       const findingId = params[1]!;
       const body = await readJson(req);
+      const llm = llmField(body);
       if (body.decision !== "accepted" && body.decision !== "dismissed") throw new HttpError(400, "Invalid decision");
       requireArtifact(rt, session.id, findingId, "ReviewFinding", "finding");
       const artifact = putUserArtifact(rt, session.id, "FindingDecision", { finding: findingId, decision: body.decision } satisfies FindingDecisionData, findingId);
       if (body.decision === "accepted") {
-        const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
-        done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
+        startTask(rt, session.id, "comment", { findingId, llm });
       }
       send(res, 201, { artifactId: artifact.id });
     }],
@@ -64,10 +64,9 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, params[0]);
       const findingId = params[1]!;
       const body = await readJson(req);
-      const text = str(body.body, "body");
-      if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
+      const value = text(body, "body", "Comment body");
       requireArtifact(rt, session.id, findingId, "ReviewFinding", "finding");
-      const artifact = putUserArtifact(rt, session.id, "ReviewComment", { finding: findingId, body: text } satisfies ReviewCommentData, findingId);
+      const artifact = putUserArtifact(rt, session.id, "ReviewComment", { finding: findingId, body: value } satisfies ReviewCommentData, findingId);
       send(res, 201, { artifactId: artifact.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/comments$/, async ({ req, res, params }) => {
@@ -82,10 +81,9 @@ export function reviewRoutes(rt: Runtime): Route[] {
       if (!Number.isInteger(lines.start) || !Number.isInteger(lines.end) || (lines.start as number) < 1 || (lines.end as number) < 1) throw new HttpError(400, "Invalid line range");
       if ((lines.end as number) < (lines.start as number)) throw new HttpError(400, "Comment end must not precede start");
       const start = lines.start as number, end = lines.end as number;
-      const text = str(body.body, "body");
-      if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
+      const value = text(body, "body", "Comment body");
       const replyTo = body.replyTo === undefined || body.replyTo === null ? null : requireArtifact(rt, session.id, str(body.replyTo, "replyTo"), "PhabComment", "comment").id;
-      const artifact = putUserArtifact(rt, session.id, "UserComment", { diffId, lines: { path: lines.path, side: lines.side, start, end }, body: text, replaces: null, deleted: false, replyTo } satisfies UserCommentData, diffId);
+      const artifact = putUserArtifact(rt, session.id, "UserComment", { diffId, lines: { path: lines.path, side: lines.side, start, end }, body: value, replaces: null, deleted: false, replyTo } satisfies UserCommentData, diffId);
       send(res, 201, { artifactId: artifact.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/comments\/([^/]+)$/, async ({ req, res, params }) => {
@@ -100,9 +98,8 @@ export function reviewRoutes(rt: Runtime): Route[] {
       let data: UserCommentData;
       if (body.deleted === true && body.body === undefined) data = { ...current.data, body: "", replaces: stableId, deleted: true };
       else {
-        const text = str(body.body, "body");
-        if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
-        data = { ...current.data, body: text, replaces: stableId, deleted: false };
+        const value = text(body, "body", "Comment body");
+        data = { ...current.data, body: value, replaces: stableId, deleted: false };
       }
       const artifact = putUserArtifact(rt, session.id, "UserComment", data, stableId);
       send(res, 201, { artifactId: artifact.id });
@@ -123,14 +120,13 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, params[0]!);
       const body = await readJson(req);
       const anchor = requireArtifact(rt, session.id, str(body.replyTo, "replyTo"), "PhabComment", "comment") as Artifact<PhabCommentData>;
-      const text = str(body.body, "body");
-      if (!text.trim()) throw new HttpError(400, "Reply body must not be blank");
+      const value = text(body, "body", "Reply body");
       const artifacts = rt.store.listArtifacts(session.id);
       const diff = latestDiff(artifacts);
       if (!diff) throw new HttpError(409, "Session has no imported diff");
       const comment = phabLatest(artifacts, anchor.id) ?? anchor;
       const revision = comment.data.revision;
-      const draft = withGeneralReply(reviewDraft(artifacts, revision), comment.data, text.trim());
+      const draft = withGeneralReply(reviewDraft(artifacts, revision), comment.data, value.trim());
       const artifact = putUserArtifact(rt, session.id, "ReviewDraft", { revision, body: draft } satisfies ReviewDraftData, diff.id);
       send(res, 201, { artifactId: artifact.id });
     }],
@@ -140,7 +136,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const body = await readJson(req);
       const threadId = requireArtifact(rt, session.id, str(body.threadId, "threadId"), "ChatThread", "thread").id;
       let result: { replyId: string; body: string };
-      try { result = await rt.run(session.id, "draftPhabReply", { anchorId, threadId, llm: body.llm as LlmSelection | undefined }); }
+      try { result = await rt.run(session.id, "draftPhabReply", { anchorId, threadId, llm: llmField(body) }); }
       catch (e) { throw new HttpError(502, (e as Error).message); }
       send(res, 201, result);
     }],
@@ -168,9 +164,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
       ).at(-1);
       if (!decision || (decision.data as FindingDecisionData).decision !== "accepted") throw new HttpError(409, "Finding is not accepted");
       const body = await readJson(req);
-      const { taskId, done } = rt.start(session.id, "comment", { findingId, llm: body.llm as LlmSelection | undefined });
-      done.catch((e) => console.error(`comment ${taskId} failed: ${(e as Error).message}`));
-      send(res, 202, { taskId });
+      send(res, 202, { taskId: startTask(rt, session.id, "comment", { findingId, llm: llmField(body) }) });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/specs\/([^/]+)\/map$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]);
@@ -181,9 +175,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
       if (!narrative) throw new HttpError(409, "Session has no narrative");
       if (!mappableSpecs({ artifacts, links: rt.store.listLinks(session.id) }, narrative.id).includes(specId)) throw new HttpError(409, "Spec has no steps to map onto this narrative's changes");
       const body = await readJson(req);
-      const { taskId, done } = rt.start(session.id, "mapSpecSteps", { narrativeId: narrative.id, specId, llm: body.llm as LlmSelection | undefined });
-      done.catch((e) => console.error(`mapSpecSteps ${taskId} failed: ${(e as Error).message}`));
-      send(res, 202, { taskId });
+      send(res, 202, { taskId: startTask(rt, session.id, "mapSpecSteps", { narrativeId: narrative.id, specId, llm: llmField(body) }) });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/review-submit$/, async ({ req, params, res }) => {
       const session = requireSession(rt, params[0]!);
@@ -295,7 +287,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
     ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ req, params, res }) => {
       const id = requireSession(rt, params[0]!).id;
       const body = await readJson(req);
-      const llm = body.llm as LlmSelection | undefined;
+      const llm = llmField(body);
       const artifacts = rt.store.listArtifacts(id);
       const tasks = rt.store.listTasks(id);
       const prev = latestDiff(artifacts);
@@ -340,7 +332,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
     ["POST", /^\/api\/sessions\/([^/]+)\/narrate$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;
       const body = await readJson(req);
-      const llm = body.llm as LlmSelection | undefined;
+      const llm = llmField(body);
       if (body.base === undefined && body.head === undefined) {
         const latest = requireNarratable(id);
         const epoch = rt.store.listEpochs(id).at(-1);
@@ -396,7 +388,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
       }
       if (requireNarratable(id)) throw new HttpError(409, "Session already has an imported diff");
       let work: Promise<unknown>;
-      try { work = rt.runPhase(id, "review", { ...range, update: false, llm: body.llm as LlmSelection | undefined }); }
+      try { work = rt.runPhase(id, "review", { ...range, update: false, llm: llmField(body) }); }
       catch (e) { if (e instanceof PhaseBusyError) throw new HttpError(409, e.message); throw e; }
       work.catch((e) => console.error(`remote review failed in session ${id}: ${(e as Error).message}`));
       send(res, 202, range);

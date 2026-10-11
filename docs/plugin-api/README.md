@@ -295,6 +295,12 @@ Re-exports [LlmEvent](../runtime/llm/types/type-aliases/LlmEvent.md)
 
 ***
 
+### llmField
+
+Re-exports [llmField](../server/http/functions/llmField.md)
+
+***
+
 ### LlmPrompt
 
 Re-exports [LlmPrompt](../runtime/llm/types/interfaces/LlmPrompt.md)
@@ -595,6 +601,12 @@ Re-exports [StartQuestion](../shared/types/interfaces/StartQuestion.md)
 
 ***
 
+### startTask
+
+Re-exports [startTask](../server/http/functions/startTask.md)
+
+***
+
 ### Step
 
 Re-exports [Step](../runtime/plugins/type-aliases/Step.md)
@@ -640,6 +652,12 @@ Re-exports [TaskRecord](../shared/types/interfaces/TaskRecord.md)
 ### TaskStatus
 
 Re-exports [TaskStatus](../shared/types/type-aliases/TaskStatus.md)
+
+***
+
+### text
+
+Re-exports [text](../server/http/functions/text.md)
 
 ***
 
