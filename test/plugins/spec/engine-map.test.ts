@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
+import { readFileSync } from "node:fs";
+import { addSteps, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
+import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
 import type { CodeScope, GeckoSpecRef } from "../../../src/shared/types.ts";
 
 const signal = new AbortController().signal;
@@ -79,4 +81,25 @@ test("a section only tests link has no sites", async () => {
   const { search } = fakeSearch([ref("Web-Platform Test", "testing/web-platform/tests/a.html", 2)]);
   const { sites, tests } = await specLinkSites(search, { url: "https://html.spec.whatwg.org/#navigate", anchor: "navigate" }, signal);
   assert.deepEqual([sites, tests.length], [[], 1]);
+});
+
+const ANALYZED = JSON.parse(readFileSync(new URL("../../fixtures/webspec/nsDocShell-analyze.json", import.meta.url), "utf8"));
+// What `WebspecCapability.analyze` makes of the output (1-based lines, dotted steps).
+const CHECKS: StepCommentCheck[] = ANALYZED.scopes.flatMap((scope: any) => scope.validations.map((v: any) => ({ line: v.line + 1, step: v.step.join("."), text: v.comment_text, result: v.result, url: scope.url })));
+const INTERNAL_LOAD = { symbol: "_ZN10nsDocShell12InternalLoadEP19nsDocShellLoadStateN7mozilla5MaybeIjEE", signature: "nsresult nsDocShell::InternalLoad(nsDocShellLoadState* aLoadState," };
+
+test("Step comments of the algorithm inside a site's function become its steps, mismatches included", async () => {
+  const lookups: number[] = [];
+  const analyzed: string[] = [];
+  const search = { async functionAt(_path: string, line: number) { lookups.push(line); return line >= 8769 && line <= 8775 ? [INTERNAL_LOAD] : [{ symbol: "_Z5Otherv", signature: "void Other() {" }]; } };
+  const analyze = async (name: string) => { analyzed.push(name); return CHECKS; };
+  const site = (path: string, symbol: string) => ({ path, line: 1, symbol, signature: "", quote: "", method: "spec-link" as const, refs: [1], steps: [] });
+  const sites = [site("docshell/base/nsDocShell.cpp", INTERNAL_LOAD.symbol), site("docshell/base/nsDocShellLoadState.h", "")];
+  const out = await addSteps(search, analyze, "navigate", sites, new Map([["docshell/base/nsDocShell.cpp", ["x"]], ["docshell/base/nsDocShellLoadState.h", ["y"]]]), signal);
+  assert.deepEqual(out[0]!.steps.map((s) => [s.step, s.line, s.verdict]), [["20", 8769, "match"], ["21", 8772, "match"], ["21.1", 8774, "mismatch"]]);
+  assert.equal(out[0]!.steps[0]!.detail, "webspec-index: exact. The comment says: “Set the ongoing navigation for navigable to navigationId.”");
+  assert.equal(out[0]!.steps[2]!.detail, "webspec-index: mismatch. The comment says: “Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.”");
+  assert.deepEqual(out[1], sites[1]);
+  assert.deepEqual(analyzed, ["nsDocShell.cpp"]);
+  assert.deepEqual(lookups, [8769, 8772, 8774, 8779], "navigate-fragid scopes are not looked up; 21.2 is in another function");
 });

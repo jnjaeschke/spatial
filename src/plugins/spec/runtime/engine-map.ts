@@ -1,6 +1,7 @@
-import type { CodeScope, CodeSearch, GeckoSpecRef } from "../../../plugin-api.ts";
-import type { EngineSite, EngineTest } from "../shared/types.ts";
-import { byPlace, innermostFunction, isCodePath, linksAnchor, siteKey } from "../shared/engine.ts";
+import { basename } from "node:path";
+import type { CodeScope, CodeSearch, GeckoSpecRef, WebspecCapability } from "../../../plugin-api.ts";
+import type { EngineSite, EngineStep, EngineTest } from "../shared/types.ts";
+import { byPlace, fragmentOf, innermostFunction, isCodePath, linksAnchor, siteKey } from "../shared/engine.ts";
 
 /** Searchfox's default is 50; `#navigate` alone has 44 references in Gecko. */
 const REF_LIMIT = 500;
@@ -44,4 +45,21 @@ async function enclosing(search: Pick<CodeSearch, "functionAt">, ref: GeckoSpecR
 function definitionLine(lines: string[], from: number, signature: string): number {
   for (let line = from; line >= 1; line--) if (lines[line - 1]?.trim() === signature.trim()) return line;
   return from;
+}
+
+/** Tier 2: `sites` with the Step comments of their functions, checked by webspec-index `analyze`. A comment counts for a site when its scope links exactly `anchor` and it lies in the site's function; mismatches are kept with their verdict. */
+export async function addSteps(search: Pick<CodeSearch, "functionAt">, analyze: WebspecCapability["analyze"], anchor: string, sites: EngineSite[], files: ReadonlyMap<string, string[]>, signal: AbortSignal): Promise<EngineSite[]> {
+  const steps = new Map<string, EngineStep[]>();
+  for (const path of new Set(sites.filter((site) => site.symbol).map((site) => site.path))) {
+    const symbols = new Set(sites.filter((site) => site.path === path && site.symbol).map((site) => site.symbol));
+    const checks = (await analyze(basename(path), files.get(path)!.join("\n"), signal)).filter((check) => fragmentOf(check.url) === anchor);
+    for (const check of checks) {
+      const scope = innermostFunction(await search.functionAt(path, check.line, signal));
+      if (!scope || !symbols.has(scope.symbol)) continue;
+      const key = `${path}|${scope.symbol}`;
+      if (!steps.has(key)) steps.set(key, []);
+      steps.get(key)!.push({ step: check.step, line: check.line, verdict: check.result === "exact" || check.result === "fuzzy" ? "match" : "mismatch", detail: `webspec-index: ${check.result}.${check.text ? ` The comment says: “${check.text}”` : ""}` });
+    }
+  }
+  return sites.map((site) => site.symbol ? { ...site, steps: steps.get(siteKey(site)) ?? [] } : site);
 }

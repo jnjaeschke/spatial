@@ -1,0 +1,550 @@
+{
+  "file": "nsDocShell.cpp",
+  "scopes": [
+    {
+      "anchor": "navigate-fragid",
+      "col": 2,
+      "coverage": {
+        "implemented": 2,
+        "missing": [
+          [
+            1
+          ],
+          [
+            4
+          ],
+          [
+            5
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            6
+          ],
+          [
+            7
+          ],
+          [
+            8
+          ],
+          [
+            9
+          ],
+          [
+            10
+          ],
+          [
+            11
+          ],
+          [
+            12
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13
+          ],
+          [
+            14
+          ],
+          [
+            15
+          ],
+          [
+            16
+          ],
+          [
+            17
+          ],
+          [
+            18
+          ],
+          [
+            18,
+            1
+          ],
+          [
+            18,
+            2
+          ]
+        ],
+        "reordered": 0,
+        "total": 25,
+        "warnings": 0
+      },
+      "line": 8006,
+      "spec": "HTML",
+      "url": "https://html.spec.whatwg.org/#navigate-fragid",
+      "validations": [
+        {
+          "col": 2,
+          "comment_text": "",
+          "line": 8007,
+          "result": "exact",
+          "spec_text": "Let destinationNavigationAPIState be navigable's active session history entry's navigation API state.",
+          "step": [
+            2
+          ]
+        },
+        {
+          "col": 2,
+          "comment_text": "",
+          "line": 8010,
+          "result": "exact",
+          "spec_text": "If navigationAPIState is not null, then set destinationNavigationAPIState to navigationAPIState.",
+          "step": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "anchor": "navigate-fragid",
+      "col": 4,
+      "coverage": {
+        "implemented": 3,
+        "missing": [
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            6
+          ],
+          [
+            7
+          ],
+          [
+            8
+          ],
+          [
+            9
+          ],
+          [
+            10
+          ],
+          [
+            11
+          ],
+          [
+            12
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13
+          ],
+          [
+            14
+          ],
+          [
+            15
+          ],
+          [
+            16
+          ],
+          [
+            17
+          ],
+          [
+            18
+          ],
+          [
+            18,
+            1
+          ],
+          [
+            18,
+            2
+          ]
+        ],
+        "reordered": 0,
+        "total": 25,
+        "warnings": 0
+      },
+      "line": 8017,
+      "spec": "HTML",
+      "url": "https://html.spec.whatwg.org/#navigate-fragid",
+      "validations": [
+        {
+          "col": 4,
+          "comment_text": "",
+          "line": 8018,
+          "result": "exact",
+          "spec_text": "Let navigation be navigable's active window's navigation API.",
+          "step": [
+            1
+          ]
+        },
+        {
+          "col": 8,
+          "comment_text": "",
+          "line": 8023,
+          "result": "exact",
+          "spec_text": "Let continue be the result of firing a push/replace/reload navigate event at navigation with navigationType set to historyHandling, isSameDocument set to true, userInvolvement set to userInvolvement, sourceElement set to sourceElement, destinationURL set to url, and navigationAPIState set to destinationNavigationAPIState.",
+          "step": [
+            4
+          ]
+        },
+        {
+          "col": 8,
+          "comment_text": "",
+          "line": 8033,
+          "result": "exact",
+          "spec_text": "If continue is false:",
+          "step": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "anchor": "navigate.",
+      "col": 0,
+      "coverage": null,
+      "line": 8528,
+      "spec": "HTML",
+      "url": "https://html.spec.whatwg.org/#navigate.",
+      "validations": []
+    },
+    {
+      "anchor": "navigate",
+      "col": 2,
+      "coverage": {
+        "implemented": 4,
+        "missing": [
+          [
+            1
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ],
+          [
+            5
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            6
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            2,
+            1
+          ],
+          [
+            6,
+            2,
+            2
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            6,
+            4
+          ],
+          [
+            7
+          ],
+          [
+            8
+          ],
+          [
+            9
+          ],
+          [
+            10
+          ],
+          [
+            11
+          ],
+          [
+            12
+          ],
+          [
+            13
+          ],
+          [
+            13,
+            1
+          ],
+          [
+            13,
+            2
+          ],
+          [
+            14
+          ],
+          [
+            15
+          ],
+          [
+            15,
+            1
+          ],
+          [
+            15,
+            2
+          ],
+          [
+            16
+          ],
+          [
+            17
+          ],
+          [
+            18
+          ],
+          [
+            19
+          ],
+          [
+            19,
+            1
+          ],
+          [
+            19,
+            2
+          ],
+          [
+            21,
+            3
+          ],
+          [
+            22
+          ],
+          [
+            22,
+            1
+          ],
+          [
+            22,
+            2
+          ],
+          [
+            22,
+            3
+          ],
+          [
+            22,
+            4
+          ],
+          [
+            22,
+            5
+          ],
+          [
+            23
+          ],
+          [
+            24
+          ],
+          [
+            24,
+            1
+          ],
+          [
+            24,
+            2
+          ],
+          [
+            24,
+            2,
+            1
+          ],
+          [
+            24,
+            2,
+            2
+          ],
+          [
+            24,
+            3
+          ],
+          [
+            24,
+            4
+          ],
+          [
+            24,
+            5
+          ],
+          [
+            24,
+            5,
+            1
+          ],
+          [
+            24,
+            5,
+            2
+          ],
+          [
+            24,
+            6
+          ],
+          [
+            24,
+            7
+          ],
+          [
+            24,
+            8
+          ],
+          [
+            24,
+            8,
+            1
+          ],
+          [
+            24,
+            8,
+            2
+          ],
+          [
+            24,
+            8,
+            3
+          ],
+          [
+            24,
+            8,
+            4
+          ],
+          [
+            24,
+            8,
+            5
+          ],
+          [
+            24,
+            8,
+            6
+          ],
+          [
+            24,
+            8,
+            7
+          ],
+          [
+            24,
+            9
+          ],
+          [
+            24,
+            9,
+            1
+          ]
+        ],
+        "reordered": 0,
+        "total": 67,
+        "warnings": 2
+      },
+      "line": 8767,
+      "spec": "HTML",
+      "url": "https://html.spec.whatwg.org/#navigate",
+      "validations": [
+        {
+          "col": 2,
+          "comment_text": "Set the ongoing navigation for navigable to navigationId.",
+          "line": 8768,
+          "result": "exact",
+          "spec_text": "Set the ongoing navigation for navigable to navigationId.",
+          "step": [
+            20
+          ]
+        },
+        {
+          "col": 2,
+          "comment_text": "If url's scheme is \"javascript\":",
+          "line": 8771,
+          "result": "exact",
+          "spec_text": "If url's scheme is \"javascript\":",
+          "step": [
+            21
+          ]
+        },
+        {
+          "col": 4,
+          "comment_text": "Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.",
+          "line": 8773,
+          "result": "mismatch",
+          "spec_text": "Let request be a new request, with | Field | Value | |-------|-------| | URL | url | | client | sourceSnapshotParams's fetch client | | policy container | sourceSnapshotParams's source policy container |",
+          "step": [
+            21,
+            1
+          ]
+        },
+        {
+          "col": 4,
+          "comment_text": "Return.",
+          "line": 8778,
+          "result": "mismatch",
+          "spec_text": "Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.",
+          "step": [
+            21,
+            2
+          ]
+        }
+      ]
+    }
+  ]
+}
