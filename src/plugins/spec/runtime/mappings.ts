@@ -1,6 +1,7 @@
 import type { Artifact, Engine, Id, Knowledge, KnowledgeEntry, KnowledgeProvenance, Runtime } from "../../../plugin-api.ts";
-import type { EngineMapping, SpecAlgorithmData } from "../shared/types.ts";
-import { engineMapping, mappingKey, mergeLatest } from "../shared/engine.ts";
+import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../shared/types.ts";
+import { byPlace, engineMapping, mappingKey, mergeLatest, siteKey } from "../shared/engine.ts";
+import type { FoundImplementation } from "../tasks/find-implementation/task.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 /** Mapping runs in flight per runtime, by `engine|ref`: the mapping is global, so a run started from any session or algorithm artifact covers it. */
@@ -25,6 +26,41 @@ export function updateMapping(rt: Runtime, sessionId: Id, engine: Engine, ref: s
   const entry = rt.knowledge.put("global", "spec", mappingKey(engine, ref), next, provenance);
   rt.emit(sessionId, provenance.by === "user" ? "user" : "runtime", "spec.mapping", { ref, engine });
   return entry;
+}
+
+/** Whether an LLM search for the algorithm in `engine` is pending or running. */
+export function searchRunning(rt: Runtime, sessionId: Id, engine: Engine, algorithmId: Id): boolean {
+  return rt.store.listTasks(sessionId).some((task) => {
+    const input = task.input as { algorithmId?: unknown; engine?: unknown };
+    return task.kind === "findImplementation" && (task.status === "pending" || task.status === "running") && input.algorithmId === algorithmId && input.engine === engine;
+  });
+}
+
+/** Starts an LLM search; new sites join the mapping current when the search ends. */
+export function startSearch(rt: Runtime, sessionId: Id, engine: Engine, algorithm: Artifact<SpecAlgorithmData>, stale: EngineSite | null): { taskId: Id; merged: Promise<void> } {
+  const ref = algorithm.data.ref;
+  const { taskId, done } = rt.start<FoundImplementation>(sessionId, "findImplementation", { algorithmId: algorithm.id, engine, stale });
+  const merged = done.then((found) => {
+    updateMapping(rt, sessionId, engine, ref, { by: "llm", taskId, sessionId }, (mapping) => {
+      if (!mapping) throw new Error(`${ref} has no ${engine} mapping`);
+      const taken = new Set([...mapping.sites.map(siteKey), ...mapping.rejected.map(siteKey)]);
+      const added = found.sites.filter((site) => !taken.has(siteKey(site)));
+      if (!added.length) return null;
+      return { ...mapping, sites: [...mapping.sites.filter((site) => !stale || siteKey(site) !== siteKey(stale)), ...added].sort(byPlace) };
+    });
+  }).catch((error) => console.error(`${engine} search for ${ref} failed: ${(error as Error).message}`));
+  return { taskId, merged };
+}
+
+/** Confirms a proposal as a user site or rejects it; null when no proposal matches. */
+export function decideProposal(rt: Runtime, sessionId: Id, engine: Engine, ref: string, key: string, decision: "confirm" | "reject"): KnowledgeEntry | null {
+  return updateMapping(rt, sessionId, engine, ref, { by: "user", sessionId }, (mapping) => {
+    const proposal = mapping?.sites.find((site) => site.method === "llm" && siteKey(site) === key);
+    if (!mapping || !proposal) return null;
+    return decision === "confirm"
+      ? { ...mapping, sites: mapping.sites.map((site) => site === proposal ? { ...site, method: "user" } : site) }
+      : { ...mapping, sites: mapping.sites.filter((site) => site !== proposal), rejected: [...mapping.rejected, { path: proposal.path, line: proposal.line, symbol: proposal.symbol, signature: proposal.signature }] };
+  });
 }
 
 /** Maps an algorithm in `engine` unless its mapping is fresh (checked within a day, or older but still at the code search's revision) or a mapping of it is running; what was stored while it ran is merged into its result. */

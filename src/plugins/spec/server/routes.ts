@@ -1,4 +1,4 @@
-import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Engine, type Route, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
 import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
@@ -6,7 +6,8 @@ import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
-import { storedMappings } from "../runtime/mappings.ts";
+import { decideProposal, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
+import { siteKey } from "../shared/engine.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -31,6 +32,13 @@ const lookupStatus = (error: unknown) => (error as Error).cause instanceof SpecN
 export function parseEngine(value: unknown): Engine {
   if (typeof value !== "string" || !(ENGINES as readonly string[]).includes(value)) throw new HttpError(400, "engine must be gecko, blink or webkit");
   return value as Engine;
+}
+
+/** The latest algorithm artifact for `ref`; 404 when it has never been opened. */
+export function requireAlgorithm(rt: Runtime, sessionId: Id, ref: string): Artifact<SpecAlgorithmData> {
+  const algorithm = rt.store.listArtifacts(sessionId, "SpecAlgorithm").findLast((a) => (a.data as SpecAlgorithmData).ref === ref) as Artifact<SpecAlgorithmData> | undefined;
+  if (!algorithm) throw new HttpError(404, `Unknown algorithm: ${ref}`);
+  return algorithm;
 }
 
 /** HTTP routes of the spec explorer: user actions stored as user artifacts. */
@@ -83,6 +91,30 @@ export function specRoutes(rt: Runtime): Route[] {
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/summaries$/, async ({ params }) => summaryViews(rt, requireSession(rt, params[0]!).id)],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/mappings$/, async ({ params, url }) => storedMappings(rt, requireSession(rt, params[0]!).id, parseEngine(url.searchParams.get("engine")))],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/find$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const algorithm = requireAlgorithm(rt, session.id, text(body, "ref"));
+      const ref = algorithm.data.ref;
+      const engine = parseEngine(body.engine);
+      const staleKey = body.stale === undefined || body.stale === null ? null : text(body, "stale");
+      const mapping = storedMapping(rt.knowledge, engine, ref);
+      if (!mapping) throw new HttpError(409, `${ref} has no ${engine} mapping yet`);
+      const stale = staleKey === null ? null : mapping.sites.find((site) => site.stale && siteKey(site) === staleKey);
+      if (stale === undefined) throw new HttpError(404, `No stale site ${staleKey} in ${ref}`);
+      if (searchRunning(rt, session.id, engine, algorithm.id)) throw new HttpError(409, `A ${engine} search for ${ref} is running`);
+      send(res, 202, { taskId: startSearch(rt, session.id, engine, algorithm, stale).taskId });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/decide$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const ref = text(body, "ref"), key = text(body, "key"), decision = text(body, "decision");
+      const engine = parseEngine(body.engine);
+      if (decision !== "confirm" && decision !== "reject") throw new HttpError(400, "decision must be confirm or reject");
+      const entry = decideProposal(rt, session.id, engine, ref, key, decision);
+      if (!entry) throw new HttpError(404, `No proposal ${key} in ${ref}`);
+      send(res, 201, { entryId: entry.id });
+    }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/summaries\/flag$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const ref = text(await readJson(req), "ref");
