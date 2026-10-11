@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSteps } from "../../../../src/plugins/review/shared/spec-text.ts";
-import type { StepCommentCheck } from "../../../../src/runtime/tasks.ts";
-import type { StepLink } from "../../../../src/plugins/spec/api.ts";
-import { checkStepComment, commentBlock, misplacedStepComment } from "../../../../src/plugins/review/tasks/resolve-spec-refs/step-check.ts";
+import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
+import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
+import type { StepLink } from "../../../src/plugins/spec/api.ts";
+import { checkStepComment, commentBlock, misplacedStepComment } from "../../../src/plugins/spec/runtime/step-check.ts";
 
 const URL = "https://dom.spec.whatwg.org/#concept-node-insert";
 const steps = parseSteps([

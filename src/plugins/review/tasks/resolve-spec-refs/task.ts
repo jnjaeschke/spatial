@@ -2,10 +2,9 @@ import type { ReviewFindingData } from "../../shared/types.ts";
 import type { SpecReferenceData } from "../../../spec/api.ts";
 import { type DiffData, type PatchNarrativeData, type ResolvedSpec, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
-import { parseSteps } from "../../shared/spec-text.ts";
+import { parseSteps, checkStepComment, stepComments } from "../../../spec/api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { specUrlsNear } from "./cited.ts";
-import { checkStepComment, stepComments } from "./step-check.ts";
 import { lookupSpec, specReferenceData } from "../../../spec/api.ts";
 
 /** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports Step comments on added lines that webspec-index finds do not match their algorithm as `ReviewFinding`s (no LLM). `stepCheckErrors` lists files whose check failed. */

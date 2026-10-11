@@ -4,9 +4,8 @@ import type { LineRange, SpecReferenceData, SpecStepMapData, StepLink, UnmappedL
 import { lookupSpec, type SpecLookup } from "../../../spec/api.ts";
 import { type Artifact, type DiffData, type Id, type Link, type LlmSelection, type PatchNarrativeData, defineTask } from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
-import { parseSteps } from "../../shared/spec-text.ts";
+import { parseSteps, checkStepComment, commentBlock, misplacedStepComment, stepComments } from "../../../spec/api.ts";
 import { findingStates } from "../../shared/findings.ts";
-import { checkStepComment, commentBlock, misplacedStepComment, stepComments } from "../resolve-spec-refs/step-check.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;

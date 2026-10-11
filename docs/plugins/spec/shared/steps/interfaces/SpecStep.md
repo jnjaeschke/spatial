@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/shared/spec-text](../README.md) / SpecStep
+[spatial](../../../../../README.md) / [plugins/spec/shared/steps](../README.md) / SpecStep
 
 # Interface: SpecStep
 

@@ -1,3 +1,5 @@
 /** What plugins that declare `dependsOn: ["spec"]` may import. */
 export type { SpecReferenceData, StepLinkKind, LineRange, StepLink, UnmappedReason, UnmappedLines, SpecStepMapData } from "./shared/types.ts";
 export { lookupSpec, specReferenceData, resolveSpecReference, type SpecLookup } from "./runtime/spec-ref.ts";
+export { parseSteps, type SpecStep } from "./shared/steps.ts";
+export { stepComments, commentBlock, misplacedStepComment, checkStepComment, type StepProblem } from "./runtime/step-check.ts";

@@ -2,9 +2,9 @@
 
 ***
 
-[spatial](../../../../README.md) / plugins/review/shared/spec-text
+[spatial](../../../../README.md) / plugins/spec/shared/steps
 
-# plugins/review/shared/spec-text
+# plugins/spec/shared/steps
 
 ## Interfaces
 

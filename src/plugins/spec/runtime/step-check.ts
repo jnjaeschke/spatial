@@ -1,8 +1,7 @@
 import { basename } from "node:path";
-import type { SpecStep } from "../../shared/spec-text.ts";
-import type { ReviewFindingData } from "../../shared/types.ts";
-import type { StepLink } from "../../../spec/api.ts";
-import type { StepCommentCheck, WebspecCapability } from "../../../../plugin-api.ts";
+import type { SpecStep } from "../shared/steps.ts";
+import type { StepLink } from "../shared/types.ts";
+import type { StepCommentCheck, WebspecCapability } from "../../../plugin-api.ts";
 
 const STOP_WORDS = new Set(["the", "and", "then", "this", "that", "with", "for", "from", "its", "are", "was", "has", "have", "into", "than", "which", "otherwise"]);
 const words = (text: string) => new Set(text.toLowerCase().split(/[^a-z]+/).filter((word) => word.length >= 3 && !STOP_WORDS.has(word)));
@@ -16,7 +15,7 @@ const overlap = (comment: Set<string>, step: SpecStep) => {
 const CLEARLY_DESCRIBES = 0.8;
 const MARGIN = 0.3;
 
-export type StepProblem = Pick<ReviewFindingData, "severity" | "title" | "body">;
+export type StepProblem = { severity: "high" | "medium" | "low"; title: string; body: string };
 
 /** A line that may be a Step comment (`// Step 3.`, `// 3.1 ...`); files without one on an added line skip `webspec-index analyze`. */
 const STEP_LIKE = /^\s*(?:\/\/+|\/?\*+|#)\s*(?:step\s+)?\d+(?:\.\d+)*[.:)]?(?:\s|$)/i;

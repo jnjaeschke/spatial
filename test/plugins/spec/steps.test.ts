@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSteps } from "../../../../src/plugins/review/shared/spec-text.ts";
+import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
 
 const INSERT = [
   "To **insert** a [node](DOM#concept-node) *node* into a *parent*:",

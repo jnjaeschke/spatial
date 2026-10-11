@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { StepLink, UnmappedLines } from "../../../../src/plugins/spec/api.ts";
-import { parseSteps } from "../../../../src/plugins/review/shared/spec-text.ts";
+import { parseSteps } from "../../../../src/plugins/spec/web/api.ts";
 import { linksByLine, stepStatuses, unmappedByLine } from "../../../../src/plugins/review/web/spec-map.ts";
 
 const steps = parseSteps("1. A.\n2. B:\n\n    1. B1.\n    2. B2.\n3. C.\n4. D.");

@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/shared/spec-text](../README.md) / parseSteps
+[spatial](../../../../../README.md) / [plugins/spec/shared/steps](../README.md) / parseSteps
 
 # Function: parseSteps()
 

@@ -1,6 +1,5 @@
-import type { LineRange, SpecStepMapData, StepLink, StepLinkKind, UnmappedLines } from "../../spec/api.ts";
+import type { LineRange, SpecStepMapData, StepLink, StepLinkKind, UnmappedLines, SpecStep } from "../../spec/web/api.ts";
 import type { Artifact, Id, SessionState } from "../../../web/plugin-api.ts";
-import type { SpecStep } from "../shared/spec-text.ts";
 
 /** How a step is covered: its worst direct link kind, `substeps` when only its substeps are linked, else `unmapped`. */
 export type StepStatus = StepLinkKind | "substeps" | "unmapped";

@@ -1,7 +1,7 @@
 import { createContext, useMemo, useState, type KeyboardEvent } from "react";
-import type { LineRange, SpecReferenceData, StepLink } from "../../spec/api.ts";
+import type { LineRange, SpecReferenceData, StepLink } from "../../spec/web/api.ts";
 import { type Artifact, type Id, type LlmSelection, type SessionState, SidePanel, api, numberLines } from "../../../web/plugin-api.ts";
-import { parseSteps } from "../shared/spec-text.ts";
+import { parseSteps } from "../../spec/web/api.ts";
 import { latestNarrative } from "./graph.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 import { ErrorText, useAction } from "../../../web/plugin-api.ts";

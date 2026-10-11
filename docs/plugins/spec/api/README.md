@@ -9,12 +9,17 @@
 ## Type Aliases
 
 - [SpecLookup](type-aliases/SpecLookup.md)
+- [StepProblem](type-aliases/StepProblem.md)
 
 ## Functions
 
+- [checkStepComment](functions/checkStepComment.md)
+- [commentBlock](functions/commentBlock.md)
 - [lookupSpec](functions/lookupSpec.md)
+- [misplacedStepComment](functions/misplacedStepComment.md)
 - [resolveSpecReference](functions/resolveSpecReference.md)
 - [specReferenceData](functions/specReferenceData.md)
+- [stepComments](functions/stepComments.md)
 
 ## References
 
@@ -24,9 +29,21 @@ Re-exports [LineRange](../shared/types/interfaces/LineRange.md)
 
 ***
 
+### parseSteps
+
+Re-exports [parseSteps](../shared/steps/functions/parseSteps.md)
+
+***
+
 ### SpecReferenceData
 
 Re-exports [SpecReferenceData](../shared/types/interfaces/SpecReferenceData.md)
+
+***
+
+### SpecStep
+
+Re-exports [SpecStep](../shared/steps/interfaces/SpecStep.md)
 
 ***
 
