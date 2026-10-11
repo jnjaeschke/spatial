@@ -479,6 +479,12 @@ Re-exports [readJson](../server/http/functions/readJson.md)
 
 ***
 
+### readRepoSkill
+
+Re-exports [readRepoSkill](../runtime/repo-context/functions/readRepoSkill.md)
+
+***
+
 ### RecentRepo
 
 Re-exports [RecentRepo](../shared/types/interfaces/RecentRepo.md)

@@ -74,7 +74,7 @@ export type { JsonSchema, StructuredPrompt } from "./runtime/structured.ts";
 /** A CommandRun record with capped output. */
 export { commandRunData } from "./runtime/command-run.ts";
 export { fetchBugMarkdown } from "./runtime/moz-mcp.ts";
-export { prependRepoContext } from "./runtime/repo-context.ts";
+export { prependRepoContext, readRepoSkill } from "./runtime/repo-context.ts";
 export { isGeckoRepo } from "./runtime/searchfox.ts";
 export { revisedText } from "./shared/revisions.ts";
 export { plainText } from "./shared/plain-text.ts";

@@ -32,6 +32,7 @@ const req = (over: Partial<LlmRequest> = {}): LlmRequest => ({
   prompt: "PROMPT", model: "m1", effort: "high", tools: "none", signal: new AbortController().signal, ...over,
 });
 const SCHEMA = { type: "object", additionalProperties: false, required: ["n"], properties: { n: { type: "integer" } } };
+const READ_ONLY = "Bash(searchfox-cli:*) Bash(webspec-index query:*) Bash(webspec-index search:*) Bash(webspec-index refs:*) Bash(webspec-index anchors:*) Bash(webspec-index idl:*) Bash(webspec-index trace:*) Bash(webspec-index effects:*) Bash(webspec-index exists:*)";
 
 test("runProcess: abort kills the child and rejects", async () => {
   process.env.FAKE_LLM_SLEEP_MS = "10000";
@@ -71,7 +72,7 @@ test("claude: read-only tools", async () => {
   await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only" }));
   const a: string[] = calls()[0].argv;
   assert.equal(a[a.indexOf("--tools") + 1], "Read,Grep,Glob,Bash");
-  assert.equal(a[a.indexOf("--allowedTools") + 1], "Bash(searchfox-cli:*)");
+  assert.equal(a[a.indexOf("--allowedTools") + 1], READ_ONLY);
 });
 
 test("claude: is_error surfaces the result text", async () => {
@@ -152,7 +153,7 @@ test("claude: resume and read-only chat tools", async () => {
   const flag = (f: string) => a[a.indexOf(f) + 1];
   assert.equal(flag("--resume"), "sess-0");
   assert.equal(flag("--tools"), "Read,Grep,Glob,Bash");
-  assert.equal(flag("--allowedTools"), "Bash(searchfox-cli:*)");
+  assert.equal(flag("--allowedTools"), READ_ONLY);
 });
 
 test("claude: configures MCP tools for new and resumed requests", async () => {
@@ -164,7 +165,7 @@ test("claude: configures MCP tools for new and resumed requests", async () => {
     const flag = (f: string) => { const i = a.indexOf(f); assert.notEqual(i, -1, f); return a[i + 1]; };
     assert.deepEqual(JSON.parse(flag("--mcp-config")), { mcpServers: { spatial: mcpServers.spatial } });
     assert.ok(a.includes("--strict-mcp-config"));
-    assert.equal(flag("--allowedTools"), "Bash(searchfox-cli:*) mcp__spatial__*");
+    assert.equal(flag("--allowedTools"), `${READ_ONLY} mcp__spatial__*`);
   }
 });
 
