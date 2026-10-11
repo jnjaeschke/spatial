@@ -5,7 +5,7 @@
 export type { Draft } from "./chat-context.ts";
 /** Markdown as one line of plain text. */
 export { plainText } from "../shared/plain-text.ts";
-export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, HostedThread, PlacedNode } from "./graph.ts";
+export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
 /** Width of cards and of satellites. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";
 /** Dagre layout of sized nodes; and column placement of satellites beside their anchors. */
@@ -14,6 +14,8 @@ export { layout, placeSatellites } from "./graph.ts";
 export { isSatellite, cascade } from "./graph.ts";
 /** The latest WorkflowStart and the root chat thread anchored on it. */
 export { latestStart, rootThread } from "./graph.ts";
+/** Shared root graph, anchored subgraphs and diagram message lookup. */
+export { rootGraph, subgraph, diagramsByMessage } from "./graph.ts";
 /** The root graph of a plain chat session. */
 export { conversationGraph } from "./graph.ts";
 /** Chat content of a thread; the conversation node of a session start; notes and chats added to a root graph. */

@@ -62,6 +62,12 @@ Re-exports [DecisionNodeData](../plugin-api/interfaces/DecisionNodeData.md)
 
 ***
 
+### diagramsByMessage
+
+Re-exports [diagramsByMessage](../plugin-api/functions/diagramsByMessage.md)
+
+***
+
 ### Draft
 
 Re-exports [Draft](../plugin-api/interfaces/Draft.md)
@@ -170,6 +176,18 @@ Re-exports [PluginNodeData](../plugin-api/type-aliases/PluginNodeData.md)
 
 ***
 
+### rootGraph
+
+Re-exports [rootGraph](../plugin-api/functions/rootGraph.md)
+
+***
+
+### RootGraphParts
+
+Re-exports [RootGraphParts](../plugin-api/interfaces/RootGraphParts.md)
+
+***
+
 ### rootThread
 
 Re-exports [rootThread](../plugin-api/functions/rootThread.md)
@@ -179,6 +197,12 @@ Re-exports [rootThread](../plugin-api/functions/rootThread.md)
 ### SATELLITE\_WIDTH
 
 Re-exports [SATELLITE_WIDTH](../plugin-api/variables/SATELLITE_WIDTH.md)
+
+***
+
+### subgraph
+
+Re-exports [subgraph](../plugin-api/functions/subgraph.md)
 
 ***
 

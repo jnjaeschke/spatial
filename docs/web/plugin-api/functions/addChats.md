@@ -6,7 +6,7 @@
 
 # Function: addChats()
 
-> **addChats**(`g`, `state`, `drafts`, `hostOf`, `nodeIds`, `resolve`, `diffId`, `hunks`, `diagramsByMessage?`): `void`
+> **addChats**(`g`, `state`, `drafts`, `hostOf`, `nodeIds`, `resolve`, `diffId`, `hunks`): `void`
 
 Hosts threads anchored on a node with hosted threads inside that node and adds nodes for the remaining chats; unresolvable anchors are skipped.
 
@@ -43,10 +43,6 @@ Hosts threads anchored on a node with hosted threads inside that node and adds n
 ### hunks
 
 `object`[]
-
-### diagramsByMessage?
-
-`Record`\<`string`, `string`[]\>
 
 ## Returns
 

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { addDecisions, conversationGraph, estimateSize, fitMinZoom, placeSatellites, sessionGraph as buildSessionGraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
+import { addDecisions, conversationGraph, diagramsByMessage, estimateSize, fitMinZoom, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type Graph, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";
 
@@ -142,4 +142,40 @@ test("estimateSize scales core node dimensions", () => {
   const chat = { kind: "chat" as const, anchor: "W", diffId: "", hunks: [], threadId: "T", draftId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] };
   const base = estimateSize(chat);
   assert.deepEqual(estimateSize(chat, 1.5), { width: base.width * 1.5, height: base.height * 1.5 });
+});
+
+
+const rgArtifact = (id: string, type: string, data: unknown) => ({ id, sessionId: "s", type, status: "verified", data, provenance: { taskId: "user" }, epoch: 1, createdAt: "" });
+const rgState = (artifacts: ReturnType<typeof rgArtifact>[], links: { id: string; sessionId: string; from: string; to: string; kind: string }[] = []) => ({
+  session: { id: "s", workflow: "chat", title: "T", worktree: "/r", repoDir: "/r/.git", createdAt: "" }, artifacts, links, tasks: [], epochs: [], lastEventId: 0,
+}) as unknown as SessionState;
+const start = rgArtifact("START", "WorkflowStart", { via: "command", workflow: "chat", params: {}, title: "T", prompt: "hi" });
+
+test("rootGraph puts the conversation first, or beside anchorOn after the plugin nodes", () => {
+  const plain = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }], edges: [] });
+  assert.deepEqual(plain.nodes.map((n) => n.id), ["START", "A"]);
+  const anchored = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }], edges: [], anchorOn: "A" });
+  assert.deepEqual(anchored.nodes.map((n) => [n.id, n.anchors ?? []]), [["A", []], ["START", ["A"]]]);
+  assert.deepEqual(anchored.edges, [{ id: "START->A", source: "START", target: "A" }]);
+  assert.deepEqual(rootGraph(rgState([]), [], { nodes: [], edges: [] }).nodes, []);
+});
+
+test("rootGraph resolves chat anchors to nodes, sub-refs, hosts and replied messages", () => {
+  const thread = (id: string, anchor: string) => rgArtifact(id, "ChatThread", { anchor });
+  const state = rgState([start, thread("T1", "A#sub"), thread("T2", "M1"), thread("T3", "HOSTED")], [{ id: "l", sessionId: "s", from: "M1", to: "T1", kind: "reply" }]);
+  const g = rootGraph(state, [], { nodes: [{ id: "A", data: { kind: "x" } }, { id: "H", data: { kind: "x", threads: [] } }], edges: [], hosts: new Map([["HOSTED", "H"]]), resolveSub: (anchor) => anchor.startsWith("A#") ? "A" : null });
+  assert.deepEqual(g.nodes.filter((n) => n.data.kind === "chat").map((n) => [n.id, n.anchors]), [["T1", ["A"]], ["T2", ["T1"]]]);
+  assert.deepEqual(((g.nodes.find((n) => n.id === "H")!.data as unknown as { threads: { threadId: string }[] }).threads).map((t) => t.threadId), ["T3"]);
+});
+
+test("subgraph keeps the nodes anchored, transitively, on kept nodes", () => {
+  const g = { nodes: [{ id: "A", data: { kind: "x" } }, { id: "B", anchors: ["A"], data: { kind: "x" } }, { id: "C", anchors: ["B"], data: { kind: "x" } }, { id: "D", data: { kind: "x" } }], edges: [{ id: "e1", source: "B", target: "A" }, { id: "e2", source: "D", target: "A" }] };
+  assert.deepEqual(subgraph(g, new Set(["A"])), { nodes: g.nodes.slice(0, 3), edges: [g.edges[0]] });
+});
+
+test("diagramsByMessage maps the graph's diagram nodes to the messages they were derived from", () => {
+  const g = { nodes: [{ id: "D1", data: { kind: "diagram" } }, { id: "X", data: { kind: "x" } }], edges: [] };
+  const links = [{ id: "1", sessionId: "s", from: "D1", to: "M", kind: "derivedFrom" }, { id: "2", sessionId: "s", from: "X", to: "M", kind: "derivedFrom" }];
+  assert.deepEqual(diagramsByMessage(g, rgState([], links)), { M: ["D1"] });
+  assert.equal(diagramsByMessage({ nodes: [], edges: [] }, rgState([], links)), undefined);
 });

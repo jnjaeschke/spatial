@@ -1,7 +1,7 @@
 import type { InvestigationData, InvestigationLocation } from "../shared/types.ts";
 import type { DiagramNodeData } from "../../review/web/api.ts";
-import type { Artifact, Ref, SessionState } from "../../../web/plugin-api.ts";
-import { SATELLITE_WIDTH, addChats, addNotes, conversationNode, latestStart, lines, rootThread, type Draft, type Graph, type GraphNodeData } from "../../../web/graph-api.ts";
+import type { Artifact, SessionState } from "../../../web/plugin-api.ts";
+import { SATELLITE_WIDTH, latestStart, lines, rootGraph, type Draft, type Graph, type GraphNodeData } from "../../../web/graph-api.ts";
 
 export interface InvestigationNodeData { kind: "investigation"; investigationId: string; sessionId: string; data: InvestigationData }
 export interface LocationNodeData { kind: "location"; anchor: string; location: InvestigationLocation; searchfox: { repoBase: string; rev: string } | null }
@@ -12,42 +12,23 @@ export const latestInvestigation = (state: SessionState) => state.artifacts.find
 export function investigationGraph(state: SessionState, drafts: Draft[]): Graph | null {
   const start = latestStart(state);
   if (!start) return null;
-  const root = rootThread(state, start.id);
   const investigation = latestInvestigation(state);
-  const g: Graph = { nodes: [], edges: [] };
-  const nodeIds = new Set<string>();
+  const nodes: Graph["nodes"] = [];
+  const edges: Graph["edges"] = [];
   if (investigation) {
-    g.nodes.push({ id: investigation.id, data: { kind: "investigation", investigationId: investigation.id, sessionId: state.session.id, data: investigation.data } satisfies InvestigationNodeData });
-    nodeIds.add(investigation.id);
-  }
-  g.nodes.push(conversationNode(state, start, root, investigation ? [investigation.id] : undefined));
-  nodeIds.add(start.id);
-  if (investigation) {
-    g.edges.push({ id: `${start.id}->${investigation.id}`, source: start.id, target: investigation.id });
+    nodes.push({ id: investigation.id, data: { kind: "investigation", investigationId: investigation.id, sessionId: state.session.id, data: investigation.data } satisfies InvestigationNodeData });
     investigation.data.locations.forEach((location, index) => {
       const id = `${investigation.id}#loc${index}`;
-      g.nodes.push({ id, anchors: [investigation.id], data: { kind: "location", anchor: id, location, searchfox: state.searchfox ? { repoBase: state.searchfox.repoBase, rev: state.searchfox.tipRev } : null } satisfies LocationNodeData });
-      g.edges.push({ id: `${id}->${investigation.id}`, source: id, target: investigation.id });
-      nodeIds.add(id);
+      nodes.push({ id, anchors: [investigation.id], data: { kind: "location", anchor: id, location, searchfox: state.searchfox ? { repoBase: state.searchfox.repoBase, rev: state.searchfox.tipRev } : null } satisfies LocationNodeData });
+      edges.push({ id: `${id}->${investigation.id}`, source: id, target: investigation.id });
     });
     if (investigation.data.diagram) {
       const id = `${investigation.id}#diagram`;
-      g.nodes.push({ id, anchors: [investigation.id], data: { kind: "diagram", diagram: { ...investigation, id, type: "Diagram", data: investigation.data.diagram }, closable: true } satisfies DiagramNodeData });
-      g.edges.push({ id: `${id}->${investigation.id}`, source: id, target: investigation.id });
-      nodeIds.add(id);
+      nodes.push({ id, anchors: [investigation.id], data: { kind: "diagram", diagram: { ...investigation, id, type: "Diagram", data: investigation.data.diagram }, closable: true } satisfies DiagramNodeData });
+      edges.push({ id: `${id}->${investigation.id}`, source: id, target: investigation.id });
     }
   }
-  const hostOf = new Map(root ? [[root.id, start.id]] : []);
-  const resolve = (anchor: Ref) => {
-    const direct = nodeIds.has(anchor) || hostOf.has(anchor) ? anchor
-      : investigation && anchor.startsWith(`${investigation.id}#`) ? investigation.id
-        : state.links.find((l) => l.kind === "reply" && l.from === anchor)?.to;
-    const host = direct && (hostOf.get(direct) ?? direct);
-    return host && nodeIds.has(host) ? host : null;
-  };
-  addNotes(g, state, nodeIds);
-  addChats(g, state, drafts, hostOf, nodeIds, resolve, "", []);
-  return g;
+  return rootGraph(state, drafts, { nodes, edges, anchorOn: investigation?.id, resolveSub: (anchor) => investigation && anchor.startsWith(`${investigation.id}#`) ? investigation.id : null });
 }
 
 const INVESTIGATION_WIDTH = 760;

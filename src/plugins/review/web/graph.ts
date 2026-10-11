@@ -1,7 +1,7 @@
 import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdictValue, PhabCommentData, ReviewCommentData, ReviewFindingData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { FocusedRow, PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, addChats, addNotes, cascade, conversationNode, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
+import { NODE_WIDTH, SATELLITE_WIDTH, cascade, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
@@ -249,13 +249,7 @@ const rowsOf = (lines: { path: string; side: "new" | "old"; end: number }, file:
 const threadInHunk = (thread: HostedThread, file: DiffFile, hunk: Hunk) => !!thread.lines && thread.anchor.split("#").at(-1) === hunk.id && rowsOf(thread.lines, file, hunk);
 
 /** The nodes in `keep` with everything anchored on them (transitively) and the edges among them. */
-function subgraph(g: Graph, keep: Set<string>): Graph {
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const n of g.nodes) if (!keep.has(n.id) && n.anchors?.some((a) => keep.has(a))) { keep.add(n.id); grew = true; }
-  }
-  return { nodes: g.nodes.filter((n) => keep.has(n.id)), edges: g.edges.filter((e) => keep.has(e.source) && keep.has(e.target)) };
-}
+
 
 const crumbLabel = (g: Graph, place: string) => {
   if (place === "stack") return "Stack";
@@ -458,11 +452,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     const card = g.nodes.find((node) => node.id === commitNodeId(latest.narrative.id, index));
     if (card && isReviewKind(card.data, "commit")) card.data.flowHint = null;
   });
-  const diagramIds = new Set(g.nodes.filter((node) => node.data.kind === "diagram").map((node) => node.id));
-  const diagramsByMessage: Record<Id, Id[]> = {};
-  for (const link of state.links) {
-    if (link.kind === "derivedFrom" && diagramIds.has(link.from)) (diagramsByMessage[link.to] ??= []).push(link.from);
-  }
+  const diagramsByMessage = diagramsByMessageOf(g, state);
   const summary = g.nodes.find((n) => n.id === latest.narrative.id)!.data as SummaryNodeData;
   const bugNumbers = new Set(latest.diff.data.commits.flatMap((commit) => [...commit.subject.matchAll(/\bBug (\d+)\b/gi)].map((match) => Number(match[1]))));
   const reports = state.artifacts.filter((a): a is Artifact<BugReportData> => a.type === "BugReport" && bugNumbers.has((a.data as BugReportData).bug));
@@ -520,8 +510,6 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   const root = start ? rootThread(state, start.id) : undefined;
   if (start) {
     const summaryId = latest.narrative.id;
-    g.nodes.push(conversationNode(state, start, root, [summaryId]));
-    g.edges.push({ id: `${start.id}->${summaryId}`, source: start.id, target: summaryId });
     nodeIds.add(start.id);
     if (root) { nodeIds.add(root.id); hostOf.set(root.id, start.id); }
   }
@@ -578,9 +566,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     findingsOf(host.data).push(item);
   }
   for (const card of g.nodes) if (isReviewKind(card.data, "commit")) card.data.findingCount = commitFindingCount(g.nodes, card.data.index);
-  addNotes(g, state, nodeIds);
-  addChats(g, state, drafts, hostOf, nodeIds, resolve, latest.diff.id, allHunks, diagramsByMessage);
-  return g;
+  return rootGraph(state, drafts, { nodes: g.nodes, edges: g.edges, anchorOn: latest.narrative.id, hosts: hostOf, resolveSub: (anchor, ids) => anchorNodeId(anchor, latest.narrative.id, narrativeData, latest.diff.id, ids, state.links), diffId: latest.diff.id, hunks: allHunks });
 }
 
 /** A review with nothing pending or submitted starts collapsed. */
