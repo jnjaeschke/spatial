@@ -40,7 +40,7 @@ test("start screen lists the repo's sessions newest first and creates a review s
   await new Promise((resolve) => setTimeout(resolve, 5));
   await createSession(page, dir, "Session B");
 
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   await expect(page.getByRole("heading", { level: 2, name: basename(dir) })).toBeVisible();
   const items = page.locator(".session-list li");
   const titles = await items.allTextContents();
@@ -48,10 +48,24 @@ test("start screen lists the repo's sessions newest first and creates a review s
 
   await page.getByLabel("start").fill("/chat Hello");
   await page.getByLabel("start").press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.getByTestId("conversation")).toBeVisible();
   await page.getByRole("link", { name: basename(dir) }).click();
   await expect(page.getByTestId("start-screen").getByRole("link", { name: /Hello/ })).toBeVisible();
+});
+
+test("opening a session from the start screen supports same-document Back and Forward", async ({ page }) => {
+  const dir = makeRepo();
+  await createSession(page, dir, "History session");
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
+  await page.evaluate(() => { (window as Window & { navigationMarker?: string }).navigationMarker = "still here"; });
+  await page.getByRole("link", { name: "History session" }).click();
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
+  await page.goBack();
+  await expect(page.getByTestId("start-screen")).toBeVisible();
+  expect(await page.evaluate(() => (window as Window & { navigationMarker?: string }).navigationMarker)).toBe("still here");
+  await page.goForward();
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
 });
 
 test("sessions of another worktree appear under the same repo", async ({ page }) => {
@@ -62,7 +76,7 @@ test("sessions of another worktree appear under the same repo", async ({ page })
   await createSession(page, dir, "Main session");
   await createSession(page, wt, "Worktree session");
 
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   const worktreeItem = page.locator(".session-list li").filter({ hasText: "Worktree session" });
   await expect(worktreeItem).toContainText(realpathSync(wt));
 
@@ -77,20 +91,20 @@ test("start screen switches between recent repositories", async ({ page }) => {
   const second = makeRepo();
   await createSession(page, first, "First session");
   await createSession(page, second, "Second session");
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(first)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(first)}`);
 
   const switcher = page.getByRole("navigation", { name: "Recent repositories" });
   const link = switcher.getByRole("link").filter({ hasText: realpathSync(second) });
   await expect(link).toBeVisible();
   await link.click();
-  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(realpathSync(second))}`));
+  await expect(page).toHaveURL(new RegExp(`\\/repo\\?path=${encodeURIComponent(realpathSync(second))}`));
   await expect(page.getByTestId("start-screen").getByRole("link", { name: /Second session/ })).toBeVisible();
 });
 
 test("start screen outside a git work tree shows the error", async ({ page }) => {
   const dir = mkdtempSync(join(tmpdir(), "spatial-not-repo-"));
   repoDirs.push(dir);
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   await expect(page.getByTestId("start-error")).toContainText("Not a git repository");
 });
 
@@ -112,7 +126,7 @@ test("folder picker navigates to a repository", async ({ page }) => {
   await dialog.getByRole("button", { name: "Go" }).click();
   await dialog.getByRole("button", { name: /picked-repo/ }).click();
   await dialog.getByRole("button", { name: "Open", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(realpathSync(dir))}`));
+  await expect(page).toHaveURL(new RegExp(`\\/repo\\?path=${encodeURIComponent(realpathSync(dir))}`));
   await expect(page.getByTestId("start-screen").getByRole("link", { name: "Picked session" })).toBeVisible();
   git(dir, "worktree", "add", "-q", join(parent, "picked-checkout"), "-b", "checkout");
   await createSession(page, join(parent, "picked-checkout"), "Checkout session");
@@ -131,5 +145,5 @@ test("folder picker navigates to a repository", async ({ page }) => {
   expect(recentBox.y).toBeLessThan(crumbsBox.y);
   const checkout = realpathSync(join(parent, "picked-checkout"));
   await recent.getByRole("link", { name: new RegExp(checkout) }).click();
-  await expect(page).toHaveURL(new RegExp(`\\?path=${encodeURIComponent(checkout)}$`));
+  await expect(page).toHaveURL(new RegExp(`\\/repo\\?path=${encodeURIComponent(checkout)}$`));
 });

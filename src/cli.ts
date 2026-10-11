@@ -78,7 +78,7 @@ try {
     catch { head = null; }
     const warning = staleServerMessage(health.commit, head);
     if (warning) console.error(warning);
-    if (!health.ui) fail(`The server on port ${port} serves no UI (started with \`npm run server\`?). Open the Vite dev server with ?path=${encodeURIComponent(worktree)}`);
+    if (!health.ui) fail(`The server on port ${port} serves no UI (started with \`npm run server\`?). Open the Vite dev server with /repo?path=${encodeURIComponent(worktree)}`);
     const url = startScreenUrl(port, worktree);
     console.log(url);
     openBrowser(url);

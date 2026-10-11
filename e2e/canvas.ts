@@ -1,12 +1,12 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function startReview(page: Page, repoDir: string, range: string): Promise<string> {
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(repoDir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(repoDir)}`);
   const box = page.getByLabel("start");
   await box.fill(`/review ${range}`);
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
-  return new URL(page.url()).searchParams.get("session")!;
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
+  return decodeURIComponent(new URL(page.url()).pathname.split("/")[2]!);
 }
 
 /** Resolves once the canvas viewport transform has not changed for a number of consecutive animation frames. */

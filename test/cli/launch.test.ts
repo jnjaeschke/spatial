@@ -6,7 +6,7 @@ const response = (status: number, body?: unknown): Response => new Response(body
 const health = { app: "spatial-ide", ui: true, pid: 123, commit: null, runningTasks: 0 } as const;
 
 test("start screen URL and browser command", () => {
-  assert.equal(startScreenUrl(4177, "/a b/c"), "http://127.0.0.1:4177/?path=%2Fa%20b%2Fc");
+  assert.equal(startScreenUrl(4177, "/a b/c"), "http://127.0.0.1:4177/repo?path=%2Fa%20b%2Fc");
   assert.equal(browserCommand("darwin"), "open");
   assert.equal(browserCommand("linux"), "xdg-open");
 });

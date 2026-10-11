@@ -39,11 +39,11 @@ test("/review with uncommitted changes reviews them and leaves the repo untouche
   const before = snapshot();
   expect(before.status).toBe(" M a.txt\n?? c.txt");
 
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   const box = page.getByLabel("start");
   await box.fill("/review ");
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await openPatch(page, 0);
   await revealNode(page, "summary");

@@ -330,5 +330,8 @@ test("a reply to a general comment is quoted in the general review comment and s
   expect(await submissionsOf(request, ids.revision)).toMatchObject([{ message: quoted }]);
   await expect(panel.getByLabel("General comment")).toHaveValue("");
   await page.reload();
-  await expect.poll(async () => JSON.stringify((await (await request.get(`http://127.0.0.1:4178/api/sessions/${new URL(page.url()).searchParams.get("session")}/state`)).json()).artifacts.filter((artifact: { type: string }) => artifact.type === "ReviewDraft").at(-1)?.data)).toBe(JSON.stringify({ revision: ids.revision, body: "" }));
+  await expect.poll(async () => {
+    const sessionId = decodeURIComponent(new URL(page.url()).pathname.split("/")[2]!);
+    return JSON.stringify((await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json()).artifacts.filter((artifact: { type: string }) => artifact.type === "ReviewDraft").at(-1)?.data);
+  }).toBe(JSON.stringify({ revision: ids.revision, body: "" }));
 });

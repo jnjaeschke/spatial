@@ -23,7 +23,7 @@ function git(dir: string, ...args: string[]) {
 async function openStartBox(page: Page, request: APIRequestContext): Promise<void> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(fixture.worktree)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(fixture.worktree)}`);
 }
 
 test("typing / shows commands; filter, keyboard completion and Escape", async ({ page, request }) => {
@@ -58,7 +58,7 @@ test("typing / shows commands; filter, keyboard completion and Escape", async ({
   await box.press("ArrowDown");
   await box.press("Enter");
   await expect(box).toHaveValue("/chat ");
-  await expect(page).toHaveURL(/\?path=/);
+  await expect(page).toHaveURL(/\/repo\?path=/);
 
   await box.fill("/");
   await box.press("Escape");
@@ -74,7 +74,7 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   const box = page.getByLabel("start");
   await box.fill("/chat Hello from the start box");
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   const conversation = page.getByTestId("conversation");
   await expect(conversation).toContainText("Hello from the start box", { timeout: 10_000 });
   await expect(conversation).toContainText("Stub answer.", { timeout: 10_000 });
@@ -98,7 +98,7 @@ test("bad commands show an inline error and create nothing", async ({ page, requ
     await box.fill(input);
     await box.press("Enter");
     await expect(error).toContainText(message);
-    await expect(page).toHaveURL(/\?path=/);
+    await expect(page).toHaveURL(/\/repo\?path=/);
   }
 });
 
@@ -108,7 +108,7 @@ test("plain text goes to the selector: chat", async ({ page, request }) => {
   const box = page.getByLabel("start");
   await box.fill(prompt);
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.locator(".session-title")).toHaveText("Chat via selector", { timeout: 10_000 });
   const conversation = page.getByTestId("conversation");
   await expect(conversation).toContainText(prompt, { timeout: 10_000 });
@@ -135,7 +135,7 @@ test("plain text goes to the selector: review", async ({ page, request }) => {
   const box = page.getByLabel("start");
   await box.fill("SELECT-ROUTE-REVIEW please look at my last commit");
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.locator(".session-title")).toHaveText("Review via selector", { timeout: 10_000 });
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   const conversation = page.getByTestId("conversation");
@@ -151,7 +151,7 @@ test("/review with a range runs the review chain", async ({ page, request }) => 
   const box = page.getByLabel("start");
   await box.fill("/review HEAD~1..HEAD");
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Epoch 1")).toBeVisible();
   await expect(page.getByTestId("review-range")).toContainText("Reviewing 1 commit:");
@@ -189,11 +189,11 @@ test("/review D<id> imports the revision named by .arcconfig and leaves the repo
   });
   const before = snapshot();
 
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   const box = page.getByLabel("start");
   await box.fill(`/review D${ids.revision}`);
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("summary")).toContainText("Edits a and adds c.");
 
@@ -226,11 +226,11 @@ test("Retry repeats a failed revision import", async ({ page, request }) => {
   const missing = "e".repeat(40);
   const register = (revisionBase: string) => request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Remote change", base: revisionBase, diffs: [ids.diff], rawDiffs: { [ids.diff]: raw } } });
   expect((await register(missing)).ok()).toBeTruthy();
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   const box = page.getByLabel("start");
   await box.fill(`/review D${ids.revision}`);
   await box.press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.getByTestId("analysis")).toHaveAttribute("data-state", "failed");
   await expect(page.getByTestId("task-importRevision")).toHaveAttribute("data-status", "failed");
   await expect(page.getByTestId("analysis")).toContainText(new RegExp(`Base commit ${missing} of D${ids.revision}`));
@@ -241,7 +241,8 @@ test("Retry repeats a failed revision import", async ({ page, request }) => {
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await expect(async () => {
-    const state = await (await request.get(`http://127.0.0.1:4178/api/sessions/${new URL(page.url()).searchParams.get("session")}/state`)).json() as { tasks: { kind: string }[] };
+    const sessionId = decodeURIComponent(new URL(page.url()).pathname.split("/")[2]!);
+    const state = await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json() as { tasks: { kind: string }[] };
     expect(state.tasks.filter((task) => task.kind === "importRevision")).toHaveLength(2);
   }).toPass();
   expect(git(dir, "status", "--porcelain")).toBe("");

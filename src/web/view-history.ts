@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ViewState } from "./view-state.ts";
+import { nav } from "./routes.ts";
 
 /** A canvas view kept in a history entry, so Back and Forward return to where a jump started or landed. */
 export interface HistoryView extends ViewState {
@@ -7,8 +8,6 @@ export interface HistoryView extends ViewState {
 }
 
 const JUMP = "spatial-ide:jump";
-// Not exposed everywhere (e.g. a browser with the API disabled); without it jumps simply add no history entries.
-const nav: Navigation | undefined = (globalThis as { navigation?: Navigation }).navigation;
 
 /** Records the view in the current history entry. */
 export function saveHistoryView(view: HistoryView): void {
@@ -40,6 +39,6 @@ export function useViewHistory(restore: (view: HistoryView) => void): void {
       event.intercept({ focusReset: "manual", scroll: "manual", handler: async () => latest.current(view) });
     };
     nav.addEventListener("navigate", onNavigate);
-    return () => nav.removeEventListener("navigate", onNavigate);
+    return () => nav!.removeEventListener("navigate", onNavigate);
   }, []);
 }

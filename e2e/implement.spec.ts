@@ -19,7 +19,7 @@ function makeRepo() {
   git(dir, "commit", "-m", "base");
   return dir;
 }
-const open = (path: string) => `http://127.0.0.1:4178/?path=${encodeURIComponent(path)}`;
+const open = (path: string) => `http://127.0.0.1:4178/repo?path=${encodeURIComponent(path)}`;
 
 function makeGeckoRepo() {
   const dir = makeRepo();
@@ -41,7 +41,7 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await page.goto(open(dir));
   await page.getByLabel("start").fill("/implement IMPL-E2E make c.txt exist");
   await page.getByLabel("start").press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
 
   const investigation = page.getByTestId("investigation");
   await expect(investigation).toContainText("The c file is missing.", { timeout: 20_000 });
@@ -88,12 +88,12 @@ test("a dirty checkout asks before /implement starts and the changes move to the
   await box.press("Enter");
   const question = page.getByTestId("start-question");
   await expect(question).toContainText("uncommitted changes in 1 file");
-  await expect(page).not.toHaveURL(/\?session=/);
+  await expect(page).not.toHaveURL(/\/sessions\/[^/]+/);
   await question.getByRole("button", { name: "Cancel" }).click();
   await expect(question).toHaveCount(0);
   await box.press("Enter");
   await question.getByRole("button", { name: /New branch/ }).click();
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.getByTestId("investigation")).toBeVisible({ timeout: 20_000 });
   expect(git(dir, "branch", "--show-current")).toBe("spatial/impl-e2e-ask-do-it");
   expect(git(dir, "status", "--porcelain")).toContain("a.txt");
@@ -196,7 +196,7 @@ test("gecko: chat proposes a try push and nothing is pushed until the click", as
   await page.goto(open(dir));
   await page.getByLabel("start").fill("/review");
   await page.getByLabel("start").press("Enter");
-  await expect(page).toHaveURL(/\?session=/);
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   const conversation = page.getByTestId("conversation");
   const input = conversation.getByLabel("message");
   await input.fill("PUSH-TRY-PLEASE");

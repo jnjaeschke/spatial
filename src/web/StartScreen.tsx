@@ -5,6 +5,7 @@ import { SessionList } from "./SessionPicker.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { StartBox } from "./StartBox.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
+import { routeUrl } from "./routes.ts";
 
 export function StartScreen({ path }: { path: string }) {
   const [repo, setRepo] = useState<RepoInfo | null>(null);
@@ -12,6 +13,7 @@ export function StartScreen({ path }: { path: string }) {
   const [repos, setRepos] = useState<RecentRepo[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const models = useModels();
+  useEffect(() => { document.title = repo ? `${repo.name} · spatial` : "spatial"; }, [repo]);
   useEffect(() => { api.repos().then(setRepos, (e: Error) => console.error(e)); }, []);
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +38,7 @@ export function StartScreen({ path }: { path: string }) {
 const checkoutName = (repo: RepoInfo) => repo.worktree.split(/[\\/]/).filter(Boolean).at(-1) ?? repo.worktree;
 
 function RecentRepoSwitcher({ repos, current }: { repos: RecentRepo[]; current: string | null }) {
-  return <nav className="repo-switcher" aria-label="Recent repositories">{repos.map((item) => <a key={item.worktree} aria-current={item.worktree === current ? "page" : undefined} href={`?path=${encodeURIComponent(item.worktree)}`}>
+  return <nav className="repo-switcher" aria-label="Recent repositories">{repos.map((item) => <a key={item.worktree} aria-current={item.worktree === current ? "page" : undefined} href={routeUrl({ kind: "repo", path: item.worktree })}>
     <span>{item.name}</span> <code>{item.worktree}</code>
   </a>)}</nav>;
 }

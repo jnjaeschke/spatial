@@ -8,7 +8,7 @@ export const DEFAULT_PORT = 4177;
 
 /** The start screen of the repo containing `path`. */
 export function startScreenUrl(port: number, path: string): string {
-  return `http://127.0.0.1:${port}/?path=${encodeURIComponent(path)}`;
+  return `http://127.0.0.1:${port}/repo?path=${encodeURIComponent(path)}`;
 }
 
 export function browserCommand(platform: NodeJS.Platform): string {

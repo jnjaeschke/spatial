@@ -20,7 +20,7 @@ test("Gecko review renders the fetched Bugzilla report and its summary", async (
   writeFileSync(join(dir, "c.txt"), "c\n");
   git(dir, "add", "-A"); git(dir, "commit", "-m", "Bug 4242 - Add c");
 
-  await page.goto(`http://127.0.0.1:4178/?path=${encodeURIComponent(dir)}`);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   const start = page.getByLabel("start");
   await start.fill("/review HEAD~1..HEAD");
   await start.press("Enter");
