@@ -56,6 +56,7 @@
 - [runtime/repo-context](runtime/repo-context/README.md)
 - [runtime/state](runtime/state/README.md)
 - [runtime/store](runtime/store/README.md)
+- [runtime/structured](runtime/structured/README.md)
 - [runtime/tasks](runtime/tasks/README.md)
 - [server/http](server/http/README.md)
 - [shared/repos](shared/repos/README.md)

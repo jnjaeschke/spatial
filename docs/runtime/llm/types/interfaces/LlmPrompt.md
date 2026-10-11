@@ -10,6 +10,7 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ## Extended by
 
+- [`StructuredPrompt`](../../../structured/interfaces/StructuredPrompt.md)
 - [`LlmRequest`](LlmRequest.md)
 
 ## Properties

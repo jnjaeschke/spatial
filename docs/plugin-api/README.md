@@ -271,6 +271,12 @@ Re-exports [Id](../shared/types/type-aliases/Id.md)
 
 ***
 
+### JsonSchema
+
+Re-exports [JsonSchema](../runtime/structured/interfaces/JsonSchema.md)
+
+***
+
 ### Link
 
 Re-exports [Link](../shared/types/interfaces/Link.md)
@@ -487,6 +493,12 @@ Re-exports [Route](../server/http/type-aliases/Route.md)
 
 ***
 
+### runStructured
+
+Re-exports [runStructured](../runtime/structured/functions/runStructured.md)
+
+***
+
 ### Runtime
 
 Re-exports [Runtime](../runtime/tasks/classes/Runtime.md)
@@ -502,6 +514,12 @@ Re-exports [RuntimeEvent](../shared/types/interfaces/RuntimeEvent.md)
 ### runWorkflow
 
 Re-exports [runWorkflow](../workflows/start/functions/runWorkflow.md)
+
+***
+
+### schemaErrors
+
+Re-exports [schemaErrors](../runtime/structured/functions/schemaErrors.md)
 
 ***
 
@@ -628,6 +646,12 @@ Re-exports [Store](../runtime/store/classes/Store.md)
 ### str
 
 Re-exports [str](../server/http/functions/str.md)
+
+***
+
+### StructuredPrompt
+
+Re-exports [StructuredPrompt](../runtime/structured/interfaces/StructuredPrompt.md)
 
 ***
 
