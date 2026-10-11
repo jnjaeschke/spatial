@@ -2,30 +2,28 @@ import { createContext, useMemo, useState, type KeyboardEvent } from "react";
 import type { LineRange, SpecReferenceData, StepLink } from "../../spec/web/api.ts";
 import { type Artifact, type Id, type LlmSelection, type SessionState, SidePanel, api, numberLines } from "../../../web/plugin-api.ts";
 import { parseSteps } from "../../spec/web/api.ts";
-import { latestNarrative } from "./graph.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 import { ErrorText, useAction } from "../../../web/plugin-api.ts";
-import { SpecMarkdown } from "../../spec/web/api.ts";
+import { SpecSectionView } from "../../spec/web/api.ts";
+import type { DiffData, PatchNarrativeData } from "../../../web/plugin-api.ts";
 
 export interface SpecStepSelection { ranges: LineRange[]; kind: string | null }
 export const SpecStepContext = createContext<SpecStepSelection | null>(null);
 
 const STATUS_LABEL: Record<StepStatus, string> = { implements: "implements", partial: "partial", structural: "structural", deviates: "deviates", substeps: "via substeps", unmapped: "not mapped" };
 
-type SpecPanelProps = { state: SessionState; specId: Id; llm: LlmSelection | null; onClose(): void; onBack?: () => void; onFocusRange(range: LineRange): void; onSelection(selection: SpecStepSelection): void };
+type SpecPanelProps = { state: SessionState; specId: Id; latest: { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> }; llm: LlmSelection | null; onClose(): void; onBack?: () => void; onFocusRange(range: LineRange): void; onSelection(selection: SpecStepSelection): void };
 
 /** Spec section details and the selected step's mapped source ranges. */
 export function SpecPanel(props: SpecPanelProps) {
   const spec = props.state.artifacts.find((a) => a.id === props.specId) as Artifact<SpecReferenceData> | undefined;
   if (!spec) throw new Error(`Unknown spec ${props.specId}`);
   return spec.data.resolved ? <ResolvedSpecPanel {...props} spec={spec} resolved={spec.data.resolved} /> : <SidePanel className="spec-panel" title={spec.data.url} closeLabel="Close spec" onClose={props.onClose} testId="spec-panel" onBack={props.onBack}>
-    <div className="spec-panel-content"><span className="badge unverified">unverified</span><p className="failed">{spec.data.reason}</p><a href={spec.data.url} target="_blank" rel="noreferrer">open spec</a></div>
+    <SpecSectionView spec={spec} />
   </SidePanel>;
 }
 
-function ResolvedSpecPanel({ state, specId, llm, onClose, onBack, onFocusRange, onSelection, spec, resolved }: SpecPanelProps & { spec: Artifact<SpecReferenceData>; resolved: NonNullable<SpecReferenceData["resolved"]> }) {
-  const latest = latestNarrative(state);
-  if (!latest) throw new Error(`Spec panel needs a narrative (${specId})`);
+function ResolvedSpecPanel({ state, specId, latest, llm, onClose, onBack, onFocusRange, onSelection, spec, resolved }: SpecPanelProps & { spec: Artifact<SpecReferenceData>; resolved: NonNullable<SpecReferenceData["resolved"]> }) {
   const narrativeId = latest.narrative.id;
   const steps = useMemo(() => parseSteps(resolved.content), [resolved.content]);
   const map = latestStepMap(state, specId, narrativeId);
@@ -68,19 +66,13 @@ function ResolvedSpecPanel({ state, specId, llm, onClose, onBack, onFocusRange, 
 
   return <>
     <SidePanel className="spec-panel" title={`${resolved.spec}#${resolved.anchor}`} closeLabel="Close spec" onClose={onClose} testId="spec-panel" onKeyDown={keydown} onBack={onBack}>
-      <div className="spec-panel-content">
-        <header className="spec-panel-heading"><span className="spec-view-title">{resolved.title}</span><a href={resolved.url} target="_blank" rel="noreferrer">open spec</a>{spec.status !== "verified" && <span className="badge unverified">unverified</span>}{spec.status === "verified" && spec.data.origin === "code" && <span className="badge cited">cited in code</span>}{spec.status === "verified" && spec.data.origin === "llm" && <span className="badge inferred">inferred</span>}{spec.status === "verified" && spec.data.origin === "link" && <span className="badge linked">linked</span>}</header>
-        {spec.data.geckoRefs.length > 0 && <ul className="files">{spec.data.geckoRefs.map((g) => <li key={g.url}><a href={g.url} target="_blank" rel="noreferrer">{g.group}: {g.path}:{g.line}</a></li>)}</ul>}
-        {spec.data.geckoRefsError && <p className="failed">Searchfox: {spec.data.geckoRefsError}</p>}
-        {hasSupportedChanges && <><div className="spec-view-status" data-testid="spec-map-status">{running ? "Mapping steps…" : task?.status === "failed" ? `Mapping failed: ${task.error}` : map ? `${mapped} of ${steps.length} steps mapped${deviates ? ` · ${deviates} deviate${deviates === 1 ? "s" : ""}` : ""} · ${unexplainedAdds} added line${unexplainedAdds === 1 ? "" : "s"} unexplained` : "Steps not mapped yet"}{map?.data.dropped.length ? <span className="badge muted" title={map.data.dropped.join("\n")}>{map.data.dropped.length} dropped</span> : null}</div>
+      <SpecSectionView spec={spec} status={hasSupportedChanges && <><div className="spec-view-status" data-testid="spec-map-status">{running ? "Mapping steps…" : task?.status === "failed" ? `Mapping failed: ${task.error}` : map ? `${mapped} of ${steps.length} steps mapped${deviates ? ` · ${deviates} deviate${deviates === 1 ? "s" : ""}` : ""} · ${unexplainedAdds} added line${unexplainedAdds === 1 ? "" : "s"} unexplained` : "Steps not mapped yet"}{map?.data.dropped.length ? <span className="badge muted" title={map.data.dropped.join("\n")}>{map.data.dropped.length} dropped</span> : null}</div>
         {!running && llm && <button onClick={() => void action.run(() => api.mapSpecSteps(state.session.id, specId, llm))}>{map || task ? "Map again" : "Map steps"}</button>}<ErrorText error={action.error} /></>}
-        <div className="spec-section-text"><SpecMarkdown text={resolved.content} /></div>
-        {hasSupportedChanges && <div className="spec-legend">{(["implements", "partial", "structural", "deviates"] as const).map((kind) => <span key={kind} className={`legend map-${kind}`}>{kind}</span>)}{(["plumbing", "error-path", "test", "unexplained"] as const).map((reason) => <span key={reason} className={`legend map-${reason}`}>{reason}</span>)}<span className="legend map-none">not mapped</span></div>}
+         children={<>{hasSupportedChanges && <div className="spec-legend">{(["implements", "partial", "structural", "deviates"] as const).map((kind) => <span key={kind} className={`legend map-${kind}`}>{kind}</span>)}{(["plumbing", "error-path", "test", "unexplained"] as const).map((reason) => <span key={reason} className={`legend map-${reason}`}>{reason}</span>)}<span className="legend map-none">not mapped</span></div>}
         <div className="spec-steps"><ol>{steps.map((step) => { const status = statuses.get(step.number)!; const notes = notesFor(step.number); return <li key={step.number} style={{ paddingLeft: `${step.depth * 18}px` }}>
           <button className={`spec-step status-${status}${selected === step.number ? " selected" : ""}`} data-testid={`step-${step.number}`} onClick={() => select(step.number)}><span className="step-number">{step.number}</span><span className="step-text">{step.text}</span><span className="step-status">{STATUS_LABEL[status]}</span></button>
           {selected === step.number && notes.length > 0 && <ul className="step-notes">{notes.map((link, i) => <li key={i}><span className={`legend map-${link.kind}`}>{link.kind}</span> {link.note}{link.ranges.length > 0 && <span className="step-ranges"> {link.ranges.map((r) => `${r.path.split("/").at(-1)}:${r.start}${r.end > r.start ? `–${r.end}` : ""}`).join(", ")}</span>}</li>)}</ul>}
-        </li>; })}</ol>{unmapped.length > 0 && <><h3>Other changed lines</h3><ol>{unmapped.map((entry, index) => <li key={index}><button className={`spec-step status-${entry.reason}${selected === `other:${index}` ? " selected" : ""}`} data-testid={`unmapped-${index}`} onClick={() => select(`other:${index}`)}><span className="step-number">{entry.reason}</span><span className="step-text">{entry.note}<span className="step-ranges"> {entry.ranges.map((r) => `${r.path.split("/").at(-1)}:${r.start}${r.end > r.start ? `–${r.end}` : ""}`).join(", ")}</span></span></button></li>)}</ol></>}</div>
-      </div>
+        </li>; })}</ol>{unmapped.length > 0 && <><h3>Other changed lines</h3><ol>{unmapped.map((entry, index) => <li key={index}><button className={`spec-step status-${entry.reason}${selected === `other:${index}` ? " selected" : ""}`} data-testid={`unmapped-${index}`} onClick={() => select(`other:${index}`)}><span className="step-number">{entry.reason}</span><span className="step-text">{entry.note}<span className="step-ranges"> {entry.ranges.map((r) => `${r.path.split("/").at(-1)}:${r.start}${r.end > r.start ? `–${r.end}` : ""}`).join(", ")}</span></span></button></li>)}</ol></>}</div></>} />
     </SidePanel>
   </>;
 }

@@ -2,3 +2,4 @@
 export { parseSteps, type SpecStep } from "../shared/steps.ts";
 export type { SpecReferenceData, LineRange, StepLink, StepLinkKind, UnmappedLines, UnmappedReason, SpecStepMapData } from "../shared/types.ts";
 export { SpecLinkContext, SpecMarkdown } from "./SpecMarkdown.tsx";
+export { SpecSectionView } from "./SpecSectionView.tsx";

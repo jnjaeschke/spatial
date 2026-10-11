@@ -13,6 +13,7 @@
 ## Functions
 
 - [SpecMarkdown](functions/SpecMarkdown.md)
+- [SpecSectionView](functions/SpecSectionView.md)
 
 ## References
 
