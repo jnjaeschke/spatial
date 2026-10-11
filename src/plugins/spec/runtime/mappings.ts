@@ -3,9 +3,8 @@ import type { EngineMapping, SpecAlgorithmData } from "../shared/types.ts";
 import { engineMapping, mappingKey, mergeLatest } from "../shared/engine.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
-const active = (status: string) => status === "pending" || status === "running";
-/** Whether a task input is for this algorithm in this engine. */
-const runOf = (input: unknown, algorithmId: Id, engine: Engine) => (input as { algorithmId?: Id }).algorithmId === algorithmId && (input as { engine?: Engine }).engine === engine;
+/** Mapping runs in flight per runtime, by `engine|ref`: the mapping is global, so a run started from any session or algorithm artifact covers it. */
+const inFlight = new WeakMap<Runtime, Set<string>>();
 
 /** The current mapping of a `SPEC#anchor` ref in an engine, or null when there is none. */
 export function storedMapping(knowledge: Pick<Knowledge, "get">, engine: Engine, ref: string): EngineMapping | null {
@@ -37,8 +36,16 @@ export async function ensureMapping(rt: Runtime, sessionId: Id, engine: Engine, 
     const mapping = engineMapping(read.entry.value);
     if (now - Date.parse(mapping.checkedAt) < DAY || (await rt.codeSearch[engine].tip()).rev === mapping.rev) return;
   }
-  if (rt.store.listTasks(sessionId).some((task) => task.kind === "mapEngine" && active(task.status) && runOf(task.input, algorithm.id, engine))) return;
-  const before = JSON.stringify(storedMapping(rt.knowledge, engine, ref));
-  const mapping = await rt.run<EngineMapping>(sessionId, "mapEngine", { algorithmId: algorithm.id, engine });
-  updateMapping(rt, sessionId, engine, ref, { by: "plugin", sessionId }, (latest) => latest && JSON.stringify(latest) !== before ? mergeLatest(mapping, latest) : mapping);
+  const running = inFlight.get(rt) ?? new Set<string>();
+  inFlight.set(rt, running);
+  const key = `${engine}|${ref}`;
+  if (running.has(key)) return;
+  running.add(key);
+  try {
+    const before = JSON.stringify(storedMapping(rt.knowledge, engine, ref));
+    const mapping = await rt.run<EngineMapping>(sessionId, "mapEngine", { algorithmId: algorithm.id, engine });
+    updateMapping(rt, sessionId, engine, ref, { by: "plugin", sessionId }, (latest) => latest && JSON.stringify(latest) !== before ? mergeLatest(mapping, latest) : mapping);
+  } finally {
+    running.delete(key);
+  }
 }

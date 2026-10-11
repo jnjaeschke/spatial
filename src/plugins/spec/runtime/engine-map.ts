@@ -6,7 +6,9 @@ import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodeP
 /** Searchfox's default is 50; `#navigate` alone has 44 references in Gecko. */
 const REF_LIMIT = 500;
 const LOOKAHEAD = 5;
-const NOT_CODE = /^\s*(?:$|\/\/|\/\*|\*)/;
+const NOT_CODE = /^\s*(?:$|\/\/|\/\*|\*|#)/;
+/** A line that completes a declaration or statement: the comment above it is about it, not about a definition further down. */
+const COMPLETE = /[;}]\s*$/;
 
 /**
  * Tier 1: the functions whose spec-link comments link the algorithm, one site per function with the comment lines in `refs`; a comment
@@ -30,15 +32,19 @@ export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "funct
   return { sites: [...sites.values()].sort(byPlace), tests: linked.filter((r) => r.group !== "Code").map(({ group, path, line }) => ({ group, path, line })), files };
 }
 
-/** The function a reference is in; for a reference outside functions, the scope of the first code line within the next 5 lines (`at`), or none (`at` the reference). */
+/** The function a reference is in; for a reference outside functions, the function defined within the next 5 code lines (template, attribute and macro lines may come first, preprocessor lines are skipped) until a line completes a declaration; else none, `at` the first code line below the reference (or the reference). */
 async function enclosing(search: Pick<CodeSearch, "functionAt">, ref: GeckoSpecRef, lines: string[], signal: AbortSignal): Promise<{ scope: CodeScope | null; at: number }> {
   const own = innermostFunction(await search.functionAt(ref.path, ref.line, signal));
   if (own) return { scope: own, at: ref.line };
+  let first: number | null = null;
   for (let line = ref.line + 1; line <= Math.min(ref.line + LOOKAHEAD, lines.length); line++) {
     if (NOT_CODE.test(lines[line - 1]!)) continue;
-    return { scope: innermostFunction(await search.functionAt(ref.path, line, signal)), at: line };
+    first ??= line;
+    const scope = innermostFunction(await search.functionAt(ref.path, line, signal));
+    if (scope) return { scope, at: line };
+    if (COMPLETE.test(lines[line - 1]!)) break;
   }
-  return { scope: null, at: ref.line };
+  return { scope: null, at: first ?? ref.line };
 }
 
 /** The first line of a definition: the nearest line at or above `from` that reads `signature`, else `from`. */

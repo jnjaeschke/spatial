@@ -12,6 +12,7 @@ const NAVIGATE = { symbol: "_ZN7mozilla3dom15BrowsingContext8NavigateEv", signat
 const NS = { symbol: "NS_mozilla::dom", signature: "namespace dom {" };
 const LOAD_STATE = { symbol: "T_nsDocShellLoadState", signature: "class nsDocShellLoadState final {" };
 const HAS = { symbol: "_ZNK19nsDocShellLoadState16HasSourceElementEv", signature: "bool HasSourceElement() const { return true; }" };
+const TEMPLATE = { symbol: "_Z8NavigateI1TEvT_", signature: "void Navigate(T aT) {" };
 const FILES: Record<string, string[]> = {
   "docshell/base/BrowsingContext.cpp": [
     "// https://html.spec.whatwg.org/#navigate",
@@ -34,12 +35,21 @@ const FILES: Record<string, string[]> = {
     "  bool HasSourceElement() const { return true; }",
     "};",
   ],
+  "dom/base/Template.cpp": [
+    "// https://html.spec.whatwg.org/#navigate",
+    "#ifdef NIGHTLY_BUILD",
+    "template <typename T>",
+    "MOZ_CAN_RUN_SCRIPT",
+    "void Navigate(T aT) {",
+    "}",
+  ],
   "testing/web-platform/tests/a.html": ["<!doctype html>", "<link rel=help href=\"https://html.spec.whatwg.org/#navigate\">"],
   "testing/web-platform/tests/b.html": ["<!doctype html>", "<link rel=help href=\"https://html.spec.whatwg.org/#navigate-fragid\">"],
 };
 const SCOPES: Record<string, (line: number) => CodeScope[]> = {
   "docshell/base/BrowsingContext.cpp": (line) => line >= 3 && line <= 9 ? [NAVIGATE, NS] : line === 12 ? [{ symbol: "_Z5Otherv", signature: "void Other() {}" }, NS] : [NS],
   "docshell/base/nsDocShellLoadState.h": (line) => line === 4 ? [HAS, LOAD_STATE] : [LOAD_STATE],
+  "dom/base/Template.cpp": (line) => line >= 5 ? [TEMPLATE, NS] : [NS],
 };
 const ref = (group: string, path: string, line: number): GeckoSpecRef => ({ group, path, line, url: `https://searchfox.org/mozilla-central/source/${path}#${line}` });
 
@@ -73,9 +83,15 @@ test("references group into one site per function, with a comment above the defi
   assert.equal(calls[0], "specRefs https://html.spec.whatwg.org/#navigate 500");
   assert.ok(!calls.some((call) => call.includes("SKILL.md")), "documentation is never fetched");
   assert.ok(!calls.includes("functionAt docshell/base/BrowsingContext.cpp:2"), "comment lines are skipped");
-  assert.ok(!calls.includes("functionAt docshell/base/nsDocShellLoadState.h:4"), "only the first code line below a comment is looked at");
+  assert.ok(!calls.includes("functionAt docshell/base/nsDocShellLoadState.h:4"), "a complete declaration below a comment ends the lookahead");
   assert.ok(!calls.includes("functionAt docshell/base/BrowsingContext.cpp:11"), "a prefix match is dropped before any lookup");
   assert.ok(!calls.includes("functionAt docshell/base/Gone.cpp:4"), "a reference to a missing file is dropped with it");
+});
+
+test("a comment above template, macro and preprocessor lines belongs to the definition below them", async () => {
+  const { search } = fakeSearch([ref("Code", "dom/base/Template.cpp", 1)]);
+  const { sites } = await specLinkSites(search, { url: "https://html.spec.whatwg.org/#navigate", anchor: "navigate" }, signal);
+  assert.deepEqual(sites.map(({ line, symbol }) => ({ line, symbol })), [{ line: 5, symbol: TEMPLATE.symbol }]);
 });
 
 test("a section only tests link has no sites", async () => {
