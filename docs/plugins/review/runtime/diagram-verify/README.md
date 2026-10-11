@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / plugins/review/runtime/diagram-verify
+[spatial](../../../../README.md) / plugins/review/runtime/diagram-verify
 
 # plugins/review/runtime/diagram-verify
 

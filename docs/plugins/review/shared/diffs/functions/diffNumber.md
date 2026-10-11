@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/diffs](../README.md) / diffNumber
+[spatial](../../../../../README.md) / [plugins/review/shared/diffs](../README.md) / diffNumber
 
 # Function: diffNumber()
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/phab-revision](../README.md) / parseNewestDiff
+[spatial](../../../../../README.md) / [plugins/review/runtime/phab-revision](../README.md) / parseNewestDiff
 
 # Function: parseNewestDiff()
 

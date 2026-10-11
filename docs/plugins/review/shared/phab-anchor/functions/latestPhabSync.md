@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/phab-anchor](../README.md) / latestPhabSync
+[spatial](../../../../../README.md) / [plugins/review/shared/phab-anchor](../README.md) / latestPhabSync
 
 # Function: latestPhabSync()
 

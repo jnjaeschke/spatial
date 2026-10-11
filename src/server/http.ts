@@ -121,7 +121,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
   if (opts.background) for (const plugin of pluginServers) plugin.start?.();
   const routes: Route[] = [
     ["GET", /^\/api\/health$/, async (): Promise<HealthResponse> => ({
-      app: "spatial-ide", ui: opts.staticDir !== undefined, pid: opts.pid ?? process.pid, commit: opts.commit ?? null,
+      app: "spatial", ui: opts.staticDir !== undefined, pid: opts.pid ?? process.pid, commit: opts.commit ?? null,
       runningTasks: rt.store.listSessions().flatMap((session) => rt.store.listTasks(session.id)).filter((task) => task.status === "running").length,
     })],
     ["GET", /^\/api\/workflows$/, async (): Promise<WorkflowInfo[]> => workflowInfo(rt.workflows.values())],

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../README.md)
+[**spatial**](../../README.md)
 
 ***
 
-[spatial-ide](../../README.md) / server/http
+[spatial](../../README.md) / server/http
 
 # server/http
 

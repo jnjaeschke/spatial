@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [web/plugin-api](../README.md) / SidePanel
+[spatial](../../../README.md) / [web/plugin-api](../README.md) / SidePanel
 
 # Function: SidePanel()
 

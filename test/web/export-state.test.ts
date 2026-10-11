@@ -40,7 +40,7 @@ test("exportHtml embeds the data and bundle as HTML-safe JSON", () => {
   const js = 'console.log("</script>")';
   const html = exportHtml("A <title>", "a { color: red }", js, data);
   assert.equal(html.match(/<\/script>/g)!.length, 3);
-  assert.match(html, /<title>A &#60;title&#62; · spatial-ide export<\/title>/);
+  assert.match(html, /<title>A &#60;title&#62; · spatial export<\/title>/);
   const embedded = (id: string) => JSON.parse(html.match(new RegExp(`<script type="application/json" id="${id}">(.*?)</script>`, "s"))![1]!);
   assert.deepEqual(embedded("spatial-export"), data);
   assert.equal(embedded("spatial-bundle"), js);

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/implement/workflow/next](../README.md) / REVIEWED
+[spatial](../../../../../README.md) / [plugins/implement/workflow/next](../README.md) / REVIEWED
 
 # Variable: REVIEWED
 

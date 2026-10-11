@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { loadRepoContext } from "../../src/runtime/repo-context.ts";
 
 function tempRepo(t: { after(callback: () => void): void }): string {
-  const root = mkdtempSync(join(tmpdir(), "spatial-ide-repo-context-"));
+  const root = mkdtempSync(join(tmpdir(), "spatial-repo-context-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
 }

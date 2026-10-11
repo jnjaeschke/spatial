@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / plugins/review/shared/types
+[spatial](../../../../README.md) / plugins/review/shared/types
 
 # plugins/review/shared/types
 

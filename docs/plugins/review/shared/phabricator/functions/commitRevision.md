@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/phabricator](../README.md) / commitRevision
+[spatial](../../../../../README.md) / [plugins/review/shared/phabricator](../README.md) / commitRevision
 
 # Function: commitRevision()
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/revision-watcher](../README.md) / RevisionWatcher
+[spatial](../../../../../README.md) / [plugins/review/runtime/revision-watcher](../README.md) / RevisionWatcher
 
 # Class: RevisionWatcher
 

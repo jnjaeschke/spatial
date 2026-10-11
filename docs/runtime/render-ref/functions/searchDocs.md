@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/render-ref](../README.md) / searchDocs
+[spatial](../../../README.md) / [runtime/render-ref](../README.md) / searchDocs
 
 # Function: searchDocs()
 

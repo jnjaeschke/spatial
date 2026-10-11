@@ -19,7 +19,7 @@ export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", e
 export const corePlugin = { id: "core", tasks: [chatTurn, selectWorkflow] };
 
 export function defaultDbPath(): string {
-  return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial-ide", "runtime.sqlite");
+  return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial", "runtime.sqlite");
 }
 
 export function createRuntime(opts: {

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/types](../README.md) / DiffData
+[spatial](../../../README.md) / [shared/types](../README.md) / DiffData
 
 # Interface: DiffData
 

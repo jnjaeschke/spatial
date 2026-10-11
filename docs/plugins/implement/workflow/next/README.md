@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / plugins/implement/workflow/next
+[spatial](../../../../README.md) / plugins/implement/workflow/next
 
 # plugins/implement/workflow/next
 

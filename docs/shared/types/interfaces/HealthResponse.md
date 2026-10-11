@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/types](../README.md) / HealthResponse
+[spatial](../../../README.md) / [shared/types](../README.md) / HealthResponse
 
 # Interface: HealthResponse
 
@@ -12,7 +12,7 @@
 
 ### app
 
-> **app**: `"spatial-ide"`
+> **app**: `"spatial"`
 
 ***
 

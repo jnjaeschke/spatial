@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/implement/shared/types](../README.md) / ImplementBranchData
+[spatial](../../../../../README.md) / [plugins/implement/shared/types](../README.md) / ImplementBranchData
 
 # Interface: ImplementBranchData
 

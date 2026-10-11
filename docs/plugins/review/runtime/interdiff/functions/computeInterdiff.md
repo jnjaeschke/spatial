@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/interdiff](../README.md) / computeInterdiff
+[spatial](../../../../../README.md) / [plugins/review/runtime/interdiff](../README.md) / computeInterdiff
 
 # Function: computeInterdiff()
 

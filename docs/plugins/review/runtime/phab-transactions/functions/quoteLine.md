@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/phab-transactions](../README.md) / quoteLine
+[spatial](../../../../../README.md) / [plugins/review/runtime/phab-transactions](../README.md) / quoteLine
 
 # Function: quoteLine()
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/workflow/update-revision](../README.md) / updateRevision
+[spatial](../../../../../README.md) / [plugins/review/workflow/update-revision](../README.md) / updateRevision
 
 # Function: updateRevision()
 

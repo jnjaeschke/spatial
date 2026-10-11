@@ -13,8 +13,8 @@ test("a saved view reads back with its place", () => {
 });
 
 test("a view stored with a zoom level instead of a place is ignored", () => {
-  storage.set("spatial-ide:view:old", JSON.stringify({ x: 1, y: 2, zoom: 1, level: "code", guideStep: null }));
+  storage.set("spatial:view:old", JSON.stringify({ x: 1, y: 2, zoom: 1, level: "code", guideStep: null }));
   assert.equal(readViewState("old"), null);
-  storage.set("spatial-ide:view:bad", JSON.stringify({ x: 1, y: 2, zoom: 1, place: 4, guideStep: null }));
+  storage.set("spatial:view:bad", JSON.stringify({ x: 1, y: 2, zoom: 1, place: 4, guideStep: null }));
   assert.equal(readViewState("bad"), null);
 });

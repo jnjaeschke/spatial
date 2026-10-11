@@ -6,7 +6,7 @@ export const WRITE_MODES: { id: WriteMode; label: string; title: string }[] = [
   { id: "full", label: "Full access", title: "The agent edits files and runs commands without approvals or sandboxing." },
   { id: "editsOnly", label: "Edits only", title: "The agent edits files only; spatial runs the repository's check command and commits." },
 ];
-const key = (repoDir: string) => `spatial-ide:write-mode:${repoDir}`;
+const key = (repoDir: string) => `spatial:write-mode:${repoDir}`;
 export function readWriteMode(storage: Pick<Storage, "getItem">, repoDir: string): WriteMode {
   const value = storage.getItem(key(repoDir));
   return WRITE_MODES.some((mode) => mode.id === value) ? value as WriteMode : "auto";

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/phab-anchor](../README.md) / AnchoredPhabThread
+[spatial](../../../../../README.md) / [plugins/review/shared/phab-anchor](../README.md) / AnchoredPhabThread
 
 # Interface: AnchoredPhabThread
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / plugins/review/workflow/review-range
+[spatial](../../../../README.md) / plugins/review/workflow/review-range
 
 # plugins/review/workflow/review-range
 

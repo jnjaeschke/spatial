@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [workflows/registry](../README.md) / workflowInfo
+[spatial](../../../README.md) / [workflows/registry](../README.md) / workflowInfo
 
 # Function: workflowInfo()
 

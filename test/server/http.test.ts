@@ -243,7 +243,7 @@ test("health reports whether the server serves the built UI", async () => {
   const response = await fetch(`${base}/api/health`);
   assert.equal(response.status, 200);
   const health = await response.json();
-  assert.deepEqual(health, { app: "spatial-ide", ui: true, pid: process.pid, commit: null, runningTasks: 0 });
+  assert.deepEqual(health, { app: "spatial", ui: true, pid: process.pid, commit: null, runningTasks: 0 });
 });
 
 test("repo route resolves paths and lists sessions across worktrees", async () => {

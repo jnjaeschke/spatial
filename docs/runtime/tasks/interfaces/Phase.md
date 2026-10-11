@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/tasks](../README.md) / Phase
+[spatial](../../../README.md) / [runtime/tasks](../README.md) / Phase
 
 # Interface: Phase\<I\>
 

@@ -19,12 +19,12 @@ export function parseViewState(value: unknown): ViewState | null {
 
 /** The user's viewport and guide position, kept per session in localStorage. */
 export function readViewState(sessionId: string): ViewState | null {
-  const value = localStorage.getItem(`spatial-ide:view:${sessionId}`);
+  const value = localStorage.getItem(`spatial:view:${sessionId}`);
   return value ? parseViewState(JSON.parse(value)) : null;
 }
 
 export function saveViewState(sessionId: string, state: ViewState): void {
-  localStorage.setItem(`spatial-ide:view:${sessionId}`, JSON.stringify(state));
+  localStorage.setItem(`spatial:view:${sessionId}`, JSON.stringify(state));
 }
 
 export function clampGuideStep(step: number | null, count: number): number | null {

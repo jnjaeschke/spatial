@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/repo-context](../README.md) / RepoContext
+[spatial](../../../README.md) / [runtime/repo-context](../README.md) / RepoContext
 
 # Interface: RepoContext
 

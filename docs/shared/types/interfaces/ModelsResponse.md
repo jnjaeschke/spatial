@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/types](../README.md) / ModelsResponse
+[spatial](../../../README.md) / [shared/types](../README.md) / ModelsResponse
 
 # Interface: ModelsResponse
 

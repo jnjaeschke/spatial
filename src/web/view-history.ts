@@ -9,7 +9,7 @@ export interface HistoryView extends ViewState {
   label: string;
 }
 
-const JUMP = "spatial-ide:jump";
+const JUMP = "spatial:jump";
 const RECENT_LIMIT = 15;
 
 /** A `HistoryView` from a history entry's state, which crosses reloads; null when it has the wrong shape. */

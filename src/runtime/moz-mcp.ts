@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 
 /** Fetches a public Bugzilla bug through the configured moz MCP server. */
 export async function fetchBugMarkdown(url: string, bug: number, signal?: AbortSignal): Promise<string> {
-  const client = new Client({ name: "spatial-ide", version: "1.0.0" });
+  const client = new Client({ name: "spatial", version: "1.0.0" });
   const transport = new StreamableHTTPClientTransport(new URL(url));
   try {
     await client.connect(transport, { signal });

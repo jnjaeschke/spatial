@@ -61,7 +61,7 @@ export interface Session {
 }
 
 /** `GET /api/health`. `ui`: the server serves the built web UI. */
-export interface HealthResponse { app: "spatial-ide"; ui: boolean; pid: number; commit: string | null; runningTasks: number }
+export interface HealthResponse { app: "spatial"; ui: boolean; pid: number; commit: string | null; runningTasks: number }
 
 /** `GET /api/repo?path=`: the repo containing `path` and all its sessions (any worktree), newest first. */
 export interface RepoInfo { worktree: string; repoDir: string; name: string; sessions: Session[] }

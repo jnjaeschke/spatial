@@ -1,8 +1,8 @@
-[**spatial-ide**](../../README.md)
+[**spatial**](../../README.md)
 
 ***
 
-[spatial-ide](../../README.md) / runtime/create
+[spatial](../../README.md) / runtime/create
 
 # runtime/create
 

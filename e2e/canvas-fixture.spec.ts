@@ -91,7 +91,7 @@ test("Back and Forward walk the places", async ({ page }) => {
 test("a stored place that does not exist falls back to the first place", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("change-c1")).toBeVisible();
-  await page.evaluate(() => localStorage.setItem("spatial-ide:view:S", JSON.stringify({ x: 0, y: 0, zoom: 1, place: "change:gone", guideStep: null })));
+  await page.evaluate(() => localStorage.setItem("spatial:view:S", JSON.stringify({ x: 0, y: 0, zoom: 1, place: "change:gone", guideStep: null })));
   await page.reload();
   await expect(page.locator(".canvas")).toHaveAttribute("data-place", "patch:0");
   await expect(page.getByTestId("change-c1")).toBeVisible();

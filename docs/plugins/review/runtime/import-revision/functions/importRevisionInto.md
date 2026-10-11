@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/import-revision](../README.md) / importRevisionInto
+[spatial](../../../../../README.md) / [plugins/review/runtime/import-revision](../README.md) / importRevisionInto
 
 # Function: importRevisionInto()
 

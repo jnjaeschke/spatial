@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/implement/web/api](../README.md) / PhaseShell
+[spatial](../../../../../README.md) / [plugins/implement/web/api](../README.md) / PhaseShell
 
 # Function: PhaseShell()
 

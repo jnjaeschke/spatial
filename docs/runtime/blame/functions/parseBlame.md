@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/blame](../README.md) / parseBlame
+[spatial](../../../README.md) / [runtime/blame](../README.md) / parseBlame
 
 # Function: parseBlame()
 

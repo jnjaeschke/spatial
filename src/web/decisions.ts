@@ -14,7 +14,7 @@ export function optionProblem(option: DecisionOption, text: string): string | nu
   return null;
 }
 
-const key = (repoDir: string) => `spatial-ide:decision-model:${repoDir}`;
+const key = (repoDir: string) => `spatial:decision-model:${repoDir}`;
 /** The model last chosen in a decision of this repository, or null. */
 export function readModelChoice(storage: Pick<Storage, "getItem">, repoDir: string): LlmSelection | null {
   try {

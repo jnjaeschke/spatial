@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { browserCommand, ensureServer, probe, startScreenUrl, stopServer, staleServerMessage } from "../../src/cli/launch.ts";
 
 const response = (status: number, body?: unknown): Response => new Response(body === undefined ? null : JSON.stringify(body), { status });
-const health = { app: "spatial-ide", ui: true, pid: 123, commit: null, runningTasks: 0 } as const;
+const health = { app: "spatial", ui: true, pid: 123, commit: null, runningTasks: 0 } as const;
 
 test("start screen URL and browser command", () => {
   assert.equal(startScreenUrl(4177, "/a b/c"), "http://127.0.0.1:4177/repo?path=%2Fa%20b%2Fc");
@@ -59,7 +59,7 @@ test("ensureServer probes health before observing a racing child exit", async ()
 
 test("stopServer refuses running tasks unless forced and stops our server", async () => {
   let kills = 0;
-  const running = { app: "spatial-ide", ui: true, pid: 123, commit: "abc", runningTasks: 2 };
+  const running = { app: "spatial", ui: true, pid: 123, commit: "abc", runningTasks: 2 };
   await assert.rejects(stopServer({ port: 1, fetchImpl: async () => response(200, running), kill: () => { kills++; }, intervalMs: 1 }), /2 running tasks/);
   assert.equal(kills, 0);
   let probes = 0;

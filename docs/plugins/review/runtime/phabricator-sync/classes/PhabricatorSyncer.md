@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/phabricator-sync](../README.md) / PhabricatorSyncer
+[spatial](../../../../../README.md) / [plugins/review/runtime/phabricator-sync](../README.md) / PhabricatorSyncer
 
 # Class: PhabricatorSyncer
 

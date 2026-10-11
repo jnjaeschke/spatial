@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / plugins/gecko/profile
+[spatial](../../../README.md) / plugins/gecko/profile
 
 # plugins/gecko/profile
 

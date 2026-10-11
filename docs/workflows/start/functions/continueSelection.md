@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [workflows/start](../README.md) / continueSelection
+[spatial](../../../README.md) / [workflows/start](../README.md) / continueSelection
 
 # Function: continueSelection()
 

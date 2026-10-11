@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/gecko/shared/types](../README.md) / SubmitInput
+[spatial](../../../../../README.md) / [plugins/gecko/shared/types](../README.md) / SubmitInput
 
 # Interface: SubmitInput
 

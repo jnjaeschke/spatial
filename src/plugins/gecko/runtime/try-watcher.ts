@@ -34,7 +34,7 @@ export class TryWatcher {
     this.#treeherder = opts.treeherder ?? ((url) => runProcess(process.env.SPATIAL_TREEHERDER_CLI ?? "treeherder-cli", [url, "--json"], { stdin: "", signal: AbortSignal.timeout(120_000) }));
     this.#status = opts.status ?? (async (pushId) => {
       const base = process.env.SPATIAL_TREEHERDER_URL ?? "https://treeherder.mozilla.org";
-      const res = await fetch(`${base}/api/project/try/push/${pushId}/status/`, { headers: { "user-agent": "spatial-ide" } });
+      const res = await fetch(`${base}/api/project/try/push/${pushId}/status/`, { headers: { "user-agent": "spatial" } });
       if (!res.ok) throw new Error(`Treeherder push status answered ${res.status}`);
       return await res.json() as Record<string, number>;
     });

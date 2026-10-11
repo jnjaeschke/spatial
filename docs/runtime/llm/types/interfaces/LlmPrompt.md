@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / [runtime/llm/types](../README.md) / LlmPrompt
+[spatial](../../../../README.md) / [runtime/llm/types](../README.md) / LlmPrompt
 
 # Interface: LlmPrompt
 

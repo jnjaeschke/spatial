@@ -1,8 +1,8 @@
-[**spatial-ide**](../../README.md)
+[**spatial**](../../README.md)
 
 ***
 
-[spatial-ide](../../README.md) / mcp/session-server
+[spatial](../../README.md) / mcp/session-server
 
 # mcp/session-server
 

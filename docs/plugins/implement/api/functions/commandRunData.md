@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / [plugins/implement/api](../README.md) / commandRunData
+[spatial](../../../../README.md) / [plugins/implement/api](../README.md) / commandRunData
 
 # Function: commandRunData()
 

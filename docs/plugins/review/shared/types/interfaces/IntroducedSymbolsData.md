@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/types](../README.md) / IntroducedSymbolsData
+[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / IntroducedSymbolsData
 
 # Interface: IntroducedSymbolsData
 

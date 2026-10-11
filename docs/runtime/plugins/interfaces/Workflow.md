@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / Workflow
+[spatial](../../../README.md) / [runtime/plugins](../README.md) / Workflow
 
 # Interface: Workflow\<P\>
 

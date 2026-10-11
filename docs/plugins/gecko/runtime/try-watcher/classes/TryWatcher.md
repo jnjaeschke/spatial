@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/gecko/runtime/try-watcher](../README.md) / TryWatcher
+[spatial](../../../../../README.md) / [plugins/gecko/runtime/try-watcher](../README.md) / TryWatcher
 
 # Class: TryWatcher
 

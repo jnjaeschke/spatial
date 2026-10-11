@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/repo-context](../README.md) / prependRepoContext
+[spatial](../../../README.md) / [runtime/repo-context](../README.md) / prependRepoContext
 
 # Function: prependRepoContext()
 

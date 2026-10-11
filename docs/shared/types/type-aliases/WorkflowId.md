@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/types](../README.md) / WorkflowId
+[spatial](../../../README.md) / [shared/types](../README.md) / WorkflowId
 
 # Type Alias: WorkflowId
 

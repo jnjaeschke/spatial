@@ -5,7 +5,7 @@ import { effectiveCollapsed, expandAllExplicit, expandExplicit, toggleExplicit, 
 export const CollapseContext = createContext<{ collapsed: ReadonlySet<string>; toggle(id: string): void; reveal(nodeId: string, collapseId: string): void } | null>(null);
 
 export function useCollapsed(sessionId: string, defaults: ReadonlySet<string>) {
-  const key = `spatial-ide:collapse:${sessionId}`;
+  const key = `spatial:collapse:${sessionId}`;
   const [explicit, setExplicit] = useState<CollapseExplicit>(() => {
     const stored = JSON.parse(localStorage.getItem(key) ?? "{\"collapsed\":[],\"expanded\":[]}") as { collapsed: string[]; expanded: string[] };
     return { collapsed: new Set(stored.collapsed), expanded: new Set(stored.expanded) };

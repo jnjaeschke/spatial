@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/post-plan](../README.md) / PostTarget
+[spatial](../../../../../README.md) / [plugins/review/shared/post-plan](../README.md) / PostTarget
 
 # Interface: PostTarget
 

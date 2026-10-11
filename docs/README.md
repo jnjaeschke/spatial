@@ -1,8 +1,8 @@
-**spatial-ide**
+**spatial**
 
 ***
 
-# spatial-ide
+# spatial
 
 ## Modules
 

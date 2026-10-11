@@ -5,7 +5,7 @@ type Positions = Record<string, FreePosition>;
 
 /** User placed node positions, kept per session in localStorage. */
 export function useFreePositions(sessionId: string) {
-  const key = `spatial-ide:free:${sessionId}`;
+  const key = `spatial:free:${sessionId}`;
   const [positions, setPositions] = useState<Positions>(() => JSON.parse(localStorage.getItem(key) ?? "{}") as Positions);
   const update = useCallback((change: (current: Positions) => Positions) => setPositions((current) => {
     const next = change(current);

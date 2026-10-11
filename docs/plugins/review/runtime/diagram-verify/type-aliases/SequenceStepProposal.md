@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/diagram-verify](../README.md) / SequenceStepProposal
+[spatial](../../../../../README.md) / [plugins/review/runtime/diagram-verify](../README.md) / SequenceStepProposal
 
 # Type Alias: SequenceStepProposal
 

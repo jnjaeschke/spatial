@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/workflow/narrate-patch](../README.md) / narrateDiff
+[spatial](../../../../../README.md) / [plugins/review/workflow/narrate-patch](../README.md) / narrateDiff
 
 # Function: narrateDiff()
 

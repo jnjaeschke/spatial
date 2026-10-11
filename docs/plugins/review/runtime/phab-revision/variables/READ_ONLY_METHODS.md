@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/phab-revision](../README.md) / READ\_ONLY\_METHODS
+[spatial](../../../../../README.md) / [plugins/review/runtime/phab-revision](../README.md) / READ\_ONLY\_METHODS
 
 # Variable: READ\_ONLY\_METHODS
 

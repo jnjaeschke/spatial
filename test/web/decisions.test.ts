@@ -28,6 +28,6 @@ test("the chosen model is remembered per repository", () => {
   saveModelChoice(storage, "/r/.git", { backend: "codex", model: "m", effort: "low" });
   assert.deepEqual(readModelChoice(storage, "/r/.git"), { backend: "codex", model: "m", effort: "low" });
   assert.equal(readModelChoice(storage, "/other/.git"), null);
-  map.set("spatial-ide:decision-model:/r/.git", "{broken");
+  map.set("spatial:decision-model:/r/.git", "{broken");
   assert.equal(readModelChoice(storage, "/r/.git"), null);
 });

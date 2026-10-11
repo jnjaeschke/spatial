@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [shared/types](../README.md) / Ref
+[spatial](../../../README.md) / [shared/types](../README.md) / Ref
 
 # Type Alias: Ref
 

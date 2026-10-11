@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / plugins/gecko/shared/types
+[spatial](../../../../README.md) / plugins/gecko/shared/types
 
 # plugins/gecko/shared/types
 

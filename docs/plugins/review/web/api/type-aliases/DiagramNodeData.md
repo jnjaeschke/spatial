@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/web/api](../README.md) / DiagramNodeData
+[spatial](../../../../../README.md) / [plugins/review/web/api](../README.md) / DiagramNodeData
 
 # Type Alias: DiagramNodeData
 

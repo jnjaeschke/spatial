@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / [runtime/llm/events](../README.md) / MAX\_COMMAND\_OUTPUT
+[spatial](../../../../README.md) / [runtime/llm/events](../README.md) / MAX\_COMMAND\_OUTPUT
 
 # Variable: MAX\_COMMAND\_OUTPUT
 

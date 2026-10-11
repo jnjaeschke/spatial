@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / PluginServer
+[spatial](../../../README.md) / [runtime/plugins](../README.md) / PluginServer
 
 # Interface: PluginServer
 

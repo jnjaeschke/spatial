@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [cli/launch](../README.md) / probe
+[spatial](../../../README.md) / [cli/launch](../README.md) / probe
 
 # Function: probe()
 

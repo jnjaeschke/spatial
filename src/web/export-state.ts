@@ -49,7 +49,7 @@ export function exportHtml(title: string, css: string, js: string, data: Session
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${title.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)} · spatial-ide export</title>
+<title>${title.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)} · spatial export</title>
 <style>${css.replaceAll("</style", "<\\/style")}</style>
 <script type="application/json" id="spatial-export">${scriptJson(data)}</script>
 <script type="application/json" id="spatial-bundle">${scriptJson(js)}</script>

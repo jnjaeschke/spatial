@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/review-path](../README.md) / reviewedChanges
+[spatial](../../../../../README.md) / [plugins/review/shared/review-path](../README.md) / reviewedChanges
 
 # Function: reviewedChanges()
 

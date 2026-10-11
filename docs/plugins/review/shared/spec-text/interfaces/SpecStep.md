@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/spec-text](../README.md) / SpecStep
+[spatial](../../../../../README.md) / [plugins/review/shared/spec-text](../README.md) / SpecStep
 
 # Interface: SpecStep
 

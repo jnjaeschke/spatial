@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/gecko/shared/types](../README.md) / TryPushData
+[spatial](../../../../../README.md) / [plugins/gecko/shared/types](../README.md) / TryPushData
 
 # Interface: TryPushData
 

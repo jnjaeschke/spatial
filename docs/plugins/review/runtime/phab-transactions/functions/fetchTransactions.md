@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/phab-transactions](../README.md) / fetchTransactions
+[spatial](../../../../../README.md) / [plugins/review/runtime/phab-transactions](../README.md) / fetchTransactions
 
 # Function: fetchTransactions()
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/create](../README.md) / DEFAULT\_LLM
+[spatial](../../../README.md) / [runtime/create](../README.md) / DEFAULT\_LLM
 
 # Variable: DEFAULT\_LLM
 

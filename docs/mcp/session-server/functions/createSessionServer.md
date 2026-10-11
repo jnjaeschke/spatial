@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [mcp/session-server](../README.md) / createSessionServer
+[spatial](../../../README.md) / [mcp/session-server](../README.md) / createSessionServer
 
 # Function: createSessionServer()
 

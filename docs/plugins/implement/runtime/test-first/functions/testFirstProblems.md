@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/implement/runtime/test-first](../README.md) / testFirstProblems
+[spatial](../../../../../README.md) / [plugins/implement/runtime/test-first](../README.md) / testFirstProblems
 
 # Function: testFirstProblems()
 

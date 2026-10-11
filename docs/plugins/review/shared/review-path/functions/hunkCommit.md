@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/review-path](../README.md) / hunkCommit
+[spatial](../../../../../README.md) / [plugins/review/shared/review-path](../README.md) / hunkCommit
 
 # Function: hunkCommit()
 

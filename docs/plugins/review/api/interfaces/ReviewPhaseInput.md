@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / [plugins/review/api](../README.md) / ReviewPhaseInput
+[spatial](../../../../README.md) / [plugins/review/api](../README.md) / ReviewPhaseInput
 
 # Interface: ReviewPhaseInput
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / plugins/implement/runtime/verify-stack
+[spatial](../../../../README.md) / plugins/implement/runtime/verify-stack
 
 # plugins/implement/runtime/verify-stack
 

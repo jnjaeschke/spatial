@@ -1,8 +1,8 @@
-[**spatial-ide**](../../README.md)
+[**spatial**](../../README.md)
 
 ***
 
-[spatial-ide](../../README.md) / [plugin-api](../README.md) / isGeckoRepo
+[spatial](../../README.md) / [plugin-api](../README.md) / isGeckoRepo
 
 # Function: isGeckoRepo()
 

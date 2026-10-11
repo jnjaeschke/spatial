@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/phabricator](../README.md) / phabRevision
+[spatial](../../../../../README.md) / [plugins/review/shared/phabricator](../README.md) / phabRevision
 
 # Function: phabRevision()
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / [plugins/review/api](../README.md) / diagramSchema
+[spatial](../../../../README.md) / [plugins/review/api](../README.md) / diagramSchema
 
 # Variable: diagramSchema
 

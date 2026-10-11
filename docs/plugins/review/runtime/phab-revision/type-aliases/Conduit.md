@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/phab-revision](../README.md) / Conduit
+[spatial](../../../../../README.md) / [plugins/review/runtime/phab-revision](../README.md) / Conduit
 
 # Type Alias: Conduit
 

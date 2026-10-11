@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/state](../README.md) / buildSessionState
+[spatial](../../../README.md) / [runtime/state](../README.md) / buildSessionState
 
 # Function: buildSessionState()
 

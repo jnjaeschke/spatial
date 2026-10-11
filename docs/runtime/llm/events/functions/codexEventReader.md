@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../README.md) / [runtime/llm/events](../README.md) / codexEventReader
+[spatial](../../../../README.md) / [runtime/llm/events](../README.md) / codexEventReader
 
 # Function: codexEventReader()
 

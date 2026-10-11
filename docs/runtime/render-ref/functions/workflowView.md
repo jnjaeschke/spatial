@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/render-ref](../README.md) / workflowView
+[spatial](../../../README.md) / [runtime/render-ref](../README.md) / workflowView
 
 # Function: workflowView()
 

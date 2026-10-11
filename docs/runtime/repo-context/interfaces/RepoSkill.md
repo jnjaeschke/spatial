@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/repo-context](../README.md) / RepoSkill
+[spatial](../../../README.md) / [runtime/repo-context](../README.md) / RepoSkill
 
 # Interface: RepoSkill
 

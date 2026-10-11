@@ -13,7 +13,7 @@ export function parseSizes(json: string | null): Sizes {
 
 /** Node sizes by node id, kept per session in localStorage. */
 export function useNodeSizes(sessionId: string) {
-  const key = `spatial-ide:sizes:${sessionId}`;
+  const key = `spatial:sizes:${sessionId}`;
   const [sizes, setSizes] = useState<Sizes>(() => parseSizes(localStorage.getItem(key)));
   const setSize = useCallback((id: string, size: NodeSize) => setSizes((prev) => {
     const next = { ...prev, [id]: { ...prev[id], ...size } };

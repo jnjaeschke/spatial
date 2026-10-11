@@ -1,8 +1,8 @@
-[**spatial-ide**](../../README.md)
+[**spatial**](../../README.md)
 
 ***
 
-[spatial-ide](../../README.md) / shared/repos
+[spatial](../../README.md) / shared/repos
 
 # shared/repos
 

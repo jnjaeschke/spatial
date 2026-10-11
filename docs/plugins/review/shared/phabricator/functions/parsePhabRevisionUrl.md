@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/phabricator](../README.md) / parsePhabRevisionUrl
+[spatial](../../../../../README.md) / [plugins/review/shared/phabricator](../README.md) / parsePhabRevisionUrl
 
 # Function: parsePhabRevisionUrl()
 

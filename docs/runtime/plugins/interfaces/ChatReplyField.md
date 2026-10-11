@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [runtime/plugins](../README.md) / ChatReplyField
+[spatial](../../../README.md) / [runtime/plugins](../README.md) / ChatReplyField
 
 # Interface: ChatReplyField
 

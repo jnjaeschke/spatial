@@ -31,8 +31,8 @@ export function shownInlineState(states: States, id: string, compact: boolean): 
 
 /** Per-session state of inline items and the canvas-wide compact toggle, kept in localStorage. Setting an item's state ends compact. */
 export function useInlineStates(sessionId: string) {
-  const key = `spatial-ide:inline:${sessionId}`;
-  const compactKey = `spatial-ide:inline-compact:${sessionId}`;
+  const key = `spatial:inline:${sessionId}`;
+  const compactKey = `spatial:inline-compact:${sessionId}`;
   const [states, setStates] = useState(() => parseInlineStates(localStorage.getItem(key)));
   const [compact, setCompactState] = useState(() => localStorage.getItem(compactKey) === "1");
   const update = useCallback((change: (current: States) => States) => setStates((current) => {

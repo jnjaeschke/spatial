@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial-ide](../../../README.md) / [web/plugin-api](../README.md) / StackContext
+[spatial](../../../README.md) / [web/plugin-api](../README.md) / StackContext
 
 # Variable: StackContext
 

@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/types](../README.md) / ReviewSubmissionData
+[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / ReviewSubmissionData
 
 # Interface: ReviewSubmissionData
 

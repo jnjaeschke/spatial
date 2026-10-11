@@ -24,7 +24,7 @@ async function bundleText(): Promise<{ css: string; js: string }> {
 
 async function prepare(state: SessionState, diff: ExportDiff | null): Promise<{ data: SessionExport; css: string; js: string }> {
   const sessionId = state.session.id;
-  const closed = new Set(JSON.parse(localStorage.getItem(`spatial-ide:closed:${sessionId}`) ?? "[]") as string[]);
+  const closed = new Set(JSON.parse(localStorage.getItem(`spatial:closed:${sessionId}`) ?? "[]") as string[]);
   const files: Record<string, string[] | null> = {};
   if (diff) await Promise.all(diff.files.map(async (path) => {
     const lines = await loadFileLines(sessionId, diff.id, path);
@@ -32,7 +32,7 @@ async function prepare(state: SessionState, diff: ExportDiff | null): Promise<{ 
   }));
   const view: Record<string, string> = {};
   for (const kind of VIEW_KEYS) {
-    const key = `spatial-ide:${kind}:${sessionId}`;
+    const key = `spatial:${kind}:${sessionId}`;
     const value = localStorage.getItem(key);
     if (value !== null) view[key] = value;
   }

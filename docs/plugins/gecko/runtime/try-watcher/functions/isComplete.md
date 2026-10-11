@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/gecko/runtime/try-watcher](../README.md) / isComplete
+[spatial](../../../../../README.md) / [plugins/gecko/runtime/try-watcher](../README.md) / isComplete
 
 # Function: isComplete()
 

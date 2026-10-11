@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/runtime/conduit](../README.md) / readArcToken
+[spatial](../../../../../README.md) / [plugins/review/runtime/conduit](../README.md) / readArcToken
 
 # Function: readArcToken()
 

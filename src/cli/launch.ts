@@ -26,9 +26,9 @@ export async function probe(port: number, fetchImpl: typeof fetch = fetch): Prom
   }
   if (!res.ok) return "foreign";
   const body = await res.json().catch(() => null) as Partial<HealthResponse> | null;
-  return body?.app === "spatial-ide" && typeof body.ui === "boolean" && typeof body.pid === "number" && Number.isInteger(body.pid) &&
+  return body?.app === "spatial" && typeof body.ui === "boolean" && typeof body.pid === "number" && Number.isInteger(body.pid) &&
     (typeof body.commit === "string" || body.commit === null) && typeof body.runningTasks === "number" && Number.isInteger(body.runningTasks)
-    ? { app: "spatial-ide", ui: body.ui, pid: body.pid, commit: body.commit, runningTasks: body.runningTasks }
+    ? { app: "spatial", ui: body.ui, pid: body.pid, commit: body.commit, runningTasks: body.runningTasks }
     : "foreign";
 }
 

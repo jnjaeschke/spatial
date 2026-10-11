@@ -14,7 +14,7 @@ test("write mode defaults to auto and is remembered per repository", () => {
 
 test("an unknown stored value falls back to auto", () => {
   const s = storage();
-  s.setItem("spatial-ide:write-mode:/repo/.git", "bogus");
+  s.setItem("spatial:write-mode:/repo/.git", "bogus");
   assert.equal(readWriteMode(s, "/repo/.git"), "auto");
   assert.deepEqual(WRITE_MODES.map((mode) => mode.id), ["auto", "full", "editsOnly"]);
 });

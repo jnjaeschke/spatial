@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/phab-comments](../README.md) / phabThread
+[spatial](../../../../../README.md) / [plugins/review/shared/phab-comments](../README.md) / phabThread
 
 # Function: phabThread()
 

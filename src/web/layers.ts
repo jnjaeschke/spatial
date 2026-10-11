@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-const KEY = "spatial-ide:layers";
+const KEY = "spatial:layers";
 
 /** Hidden canvas layers among the model's `known` ids. A client-only preference for all sessions, kept in localStorage. */
 export function useLayers(known: readonly string[]) {

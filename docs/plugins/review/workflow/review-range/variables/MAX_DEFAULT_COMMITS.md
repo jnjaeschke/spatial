@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/workflow/review-range](../README.md) / MAX\_DEFAULT\_COMMITS
+[spatial](../../../../../README.md) / [plugins/review/workflow/review-range](../README.md) / MAX\_DEFAULT\_COMMITS
 
 # Variable: MAX\_DEFAULT\_COMMITS
 

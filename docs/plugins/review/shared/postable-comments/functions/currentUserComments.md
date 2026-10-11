@@ -1,8 +1,8 @@
-[**spatial-ide**](../../../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial-ide](../../../../../README.md) / [plugins/review/shared/postable-comments](../README.md) / currentUserComments
+[spatial](../../../../../README.md) / [plugins/review/shared/postable-comments](../README.md) / currentUserComments
 
 # Function: currentUserComments()
 
