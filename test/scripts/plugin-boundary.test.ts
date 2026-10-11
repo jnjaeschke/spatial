@@ -39,14 +39,14 @@ test("dependencies are read from the manifest's dependsOn literal", () => {
 
 test("a plugin may import only the public API modules of a declared dependency", () => {
   const files = new Map([
-    manifest("implement", 'dependsOn: ["review"], '), manifest("review", ""), manifest("chat", ""),
-    ["src/plugins/implement/a.ts", 'import "../review/api.ts"; import "../review/runtime/x.ts"; import "../chat/api.ts";'],
-    ["src/plugins/implement/web/b.ts", 'import "../../review/web/api.ts"; import "../../review/web/graph.ts";'],
+    manifest("implement", 'dependsOn: ["spec"], '), manifest("spec", ""), manifest("chat", ""),
+    ["src/plugins/implement/a.ts", 'import "../spec/api.ts"; import "../spec/runtime/x.ts"; import "../chat/api.ts";'],
+    ["src/plugins/implement/web/b.ts", 'import "../../spec/web/api.ts"; import "../../spec/web/graph.ts";'],
   ]);
   assert.deepEqual(checkPluginBoundary(files), [
     "src/plugins/implement/a.ts → ../chat/api.ts",
-    "src/plugins/implement/a.ts → ../review/runtime/x.ts",
-    "src/plugins/implement/web/b.ts → ../../review/web/graph.ts",
+    "src/plugins/implement/a.ts → ../spec/runtime/x.ts",
+    "src/plugins/implement/web/b.ts → ../../spec/web/graph.ts",
   ]);
 });
 

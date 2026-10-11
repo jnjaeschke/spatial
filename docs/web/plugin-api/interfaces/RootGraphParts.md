@@ -18,6 +18,14 @@ The node the session conversation hangs beside; without it the conversation is t
 
 ***
 
+### conversationAfterAnchor?
+
+> `optional` **conversationAfterAnchor?**: `boolean`
+
+Place the conversation and its edge right after the `anchorOn` node (first in `nodes`) instead of last.
+
+***
+
 ### diffId?
 
 > `optional` **diffId?**: `string`
@@ -64,7 +72,7 @@ Threads hosted inside nodes: thread id → host node id.
 
 > `optional` **resolveSub**(`anchor`, `nodeIds`): `string` \| `null`
 
-Resolves a chat anchor that is not a node id (e.g. `<id>#loc1`) to a node id, or null.
+Resolves a chat anchor that is not a node id (e.g. `<id>#loc1`) to a node id, or null. When given it is authoritative; without it the anchor resolves through the message it replies to.
 
 #### Parameters
 

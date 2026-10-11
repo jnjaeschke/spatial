@@ -9,8 +9,7 @@ test("plainText strips Markdown and joins lines", () => {
   assert.equal(plainText(""), "");
 });
 
-test("plainText strips spec links, emphasis and escapes, and truncates on a word boundary", () => {
+test("plainText strips spec links, emphasis and escapes", () => {
   assert.equal(plainText("To **navigate** a [navigable](HTML#navigable) *navigable* to a [URL](URL#concept-url) *url*:"), "To navigate a navigable navigable to a URL url:");
-  assert.equal(plainText("one two three four", 9), "one two…");
   assert.equal(plainText("Perform ! TransformStreamError(controller.[\\[\\[stream\\]\\]](STREAMS#transformstreamdefaultcontroller-stream), r)."), "Perform ! TransformStreamError(controller.[[stream]], r).");
 });

@@ -8,7 +8,7 @@
 
 > **rootGraph**(`state`, `drafts`, `parts`): [`Graph`](../type-aliases/Graph.md)
 
-A plugin's root graph: its nodes and edges, the session conversation (when the session has a start request), notes and chats. A chat anchor resolves to a node, through `resolveSub`, or through the message it replies to; a hosted thread resolves to its host.
+A plugin's root graph: its nodes and edges, the session conversation (when the session has a start request), notes and chats. A chat anchor resolves to a node, through `resolveSub` (else the message it replies to); a hosted thread resolves to its host.
 
 ## Parameters
 

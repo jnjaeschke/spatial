@@ -68,3 +68,26 @@ test("createRuntime keeps knowledge.db next to the session database", () => {
   assert.ok(existsSync(join(dir, "knowledge.db")));
   assert.equal(createRuntime({ dbPath: ":memory:" }).knowledge.get("global", "spec", "k").state, "absent");
 });
+
+test("list matches a prefix by characters, not UTF-16 units", () => {
+  const store = new KnowledgeStore(":memory:");
+  store.put("global", "spec", "😀a", 1, by);
+  store.put("global", "spec", "😀b", 2, by);
+  store.put("global", "spec", "x", 3, by);
+  assert.deepEqual(store.list("global", "spec", "😀").map((entry) => entry.key), ["😀a", "😀b"]);
+});
+
+test("values that would not survive JSON are rejected instead of becoming a tombstone", () => {
+  const store = new KnowledgeStore(":memory:");
+  store.put("global", "spec", "k", 1, by);
+  for (const value of [NaN, Infinity, { a: [() => 1] }, Symbol("s"), 1n]) assert.throws(() => store.put("global", "spec", "k", value, by), /Knowledge value/);
+  assert.equal((store.get("global", "spec", "k") as { entry: { value: unknown } }).entry.value, 1);
+});
+
+test("a put that fails inside its transaction leaves the previous version current", () => {
+  const store = new KnowledgeStore(":memory:");
+  store.put("global", "spec", "k", 1, by);
+  assert.throws(() => store.put("global", "spec", "k", 2, { by: "plugin", sessionId: 1n as unknown as string }));
+  assert.equal((store.get("global", "spec", "k") as { entry: { value: unknown } }).entry.value, 1);
+  assert.equal(store.put("global", "spec", "k", 3, by).value, 3);
+});

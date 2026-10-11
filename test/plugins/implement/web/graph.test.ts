@@ -25,13 +25,13 @@ test("without a start there is no graph; before the investigation only the reque
 test("the investigation is the main node with its request and locations around it", () => {
   const s = start(), inv = art("Investigation", data);
   const g = investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "abc" }), [])!;
-  assert.deepEqual(g.nodes.map((n) => n.data.kind), ["investigation", "location", "location", "conversation"]);
+  assert.deepEqual(g.nodes.map((n) => n.data.kind), ["investigation", "conversation", "location", "location"]);
   assert.equal(g.nodes[0]!.id, inv.id);
   assert.equal(g.nodes[0]!.anchors, undefined);
-  assert.deepEqual(g.nodes[3]!.anchors, [inv.id]);
   assert.deepEqual(g.nodes[1]!.anchors, [inv.id]);
-  assert.equal(g.nodes[1]!.id, `${inv.id}#loc0`);
-  assert.deepEqual((g.nodes[1]!.data as unknown as { searchfox: unknown }).searchfox, { repoBase: "https://sf/", rev: "abc" });
+  assert.deepEqual(g.nodes[2]!.anchors, [inv.id]);
+  assert.equal(g.nodes[2]!.id, `${inv.id}#loc0`);
+  assert.deepEqual((g.nodes[2]!.data as unknown as { searchfox: unknown }).searchfox, { repoBase: "https://sf/", rev: "abc" });
   assert.ok(g.edges.some((e) => e.source === s.id && e.target === inv.id));
   assert.equal(latestInvestigation(state([s, inv]))?.id, inv.id);
 });

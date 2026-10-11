@@ -6,19 +6,15 @@
 
 # Function: plainText()
 
-> **plainText**(`markdown`, `max?`): `string`
+> **plainText**(`markdown`): `string`
 
-Markdown as one line of plain text: fences, block markers, emphasis, escapes and link targets removed, lines joined by spaces; longer than `max` it is cut at a word boundary with `…`.
+Markdown as one line of plain text: fences, block markers, emphasis, escapes and link targets removed, lines joined by spaces.
 
 ## Parameters
 
 ### markdown
 
 `string`
-
-### max?
-
-`number` = `Infinity`
 
 ## Returns
 

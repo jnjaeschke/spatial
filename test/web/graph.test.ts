@@ -157,14 +157,19 @@ test("rootGraph puts the conversation first, or beside anchorOn after the plugin
   const anchored = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }], edges: [], anchorOn: "A" });
   assert.deepEqual(anchored.nodes.map((n) => [n.id, n.anchors ?? []]), [["A", []], ["START", ["A"]]]);
   assert.deepEqual(anchored.edges, [{ id: "START->A", source: "START", target: "A" }]);
+  const after = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }, { id: "B", data: { kind: "x" } }], edges: [{ id: "A->B", source: "A", target: "B" }], anchorOn: "A", conversationAfterAnchor: true });
+  assert.deepEqual(after.nodes.map((n) => n.id), ["A", "START", "B"]);
+  assert.deepEqual(after.edges.map((e) => e.id), ["START->A", "A->B"]);
   assert.deepEqual(rootGraph(rgState([]), [], { nodes: [], edges: [] }).nodes, []);
 });
 
-test("rootGraph resolves chat anchors to nodes, sub-refs, hosts and replied messages", () => {
+test("rootGraph resolves chat anchors to nodes, sub-refs and hosts; the replied message only without resolveSub", () => {
   const thread = (id: string, anchor: string) => rgArtifact(id, "ChatThread", { anchor });
   const state = rgState([start, thread("T1", "A#sub"), thread("T2", "M1"), thread("T3", "HOSTED")], [{ id: "l", sessionId: "s", from: "M1", to: "T1", kind: "reply" }]);
-  const g = rootGraph(state, [], { nodes: [{ id: "A", data: { kind: "x" } }, { id: "H", data: { kind: "x", threads: [] } }], edges: [], hosts: new Map([["HOSTED", "H"]]), resolveSub: (anchor) => anchor.startsWith("A#") ? "A" : null });
-  assert.deepEqual(g.nodes.filter((n) => n.data.kind === "chat").map((n) => [n.id, n.anchors]), [["T1", ["A"]], ["T2", ["T1"]]]);
+  const nodes = [{ id: "A", data: { kind: "x" } }, { id: "H", data: { kind: "x", threads: [] } }];
+  const g = rootGraph(state, [], { nodes, edges: [], hosts: new Map([["HOSTED", "H"]]), resolveSub: (anchor) => anchor.startsWith("A#") ? "A" : null });
+  assert.deepEqual(g.nodes.filter((n) => n.data.kind === "chat").map((n) => [n.id, n.anchors]), [["T1", ["A"]]]);
+  assert.deepEqual(rootGraph(state, [], { nodes: [...nodes, { id: "T1", data: { kind: "x" } }], edges: [] }).nodes.filter((n) => n.data.kind === "chat").map((n) => [n.id, n.anchors]), [["T2", ["T1"]]]);
   assert.deepEqual(((g.nodes.find((n) => n.id === "H")!.data as unknown as { threads: { threadId: string }[] }).threads).map((t) => t.threadId), ["T3"]);
 });
 

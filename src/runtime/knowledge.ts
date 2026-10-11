@@ -29,12 +29,19 @@ export interface Knowledge {
 type Row = Record<string, unknown>;
 const toEntry = (r: Row): KnowledgeEntry => ({ id: r.id as string, scope: r.scope as string, namespace: r.namespace as string, key: r.key as string, value: JSON.parse(r.value as string), provenance: JSON.parse(r.provenance as string) as KnowledgeProvenance, createdAt: r.created_at as string });
 
+/** Throws for values that would not survive a JSON round trip; JSON.stringify would silently turn them into null, the tombstone. */
+function assertJson(value: unknown, path = "value"): void {
+  if (typeof value === "number" && !Number.isFinite(value)) throw new Error(`Knowledge ${path} is not a finite number`);
+  if (typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") throw new Error(`Knowledge ${path} is a ${typeof value}, which is not JSON`);
+  if (typeof value === "object" && value !== null) for (const [key, item] of Object.entries(value)) assertJson(item, `${path}.${key}`);
+}
+
 /** `Knowledge` in its own SQLite file, apart from the disposable session database. */
 export class KnowledgeStore implements Knowledge {
   #db: DatabaseSync;
 
   constructor(path: string) {
-    this.#db = new DatabaseSync(path);
+    this.#db = new DatabaseSync(path, { timeout: 5000 });
     if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
     this.#db.exec(SCHEMA);
   }
@@ -51,16 +58,18 @@ export class KnowledgeStore implements Knowledge {
   }
 
   list(scope: string, namespace: string, keyPrefix: string): KnowledgeEntry[] {
-    return (this.#db.prepare("SELECT * FROM entries WHERE scope = ? AND namespace = ? AND substr(key, 1, ?) = ? AND superseded_by IS NULL ORDER BY key").all(scope, namespace, keyPrefix.length, keyPrefix) as Row[]).map(toEntry);
+    return (this.#db.prepare("SELECT * FROM entries WHERE scope = ? AND namespace = ? AND substr(key, 1, length(?)) = ? AND superseded_by IS NULL ORDER BY key").all(scope, namespace, keyPrefix, keyPrefix) as Row[]).map(toEntry);
   }
 
   put(scope: string, namespace: string, key: string, value: unknown, provenance: KnowledgeProvenance): KnowledgeEntry {
     if (value === undefined) throw new Error("Knowledge value must not be undefined; null is a tombstone");
+    assertJson(value);
+    const json = JSON.stringify(value);
     const entry: KnowledgeEntry = { id: randomUUID(), scope, namespace, key, value, provenance, createdAt: new Date().toISOString() };
     this.#db.exec("BEGIN IMMEDIATE");
     try {
       this.#db.prepare("UPDATE entries SET superseded_by = ? WHERE scope = ? AND namespace = ? AND key = ? AND superseded_by IS NULL").run(entry.id, scope, namespace, key);
-      this.#db.prepare("INSERT INTO entries VALUES (?, ?, ?, ?, ?, ?, ?, NULL)").run(entry.id, scope, namespace, key, JSON.stringify(value), JSON.stringify(provenance), entry.createdAt);
+      this.#db.prepare("INSERT INTO entries VALUES (?, ?, ?, ?, ?, ?, ?, NULL)").run(entry.id, scope, namespace, key, json, JSON.stringify(provenance), entry.createdAt);
       this.#db.exec("COMMIT");
     } catch (error) {
       this.#db.exec("ROLLBACK");

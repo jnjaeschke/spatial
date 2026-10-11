@@ -54,8 +54,11 @@ test("webspec: query keeps the section fields", async () => {
 test("webspec: query not found is a value; output without a sha throws", async () => {
   process.env.FAKE_LLM_EXIT = "1";
   process.env.FAKE_LLM_STDERR = "Error: Unknown spec: FOO\n";
-  assert.deepEqual(await makeWebspec({ bin: STUB }).query("FOO#bar", signal), { found: false, reason: "Unknown spec: FOO" });
-  delete process.env.FAKE_LLM_EXIT; delete process.env.FAKE_LLM_STDERR;
+  try {
+    assert.deepEqual(await makeWebspec({ bin: STUB }).query("FOO#bar", signal), { found: false, reason: "Unknown spec: FOO" });
+  } finally {
+    delete process.env.FAKE_LLM_EXIT; delete process.env.FAKE_LLM_STDERR;
+  }
   stdout(JSON.stringify({ ...JSON.parse(NAVIGATE), sha: undefined }));
   await assert.rejects(makeWebspec({ bin: STUB }).query("HTML#navigate", signal), /webspec-index query output for HTML#navigate lacks sha, effects or outgoing_refs/);
 });

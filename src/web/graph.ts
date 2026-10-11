@@ -219,27 +219,34 @@ export interface RootGraphParts {
   edges: GraphEdge[];
   /** The node the session conversation hangs beside; without it the conversation is the first (root) node. */
   anchorOn?: string;
+  /** Place the conversation and its edge right after the `anchorOn` node (first in `nodes`) instead of last. */
+  conversationAfterAnchor?: boolean;
   /** Threads hosted inside nodes: thread id → host node id. */
   hosts?: ReadonlyMap<string, string>;
-  /** Resolves a chat anchor that is not a node id (e.g. `<id>#loc1`) to a node id, or null. */
+  /** Resolves a chat anchor that is not a node id (e.g. `<id>#loc1`) to a node id, or null. When given it is authoritative; without it the anchor resolves through the message it replies to. */
   resolveSub?(anchor: Ref, nodeIds: ReadonlySet<string>): string | null;
   /** Diff context of chat nodes. */
   diffId?: string;
   hunks?: ChatNodeData["hunks"];
 }
 
-/** A plugin's root graph: its nodes and edges, the session conversation (when the session has a start request), notes and chats. A chat anchor resolves to a node, through `resolveSub`, or through the message it replies to; a hosted thread resolves to its host. */
+/** A plugin's root graph: its nodes and edges, the session conversation (when the session has a start request), notes and chats. A chat anchor resolves to a node, through `resolveSub` (else the message it replies to); a hosted thread resolves to its host. */
 export function rootGraph(state: SessionState, drafts: Draft[], parts: RootGraphParts): Graph {
   const start = latestStart(state);
   const root = start ? rootThread(state, start.id) : undefined;
   const conversation = start ? [conversationNode(state, start, root, parts.anchorOn ? [parts.anchorOn] : undefined)] : [];
   const g: Graph = { nodes: parts.anchorOn ? [...parts.nodes, ...conversation] : [...conversation, ...parts.nodes], edges: [...parts.edges] };
-  if (start && parts.anchorOn) g.edges.push({ id: `${start.id}->${parts.anchorOn}`, source: start.id, target: parts.anchorOn });
+  if (parts.conversationAfterAnchor) g.nodes = [...parts.nodes.slice(0, 1), ...conversation, ...parts.nodes.slice(1)];
+  if (start && parts.anchorOn) {
+    const edge = { id: `${start.id}->${parts.anchorOn}`, source: start.id, target: parts.anchorOn };
+    if (parts.conversationAfterAnchor) g.edges.unshift(edge);
+    else g.edges.push(edge);
+  }
   const hostOf = new Map(parts.hosts);
   if (start && root) hostOf.set(root.id, start.id);
   const nodeIds = new Set([...g.nodes.map((node) => node.id), ...hostOf.keys()]);
   const resolve = (anchor: Ref) => {
-    const direct = nodeIds.has(anchor) ? anchor : parts.resolveSub?.(anchor, nodeIds) ?? state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to;
+    const direct = nodeIds.has(anchor) ? anchor : parts.resolveSub ? parts.resolveSub(anchor, nodeIds) : state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to;
     const host = direct && (hostOf.get(direct) ?? direct);
     return host && nodeIds.has(host) ? host : null;
   };

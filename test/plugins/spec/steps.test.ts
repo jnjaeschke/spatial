@@ -34,3 +34,8 @@ test("parseSteps reads the first numbered algorithm with nested numbers and cont
   ]);
   assert.deepEqual(parseSteps("A definition without steps."), []);
 });
+
+test("parseSteps keeps unpaired markers, identifiers and leading list or quote markers in step text", () => {
+  const steps = parseSteps(["1. Let *x* be _foo and `bar` ~ 4.", "2. Compute a * b.", "3. > quoted - dash"].join("\n"));
+  assert.deepEqual(steps.map((step) => step.text), ["Let x be _foo and bar ~ 4.", "Compute a * b.", "> quoted - dash"]);
+});

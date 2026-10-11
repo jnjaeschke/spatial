@@ -2,14 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
-import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
+import { closeGraph, conversationGraph, diagramSize, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
 import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, introducedSymbolEdges, isReviewKind, latestNarrative, layerGraph, minimapMarks, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, textScale = 1) => {
-  const size = reviewSize(data);
+  const size = isCoreKind(data, "diagram") ? diagramSize(data) : reviewSize(data);
   return { width: size.width * textScale, height: size.height * textScale };
 };
 const findingOf = (graph: { nodes: GraphNode[] }, id: string) => graph.nodes.flatMap((node) => findingsOf(node.data)).find((finding) => finding.findingId === id);
@@ -358,12 +358,12 @@ test("sessionGraph adds only the latest diagram for each commit in the current d
   const legacy = { ...diagram("D-legacy", "2"), data: { ...diagram("D-legacy", "2").data, kind: "flow" } } as unknown as Artifact<DiagramData>;
   const st = state([stackDiff, stackNarrative, old, legacy, diagram("D-other", "missing"), latest]);
   const graph = sessionGraph(st)!;
-  const diagrams = graph.nodes.filter((node) => isReviewKind(node.data, "diagram"));
+  const diagrams = graph.nodes.filter((node) => isCoreKind(node.data, "diagram"));
   assert.equal(diagrams.length, 1);
   assert.equal(diagrams[0]!.id, "D-latest");
-  assert.equal(isReviewKind(diagrams[0]!.data, "diagram") ? diagrams[0]!.data.diagram.id : "", "D-latest");
-  assert.deepEqual(reviewPlaces.graph(graph, "patch:1")!.nodes.filter((node) => isReviewKind(node.data, "diagram")).map((node) => node.id), ["D-latest"]);
-  assert.equal(sessionGraph(state([stackDiff, stackNarrative, legacy]))!.nodes.some((node) => isReviewKind(node.data, "diagram")), false);
+  assert.equal(isCoreKind(diagrams[0]!.data, "diagram") ? diagrams[0]!.data.diagram.id : "", "D-latest");
+  assert.deepEqual(reviewPlaces.graph(graph, "patch:1")!.nodes.filter((node) => isCoreKind(node.data, "diagram")).map((node) => node.id), ["D-latest"]);
+  assert.equal(sessionGraph(state([stackDiff, stackNarrative, legacy]))!.nodes.some((node) => isCoreKind(node.data, "diagram")), false);
 });
 
 test("sessionGraph links each assistant message to its current diagrams", () => {
@@ -386,6 +386,16 @@ test("sessionGraph links each assistant message to its current diagrams", () => 
   const root = sessionGraph(conversation)!.nodes[0]!;
   assert.equal(root.data.kind, "conversation");
   if (root.data.kind === "conversation") assert.equal(root.data.diagramsByMessage, undefined);
+});
+
+test("sessionGraph skips a chat whose anchor the review resolver rejects, even with a reply link", () => {
+  const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "proposed", createdAt: "3", provenance: { taskId: "t" }, data: { anchor: "NS#bogus", quote: null }, epoch: null } as Artifact;
+  const st = state([stackDiff, stackNarrative, thread]);
+  st.links.push({ id: "reply", sessionId: "S", from: "NS#bogus", to: "NS", kind: "reply" });
+  const graph = sessionGraph(st)!;
+  assert.ok(!graph.nodes.some((node) => node.id === "T"));
+  const summary = graph.nodes.find((node) => node.id === "NS")!.data;
+  if (isReviewKind(summary, "summary")) assert.deepEqual(summary.threads ?? [], []);
 });
 
 test("stackLayout puts a diagram above its lane and shifts aligned cards down", () => {
@@ -650,7 +660,7 @@ test("closeGraph drops closed chats, their replies and diagrams, and lists close
   assert.ok(!graph.edges.some((edge) => edge.source === "T2" || edge.source === "T3"));
   assert.deepEqual(Object.fromEntries(closedOn), { "N#c1": [{ id: "T1", kind: "chat" }], N: [{ id: "T2", kind: "chat" }] });
   const diagrams = closeGraph(sessionGraph(state([stackDiff, stackNarrative, diagram("D-1", "2")]))!, new Set(["D-1"])).graph;
-  assert.ok(!diagrams.nodes.some((node) => isReviewKind(node.data, "diagram")));
+  assert.ok(!diagrams.nodes.some((node) => isCoreKind(node.data, "diagram")));
 });
 
 test("sessionGraph anchors a chat on a note", () => {

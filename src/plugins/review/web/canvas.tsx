@@ -9,7 +9,6 @@ export const RevealContext = createContext<MutableRefObject<((nodeId: string, co
 /** The latest request to jump to a diff row, provided by the review view around its canvas. */
 export const JumpContext = createContext<HunkRow | null>(null);
 
-
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
 function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, children }: CanvasProviderProps) {

@@ -6,6 +6,7 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import type { Root, RootContent } from "hast";
+import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
 import { rehypeSpecSteps } from "../../../src/plugins/spec/web/spec-steps.ts";
 import type { SpecSite } from "../../../src/shared/types.ts";
 
@@ -44,4 +45,19 @@ test("webspec-index step paths of HTML#navigate are annotated steps", () => {
   for (const explanation of effects.explanations) for (const witness of explanation.witnesses) for (const hop of witness.hops) for (const s of [hop.from, hop.to, hop.site.subject]) if (here(s)) cited.add(s.step_path.join("."));
   assert.ok(cited.size >= 10);
   assert.deepEqual([...cited].filter((path) => !annotated.has(path)), []);
+});
+
+test("the annotator, parseSteps and webspec-index agree on step paths", () => {
+  const query = JSON.parse(readFileSync(new URL("../../fixtures/webspec/navigate-query.json", import.meta.url), "utf8"));
+  const paths = (markdown: string) => steps(markdown).map((s) => s.path);
+  assert.deepEqual(paths(query.content), parseSteps(query.content).map((s) => s.number));
+  const effects = JSON.parse(readFileSync(new URL("../../fixtures/webspec/navigate-effects.json", import.meta.url), "utf8"));
+  const cited = new Set<string>();
+  for (const effect of effects.effects) for (const location of [effect.location, ...(effect.other_locations ?? [])]) if (location?.spec === "HTML" && location.anchor === "navigate" && location.step_path) cited.add(location.step_path.join("."));
+  for (const explanation of effects.explanations) for (const witness of explanation.witnesses) for (const hop of witness.hops) for (const site of [hop.from, hop.to, hop.site.subject]) if (site?.spec === "HTML" && site.anchor === "navigate" && site.step_path) cited.add(site.step_path.join("."));
+  assert.ok(cited.size >= 10);
+  assert.deepEqual([...cited].filter((path) => !parseSteps(query.content).some((step) => step.number === path)), []);
+  const twoLists = "The getter steps are:\n\n1. A\n2. B\n\nThe setter steps are:\n\n1. C\n2. D\n\n    1. E";
+  assert.deepEqual(paths(twoLists), ["1", "2", "1", "2", "2.1"]);
+  assert.deepEqual(parseSteps(twoLists).map((s) => s.number), ["1", "2"]);
 });

@@ -28,7 +28,7 @@ export function investigationGraph(state: SessionState, drafts: Draft[]): Graph 
       edges.push({ id: `${id}->${investigation.id}`, source: id, target: investigation.id });
     }
   }
-  return rootGraph(state, drafts, { nodes, edges, anchorOn: investigation?.id, resolveSub: (anchor) => investigation && anchor.startsWith(`${investigation.id}#`) ? investigation.id : null });
+  return rootGraph(state, drafts, { nodes, edges, anchorOn: investigation?.id, conversationAfterAnchor: true, resolveSub: (anchor) => investigation && anchor.startsWith(`${investigation.id}#`) ? investigation.id : state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to ?? null });
 }
 
 const INVESTIGATION_WIDTH = 760;

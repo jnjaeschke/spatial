@@ -2,7 +2,7 @@ import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdict
 import type { SpecReferenceData } from "../../spec/api.ts";
 import type { FocusedRow, PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, cascade, diagramSize, isCoreKind, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type DiagramNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
+import { NODE_WIDTH, SATELLITE_WIDTH, cascade, isCoreKind, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type DiagramNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
@@ -115,7 +115,6 @@ export type SummaryNodeData = {
   threads?: HostedThread[];
 };
 
-
 /** Spreads the finding; the mapped copy keeps the data assignable to `PluginNodeData`, which an interface is not. */
 export type FindingData = { [K in keyof ReviewFindingData]: ReviewFindingData[K] } & {
   findingId: string;
@@ -158,7 +157,7 @@ export type PhabThreadData = {
 export type ReviewNodeData = ChangeNodeData | ChangeHeaderNodeData | HunkNodeData | CommitNodeData | SummaryNodeData;
 
 /** Narrows node data to a review kind. */
-export const isReviewKind = <K extends ReviewNodeData["kind"] | "diagram">(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData | DiagramNodeData, { kind: K }> => data.kind === kind;
+export const isReviewKind = <K extends ReviewNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<ReviewNodeData, { kind: K }> => data.kind === kind;
 
 /** Lines for inline items hosted by a review card, positioned from top to bottom in the minimap. */
 export function minimapMarks(data: GraphNodeData): { at: number; kind: string }[] {
@@ -247,9 +246,6 @@ const changeNode = (g: Graph, id: string) => g.nodes.find((n) => isReviewKind(n.
 
 const rowsOf = (lines: { path: string; side: "new" | "old"; end: number }, file: DiffFile, hunk: Hunk) => lines.path === file.path && numberLines(hunk).some((row) => lines.end === (lines.side === "new" ? row.new : row.old));
 const threadInHunk = (thread: HostedThread, file: DiffFile, hunk: Hunk) => !!thread.lines && thread.anchor.split("#").at(-1) === hunk.id && rowsOf(thread.lines, file, hunk);
-
-/** The nodes in `keep` with everything anchored on them (transitively) and the edges among them. */
-
 
 const crumbLabel = (g: Graph, place: string) => {
   if (place === "stack") return "Stack";
@@ -579,7 +575,6 @@ const threadsHeight = (threads: HostedThread[]) => threads.reduce((sum, thread) 
 
 /** First-paint size estimate of the review kinds, unscaled. */
 export function reviewSize(data: GraphNodeData): { width: number; height: number } {
-  if (data.kind === "diagram") return diagramSize(data);
   if (isReviewKind(data, "commit")) return { width: NODE_WIDTH, height: 100 + lines(data.intent ?? "", 55) * 22 };
   if (isReviewKind(data, "summary")) {
     const phabHeight = [data.phabGeneral, ...data.phabUnanchored.map((group) => group.comments)].reduce((sum, comments) => sum + (comments.length > 0 ? 40 : 0) + comments.reduce((inner, item) => inner + phabCommentHeight(item.data, 55), 0), 0);

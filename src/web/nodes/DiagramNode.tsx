@@ -1,7 +1,10 @@
 import { useContext, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DiagramNodeData } from "../graph.ts";
-import { Box, ClosedContext, DiagramStepContext, SequenceDiagram, type SequenceArrow } from "../plugin-api.ts";
+import { Box } from "../Box.tsx";
+import { ClosedContext } from "../closed.ts";
+import { DiagramStepContext } from "../diagram-steps.ts";
+import { SequenceDiagram, type SequenceArrow } from "../SequenceDiagram.tsx";
 
 export type DiagramFlowNode = Node<Record<string, unknown> & DiagramNodeData, "diagram">;
 
