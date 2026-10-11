@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
 import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
@@ -193,19 +193,14 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
       const result: RecentRepo[] = [];
-      const resolved = new Map<string, ReturnType<typeof resolveRepo>>();
+      const live = new Map<string, Promise<boolean>>();
       for (const group of groupByRepo(rt.store.listSessions())) {
         const byWorktree = new Map<string, RecentRepo>();
         for (const session of group.sessions) {
-          let worktree: string;
-          try {
-            if (!resolved.has(session.worktree)) resolved.set(session.worktree, resolveRepo(session.worktree));
-            const repo = await resolved.get(session.worktree)!;
-            if (repo.repoDir !== group.repoDir) continue;
-            worktree = repo.worktree;
-          } catch {
-            continue; // A stale worktree; the repository's other checkouts may still be live.
-          }
+          const { worktree } = session;
+          // Sessions store the resolved checkout, so a .git entry (a file in linked worktrees) is enough; no git process per checkout.
+          if (!live.has(worktree)) live.set(worktree, access(join(worktree, ".git")).then(() => true, () => false));
+          if (!await live.get(worktree)) continue; // A stale worktree; the repository's other checkouts may still be live.
           const known = byWorktree.get(worktree);
           if (known) known.sessions++;
           else byWorktree.set(worktree, { repoDir: group.repoDir, name: group.name, worktree, sessions: 1, lastActive: session.createdAt });

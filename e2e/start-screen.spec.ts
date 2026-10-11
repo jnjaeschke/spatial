@@ -139,6 +139,8 @@ test("folder picker navigates to a repository", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2 })).toHaveText("picked-repo · picked-checkout");
   await expect(page.getByRole("navigation", { name: "Recent repositories" }).locator('[aria-current="page"]')).toContainText(realpathSync(join(parent, "picked-checkout")));
 
+  // The server is shared with parallel workers and the picker lists only the newest few checkouts; refresh this one right before looking.
+  await createSession(page, join(parent, "picked-checkout"), "Checkout session again");
   await page.getByRole("button", { name: "Open folder…" }).click();
   const recent = dialog.getByRole("navigation", { name: "Recent folders" });
   const recentBox = (await recent.boundingBox())!, crumbsBox = (await dialog.getByRole("navigation", { name: "Folder breadcrumbs" }).boundingBox())!;
