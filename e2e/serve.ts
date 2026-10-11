@@ -73,7 +73,7 @@ const stackRewriteOut = stubOut("stack-rewrite", { summary: "Edits `a.txt` and a
   { id: "c2", title: "Add c", explanation: "Adds file c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] },
   { id: "c3", title: "Rewrite line 30", explanation: "Rewrites line 30 again.", rationale: "r", hunkIds: ["f0h1"], dependsOn: ["c1"], specUrls: [] },
 ] });
-const stackAddOut = stubOut("stack-add", { summary: "Edits `a.txt`, then adds `c.txt`.", commitIntents: ["Replaces `line 30` with `THIRTY`.", "Adds `c.txt`."], changes: [
+const stackAddOut = stubOut("stack-add", { summary: "Edits `a.txt`, then adds `c.txt`.", commitIntents: ["Replaces `line 30` with `THIRTY`.", "Adds `c.txt`."], flowHints: [null, null], changes: [
   { id: "c1", title: "Edit a", explanation: "Replaces `line 30` with `THIRTY`.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] },
   { id: "c2", title: "Add c", explanation: "Adds file c.", rationale: "r", hunkIds: ["f1h0"], dependsOn: ["c1"], specUrls: [] },
 ] });

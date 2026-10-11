@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { InterdiffData } from "../../shared/types.ts";
-import { type ChangeStatus, type DiffData, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
+import { type ChangeStatus, type DiffData, type JsonSchema, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext, runStructured } from "../../../../plugin-api.ts";
 import { renderDiffForPrompt, renderHunk } from "./render.ts";
 import { changeStatus, hunkStatuses } from "../../shared/change-status.ts";
 import { validateNarrative } from "./validate.ts";
@@ -52,27 +52,11 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?:
     ctx.progress({ kind: "steps", step: "Grouping hunks", index: 0, count: 1 });
     const mcpServers = { ...ctx.sessionMcp, ...ctx.repoMcp };
     const system = prependRepoContext(systemPrompt, ctx);
-    let r = await ctx.llm.run({ prompt, system, schema: narrationSchema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
-    let errors = validateNarrative(r.json, diff.data);
-    if (errors.length) {
-      ctx.progress({ kind: "steps", step: "Repairing invalid narrative", index: 0, count: 1 });
-      const retry = [
-        prompt,
-        "",
-        "Your previous answer was invalid:",
-        ...errors.map((e) => `- ${e}`),
-        "",
-        "Previous answer:",
-        JSON.stringify(r.json),
-        "",
-        "Return a corrected, complete answer.",
-      ].join("\n");
-      r = await ctx.llm.run({ prompt: retry, system, schema: narrationSchema, cwd: ctx.repo, tools: "read-only", mcpServers }, llm);
-      errors = validateNarrative(r.json, diff.data, { allowUnassigned: true });
-      if (errors.length) throw new Error(`Narrative failed validation:\n${errors.join("\n")}`);
-    }
-
-    const json = r.json as Omit<PatchNarrativeData, "diffId">;
+    const { json, result: r } = await runStructured<Omit<PatchNarrativeData, "diffId">>(ctx.llm, {
+      prompt, system, schema: narrationSchema as JsonSchema, cwd: ctx.repo, tools: "read-only", mcpServers, label: "Narrative", repairs: 1,
+      validate: (value, attempt) => validateNarrative(value, diff.data, { allowUnassigned: attempt > 0 }),
+      onRepair: () => ctx.progress({ kind: "steps", step: "Repairing invalid narrative", index: 0, count: 1 }),
+    }, llm);
     const changes = statuses ? json.changes.map((change) => ({ ...change, status: changeStatus(change.hunkIds, statuses!) })) : json.changes;
     const data: PatchNarrativeData = { diffId, ...json, changes, ...(update ? { previous: update.previousNarrativeId } : {}) };
     const a = ctx.artifacts.put("PatchNarrative", "proposed", data, r.selection);

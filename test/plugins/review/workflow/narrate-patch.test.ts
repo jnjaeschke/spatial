@@ -86,6 +86,7 @@ test("review phase carries findings after update narration and before resolving 
     ...narrative,
     summary: "Adds `c.txt`, then updates `a.txt` again.",
     commitIntents: ["Adds `c.txt`.", "Updates `a.txt` again."],
+    flowHints: [null, null],
     changes: [
       { ...narrative.changes[1], hunkIds: ["f0h0", "f1h0"], dependsOn: [] },
       { ...narrative.changes[0], hunkIds: ["f0h1"], dependsOn: ["c2"] },
