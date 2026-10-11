@@ -13,4 +13,3 @@
 ## Functions
 
 - [parseSteps](functions/parseSteps.md)
-- [plainSpecText](functions/plainSpecText.md)

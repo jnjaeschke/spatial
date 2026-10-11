@@ -32,6 +32,7 @@
 - [GraphNode](interfaces/GraphNode.md)
 - [GuideStep](interfaces/GuideStep.md)
 - [HunkRow](interfaces/HunkRow.md)
+- [MarkdownRenderers](interfaces/MarkdownRenderers.md)
 - [NodeKind](interfaces/NodeKind.md)
 - [NoteNodeData](interfaces/NoteNodeData.md)
 - [PhaseView](interfaces/PhaseView.md)
@@ -101,6 +102,7 @@
 - [lines](functions/lines.md)
 - [linkTitle](functions/linkTitle.md)
 - [loadFileLines](functions/loadFileLines.md)
+- [Markdown](functions/Markdown.md)
 - [mergedCodeLinks](functions/mergedCodeLinks.md)
 - [placeSatellites](functions/placeSatellites.md)
 - [ReopenClosed](functions/ReopenClosed.md)
@@ -336,6 +338,12 @@ Re-exports [numberLines](../../plugin-api/functions/numberLines.md)
 ### PatchNarrativeData
 
 Re-exports [PatchNarrativeData](../../shared/types/interfaces/PatchNarrativeData.md)
+
+***
+
+### plainText
+
+Re-exports [plainText](../../plugin-api/functions/plainText.md)
 
 ***
 

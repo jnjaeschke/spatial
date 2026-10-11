@@ -73,6 +73,7 @@ export { fetchBugMarkdown } from "./runtime/moz-mcp.ts";
 export { prependRepoContext } from "./runtime/repo-context.ts";
 export { isGeckoRepo } from "./runtime/searchfox.ts";
 export { revisedText } from "./shared/revisions.ts";
+export { plainText } from "./shared/plain-text.ts";
 export { numberLines, fileRows } from "./shared/diff-lines.ts";
 export type { Row } from "./shared/diff-lines.ts";
 export type { GitWriter, PatchIdentity } from "./runtime/git.ts";

@@ -1,15 +1,4 @@
-/** Spec section markdown → plain text for compact cards. */
-export function plainSpecText(md: string, max: number): string {
-  const text = md
-    .replace(/\[((?:\\.|[^\]\\])*)\]\([^)]*\)/g, "$1")
-    .replace(/\*\*\*?([^*]+)\*\*\*?/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/`([^`]*)`/g, "$1")
-    .replace(/\\([\\`*_{}[\]()#+\-.!|<>~])/g, "$1");
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max + 1);
-  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 1))}…`;
-}
+import { plainText } from "../../../web/graph-api.ts";
 
 /** A numbered step of a spec algorithm; `number` is the dotted path, e.g. "4.2". */
 export interface SpecStep { number: string; depth: number; text: string }
@@ -32,5 +21,5 @@ export function parseSteps(markdown: string): SpecStep[] {
       steps.at(-1)!.parts.push(line.trim().replace(/^>\s*/, ""));
     }
   }
-  return steps.map(({ number, depth, parts }) => ({ number, depth, text: plainSpecText(parts.join(" ").replace(/\s+/g, " ").trim(), Infinity) }));
+  return steps.map(({ number, depth, parts }) => ({ number, depth, text: plainText(parts.join(" ").replace(/\s+/g, " ").trim()) }));
 }

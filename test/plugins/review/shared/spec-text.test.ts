@@ -1,13 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSteps, plainSpecText } from "../../../../src/plugins/review/shared/spec-text.ts";
-
-test("strips markdown links and emphasis, truncates on a word boundary", () => {
-  const md = "To **navigate** a [navigable](HTML#navigable) *navigable* to a [URL](URL#concept-url) *url*:";
-  assert.equal(plainSpecText(md, 1000), "To navigate a navigable navigable to a URL url:");
-  assert.equal(plainSpecText("one two three four", 9), "one two…");
-  assert.equal(plainSpecText("Perform ! TransformStreamError(controller.[\\[\\[stream\\]\\]](STREAMS#transformstreamdefaultcontroller-stream), r).", 1000), "Perform ! TransformStreamError(controller.[[stream]], r).");
-});
+import { parseSteps } from "../../../../src/plugins/review/shared/spec-text.ts";
 
 const INSERT = [
   "To **insert** a [node](DOM#concept-node) *node* into a *parent*:",

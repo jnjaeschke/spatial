@@ -1,4 +1,4 @@
-import { plainText } from "./plain-text.ts";
+import { plainText } from "../../../web/graph-api.ts";
 
 /** First non-empty line of a Markdown body as plain text, with block and inline syntax stripped crudely. */
 export function phabPreview(body: string, max = 120): string {

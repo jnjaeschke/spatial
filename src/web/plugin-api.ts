@@ -67,6 +67,8 @@ export type { SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";
 export { SearchfoxContext, searchfoxLinks, mergedCodeLinks, fileUrl, linkTitle } from "./searchfox-url.ts";
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
+export { Markdown } from "./Markdown.tsx";
+export type { MarkdownRenderers } from "./Markdown.tsx";
 export { loadFileLines } from "./file-lines.ts";
 export { DiffRows, changeStarts, type RowMark } from "./diff/DiffRows.tsx";
 export { DiffView } from "./diff/DiffView.tsx";

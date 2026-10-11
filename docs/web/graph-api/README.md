@@ -158,6 +158,12 @@ Re-exports [placeSatellites](../plugin-api/functions/placeSatellites.md)
 
 ***
 
+### plainText
+
+Re-exports [plainText](../../plugin-api/functions/plainText.md)
+
+***
+
 ### PluginNodeData
 
 Re-exports [PluginNodeData](../plugin-api/type-aliases/PluginNodeData.md)

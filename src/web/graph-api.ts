@@ -3,6 +3,8 @@
  * Free of React and DOM, so plugin graph modules load under Node; `plugin-api.ts` re-exports it.
  */
 export type { Draft } from "./chat-context.ts";
+/** Markdown as one line of plain text. */
+export { plainText } from "../shared/plain-text.ts";
 export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, HostedThread, PlacedNode } from "./graph.ts";
 /** Width of cards and of satellites. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";

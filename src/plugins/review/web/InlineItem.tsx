@@ -3,7 +3,7 @@ import type { ChangeNodeData, FindingData, PhabThreadData } from "./graph.ts";
 import { IconButton, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type HostedThread } from "../../../web/plugin-api.ts";
 import { DetailsContext } from "./details.ts";
 import { useInlineState } from "./inline-state.ts";
-import { plainText } from "./plain-text.ts";
+import { plainText } from "../../../web/plugin-api.ts";
 import { ChatBody } from "./ChatDetails.tsx";
 import { commentId } from "./CommentDetails.tsx";
 import { FindingBody } from "./FindingDetails.tsx";
