@@ -7,6 +7,7 @@ import { ExplorerContext, ExplorerViewContext } from "./context.ts";
 import { specClient } from "./client.ts";
 import { useActiveTrace } from "./trace-state.ts";
 import { TracePanel } from "./TracePanel.tsx";
+import type { SummaryView } from "../runtime/summaries.ts";
 
 function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderProps) {
   const view = useContext(ExplorerViewContext)!;
@@ -22,6 +23,8 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
     async showPath(ref: string, effectId: string) { await specClient.showEffectPath(view.sessionId, ref, effectId); },
     addToTrace: view.addToTrace,
     focus: view.focus,
+    summaries: view.summaries,
+    flag: view.flag,
   }), [view, graph, readOnly, reveal]);
   useEffect(() => { if (view.focus) reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view.focus]);
   return <ExplorerContext.Provider value={value}>{children}</ExplorerContext.Provider>;
@@ -37,6 +40,8 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const [mode, setMode] = useState<"map" | "sequence">("map");
   const [panel, setPanel] = useState(false);
   const [focus, setFocus] = useState<{ anchor: string; step: string } | null>(null);
+  const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
+  useEffect(() => { specClient.summaries(state.session.id).then(setSummaries, (error: Error) => console.error(error)); }, [state.session.id, state.lastEventId]);
   const algorithms = useMemo(() => new Map(state.artifacts.filter((a) => a.type === "SpecAlgorithm").map((a) => { const d = a.data as SpecAlgorithmData; return [d.ref, { title: d.title, url: d.url }] as const; })), [state.artifacts]);
   const addToTrace = async (anchor: string, step: string) => {
     const entry = { anchor, step, note: "" };
@@ -51,7 +56,8 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
     revealWhenAdded: (node) => node.data.kind === "spec-algorithm",
     Provider: ExplorerProvider,
   }), [closed.closed, active]);
-  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus }), [state.session.id, closed, addToTrace, focus]);
+  const flag = async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummaries(await specClient.summaries(state.session.id)); };
+  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, summaries, flag }), [state.session.id, closed, addToTrace, focus, summaries, flag]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
     <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step }); setMode("map"); }} />}{panel && <TracePanel sessionId={state.session.id} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={setActive} onClose={() => setPanel(false)} />}</div>

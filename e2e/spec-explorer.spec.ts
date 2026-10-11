@@ -12,6 +12,7 @@ export async function exploreNavigate(page: Page) {
   await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   const navigate = page.getByTestId("spec-box-HTML#navigate");
   await expect(navigate).toBeVisible({ timeout: 15_000 });
+  await expect(navigate.getByTestId("spec-summary")).toBeVisible({ timeout: 15_000 });
   await waitForCanvasSettled(page);
   return navigate;
 }

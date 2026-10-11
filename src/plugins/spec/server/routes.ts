@@ -1,7 +1,8 @@
 import { HttpError, putUserArtifact, readJson, requireSession, send, text, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
-import type { SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
+import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
@@ -58,6 +59,16 @@ export function specRoutes(rt: Runtime): Route[] {
         for (const open of opens) await openSpec(rt, session.id, open.anchor, open.from);
       } catch (error) { throw new HttpError(502, (error as Error).message); }
       send(res, 201, { opened: opens.length });
+    }],
+    ["GET", /^\/api\/sessions\/([^/]+)\/spec\/summaries$/, async ({ params }) => summaryViews(rt, requireSession(rt, params[0]!).id)],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/summaries\/flag$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const ref = text(await readJson(req), "ref");
+      const algorithm = rt.store.listArtifacts(session.id, "SpecAlgorithm").findLast((a) => (a.data as SpecAlgorithmData).ref === ref);
+      if (!algorithm) throw new HttpError(404, `Unknown algorithm: ${ref}`);
+      const entry = rt.knowledge.put("global", "spec", summaryKey(algorithm.data as SpecAlgorithmData), null, { by: "user", sessionId: session.id });
+      rt.emit(session.id, "user", "spec.summary", { ref });
+      send(res, 201, { entryId: entry.id });
     }],
   ];
 }
