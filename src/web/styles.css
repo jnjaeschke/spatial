@@ -415,10 +415,10 @@ button.code-link::after {
 .diagram-toggle { margin-top: 8px; }
 .diagram-content { overflow: auto; margin-top: 10px; border-top: 1px solid var(--border); }
 .sequence-diagram { display: grid; grid-auto-rows: minmax(min-content, auto); margin: 0 auto; }
-.sequence-lane { position: relative; display: grid; grid-template-rows: auto 1fr; min-width: 0; text-align: center; }
+.sequence-lane { min-width: 0; padding-bottom: 6px; text-align: center; }
 .sequence-lane strong, .sequence-lane small { display: block; }
 .sequence-lane small { color: var(--text-2); font-size: 0.8em; }
-.sequence-lane i { justify-self: center; height: 100%; border-left: 1px dashed var(--border-strong); }
+.sequence-lifeline { justify-self: center; border-left: 1px dashed var(--border-strong); }
 .sequence-phase { padding: 3px 0 0; border-top: 1px solid var(--border); color: var(--text-2); font-size: 0.75em; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
 .sequence-step { position: relative; min-width: 0; padding: 8px 0 22px; color: var(--text-2); }
 .sequence-step.clickable { border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; box-shadow: none; }
@@ -430,7 +430,8 @@ button.code-link::after {
 .sequence-arrow::after { content: ""; position: absolute; top: -7px; border: 6px solid transparent; }
 .sequence-step.right .sequence-arrow::after { right: -2px; border-left: 10px solid currentColor; border-right: 0; }
 .sequence-step.left .sequence-arrow::after { left: -2px; border-right: 10px solid currentColor; border-left: 0; }
-.sequence-step.self .sequence-arrow { left: 50%; right: auto; width: 26px; height: 16px; border: 2px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; }
+.sequence-step.self { padding-bottom: 32px; }
+.sequence-step.self .sequence-arrow { left: var(--sequence-loop); right: auto; width: 26px; height: 16px; border: 2px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; }
 .sequence-step.self .sequence-arrow::after { left: -4px; top: 9px; border-right: 10px solid currentColor; border-left: 0; }
 .sequence-label { display: block; width: 100%; overflow-wrap: anywhere; text-align: center; color: var(--text); font-size: 0.85em; line-height: 1.35; }
 .sequence-badge { display: inline-block; min-width: 18px; height: 18px; margin-right: 4px; border-radius: 9px; background: var(--text-2); color: var(--surface); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }

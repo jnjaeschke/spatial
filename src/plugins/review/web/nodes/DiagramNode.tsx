@@ -38,15 +38,19 @@ export function DiagramNode({ data }: NodeProps<DiagramFlowNode>) {
     {head}
     <div className="diagram-content nodrag nopan">
       <div className="sequence-diagram" role="group" aria-label={`Sequence diagram: ${diagram.data.title}`} style={{ gridTemplateColumns: `repeat(${diagram.data.lanes.length}, minmax(180px, 1fr))` }}>
-        {diagram.data.lanes.map((lane, index) => <div className="sequence-lane" key={lane.id} style={{ gridColumn: index + 1, gridRow: `1 / span ${layout.rowCount}` }}><div className="sequence-lane-heading"><strong>{lane.label}</strong>{lane.note && <small>{lane.note}</small>}</div><i /></div>)}
+        {diagram.data.lanes.map((lane, index) => <Fragment key={lane.id}><div className="sequence-lane" style={{ gridColumn: index + 1, gridRow: 1 }}><strong>{lane.label}</strong>{lane.note && <small>{lane.note}</small>}</div><i className="sequence-lifeline" style={{ gridColumn: index + 1, gridRow: `2 / span ${layout.rowCount - 1}` }} /></Fragment>)}
         {layout.entries.map(({ step, index, phaseRow, stepRow }) => {
           const from = diagram.data.lanes.findIndex((lane) => lane.id === step.from);
           const to = diagram.data.lanes.findIndex((lane) => lane.id === step.to);
-          const firstLane = Math.min(from, to), lastLane = Math.max(from, to);
+          // A self-call also takes the neighbouring lane, so its text is not squeezed into one column; its loop stays on its own lane.
+          const lanes = diagram.data.lanes.length;
+          const firstLane = from === to && from === lanes - 1 && lanes > 1 ? from - 1 : Math.min(from, to);
+          const lastLane = from === to && from < lanes - 1 ? from + 1 : Math.max(from, to);
+          const loopAt = from === to ? `${((from - firstLane) * 2 + 1) * 50 / (lastLane - firstLane + 1)}%` : undefined;
           const direction = from !== to ? from < to ? "right" : "left" : "self";
           const cite = `${step.cite.path}:${step.cite.line}`;
           const target = !showBefore ? diagramSteps?.stepTarget(diagram, step) ?? null : null;
-          const stepProps = { className: `sequence-step ${direction}${target ? " clickable nodrag nopan" : ""}`, "data-status": step.status, "data-verified": String(step.verified), style: { gridColumn: `${firstLane + 1} / ${lastLane + 2}`, gridRow: stepRow, "--sequence-span": lastLane - firstLane + 1 } as React.CSSProperties, title: `${step.verified ? cite : `citation not found near ${cite}`}${step.text ? ` — ${step.text}` : ""}` };
+          const stepProps = { className: `sequence-step ${direction}${target ? " clickable nodrag nopan" : ""}`, "data-status": step.status, "data-verified": String(step.verified), style: { gridColumn: `${firstLane + 1} / ${lastLane + 2}`, gridRow: stepRow, "--sequence-span": lastLane - firstLane + 1, "--sequence-loop": loopAt } as React.CSSProperties, title: `${step.verified ? cite : `citation not found near ${cite}`}${step.text ? ` — ${step.text}` : ""}` };
           const label = <><div className="sequence-label">
                 {step.guard && <span className="sequence-guard">[{step.guard}]</span>}
                 <span className="sequence-badge">{index + 1}</span><code className="sequence-call">{step.call}</code>
