@@ -5,7 +5,7 @@ import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState,
 import { closeGraph, conversationGraph, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
-import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
+import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, introducedSymbolEdges, isReviewKind, latestNarrative, layerGraph, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(st.session.workflow === "review" ? reviewGraph : conversationGraph, st, drafts, freePositions);
 const estimateSize = (data: GraphNodeData, textScale = 1) => {
@@ -187,6 +187,25 @@ test("narrativeGraph creates ordered commit cards and assigns changes to lanes",
   const single = narrativeGraph(narrative("N"), diff, [diff]);
   assert.equal(single.nodes.some((n) => isReviewKind(n.data, "commit")), false);
   assert.ok(single.nodes.filter((n) => isReviewKind(n.data, "change")).every((n) => isReviewKind(n.data, "change") && n.data.commit === null));
+});
+
+test("introducedSymbolEdges connects a definition hunk to each using hunk once", () => {
+  const definition = { ...hunk("def"), lines: [{ kind: "add" as const, text: "class NewWidget {}; void NewThing() {}", commit: 0 }] };
+  const useOne = { ...hunk("use1"), lines: [{ kind: "add" as const, text: "NewThing(); NewWidget item;", commit: 0 }] };
+  const useTwo = { ...hunk("use2"), lines: [{ kind: "ctx" as const, text: "NewThing(); NewWidget item;" }] };
+  const unrelated = { ...hunk("other"), lines: [{ kind: "add" as const, text: "NewThingy();", commit: 0 }] };
+  assert.deepEqual(introducedSymbolEdges("change", [
+    { file: { ...diff.data.files[0]!, hunks: [definition] }, hunk: definition },
+    { file: { ...diff.data.files[1]!, hunks: [useOne] }, hunk: useOne },
+    { file: { ...diff.data.files[1]!, hunks: [useTwo] }, hunk: useTwo },
+    { file: { ...diff.data.files[1]!, hunks: [unrelated] }, hunk: unrelated },
+  ], {
+    NewThing: { path: "a.cpp", hunkId: "def", line: 1, commit: 0 },
+    NewWidget: { path: "a.cpp", hunkId: "def", line: 1, commit: 0 },
+  }), [
+    { id: "change/def->change/use1", source: "change/def", target: "change/use1", label: "NewThing, NewWidget" },
+    { id: "change/def->change/use2", source: "change/def", target: "change/use2", label: "NewThing, NewWidget" },
+  ]);
 });
 
 test("narrativeGraph adds reviewed state and per-commit reviewed counts", () => {

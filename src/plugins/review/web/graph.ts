@@ -12,6 +12,8 @@ import { changeCommit, reviewedChanges, withUnassigned } from "../shared/review-
 import { currentUserComments } from "../shared/postable-comments.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { postTarget } from "../shared/post-plan.ts";
+import { latestSymbols, symbolMarks } from "./symbols.ts";
+import type { IntroducedSymbolsData } from "../shared/types.ts";
 
 export type ChangeNodeData = {
   kind: "change";
@@ -28,6 +30,7 @@ export type ChangeNodeData = {
   specs: { specId: Id; title: string }[];
   comments: { artifact?: Artifact<UserCommentData>; draft?: Draft; lines: UserCommentData["lines"]; revision: number | null; postedTo: number | null }[];
   findings: FindingData[];
+  symbols?: IntroducedSymbolsData["symbols"];
 };
 
 /** The change at its Change place: the same data as `ChangeNodeData`, with the threads that no hunk card shows. */
@@ -47,7 +50,28 @@ export type HunkNodeData = {
   phabThreads: PhabThreadData[];
   comments: ChangeNodeData["comments"];
   findings: FindingData[];
+  symbols?: IntroducedSymbolsData["symbols"];
 };
+
+/** Edges from each symbol definition hunk to distinct hunks in this change that use it. */
+export function introducedSymbolEdges(changeNodeId: string, hunks: { file: DiffFile; hunk: Hunk }[], symbols: IntroducedSymbolsData["symbols"]): (GraphEdge & { label: string })[] {
+  const namesByPair = new Map<string, { source: string; target: string; names: string[] }>();
+  for (const [name, definition] of Object.entries(symbols)) {
+    const sourceIndex = hunks.findIndex(({ hunk }) => hunk.id === definition.hunkId);
+    if (sourceIndex < 0) continue;
+    for (let i = 0; i < hunks.length; i++) {
+      if (i === sourceIndex) continue;
+      const { hunk } = hunks[i]!;
+      const usesName = hunk.lines.some((line) => symbolMarks(line.text, definition.commit, symbols).some((mark) => mark.name === name));
+      if (!usesName) continue;
+      const source = `${changeNodeId}/${definition.hunkId}`, target = `${changeNodeId}/${hunk.id}`, key = `${source}->${target}`;
+      const pair = namesByPair.get(key) ?? { source, target, names: [] };
+      pair.names.push(name);
+      namesByPair.set(key, pair);
+    }
+  }
+  return [...namesByPair].map(([key, pair]) => ({ id: key, source: pair.source, target: pair.target, label: pair.names.join(", ") }));
+}
 
 export type CommitNodeData = {
   kind: "commit";
@@ -234,9 +258,10 @@ export const reviewPlaces = {
     const data = node.data;
     const { change, narrativeId, diffId, commit } = data;
     const satellites = subgraph(g, new Set([id]));
-    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${id}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), phabThreads: data.phabThreads.filter((thread) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)), findings: data.findings.filter((finding) => finding.lines && rowsOf(finding.lines, file, hunk)) } satisfies HunkNodeData }));
+    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${id}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, symbols: data.symbols, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), phabThreads: data.phabThreads.filter((thread) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)), findings: data.findings.filter((finding) => finding.lines && rowsOf(finding.lines, file, hunk)) } satisfies HunkNodeData }));
     const header: GraphNode = { ...node, data: { ...data, kind: "changeHeader", threads: data.threads.filter((thread) => !data.hunks.some(({ file, hunk }) => threadInHunk(thread, file, hunk))), phabThreads: data.phabThreads.filter((thread) => !data.hunks.some(({ file, hunk }) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line))), comments: [], findings: data.findings.filter((finding) => !finding.lines) } satisfies ChangeHeaderNodeData };
-    return { nodes: [header, ...cards, ...satellites.nodes.filter((n) => n.id !== id)], edges: satellites.edges };
+    const symbolEdges = introducedSymbolEdges(id, data.hunks, data.symbols ?? {});
+    return { nodes: [header, ...cards, ...satellites.nodes.filter((n) => n.id !== id)], edges: [...satellites.edges, ...symbolEdges] };
   },
   open(g: Graph, place: string, nodeId: string): string | null {
     const node = g.nodes.find((n) => n.id === nodeId);
@@ -371,6 +396,8 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   const latest = latestNarrative(state);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts, drafts);
+  const symbols = latestSymbols(state, latest.diff.id)?.symbols;
+  if (symbols) for (const node of g.nodes) if (isReviewKind(node.data, "change")) node.data.symbols = symbols;
   const narrativeData = { ...latest.narrative.data, changes: withUnassigned(latest.narrative.data, latest.diff.data) };
   const diagramsByCommit = new Map<string, Artifact<DiagramData>>();
   for (const artifact of state.artifacts) {
