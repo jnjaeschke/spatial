@@ -36,6 +36,20 @@
 
 ## Accessors
 
+### knowledge
+
+#### Get Signature
+
+> **get** **knowledge**(): [`Knowledge`](../../knowledge/interfaces/Knowledge.md)
+
+Plugin data that outlives sessions.
+
+##### Returns
+
+[`Knowledge`](../../knowledge/interfaces/Knowledge.md)
+
+***
+
 ### llm
 
 #### Get Signature

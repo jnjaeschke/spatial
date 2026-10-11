@@ -27,6 +27,7 @@
  * - A **repo profile** (`RepoProfile`, contributed through `Plugin.repoProfiles`) says how to work in a
  *   kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
  *   pick one per session; any plugin can add one.
+ * - The **knowledge store** (`Runtime.knowledge`, `Knowledge`) keeps plugin data across sessions in its own SQLite file (`knowledge.db` next to the session database): versioned entries by scope, namespace and key. A `null` value is a tombstone; nothing is deleted through any API.
  *
  * The web side of a plugin registers phase views and canvas node kinds through
  * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
@@ -51,6 +52,7 @@ export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry,
 export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";
+export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } from "./runtime/knowledge.ts";
 export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";
 export { HttpError, send, readJson, str, text, llmField, startTask, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
 /** Creates a session after resolving its repository path. */

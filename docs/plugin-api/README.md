@@ -34,6 +34,7 @@ Everything a user works on is a plugin; review and chat are the standard library
 - A **repo profile** (`RepoProfile`, contributed through `Plugin.repoProfiles`) says how to work in a
   kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
   pick one per session; any plugin can add one.
+- The **knowledge store** (`Runtime.knowledge`, `Knowledge`) keeps plugin data across sessions in its own SQLite file (`knowledge.db` next to the session database): versioned entries by scope, namespace and key. A `null` value is a tombstone; nothing is deleted through any API.
 
 The web side of a plugin registers phase views and canvas node kinds through
 `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
@@ -287,6 +288,30 @@ Re-exports [isDiagram](../runtime/diagram/functions/isDiagram.md)
 ### JsonSchema
 
 Re-exports [JsonSchema](../runtime/structured/interfaces/JsonSchema.md)
+
+***
+
+### Knowledge
+
+Re-exports [Knowledge](../runtime/knowledge/interfaces/Knowledge.md)
+
+***
+
+### KnowledgeEntry
+
+Re-exports [KnowledgeEntry](../runtime/knowledge/interfaces/KnowledgeEntry.md)
+
+***
+
+### KnowledgeProvenance
+
+Re-exports [KnowledgeProvenance](../runtime/knowledge/type-aliases/KnowledgeProvenance.md)
+
+***
+
+### KnowledgeRead
+
+Re-exports [KnowledgeRead](../runtime/knowledge/type-aliases/KnowledgeRead.md)
 
 ***
 

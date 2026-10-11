@@ -49,6 +49,7 @@
 - [runtime/blame](runtime/blame/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/diagram](runtime/diagram/README.md)
+- [runtime/knowledge](runtime/knowledge/README.md)
 - [runtime/llm/events](runtime/llm/events/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
 - [runtime/plugins](runtime/plugins/README.md)

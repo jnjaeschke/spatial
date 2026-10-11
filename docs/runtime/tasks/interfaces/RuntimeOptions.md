@@ -24,6 +24,14 @@
 
 ***
 
+### knowledge?
+
+> `optional` **knowledge?**: [`Knowledge`](../../knowledge/interfaces/Knowledge.md)
+
+Plugin data that outlives sessions; defaults to an in-memory store.
+
+***
+
 ### llm
 
 > **llm**: [`LlmService`](../../llm/types/interfaces/LlmService.md)

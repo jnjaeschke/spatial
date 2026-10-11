@@ -1,6 +1,6 @@
 import type { LlmSelection } from "../shared/types.ts";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { plugins } from "../plugins/index.ts";
 import { chatTurn } from "../tasks/chat-turn/task.ts";
 import { selectWorkflow } from "../tasks/select-workflow/task.ts";
@@ -13,6 +13,7 @@ import { Runtime } from "./tasks.ts";
 import { loadRepoContext } from "./repo-context.ts";
 import { makeSearchfox } from "./searchfox.ts";
 import { makeWebspec } from "./webspec.ts";
+import { KnowledgeStore } from "./knowledge.ts";
 import { fileURLToPath } from "node:url";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
@@ -39,6 +40,7 @@ export function createRuntime(opts: {
     store: new Store(opts.dbPath), plugins: [corePlugin, ...plugins], llm, git: makeGit,
     webspec: makeWebspec({ bin: opts.webspecBin }), searchfox: makeSearchfox({ bin: opts.searchfoxBin }),
     repoContext: loadRepoContext,
+    knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: {
       type: "stdio",
       command: process.execPath,

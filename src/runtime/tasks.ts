@@ -6,6 +6,7 @@ import type { Store } from "./store.ts";
 import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView, type WorkflowView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
 import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Step, type Workflow } from "./plugins.ts";
+import { KnowledgeStore, type Knowledge } from "./knowledge.ts";
 
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
@@ -132,6 +133,7 @@ export interface RuntimeOptions {
   git: (repo: string) => GitCapability;
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
+  /** Plugin data that outlives sessions; defaults to an in-memory store. */ knowledge?: Knowledge;
   sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
   /** Called once at task start to load repo MCP servers, skills, and instructions. Defaults to an empty context. */
   repoContext?: (repo: string) => RepoContext;
@@ -149,6 +151,7 @@ export class Runtime {
   #git: (repo: string) => GitCapability;
   #webspec: WebspecCapability;
   #searchfox: SearchfoxCapability;
+  #knowledge: Knowledge;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
   #repoContext: (repo: string) => RepoContext;
   #running = new Map<Id, AbortController>();
@@ -168,6 +171,7 @@ export class Runtime {
     this.#git = opts.git;
     this.#webspec = opts.webspec;
     this.#searchfox = opts.searchfox;
+    this.#knowledge = opts.knowledge ?? new KnowledgeStore(":memory:");
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
     this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: null }));
   }
@@ -182,6 +186,11 @@ export class Runtime {
 
   get searchfox(): SearchfoxCapability {
     return this.#searchfox;
+  }
+
+  /** Plugin data that outlives sessions. */
+  get knowledge(): Knowledge {
+    return this.#knowledge;
   }
 
   /** Read-only git for server queries outside tasks. */
