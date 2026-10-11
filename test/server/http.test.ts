@@ -323,7 +323,7 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.equal((await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" })).status, 202);
   const state = await waitFor(async () => {
     const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return snapshot.tasks.some((task) => task.kind === "review" && task.status !== "running" && task.status !== "pending") ? snapshot : undefined;
+    return snapshot.tasks.some((task) => task.kind === "review") && snapshot.tasks.every((task) => task.status !== "running" && task.status !== "pending") ? snapshot : undefined;
   });
   assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["introducedSymbols", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"]]);
@@ -415,6 +415,7 @@ test("update imports a moved feature ref as a new epoch and detects no-op update
     const current: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
     return current.artifacts.filter((artifact) => artifact.type === "Diff").length === 2
       && current.tasks.filter((task) => task.kind === "review" && task.status === "succeeded").length === 2
+      && current.tasks.every((task) => task.status !== "running" && task.status !== "pending")
       ? current : undefined;
   });
   assert.equal(state.artifacts.filter((artifact) => artifact.type === "Diff").length, 2);
