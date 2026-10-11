@@ -35,6 +35,8 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
     mappings: view.mappings,
     tasks: view.tasks,
     flag: view.flag,
+    findInGecko: view.findInGecko,
+    decideGecko: view.decideGecko,
   }), [view, readOnly]);
   useEffect(() => { if (view.focus && view.takeFocus(view.focus)) latest.current.reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view]);
   return <ExplorerContext.Provider value={value}>{children}</ExplorerContext.Provider>;
@@ -84,7 +86,9 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   }), [closed.closed, active]);
   const flag = useCallback(async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummariesRefresh((n) => n + 1); }, [state.session.id]);
   const takeFocus = useCallback((taken: SpecFocus) => { if (focusTaken.current === taken.nonce) return false; focusTaken.current = taken.nonce; return true; }, []);
-  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: engineTasks, flag }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, engineTasks, flag]);
+  const findInGecko = useCallback(async (ref: string, stale: string | null) => { await specClient.findImplementation(state.session.id, ref, "gecko", stale); }, [state.session.id]);
+  const decideGecko = useCallback(async (ref: string, key: string, decision: "confirm" | "reject") => { await specClient.decideImplementation(state.session.id, ref, "gecko", key, decision); }, [state.session.id]);
+  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: engineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, engineTasks, flag, findInGecko, decideGecko]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
     <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={selectTrace} onClose={() => setPanel(false)} />}</div>

@@ -81,6 +81,8 @@ test("fake searchfox serves the Fake::Navigate fixture", async () => {
   assert.deepEqual(await sf.functionAt("dom/fake/Fake.cpp", 5, signal), [{ symbol: "_ZN4Fake8NavigateEv", signature: "void Fake::Navigate() {" }]);
   assert.deepEqual(await sf.functionAt("dom/fake/Fake.cpp", 3, signal), []);
   assert.equal((await sf.file("dom/fake/Fake.cpp", signal)).split("\n")[3], "void Fake::Navigate() {");
+  assert.equal((await sf.file("dom/fake/Snapshot.cpp", signal)).split("\n")[2], "  Snap();");
+  assert.deepEqual(await sf.functionAt("dom/fake/Snapshot.cpp", 3, signal), [{ symbol: "_ZN4Fake8SnapshotEv", signature: "void Fake::Snapshot() {" }]);
   assert.deepEqual(await sf.tip(), { repoBase: "https://searchfox.org/mozilla-central/", rev: "0f".repeat(20) });
   await assert.rejects(sf.file("nope.cpp", signal), /404 Not Found/);
 });

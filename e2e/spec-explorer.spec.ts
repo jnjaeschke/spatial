@@ -93,3 +93,15 @@ test("an algorithm box shows where Gecko implements it, with step links and test
   await strip.getByRole("button", { name: "1 test" }).click();
   await expect(navigate.getByRole("link", { name: "testing/web-platform/tests/fake/navigate.html:2" })).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/testing/web-platform/tests/fake/navigate.html#2`);
 });
+
+test("Find in Gecko proposes a verified place, and Confirm keeps it", async ({ page }) => {
+  const navigate = await exploreNavigate(page);
+  await navigate.locator('li[data-step="2"]').getByTestId("spec-link").first().click();
+  const strip = page.getByTestId("spec-box-HTML#snapshotting-source-snapshot-params").getByTestId("spec-impl");
+  await strip.getByRole("button", { name: "Find in Gecko" }).click({ timeout: 15_000 });
+  const proposal = strip.getByRole("link", { name: "Fake::Snapshot" });
+  await expect(proposal).toHaveClass(/method-llm/, { timeout: 15_000 });
+  await strip.getByRole("button", { name: "Confirm Fake::Snapshot" }).click();
+  await expect(proposal).toHaveClass(/method-user/);
+  await expect(strip.getByRole("button", { name: "Confirm Fake::Snapshot" })).toHaveCount(0);
+});
