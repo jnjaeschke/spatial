@@ -8,7 +8,6 @@
 
 ## Interfaces
 
-- [CommandRunData](interfaces/CommandRunData.md)
 - [CommentInterpretationData](interfaces/CommentInterpretationData.md)
 - [CommentTriageData](interfaces/CommentTriageData.md)
 - [ImplementBranchData](interfaces/ImplementBranchData.md)

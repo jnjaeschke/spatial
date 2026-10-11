@@ -1,4 +1,5 @@
-import type { CommandRunData, ImplementResultData } from "../shared/types.ts";
+import type { CommandRunData } from "../../../web/plugin-api.ts";
+import type { ImplementResultData } from "../shared/types.ts";
 import type { Artifact, SessionState } from "../../../web/plugin-api.ts";
 
 /** A `CommandRun` as the implement view shows it. */

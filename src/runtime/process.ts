@@ -38,3 +38,11 @@ export function runProcess(
     child.stdin.end(opts.stdin);
   });
 }
+
+/** `runProcess` that throws `${label} exited with code N: <tail>` on a non-zero exit; the tail is the last `tail` (default 1000) characters of stderr, or of stdout when stderr is empty. */
+export async function runChecked(cmd: string, args: string[], opts: Parameters<typeof runProcess>[2] & { label: string; tail?: number }): Promise<{ stdout: string; stderr: string }> {
+  const { label, tail = 1000, ...rest } = opts;
+  const { stdout, stderr, code } = await runProcess(cmd, args, rest);
+  if (code !== 0) throw new Error(`${label} exited with code ${code}: ${(stderr || stdout).trim().slice(-tail)}`);
+  return { stdout, stderr };
+}

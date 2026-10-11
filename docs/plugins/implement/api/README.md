@@ -6,17 +6,7 @@
 
 # plugins/implement/api
 
-## Functions
-
-- [commandRunData](functions/commandRunData.md)
-
 ## References
-
-### CommandRunData
-
-Re-exports [CommandRunData](../shared/types/interfaces/CommandRunData.md)
-
-***
 
 ### ImplementBranchData
 

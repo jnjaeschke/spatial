@@ -7,10 +7,10 @@ import { Store } from "../../../src/runtime/store.ts";
 import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
-import type { Artifact, LlmSelection } from "../../../src/shared/types.ts";
+import type { Artifact, CommandRunData, LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
-import type { CommandRunData, ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
+import type { ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
 import type { ImplementInput } from "../../../src/plugins/implement/tasks/implement/task.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 

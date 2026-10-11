@@ -11,7 +11,7 @@ import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
-import type { CommandRunData } from "../../../src/plugins/implement/api.ts";
+import type { CommandRunData } from "../../../src/plugin-api.ts";
 import type { PhabSubmissionData, PhabSubmitInput } from "../../../src/plugins/gecko/shared/types.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 

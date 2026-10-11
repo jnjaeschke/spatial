@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ResolvedSpec } from "../shared/types.ts";
-import { runProcess } from "./process.ts";
+import { runChecked, runProcess } from "./process.ts";
 import type { StepCommentCheck, WebspecCapability } from "./tasks.ts";
 
 interface AnalyzeOutput { scopes: { url: string; validations: { line: number; step: number[]; comment_text: string; result: StepCommentCheck["result"] }[] }[] }
@@ -25,8 +25,7 @@ export function makeWebspec(opts: { bin?: string } = {}): WebspecCapability {
       try {
         const file = join(dir, name);
         await writeFile(file, text);
-        const { stdout, stderr, code } = await runProcess(bin, ["analyze", file, "--output-format", "json"], { stdin: "", signal });
-        if (code !== 0) throw new Error(`webspec-index analyze exited with code ${code}: ${stderr.trim().slice(-1000)}`);
+        const { stdout } = await runChecked(bin, ["analyze", file, "--output-format", "json"], { stdin: "", signal, label: "webspec-index analyze" });
         if (!stdout.trim()) return [];
         const out = JSON.parse(stdout) as AnalyzeOutput;
         return out.scopes.flatMap((scope) => scope.validations.map((v) => ({ line: v.line + 1, step: v.step.join("."), text: v.comment_text, result: v.result, url: scope.url })));

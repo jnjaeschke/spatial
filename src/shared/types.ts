@@ -9,6 +9,9 @@ export interface Epoch { sessionId: Id; n: number; phase: string; status: EpochS
 export type WorkflowId = string;
 export type WriteMode = "auto" | "full" | "editsOnly";
 
+/** A shell command an agent ran (source fact; artifact `CommandRun`, verified). `test` is true when the profile's `isTestCommand` matches. `output` is capped at 256 KB. */
+export interface CommandRunData { command: string; exitCode: number; durationMs: number; output: string; test: boolean }
+
 /** A question the start box shows before a session exists; send the start request again with `answer` set to the index of the chosen option. An option with `cancel` abandons the start. */
 export interface StartQuestion { question: string; options: { label: string; cancel?: true }[] }
 

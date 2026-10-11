@@ -11,7 +11,7 @@ import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
-import type { CommandRunData } from "../../../src/plugins/implement/api.ts";
+import type { CommandRunData } from "../../../src/plugin-api.ts";
 import type { TryPushData } from "../../../src/plugins/gecko/shared/types.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 
@@ -76,7 +76,7 @@ test("nothing runs for a refused command, a moved checkout or a dirty work tree"
 });
 
 test("commandRunData caps command output", async () => {
-  const { commandRunData } = await import("../../../src/plugins/implement/runtime/command-run.ts");
+  const { commandRunData } = await import("../../../src/runtime/command-run.ts");
   const data = commandRunData("x", 0, 1, "x".repeat(262145), false);
   assert.equal(data.output, `${"x".repeat(262144)}\n[output truncated]`);
 });

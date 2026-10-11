@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { GeckoSpecRef } from "../shared/types.ts";
-import { runProcess } from "./process.ts";
+import { runChecked } from "./process.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
 
 export function isGeckoRepo(repo: string): boolean {
@@ -24,9 +24,7 @@ export function makeSearchfox(opts: { bin?: string } = {}): SearchfoxCapability 
   const bin = opts.bin ?? "searchfox-cli";
   let tipResult: Promise<{ repoBase: string; rev: string }> | undefined;
   const run = async (args: string[], signal: AbortSignal) => {
-    const { stdout, stderr, code } = await runProcess(bin, args, { stdin: "", signal });
-    if (code !== 0) throw new Error(`searchfox-cli failed: ${(stderr || stdout).trim().slice(-1000)}`);
-    return stdout;
+    return (await runChecked(bin, args, { stdin: "", signal, label: "searchfox-cli" })).stdout;
   };
   return {
     effect: "read-only",

@@ -64,6 +64,7 @@ composition roots.
 
 ## Functions
 
+- [commandRunData](functions/commandRunData.md)
 - [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
 - [fetchBugMarkdown](functions/fetchBugMarkdown.md)
@@ -73,6 +74,7 @@ composition roots.
 - [makeGitWriter](functions/makeGitWriter.md)
 - [numberLines](functions/numberLines.md)
 - [revisedText](functions/revisedText.md)
+- [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
 
 ## References
@@ -140,6 +142,12 @@ Re-exports [ChatThreadData](../shared/types/interfaces/ChatThreadData.md)
 ### CodeLinksData
 
 Re-exports [CodeLinksData](../shared/types/interfaces/CodeLinksData.md)
+
+***
+
+### CommandRunData
+
+Re-exports [CommandRunData](../shared/types/interfaces/CommandRunData.md)
 
 ***
 

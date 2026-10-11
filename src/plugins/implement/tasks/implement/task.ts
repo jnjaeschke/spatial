@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
-import { type Artifact, type Id, type LlmEvent, type LlmSelection, type WriteMode, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
-import type { CommandRunData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
-import { commandRunData } from "../../runtime/command-run.ts";
+import { type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
+import type { ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { describeFinding, openHighFindings } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";

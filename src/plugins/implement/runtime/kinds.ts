@@ -1,5 +1,5 @@
-import type { Artifact, ArtifactKind } from "../../../plugin-api.ts";
-import type { CommentInterpretationData, CommentTriageData, CommandRunData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
+import type { Artifact, ArtifactKind, CommandRunData } from "../../../plugin-api.ts";
+import type { CommentInterpretationData, CommentTriageData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
 
 const renderLocation = (location: InvestigationLocation) => `${location.path}:${location.line} - ${location.why}\n\n\`${location.quote}\``;
 

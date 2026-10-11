@@ -69,7 +69,7 @@ test("searchfox: specRefs args and failure", async () => {
   assert.deepEqual(argv()[0], ["--spec-refs", "https://html.spec.whatwg.org/#navigate", "-l", "30"]);
   process.env.FAKE_LLM_EXIT = "1";
   process.env.FAKE_LLM_STDERR = "network unreachable";
-  await assert.rejects(sf.specRefs("u", signal), /searchfox-cli failed: network unreachable/);
+  await assert.rejects(sf.specRefs("u", signal), /searchfox-cli exited with code \d+: network unreachable/);
 });
 
 test("searchfox: define parses a permalink and matching source line", async () => {
@@ -95,7 +95,7 @@ test("searchfox: define returns null when either result is absent and throws on 
   stdout("");
   process.env.FAKE_LLM_EXIT = "1";
   process.env.FAKE_LLM_STDERR = "network unreachable";
-  await assert.rejects(sf.define("broken", signal), /searchfox-cli failed: network unreachable/);
+  await assert.rejects(sf.define("broken", signal), /searchfox-cli exited with code \d+: network unreachable/);
 });
 
 test("searchfox: tip parsed and cached; bad output throws and is not cached", async () => {

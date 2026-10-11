@@ -1,8 +1,8 @@
-[**spatial**](../../../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/implement/shared/types](../README.md) / CommandRunData
+[spatial](../../../README.md) / [shared/types](../README.md) / CommandRunData
 
 # Interface: CommandRunData
 

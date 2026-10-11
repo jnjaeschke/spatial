@@ -1,4 +1,4 @@
-import { defineTask, runProcess, type Id } from "../../../../plugin-api.ts";
+import { defineTask, runChecked, type Id } from "../../../../plugin-api.ts";
 import type { ReviewerSuggestionData, SubmitInput } from "../../shared/types.ts";
 import { parseReviewerJson } from "../../runtime/submit-command.ts";
 import { changedFiles } from "../../runtime/changed-files.ts";
@@ -12,8 +12,7 @@ export const suggestReviewers = defineTask<SubmitInput, { suggestionId: Id }>({
     const files = changedFiles(diff);
     let data: ReviewerSuggestionData = { files, commits: commits.length, suggested: [], candidates: [], error: null };
     try {
-      const out = await runProcess("./mach", ["file-info", "reviewers", "--format", "json", ...files], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
-      if (out.code !== 0) throw new Error(`./mach file-info reviewers exited ${out.code}: ${(out.stdout + out.stderr).trim().split("\n").slice(-3).join(" ")}`);
+      const out = await runChecked("./mach", ["file-info", "reviewers", "--format", "json", ...files], { stdin: "", cwd: ctx.repo, signal: ctx.signal, label: "./mach file-info reviewers", tail: 500 });
       data = { ...data, ...parseReviewerJson(out.stdout) };
     } catch (e) {
       if (ctx.signal.aborted) throw e;

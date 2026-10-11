@@ -63,7 +63,9 @@ export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
 export { makeGitWriter, makeGit } from "./runtime/git.ts";
 /** Runs a process, optionally streaming stdout lines. */
-export { runProcess } from "./runtime/process.ts";
+export { runChecked, runProcess } from "./runtime/process.ts";
+/** A CommandRun record with capped output. */
+export { commandRunData } from "./runtime/command-run.ts";
 export { fetchBugMarkdown } from "./runtime/moz-mcp.ts";
 export { prependRepoContext } from "./runtime/repo-context.ts";
 export { isGeckoRepo } from "./runtime/searchfox.ts";

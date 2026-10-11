@@ -1,5 +1,5 @@
-import { defineTask, runProcess, type Id } from "../../../../plugin-api.ts";
-import { commandRunData, type CommandRunData, type StackRewriteData } from "../../../implement/api.ts";
+import { commandRunData, defineTask, runProcess, type CommandRunData, type Id } from "../../../../plugin-api.ts";
+import { type StackRewriteData } from "../../../implement/api.ts";
 import { commitRevision } from "../../../review/api.ts";
 import type { PhabSubmissionData, PhabSubmitInput } from "../../shared/types.ts";
 import { submitArgs } from "../../runtime/submit-command.ts";

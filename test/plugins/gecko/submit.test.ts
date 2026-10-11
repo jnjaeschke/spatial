@@ -74,7 +74,7 @@ test("a failing reviewer command still asks, with error kept and nothing prefill
   process.env.FAIL = "1";
   try { await rt.runPhase(session.id, "submit", { base, head }); } finally { delete process.env.FAIL; }
   const suggestion = store.listArtifacts(session.id, "ReviewerSuggestion").at(-1)!.data as ReviewerSuggestionData;
-  assert.match(suggestion.error!, /exited 1.*herald rules unavailable/);
+  assert.match(suggestion.error!, /exited with code 1.*herald rules unavailable/);
   assert.deepEqual(suggestion.suggested, []);
   const step = rt.nextStep(session.id);
   assert.ok(step && "decide" in step && step.decide.options[0]!.defaultText === undefined);

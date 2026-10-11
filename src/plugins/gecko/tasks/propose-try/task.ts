@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { defineTask, prependRepoContext, type Id } from "../../../../plugin-api.ts";
-import type { CommandRunData } from "../../../implement/api.ts";
+import { defineTask, prependRepoContext, type CommandRunData, type Id } from "../../../../plugin-api.ts";
 import type { TryInput, TryProposalData, TryPushData } from "../../shared/types.ts";
 import { tryCommandProblem } from "../../runtime/try-command.ts";
 import { changedFiles } from "../../runtime/changed-files.ts";

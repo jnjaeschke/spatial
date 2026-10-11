@@ -165,6 +165,12 @@ Re-exports [CodeLinksData](../../shared/types/interfaces/CodeLinksData.md)
 
 ***
 
+### CommandRunData
+
+Re-exports [CommandRunData](../../shared/types/interfaces/CommandRunData.md)
+
+***
+
 ### Commit
 
 Re-exports [Commit](../../shared/types/interfaces/Commit.md)
