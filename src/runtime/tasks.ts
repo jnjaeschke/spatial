@@ -106,8 +106,9 @@ export function defineTask<I, O>(def: TaskDefinition<I, O>): TaskDefinition<I, O
 
 export class TaskFailedError extends Error {
   taskId: Id;
-  constructor(taskId: Id, message: string) {
-    super(message);
+  /** `cause` is the error the task threw. */
+  constructor(taskId: Id, message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "TaskFailedError";
     this.taskId = taskId;
   }
@@ -308,7 +309,7 @@ export class Runtime {
         const message = e instanceof Error ? e.message : String(e);
         this.#store.updateTask(task.id, { status: "failed", error: message });
         emit("task.failed", { taskId: task.id, error: message });
-        throw new TaskFailedError(task.id, message);
+        throw new TaskFailedError(task.id, message, { cause: e });
       } finally {
         this.#running.delete(task.id);
       }

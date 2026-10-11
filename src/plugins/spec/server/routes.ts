@@ -1,6 +1,8 @@
 import { HttpError, putUserArtifact, readJson, requireSession, send, text, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
+import { isSpecQuery } from "../shared/refs.ts";
+import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -25,11 +27,12 @@ export function specRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, params[0]!);
       const body = await readJson(req);
       const anchor = text(body, "anchor");
+      if (!isSpecQuery(anchor)) throw new HttpError(400, "anchor must be SPEC#anchor or a spec URL with a fragment");
       const from = parseFrom(body.from);
       if (from && !rt.store.listArtifacts(session.id, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === from.anchor)) throw new HttpError(409, `${from.anchor} is not open`);
       let result;
       try { result = await openSpec(rt, session.id, anchor, from); }
-      catch (error) { const message = (error as Error).message; throw new HttpError(message.startsWith("Spec section not found") ? 404 : 502, message); }
+      catch (error) { throw new HttpError((error as Error).cause instanceof SpecNotFoundError ? 404 : 502, (error as Error).message); }
       send(res, 201, { openedId: result.opened.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces$/, async ({ req, res, params }) => {

@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // Stub for webspec-index. `query HTML#navigate` and `effects HTML#navigate` print captured fixtures. `query <ref>` resolves any other
-// ref or URL with a fragment to a two-step algorithm of the ref's spec without effects; `effects <ref>` of those has none.
+// ref or URL with a fragment to a two-step algorithm of the ref's spec without effects, except `#missing` (not found) and `#broken`
+// (crash); `effects <ref>` of those has none.
 // `search <phrase>` returns navigate and navigate-fragid. `analyze <file>` checks `// Step N. text` comments against the two steps,
 // scoped to the nearest URL above.
 import { readFileSync } from "node:fs";
 
 const STEPS = ["Edit the line.", "Add the file."];
 const fixture = (name) => readFileSync(new URL(`../fixtures/webspec/${name}`, import.meta.url), "utf8");
-const [command, arg] = process.argv.slice(2);
+const [command, ...rest] = process.argv.slice(2);
+const arg = rest.includes("--") ? rest[rest.indexOf("--") + 1] : rest[0];
 if (command === "analyze") {
   const scopes = new Map();
   let url = null;
@@ -31,9 +33,13 @@ if (command === "search") {
   process.exit(0);
 }
 const anchor = arg?.split("#")[1];
-if ((command !== "query" && command !== "effects") || !anchor) {
+if ((command !== "query" && command !== "effects") || !anchor || anchor === "missing") {
   process.stderr.write(`Error: URL not recognized: ${arg}`);
   process.exit(1);
+}
+if (anchor === "broken") {
+  process.stderr.write("thread 'main' panicked");
+  process.exit(101);
 }
 if (arg === "HTML#navigate") {
   process.stdout.write(fixture(command === "query" ? "navigate-query.json" : "navigate-effects.json"));

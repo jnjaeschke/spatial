@@ -1,6 +1,5 @@
 import type { ArtifactKind } from "../../../plugin-api.ts";
-import type { SpecReferenceData } from "../shared/types.ts";
-import type { SpecAlgorithmData } from "../shared/types.ts";
+import type { SpecAlgorithmData, SpecReferenceData } from "../shared/types.ts";
 
 const search: ArtifactKind["search"] = (_view, artifact) => {
   const spec = artifact.data as SpecReferenceData;

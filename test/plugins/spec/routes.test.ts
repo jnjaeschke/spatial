@@ -28,10 +28,12 @@ test("open stores a SpecOpened from a step of an open box", async () => {
   assert.deepEqual({ type: artifact.type, data: artifact.data, provenance: artifact.provenance }, { type: "SpecOpened", data: { anchor: "HTML#snapshotting-source-snapshot-params", from: { anchor: "HTML#navigate", step: "2" } }, provenance: { taskId: "user" } });
 });
 
-test("open rejects a source that was never opened, an unknown section and a malformed from", async () => {
+test("open rejects a source that was never opened, an unknown section, a malformed anchor or from, and reports a failed lookup", async () => {
   const { session, routes } = setup();
   assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/open`, { anchor: "HTML#a", from: { anchor: "HTML#navigate", step: "1" } })).status, 409);
-  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/open`, { anchor: "nope", from: null })).status, 404);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/open`, { anchor: "HTML#missing", from: null })).status, 404);
+  for (const anchor of ["nope", "--help"]) assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/open`, { anchor, from: null })).status, 400);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/open`, { anchor: "HTML#broken", from: null })).status, 502);
   assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/open`, { anchor: "HTML#a", from: { anchor: "HTML#navigate" } })).status, 400);
 });
 

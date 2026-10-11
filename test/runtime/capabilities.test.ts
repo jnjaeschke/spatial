@@ -29,7 +29,7 @@ test("webspec: found", async () => {
   stdout(JSON.stringify({ spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: "https://html.spec.whatwg.org/#navigate", content: "To **navigate**...", sha: "x" }));
   const r = await makeWebspec({ bin: STUB }).resolve("https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate", signal);
   assert.deepEqual(r, { found: true, spec: { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: "https://html.spec.whatwg.org/#navigate", content: "To **navigate**..." } });
-  assert.deepEqual(argv()[0], ["query", "https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate", "--format", "json"]);
+  assert.deepEqual(argv()[0], ["query", "--format", "json", "--", "https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate"]);
 });
 
 test("webspec: not found is a value, other failures throw", async () => {
@@ -48,7 +48,7 @@ test("webspec: query keeps the section fields", async () => {
   assert.equal(r.found, true);
   if (!r.found) return;
   assert.deepEqual({ ...r.section, content: r.section.content.slice(0, 16), effects: r.section.effects.length }, { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: "https://html.spec.whatwg.org/#navigate", content: "To **navigate** ", outgoingRefs: 153, effects: 12, effectsStatus: JSON.parse(NAVIGATE).effects_status, sha: JSON.parse(NAVIGATE).sha });
-  assert.deepEqual(argv()[0], ["query", "HTML#navigate", "--format", "json"]);
+  assert.deepEqual(argv()[0], ["query", "--format", "json", "--", "HTML#navigate"]);
 });
 
 test("webspec: query not found is a value; output without a sha throws", async () => {
@@ -66,7 +66,7 @@ test("webspec: query not found is a value; output without a sha throws", async (
 test("webspec: search maps the results", async () => {
   stdout(JSON.stringify({ query: "navigate", results: [{ spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", snippet: "s", extra: 1 }] }));
   assert.deepEqual(await makeWebspec({ bin: STUB }).search("navigate", signal), [{ spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", snippet: "s" }]);
-  assert.deepEqual(argv()[0], ["search", "navigate", "--format", "json"]);
+  assert.deepEqual(argv()[0], ["search", "--format", "json", "--", "navigate"]);
 });
 
 test("webspec: effectPaths reduces witness hops to their sites", async () => {
@@ -75,9 +75,9 @@ test("webspec: effectPaths reduces witness hops to their sites", async () => {
   assert.equal(paths.effects.length, 39);
   assert.equal(paths.explanations[0]!.effectId, "ef_e6c5f8c3e2980985");
   assert.deepEqual(paths.explanations[0]!.witnesses[0]![0], { from: { spec: "HTML", anchor: "navigate" }, to: { spec: "HTML", anchor: "navigate", step_path: [8] }, site: { spec: "HTML", anchor: "navigate", step_path: [8] } });
-  assert.deepEqual(argv()[0], ["effects", "HTML#navigate", "--effect-id", "ef_e6c5f8c3e2980985"]);
+  assert.deepEqual(argv()[0], ["effects", "--effect-id", "ef_e6c5f8c3e2980985", "--", "HTML#navigate"]);
   await makeWebspec({ bin: STUB }).effectPaths("HTML#navigate", null, signal);
-  assert.deepEqual(argv()[1], ["effects", "HTML#navigate"]);
+  assert.deepEqual(argv()[1], ["effects", "--", "HTML#navigate"]);
 });
 
 test("fake webspec serves the navigate fixtures, generic algorithms and search", async () => {

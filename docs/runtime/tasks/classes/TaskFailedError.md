@@ -14,7 +14,9 @@
 
 ### Constructor
 
-> **new TaskFailedError**(`taskId`, `message`): `TaskFailedError`
+> **new TaskFailedError**(`taskId`, `message`, `options?`): `TaskFailedError`
+
+`cause` is the error the task threw.
 
 #### Parameters
 
@@ -25,6 +27,10 @@
 ##### message
 
 `string`
+
+##### options?
+
+`ErrorOptions`
 
 #### Returns
 
