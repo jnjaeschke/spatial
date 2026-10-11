@@ -16,7 +16,7 @@ export const searchfox: SearchfoxCapability = {
     if (path === "dom/Fourth.cpp") return [{ symbol: "_ZN6Fourth3OneEv", signature: "void Fourth::One() {" }];
     return [];
   },
-  async file(path) { const file = FILES[path]; if (!file) throw new Error("searchfox-cli exited with code 1: Error: Request failed: 404 Not Found"); return Array.from({ length: file.length }, (_, i) => i + 1 === file.line ? file.text : "").join("\n"); },
+  async file(path) { if (path.startsWith("-")) throw new Error("searchfox-cli exited with code 2: unexpected argument"); const file = FILES[path]; if (!file) throw new Error("searchfox-cli exited with code 1: Error: Request failed: 404 Not Found"); return Array.from({ length: file.length }, (_, i) => i + 1 === file.line ? file.text : "").join("\n"); },
   async tip() { return { repoBase: "https://searchfox.org/mozilla-central/", rev: "a".repeat(40) }; },
 };
 export const CANDIDATE = { path: "docshell/base/BrowsingContext.cpp", line: 2648, quote: NAVIGATE.signature, why: "Navigates." };

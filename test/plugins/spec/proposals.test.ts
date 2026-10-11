@@ -61,7 +61,11 @@ test("a rejected proposal leaves the mapping and is not proposed again", async (
   const rejectedEntry = entry();
   assert.deepEqual(rejectedEntry.value, { ...mapping(), checkedAt: (rejectedEntry.value as EngineMapping).checkedAt, rejected: [{ path: NAVIGATE_SITE.path, line: 2648, symbol: NAVIGATE_SITE.symbol, signature: NAVIGATE_SITE.signature }] });
   gate.candidates = [CANDIDATE];
-  await startSearch(rt, session.id, "gecko", a, null).merged;
+  const { taskId, merged } = startSearch(rt, session.id, "gecko", a, null);
+  await merged;
+  const task = rt.store.listTasks(session.id).find((t) => t.id === taskId)!;
+  assert.equal(task.status, "succeeded");
+  assert.deepEqual(task.output, { sites: [], dropped: [{ candidate: CANDIDATE, reason: "already known or rejected" }] });
   assert.equal(entry().id, rejectedEntry.id);
 });
 
@@ -75,6 +79,37 @@ test("find again replaces a stale site with the new proposals", async () => {
   assert.deepEqual(storedMapping(rt.knowledge, "gecko", "HTML#setup")!.sites, [NAVIGATE_SITE]);
 });
 
+test("find again on a stale site finds its function where it moved, and keeps a live site with the same key", async () => {
+  const { rt, session, gate, put } = setup();
+  const a = await algorithm(rt, session.id);
+  const stale: EngineSite = { ...NAVIGATE_SITE, stale: true };
+  const live: EngineSite = { ...NAVIGATE_SITE, method: "user" };
+  put(mapping([stale]));
+  gate.candidates = [CANDIDATE];
+  await startSearch(rt, session.id, "gecko", a, stale).merged;
+  assert.deepEqual(storedMapping(rt.knowledge, "gecko", "HTML#setup")!.sites, [NAVIGATE_SITE]);
+  const other = { path: "dom/Fourth.cpp", symbol: "_ZN6Fourth3OneEv" };
+  put(mapping([{ ...live, ...other }, { ...stale, ...other }]));
+  await startSearch(rt, session.id, "gecko", a, { ...stale, ...other }).merged;
+  assert.deepEqual(storedMapping(rt.knowledge, "gecko", "HTML#setup")!.sites, [NAVIGATE_SITE, { ...live, ...other }]);
+});
+
+test("one search per engine and ref runs at a time, whichever session or artifact starts it", async () => {
+  const { rt, session, gate, put, find } = setup();
+  const a = await algorithm(rt, session.id);
+  put(mapping());
+  const other = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "u" });
+  const b = await algorithm(rt, other.id);
+  let release!: () => void;
+  gate.hold = new Promise<void>((resolve) => { release = resolve; });
+  const first = startSearch(rt, session.id, "gecko", a, null);
+  assert.throws(() => startSearch(rt, other.id, "gecko", b, null), /search for HTML#setup is running/);
+  assert.equal((await find({ ref: "HTML#setup" })).status, 409);
+  release();
+  await first.merged;
+  assert.equal((await find({ ref: "HTML#setup" })).status, 202);
+});
+
 test("find and decide reject bad requests", async () => {
   const { rt, session, gate, put, find, decide } = setup();
   await algorithm(rt, session.id);
@@ -86,6 +121,9 @@ test("find and decide reject bad requests", async () => {
   assert.equal((await find({ ref: "HTML#setup", engine: "blink" })).status, 409);
   assert.equal((await find({ ref: "HTML#setup", stale: KEY })).status, 404);
   assert.equal((await decide({ ref: "HTML#setup", key: "nope", decision: "confirm" })).status, 404);
+  rt.knowledge.put("global", "spec", "impl|gecko|HTML#never-opened", mapping([NAVIGATE_SITE]), { by: "plugin", sessionId: session.id });
+  assert.equal((await decide({ ref: "HTML#never-opened", key: KEY, decision: "confirm" })).status, 404);
+  assert.equal(storedMapping(rt.knowledge, "gecko", "HTML#never-opened")!.sites[0]!.method, "llm");
   assert.equal((await decide({ ref: "HTML#setup", key: KEY, decision: "maybe" })).status, 400);
   assert.equal((await decide({ ref: "HTML#setup", key: KEY, decision: "confirm", engine: "servo" })).status, 400);
   let release!: () => void;

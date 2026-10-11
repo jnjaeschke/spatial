@@ -1,5 +1,5 @@
 import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
-import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
+import type { EngineMapping, EngineSite } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */
 export const mappingKey = (engine: Engine, ref: string) => `impl|${engine}|${ref}`;
@@ -58,23 +58,34 @@ export function followQuote(lines: string[], line: number, quote: string): numbe
   return found.length && (found.length === 1 || Math.abs(found[0]! - line) !== Math.abs(found[1]! - line)) ? found[0]! : null;
 }
 
-/** Why a quoted code line does not hold: the file is missing, has no such line, or the line does not contain the trimmed, non-empty quote. Null when it holds. */
+/** Why a quoted code line does not hold: the file is missing, has no such line, or the trimmed line is not the trimmed, non-empty quote. Null when it holds. */
 export function quoteProblem(text: string | null, ref: { path: string; line: number; quote: string }): string | null {
   if (text === null) return `${ref.path} does not exist`;
   const quote = ref.quote.trim();
   if (!quote) return "the quote is empty";
   const actual = text.split("\n")[ref.line - 1];
   if (actual === undefined) return `${ref.path} has no line ${ref.line}`;
-  return actual.includes(quote) ? null : `${ref.path}:${ref.line} does not read \`${ref.quote}\``;
+  return actual.trim() === quote ? null : `${ref.path}:${ref.line} does not read \`${ref.quote}\``;
 }
 
 /** The Step comments mapped to `step` across a mapping's sites; stale sites are left out. */
-export const mappedSteps = (mapping: EngineMapping, step: string) => mapping.sites.flatMap((site) => site.stale ? [] : site.steps.filter((mapped) => mapped.step === step).map((mapped) => ({ site, step: mapped as EngineStep })));
+export const mappedSteps = (mapping: EngineMapping, step: string) => mapping.sites.flatMap((site) => site.stale ? [] : site.steps.filter((mapped) => mapped.step === step).map((mapped) => ({ site, step: mapped })));
 
-/** Whether a mapping or an LLM search of the algorithm in `engine` is pending or running, from the session's tasks. */
-export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "input">[], algorithmId: string, engine: Engine): { mapping: boolean; searching: boolean } {
-  const running = (kind: string) => tasks.some((task) => task.kind === kind && (task.status === "pending" || task.status === "running") && (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
-  return { mapping: running("mapEngine"), searching: running("findImplementation") };
+const ENGINE_TASKS = ["mapEngine", "findImplementation"];
+const taskTarget = (task: Pick<TaskRecord, "kind" | "input">) => `${task.kind}|${(task.input as { algorithmId?: string } | null)?.algorithmId}|${(task.input as { engine?: string } | null)?.engine}`;
+
+/** The engine tasks that matter to the explorer, oldest first: those pending or running, and the failed one that is the latest of its kind, algorithm and engine. */
+export function engineTasks<T extends Pick<TaskRecord, "kind" | "status" | "input">>(tasks: T[]): T[] {
+  const latest = new Map<string, T>();
+  for (const task of tasks) if (ENGINE_TASKS.includes(task.kind)) latest.set(taskTarget(task), task);
+  return tasks.filter((task) => ENGINE_TASKS.includes(task.kind) && (task.status === "pending" || task.status === "running" || (task.status === "failed" && latest.get(taskTarget(task)) === task)));
+}
+
+/** Whether a mapping or an LLM search of the algorithm in `engine` is pending or running, and the error of its latest failed one, from `engineTasks`. */
+export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], algorithmId: string, engine: Engine): { mapping: boolean; searching: boolean; error: string | null } {
+  const mine = tasks.filter((task) => (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
+  const running = (kind: string) => mine.some((task) => task.kind === kind && (task.status === "pending" || task.status === "running"));
+  return { mapping: running("mapEngine"), searching: running("findImplementation"), error: mine.findLast((task) => task.status === "failed")?.error ?? null };
 }
 
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */

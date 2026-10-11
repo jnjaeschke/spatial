@@ -2,16 +2,21 @@ import { test, expect, type Page } from "@playwright/test";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
 import { openPatch, startReview, waitForCanvasSettled } from "./canvas.ts";
 
-async function exploreNavigate(page: Page) {
+async function explore(page: Page, ref: string) {
   const repo = makeRepo();
   repo.commit({ "a.txt": "a\n" }, "base");
   await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(repo.dir)}`);
   const box = page.getByLabel("start");
-  await box.fill("/explore HTML#navigate");
+  await box.fill(`/explore ${ref}`);
   await box.press("Enter");
   await expect(page).toHaveURL(/\/sessions\/[^/]+/);
-  const navigate = page.getByTestId("spec-box-HTML#navigate");
-  await expect(navigate).toBeVisible({ timeout: 15_000 });
+  const algorithm = page.getByTestId(`spec-box-${ref}`);
+  await expect(algorithm).toBeVisible({ timeout: 15_000 });
+  return algorithm;
+}
+
+async function exploreNavigate(page: Page) {
+  const navigate = await explore(page, "HTML#navigate");
   await expect(navigate.getByTestId("spec-summary")).toBeVisible({ timeout: 15_000 });
   await waitForCanvasSettled(page);
   return navigate;
@@ -104,4 +109,22 @@ test("Find in Gecko proposes a verified place, and Confirm keeps it", async ({ p
   await strip.getByRole("button", { name: "Confirm Fake::Snapshot" }).click();
   await expect(proposal).toHaveClass(/method-user/);
   await expect(strip.getByRole("button", { name: "Confirm Fake::Snapshot" })).toHaveCount(0);
+  await page.reload();
+  const reloaded = page.getByTestId("spec-box-HTML#snapshotting-source-snapshot-params").getByTestId("spec-impl");
+  await expect(reloaded.getByRole("link", { name: "Fake::Snapshot" })).toHaveClass(/method-user/, { timeout: 15_000 });
+});
+
+test("Reject removes a proposal for good", async ({ page }) => {
+  const demo = await explore(page, "HTML#reject-demo");
+  const strip = demo.getByTestId("spec-impl");
+  await strip.getByRole("button", { name: "Find in Gecko" }).click({ timeout: 15_000 });
+  await expect(strip.getByRole("link", { name: "Fake::Snapshot" })).toHaveClass(/method-llm/, { timeout: 15_000 });
+  await expect(strip.getByText("AI-proposed")).toBeVisible();
+  await expect(strip.getByText("Snapshots the source params.")).toBeVisible();
+  await strip.getByRole("button", { name: "Reject Fake::Snapshot" }).click();
+  await expect(strip.getByRole("link", { name: "Fake::Snapshot" })).toHaveCount(0);
+  await page.reload();
+  const reloaded = page.getByTestId("spec-box-HTML#reject-demo").getByTestId("spec-impl");
+  await expect(reloaded.getByRole("button", { name: "Find in Gecko" })).toBeVisible({ timeout: 15_000 });
+  await expect(reloaded.getByRole("link", { name: "Fake::Snapshot" })).toHaveCount(0);
 });

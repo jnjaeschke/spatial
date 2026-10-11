@@ -6,6 +6,8 @@ import type { FoundImplementation } from "../tasks/find-implementation/task.ts";
 const DAY = 24 * 60 * 60 * 1000;
 /** Mapping runs in flight per runtime, by `engine|ref`: the mapping is global, so a run started from any session or algorithm artifact covers it. */
 const inFlight = new WeakMap<Runtime, Set<string>>();
+/** LLM searches running per runtime, by `engine|ref`, for the same reason. */
+const searching = new WeakMap<Runtime, Set<string>>();
 
 /** The current mapping of a `SPEC#anchor` ref in an engine, or null when there is none. */
 export function storedMapping(knowledge: Pick<Knowledge, "get">, engine: Engine, ref: string): EngineMapping | null {
@@ -28,27 +30,30 @@ export function updateMapping(rt: Runtime, sessionId: Id, engine: Engine, ref: s
   return entry;
 }
 
-/** Whether an LLM search for the algorithm in `engine` is pending or running. */
-export function searchRunning(rt: Runtime, sessionId: Id, engine: Engine, algorithmId: Id): boolean {
-  return rt.store.listTasks(sessionId).some((task) => {
-    const input = task.input as { algorithmId?: unknown; engine?: unknown };
-    return task.kind === "findImplementation" && (task.status === "pending" || task.status === "running") && input.algorithmId === algorithmId && input.engine === engine;
-  });
+/** Whether an LLM search for `ref` in `engine` is running, started from any session. */
+export function searchRunning(rt: Runtime, engine: Engine, ref: string): boolean {
+  return searching.get(rt)?.has(`${engine}|${ref}`) ?? false;
 }
 
-/** Starts an LLM search; new sites join the mapping current when the search ends. */
+/** Starts an LLM search, one at a time per `engine|ref`; the stale site it replaces goes and new sites join the mapping current when the search ends. */
 export function startSearch(rt: Runtime, sessionId: Id, engine: Engine, algorithm: Artifact<SpecAlgorithmData>, stale: EngineSite | null): { taskId: Id; merged: Promise<void> } {
   const ref = algorithm.data.ref;
+  if (searchRunning(rt, engine, ref)) throw new Error(`A ${engine} search for ${ref} is running`);
   const { taskId, done } = rt.start<FoundImplementation>(sessionId, "findImplementation", { algorithmId: algorithm.id, engine, stale });
+  const key = `${engine}|${ref}`;
+  const running = searching.get(rt) ?? new Set<string>();
+  searching.set(rt, running);
+  running.add(key);
   const merged = done.then((found) => {
     updateMapping(rt, sessionId, engine, ref, { by: "llm", taskId, sessionId }, (mapping) => {
       if (!mapping) throw new Error(`${ref} has no ${engine} mapping`);
-      const taken = new Set([...mapping.sites.map(siteKey), ...mapping.rejected.map(siteKey)]);
+      const live = mapping.sites.filter((site) => !(stale && site.stale && siteKey(site) === siteKey(stale)));
+      const taken = new Set([...live.filter((site) => !site.stale).map(siteKey), ...mapping.rejected.map(siteKey)]);
       const added = found.sites.filter((site) => !taken.has(siteKey(site)));
       if (!added.length) return null;
-      return { ...mapping, sites: [...mapping.sites.filter((site) => !stale || siteKey(site) !== siteKey(stale)), ...added].sort(byPlace) };
+      return { ...mapping, sites: [...live, ...added].sort(byPlace) };
     });
-  }).catch((error) => console.error(`${engine} search for ${ref} failed: ${(error as Error).message}`));
+  }).catch((error) => console.error(`${engine} search for ${ref} failed: ${(error as Error).message}`)).finally(() => running.delete(key));
   return { taskId, merged };
 }
 

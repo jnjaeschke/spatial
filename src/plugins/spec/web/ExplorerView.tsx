@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow } from "../../../web/plugin-api.ts";
 import type { Engine, TaskRecord } from "../../../plugin-api.ts";
 import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import { engineTasks } from "../shared/engine.ts";
 import { latestTraces, traceSequence, type TraceRow } from "../shared/traces.ts";
 import { explorerGraph, explorerLayout, specNodeId } from "./graph.ts";
 import { ExplorerContext, ExplorerViewContext, type SpecFocus } from "./context.ts";
@@ -56,10 +57,10 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const focusTaken = useRef(0);
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
   const [mappings, setMappings] = useState<Partial<Record<Engine, Record<string, EngineMapping | null>>>>({});
-  useEffect(() => { let cancelled = false; for (const engine of MAPPED_ENGINES) specClient.mappings(state.session.id, engine).then((byRef) => { if (!cancelled) setMappings((current) => ({ ...current, [engine]: byRef })); }, (error: Error) => console.error(error)); return () => { cancelled = true; }; }, [state.session.id, state.lastEventId]);
-  const engineTaskList = state.tasks.filter((task) => (task.kind === "mapEngine" || task.kind === "findImplementation") && (task.status === "pending" || task.status === "running"));
+  useEffect(() => { let cancelled = false; for (const engine of MAPPED_ENGINES) specClient.mappings(state.session.id, engine).then((byRef) => { if (!cancelled) setMappings((current) => JSON.stringify(current[engine]) === JSON.stringify(byRef) ? current : { ...current, [engine]: byRef }); }, (error: Error) => console.error(error)); return () => { cancelled = true; }; }, [state.session.id, state.lastEventId]);
+  const engineTaskList = engineTasks(state.tasks);
   const engineTaskKey = engineTaskList.map((task) => `${task.id}:${task.status}`).join(",");
-  const engineTasks = useMemo(() => engineTaskList, [engineTaskKey]);
+  const stableEngineTasks = useMemo(() => engineTaskList, [engineTaskKey]);
   const [summariesRefresh, setSummariesRefresh] = useState(0);
   useEffect(() => {
     let current = true;
@@ -88,7 +89,7 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const takeFocus = useCallback((taken: SpecFocus) => { if (focusTaken.current === taken.nonce) return false; focusTaken.current = taken.nonce; return true; }, []);
   const findInGecko = useCallback(async (ref: string, stale: string | null) => { await specClient.findImplementation(state.session.id, ref, "gecko", stale); }, [state.session.id]);
   const decideGecko = useCallback(async (ref: string, key: string, decision: "confirm" | "reject") => { await specClient.decideImplementation(state.session.id, ref, "gecko", key, decision); }, [state.session.id]);
-  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: engineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, engineTasks, flag, findInGecko, decideGecko]);
+  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: stableEngineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, stableEngineTasks, flag, findInGecko, decideGecko]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
     <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={selectTrace} onClose={() => setPanel(false)} />}</div>

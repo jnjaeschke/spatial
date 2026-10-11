@@ -6,8 +6,9 @@ import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodeP
 /** A place the LLM search proposes, unverified: a line it read and that line's exact text. */
 export interface ImplementationCandidate { path: string; line: number; quote: string; why: string }
 
-/** Checks an LLM candidate against the file at the current revision (`quoteProblem`). A passing candidate becomes an `llm` site at the first line of the function it is in, or a declaration site at its line outside functions. */
+/** Checks an LLM candidate: a code path (`isCodePath`) whose file at the current revision has the quote as its line (`quoteProblem`). A passing candidate becomes an `llm` site at the first line of the function it is in, or a declaration site at its line outside functions. */
 export async function verifyCandidate(search: Pick<CodeSearch, "file" | "functionAt">, candidate: ImplementationCandidate, signal: AbortSignal): Promise<{ ok: true; site: EngineSite } | { ok: false; reason: string }> {
+  if (!isCodePath(candidate.path)) return { ok: false, reason: `${candidate.path} is not a code file` };
   const text = await search.file(candidate.path, signal);
   const problem = quoteProblem(text, candidate);
   if (problem) return { ok: false, reason: problem };
