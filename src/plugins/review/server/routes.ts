@@ -9,7 +9,7 @@ import { withUnassigned } from "../shared/review-path.ts";
 import { currentUserComments, postableComments, reviewDraft, withGeneralReply } from "../shared/postable-comments.ts";
 import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
-import type { ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
+import type { ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, SpecReferenceData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
 import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type DiffData, type LlmSelection, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
@@ -143,6 +143,20 @@ export function reviewRoutes(rt: Runtime): Route[] {
       try { result = await rt.run(session.id, "draftPhabReply", { anchorId, threadId, llm: body.llm as LlmSelection | undefined }); }
       catch (e) { throw new HttpError(502, (e as Error).message); }
       send(res, 201, result);
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec-refs$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const ref = str((await readJson(req)).ref, "ref");
+      const existing = rt.store.listArtifacts(session.id, "SpecReference").find((artifact) => {
+        const data = artifact.data as SpecReferenceData;
+        return data.url === ref || data.resolved && `${data.resolved.spec}#${data.resolved.anchor}` === ref;
+      });
+      if (existing) { send(res, 200, { specId: existing.id }); return; }
+      try {
+        const { done } = rt.start(session.id, "lookupSpecRef", { ref });
+        const result = await done as { specId: string };
+        send(res, 201, { specId: result.specId });
+      } catch (error) { throw new HttpError(502, (error as Error).message); }
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/comment\/regenerate$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]);

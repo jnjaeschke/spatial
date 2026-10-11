@@ -4,8 +4,8 @@ import type { ChatThreadData, DiffFile, GeckoSpecRef, Id, Ref, ResolvedSpec } fr
 export interface SpecReferenceData {
   url: string;
   resolved: ResolvedSpec | null;
-  /** Whether the reference was found in changed code or inferred by the narrative. */
-  origin?: "code" | "llm";
+  /** Whether the reference was found in changed code, inferred by the narrative, or followed from a spec link. */
+  origin?: "code" | "llm" | "link";
   reason?: string;
   geckoRefs: GeckoSpecRef[];
   geckoRefsError?: string;

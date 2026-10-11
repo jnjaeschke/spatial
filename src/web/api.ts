@@ -53,6 +53,7 @@ export const api = {
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/review-draft/reply`, { replyTo, body }),
   draftPhabReply: (sessionId: string, anchorId: string, threadId: string, llm?: LlmSelection) =>
     post<{ replyId: string; body: string }>(`/api/sessions/${sessionId}/phab-threads/${anchorId}/draft-reply`, { threadId, llm }),
+  followSpecRef: (sessionId: string, ref: string) => post<{ specId: string }>(`/api/sessions/${sessionId}/spec-refs`, { ref }),
   mapSpecSteps: (sessionId: string, specId: string, llm: LlmSelection) => post<{ taskId: string }>(`/api/sessions/${sessionId}/specs/${specId}/map`, { llm }),
   regenerateComment: (sessionId: string, findingId: string, llm?: LlmSelection) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),

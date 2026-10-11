@@ -13,7 +13,7 @@ export function lookupSpec(env: Pick<TaskContext, "webspec" | "signal">, url: st
 }
 
 /** The `SpecReference` data of a looked-up URL; a found spec in a Gecko repo also gets the Searchfox lines that reference it. */
-export async function specReferenceData(env: Pick<TaskContext, "webspec" | "searchfox" | "repo" | "signal">, url: string, result: SpecLookup, origin: "code" | "llm"): Promise<SpecReferenceData> {
+export async function specReferenceData(env: Pick<TaskContext, "webspec" | "searchfox" | "repo" | "signal">, url: string, result: SpecLookup, origin: NonNullable<SpecReferenceData["origin"]>): Promise<SpecReferenceData> {
   if (!result.found) return { url, resolved: null, origin, reason: result.reason, geckoRefs: [] };
   const data: SpecReferenceData = { url, resolved: result.spec, origin, geckoRefs: [] };
   if (isGeckoRepo(env.repo)) {
@@ -27,6 +27,6 @@ export async function specReferenceData(env: Pick<TaskContext, "webspec" | "sear
 }
 
 /** Resolves a spec URL exactly as `resolveSpecRefs` does for a citation. */
-export async function resolveSpecReference(env: Pick<TaskContext, "webspec" | "searchfox" | "repo" | "signal">, url: string, origin: "code" | "llm"): Promise<SpecReferenceData> {
+export async function resolveSpecReference(env: Pick<TaskContext, "webspec" | "searchfox" | "repo" | "signal">, url: string, origin: NonNullable<SpecReferenceData["origin"]>): Promise<SpecReferenceData> {
   return specReferenceData(env, url, await lookupSpec(env, url), origin);
 }

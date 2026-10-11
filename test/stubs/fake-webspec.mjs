@@ -25,4 +25,4 @@ if (command !== "query" || !anchor) {
   process.stderr.write(`Error: URL not recognized: ${arg}`);
   process.exit(1);
 }
-process.stdout.write(JSON.stringify({ spec: "HTML", anchor, title: anchor, type: "algorithm", url: `https://html.spec.whatwg.org/#${anchor}`, content: `To do it:\n\n${STEPS.map((step, i) => `${i + 1}. ${step}`).join("\n")}` }));
+process.stdout.write(JSON.stringify({ spec: "HTML", anchor, title: anchor, type: "algorithm", url: `https://html.spec.whatwg.org/#${anchor}`, content: `To do it, see [the setup](HTML#setup):\n\n${STEPS.map((step, i) => `${i + 1}. ${step}`).join("\n")}` }));

@@ -6,6 +6,7 @@ import { importRevision } from "./tasks/import-revision/task.ts";
 import { reviewRange } from "./tasks/review-range/task.ts";
 import { narrate } from "./tasks/narrate/task.ts";
 import { resolveSpecRefs } from "./tasks/resolve-spec-refs/task.ts";
+import { lookupSpecRef } from "./tasks/lookup-spec-ref/task.ts";
 import { review } from "./tasks/review/task.ts";
 import { comment } from "./tasks/comment/task.ts";
 import { interdiff } from "./tasks/interdiff/task.ts";
@@ -32,4 +33,4 @@ function server(rt: Runtime, opts: { intervalMs?: number }) {
   const syncer = new PhabricatorSyncer(rt, watcher, { intervalMs: opts.intervalMs });
   return { routes: reviewRoutes(rt), watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
 }
-export const reviewPlugin = definePlugin({ id: "review", workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });
+export const reviewPlugin = definePlugin({ id: "review", workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });

@@ -22,7 +22,7 @@ Resolves a spec URL exactly as `resolveSpecRefs` does for a citation.
 
 ### origin
 
-`"llm"` \| `"code"`
+`NonNullable`\<`"llm"` \| `"link"` \| `"code"` \| `undefined`\>
 
 ## Returns
 

@@ -3,6 +3,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
+import { Readable } from "node:stream";
 import { createServer as createNetServer } from "node:http";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,6 +19,8 @@ import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { DiffData, RecentRepo, Session, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
 import { commitRevision } from "../../src/plugins/review/shared/phabricator.ts";
+import { reviewRoutes } from "../../src/plugins/review/server/routes.ts";
+import { lookupSpecRef } from "../../src/plugins/review/tasks/lookup-spec-ref/task.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
@@ -962,4 +965,36 @@ test("mapping a spec's steps needs a narrative and a spec with steps supporting 
   assert.equal(started.status, 202);
   const { taskId } = await started.json() as { taskId: string };
   assert.deepEqual(rt.store.getTask(taskId).input, { narrativeId: narrative.id, specId: steps.id });
+});
+
+test("spec ref lookup reuses existing sections and caches newly linked sections", async () => {
+  const routeStore = new Store(":memory:");
+  const routeWebspec: WebspecCapability = {
+    effect: "read-only", async analyze() { return []; },
+    async resolve(ref) { const anchor = ref.split("#").at(-1)!; return { found: true, spec: { spec: "HTML", anchor, title: anchor, type: "section", url: `https://html.spec.whatwg.org/#${anchor}`, content: "Section." } }; },
+  };
+  const routeRuntime = new Runtime({ store: routeStore, plugins: [{ id: "route-test", tasks: [lookupSpecRef] }], llm, git: () => ({}) as never, webspec: routeWebspec, searchfox: {} as SearchfoxCapability });
+  const session = routeStore.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const resolved = { spec: "HTML", anchor: "existing", title: "Existing", type: "section", url: "https://html.spec.whatwg.org/#existing", content: "Existing." };
+  const existing = routeStore.putArtifact({ sessionId: session.id, type: "SpecReference", status: "verified", data: { url: resolved.url, resolved, origin: "code", geckoRefs: [] }, provenance: { taskId: "x" } });
+  const route = reviewRoutes(routeRuntime).find(([method, pattern]) => method === "POST" && pattern.test(`/api/sessions/${session.id}/spec-refs`))![2];
+  const call = async (ref: string) => {
+    let status = 0, body = "";
+    const req = Readable.from([JSON.stringify({ ref })]);
+    const res = { writeHead(code: number) { status = code; return this; }, end(value?: string) { body = value ?? ""; return this; } };
+    await route({ req: req as never, res: res as never, params: [session.id], url: new URL(`http://local/api/sessions/${session.id}/spec-refs`) });
+    return { status, body: body ? JSON.parse(body) as { specId: string } : null };
+  };
+  const reused = await call("HTML#existing");
+  assert.equal(reused.status, 200);
+  assert.deepEqual(reused.body, { specId: existing.id });
+  assert.equal(routeStore.listTasks(session.id).some((task) => task.kind === "lookupSpecRef"), false);
+  const created = await call("HTML#setup");
+  assert.equal(created.status, 201);
+  const { specId } = created.body!;
+  const again = await call("HTML#setup");
+  assert.equal(again.status, 200);
+  assert.deepEqual(again.body, { specId });
+  assert.equal(routeStore.listArtifacts(session.id, "SpecReference").length, 2);
+  assert.equal(routeStore.listTasks(session.id).filter((task) => task.kind === "lookupSpecRef").length, 1);
 });

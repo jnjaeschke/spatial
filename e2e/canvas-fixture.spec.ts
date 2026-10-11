@@ -135,12 +135,12 @@ test("spec text is selectable without panning", async ({ page }) => {
   const spec = page.getByTestId("spec-chip-R");
   await expandItem(spec);
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
-  await spec.locator(".spec-section-text").dblclick();
+  await spec.locator(".spec-section-text p").first().dblclick({ position: { x: 4, y: 6 } });
   const inlineSelected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
   expect(inlineSelected.length).toBeGreaterThan(0);
   expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
   await openInPanel(spec);
-  await page.getByTestId("spec-panel").locator(".spec-section-text").dblclick();
+  await page.getByTestId("spec-panel").locator(".spec-section-text p").first().dblclick({ position: { x: 4, y: 6 } });
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
   expect(selected.length).toBeGreaterThan(0);
   expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);

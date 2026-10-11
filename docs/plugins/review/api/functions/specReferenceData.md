@@ -26,7 +26,7 @@ The `SpecReference` data of a looked-up URL; a found spec in a Gecko repo also g
 
 ### origin
 
-`"llm"` \| `"code"`
+`NonNullable`\<`"llm"` \| `"link"` \| `"code"` \| `undefined`\>
 
 ## Returns
 

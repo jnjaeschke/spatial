@@ -36,7 +36,17 @@ test("a cited spec opens in the details panel and selecting a step maps its chan
   await expect(spec).toContainText("navigate");
   await expandItem(spec);
   await expect(spec.locator(".spec-section-text")).toBeVisible();
+  await expect(spec.locator(".spec-section-text li")).toHaveCount(2);
+  await expect(spec.locator(".spec-section-text")).not.toContainText(/\*\*|\]\(/);
   await expect(page.getByTestId("spec-panel")).toHaveCount(0);
+  await spec.getByTestId("spec-link").getByText("the setup").click();
+  const linked = page.getByTestId("spec-panel");
+  await expect(linked.getByText("HTML#setup")).toBeVisible();
+  await expect(linked.getByText("linked", { exact: true })).toBeVisible();
+  await expect(linked.getByTestId("spec-map-status")).toHaveCount(0);
+  await linked.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByTestId("spec-panel").getByText("HTML#navigate")).toBeVisible();
+  await page.getByTestId("spec-panel").getByRole("button", { name: "Close spec" }).click();
   await openInPanel(spec);
   const view = page.getByTestId("spec-panel");
   await expect(view.getByText("HTML#navigate")).toBeVisible();

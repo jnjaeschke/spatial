@@ -268,6 +268,24 @@
 
 `Promise`\<\{ `artifactId`: `string`; \}\>
 
+### followSpecRef
+
+> **followSpecRef**: (`sessionId`, `ref`) => `Promise`\<\{ `specId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### ref
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `specId`: `string`; \}\>
+
 ### mapSpecSteps
 
 > **mapSpecSteps**: (`sessionId`, `specId`, `llm`) => `Promise`\<\{ `taskId`: `string`; \}\>
