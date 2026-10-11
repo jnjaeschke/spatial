@@ -57,3 +57,10 @@ test("effect-path opens the boxes of the first witness path in order", async () 
     { anchor: "HTML#navigate", step: "22.4" }, { anchor: "HTML#fire-a-push/replace/reload-navigate-event", step: "12" }, { anchor: "HTML#inner-navigate-event-firing-algorithm", step: "31.4" },
   ]);
 });
+
+test("explore opens a root box per requested anchor", async () => {
+  const { rt, session, routes } = setup();
+  const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#navigate", "HTML#setup"] } });
+  assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/explore`, { requestId: request.id }), { status: 201, body: { opened: 2 } });
+  assert.deepEqual(rt.store.listArtifacts(session.id, "SpecOpened").map((a) => a.data), [{ anchor: "HTML#navigate", from: null }, { anchor: "HTML#setup", from: null }]);
+});

@@ -1,6 +1,6 @@
-import { HttpError, putUserArtifact, readJson, requireSession, send, text, type Route, type Runtime } from "../../../plugin-api.ts";
+import { HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
-import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
 import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
@@ -37,6 +37,14 @@ export function specRoutes(rt: Runtime): Route[] {
       try { result = await openSpec(rt, session.id, anchor, from); }
       catch (error) { throw new HttpError((error as Error).cause instanceof SpecNotFoundError ? 404 : 502, (error as Error).message); }
       send(res, 201, { openedId: result.opened.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/explore$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const request = requireArtifact(rt, session.id, text(await readJson(req), "requestId"), "SpecExploreRequest", "explore request");
+      const { anchors } = request.data as SpecExploreRequestData;
+      try { for (const anchor of anchors) await openSpec(rt, session.id, anchor, null); }
+      catch (error) { const message = (error as Error).message; throw new HttpError(message.startsWith("Spec section not found") ? 404 : 502, message); }
+      send(res, 201, { opened: anchors.length });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

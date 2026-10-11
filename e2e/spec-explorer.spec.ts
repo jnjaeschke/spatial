@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { makeRepo } from "../test/helpers/git-fixture.ts";
-import { waitForCanvasSettled } from "./canvas.ts";
+import { openPatch, startReview, waitForCanvasSettled } from "./canvas.ts";
 
 export async function exploreNavigate(page: Page) {
   const repo = makeRepo();
@@ -58,4 +58,25 @@ test("steps go into a trace, export as markdown, and show as a sequence diagram"
   await expect(sequence.locator('.sequence-step[data-kind="return"]')).toHaveCount(1);
   await sequence.locator('.sequence-step[data-kind="return"]').click();
   await expect(page.getByTestId("spec-box-HTML#navigate").locator('li[data-step="3"]')).toHaveClass(/step-focus/);
+});
+
+test("a review chat proposes an exploration; Explore opens the explorer and Back returns to the review place", async ({ page, request }) => {
+  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
+  await startReview(page, sessions.find((s) => s.title === "fixture")!.worktree, "HEAD~1..HEAD");
+  await openPatch(page, 0);
+  const place = await page.locator(".canvas").getAttribute("data-place");
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const chat = page.getByTestId("change-c1").locator(".inline-item.kind-chat");
+  await chat.getByLabel("message").fill("SPEC-EXPLORE-PLEASE");
+  await chat.getByRole("button", { name: "Send" }).click();
+  const explore = chat.getByTestId("spec-explore");
+  await expect(explore).toHaveText("Explore HTML#navigate", { timeout: 15_000 });
+  await explore.click();
+  await expect(page).toHaveURL(/[?&]view=spec/);
+  await expect(page.getByTestId("spec-box-HTML#navigate")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Spec explorer" })).toHaveAttribute("aria-pressed", "true");
+  await page.goBack();
+  await expect(page).not.toHaveURL(/view=spec/);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", place!);
+  await expect(page.getByTestId("change-c1").locator(".inline-item.kind-chat")).toBeVisible();
 });
