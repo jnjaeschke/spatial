@@ -62,7 +62,7 @@ export async function openChange(page: Page, changeTestId = "change-c1"): Promis
   await waitForCanvasSettled(page);
   const id = changeTestId.slice("change-".length);
   const node = page.getByTestId(changeTestId);
-  for (let place = await placeOf(page); !place!.endsWith(`#${id}`); place = await placeOf(page)) {
+  for (let place = await placeOf(page); place !== `change:${id}`; place = await placeOf(page)) {
     if (place!.startsWith("change:")) await placeUp(page);
     else if (place === "stack") throw new Error(`open the patch of ${changeTestId} first`);
     else await drillInto(page, node, /^change:/);

@@ -70,7 +70,7 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
     if (!node || !isReviewKind(node.data, "change")) return;
-    reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`, `change:${nodeId}`);
+    reveal(nodeId, `${node.data.narrativeId}#${node.data.change.id}`, `change:${node.data.change.id}`);
     focusRow({ anchor: `${node.data.diffId}#${hunkId}`, ...row });
   };
   useEffect(() => {

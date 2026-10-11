@@ -243,7 +243,7 @@ const isStack = (g: Graph) => g.nodes.some((n) => n.data.kind === "commit");
 const patchIndex = (place: string) => /^patch:\d+$/.test(place) ? Number(place.slice(6)) : null;
 const changePlaceId = (place: string) => place.startsWith("change:") ? place.slice(7) : null;
 const commitCard = (g: Graph, index: number) => g.nodes.find((n) => isReviewKind(n.data, "commit") && n.data.index === index);
-const changeNode = (g: Graph, id: string) => g.nodes.find((n) => n.id === id && isReviewKind(n.data, "change"));
+const changeNode = (g: Graph, id: string) => g.nodes.find((n) => isReviewKind(n.data, "change") && n.data.change.id === id);
 
 const rowsOf = (lines: { path: string; side: "new" | "old"; end: number }, file: DiffFile, hunk: Hunk) => lines.path === file.path && numberLines(hunk).some((row) => lines.end === (lines.side === "new" ? row.new : row.old));
 const threadInHunk = (thread: HostedThread, file: DiffFile, hunk: Hunk) => !!thread.lines && thread.anchor.split("#").at(-1) === hunk.id && rowsOf(thread.lines, file, hunk);
@@ -266,7 +266,7 @@ const crumbLabel = (g: Graph, place: string) => {
   return title.length > 40 ? `${title.slice(0, 39)}…` : title;
 };
 
-/** The review's places: `stack`, `patch:<commit index>` and `change:<change node id>`. */
+/** The review's places: `stack`, `patch:<commit index>` and `change:<change id>`. */
 export const reviewPlaces = {
   initial: (g: Graph) => isStack(g) ? "stack" : "patch:0",
   graph(g: Graph, place: string): Graph | null {
@@ -284,24 +284,25 @@ export const reviewPlaces = {
     const node = id === null ? undefined : changeNode(g, id);
     if (id === null || !node || !isReviewKind(node.data, "change")) return null;
     const data = node.data;
+    const nodeId = node.id;
     const { change, narrativeId, diffId, commit } = data;
-    const satellites = subgraph(g, new Set([id]));
-    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${id}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, symbols: data.symbols, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), phabThreads: data.phabThreads.filter((thread) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)), findings: data.findings.filter((finding) => finding.lines && rowsOf(finding.lines, file, hunk)) } satisfies HunkNodeData }));
+    const satellites = subgraph(g, new Set([nodeId]));
+    const cards = data.hunks.map(({ file, hunk }): GraphNode => ({ id: `${nodeId}/${hunk.id}`, data: { kind: "hunk", narrativeId, diffId, changeId: change.id, file, hunk, commit, symbols: data.symbols, threads: data.threads.filter((thread) => threadInHunk(thread, file, hunk)), phabThreads: data.phabThreads.filter((thread) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line)), comments: data.comments.filter((item) => rowsOf(item.lines, file, hunk)), findings: data.findings.filter((finding) => finding.lines && rowsOf(finding.lines, file, hunk)) } satisfies HunkNodeData }));
     const header: GraphNode = { ...node, data: { ...data, kind: "changeHeader", threads: data.threads.filter((thread) => !data.hunks.some(({ file, hunk }) => threadInHunk(thread, file, hunk))), phabThreads: data.phabThreads.filter((thread) => !data.hunks.some(({ file, hunk }) => thread.path === file.path && numberLines(hunk).some((row) => (thread.side === "new" ? row.new : row.old) === thread.line))), comments: [], findings: data.findings.filter((finding) => !finding.lines) } satisfies ChangeHeaderNodeData };
-    const symbolEdges = introducedSymbolEdges(id, data.hunks, data.symbols ?? {});
-    return { nodes: [header, ...cards, ...satellites.nodes.filter((n) => n.id !== id)], edges: [...satellites.edges, ...symbolEdges] };
+    const symbolEdges = introducedSymbolEdges(nodeId, data.hunks, data.symbols ?? {});
+    return { nodes: [header, ...cards, ...satellites.nodes.filter((n) => n.id !== nodeId)], edges: [...satellites.edges, ...symbolEdges] };
   },
   open(g: Graph, place: string, nodeId: string): string | null {
     const node = g.nodes.find((n) => n.id === nodeId);
     if (!node) return null;
     if (place === "stack") return isReviewKind(node.data, "commit") ? `patch:${node.data.index}` : null;
-    return patchIndex(place) !== null && isReviewKind(node.data, "change") ? `change:${node.id}` : null;
+    return patchIndex(place) !== null && isReviewKind(node.data, "change") ? `change:${node.data.change.id}` : null;
   },
   up(g: Graph, place: string): { place: string; nodeId: string } | null {
     const id = changePlaceId(place);
     if (id !== null) {
       const node = changeNode(g, id);
-      return node && isReviewKind(node.data, "change") ? { place: `patch:${node.data.commit ?? 0}`, nodeId: id } : null;
+      return node && isReviewKind(node.data, "change") ? { place: `patch:${node.data.commit ?? 0}`, nodeId: node.id } : null;
     }
     const index = patchIndex(place);
     const card = index !== null && isStack(g) ? commitCard(g, index) : undefined;
@@ -339,7 +340,7 @@ export function guideEntries(g: Graph, place: string | null): GuideEntry[] {
   if (place === "stack") return g.nodes.flatMap((n) => isReviewKind(n.data, "commit") ? [{ title: n.data.intent ?? n.data.commit.subject, tag: `C${n.data.index + 1}`, reviewed: n.data.reviewedCount === n.data.changeCount, nodeId: n.id }] : []);
   const index = patchIndex(place);
   if (index !== null) return changes.filter((data) => (data.commit ?? 0) === index).map(step);
-  return changePlaceId(place) === null ? [] : changes.map((data) => ({ ...step(data), place: `change:${stepNodeId(data)}` }));
+  return changePlaceId(place) === null ? [] : changes.map((data) => ({ ...step(data), place: `change:${data.change.id}` }));
 }
 
 export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {

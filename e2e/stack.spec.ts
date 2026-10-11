@@ -137,7 +137,7 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(page.getByTestId("guide")).toContainText("Step 3/3");
   await page.getByTestId("guide").getByRole("button", { name: "Previous step" }).click();
   await page.getByTestId("guide").getByRole("button", { name: "Previous step" }).click();
-  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /#c1$/);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /^change:c1$/);
   await expect(page.locator(".react-flow__node.guide-current").getByTestId("change-c1")).toBeVisible();
   await page.getByTestId("hunk-f0h0").getByRole("button", { name: "a.txt", exact: true }).click();
   const panel = page.getByTestId("file-panel");
@@ -145,7 +145,7 @@ test("stack lines show their commit colors and later rewrite", async ({ page, re
   await expect(panel.locator('tr[data-commit="1"]')).toHaveCount(1);
   await expect(page.getByTestId("hunk-f0h0").locator("tr.del")).toHaveAttribute("data-commit", "0");
   await page.getByRole("button", { name: "Next step" }).click();
-  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /#c2$/);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /^change:c2$/);
   const early = page.getByTestId("hunk-f1h0").locator("tr.add");
   await expect(early).toHaveAttribute("data-commit", "0");
   const diff = (await state(request, sessionId)).artifacts.find((artifact) => artifact.type === "Diff")!.data;
@@ -222,13 +222,13 @@ test("commits are lanes; the guide walks the reading path and records reviews", 
   await expect(guide).toContainText("Step 1/2");
   await canvas.focus();
   await page.keyboard.press("n");
-  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c2$/);
   await expect(current.getByTestId("change-c2")).toBeVisible();
   await expect(guide).toContainText("Step 2/2");
   await expect(page.getByTestId("place-crumbs")).toContainText("C2");
   await expect(page.getByTestId("change-c2").locator(".title > .commit-tag")).toHaveText("C2");
   await guide.getByRole("button", { name: "Previous step" }).click();
-  await expect(canvas).toHaveAttribute("data-place", /#c1$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c1$/);
   await expect(page.getByTestId("place-crumbs")).toContainText("C1");
   await expect(page.getByTestId("change-c1").locator(".title > .commit-tag")).toHaveText("C1");
 

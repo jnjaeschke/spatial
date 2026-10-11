@@ -156,6 +156,7 @@ test("remote inline follows the patch across an amend", async ({ page, request }
   await expect(toast).toBeVisible({ timeout: 10_000 });
   await toast.getByRole("button", { name: "Update" }).click();
   await expect(page.getByTestId("epoch")).toHaveText("Epoch 2");
+  await openPatch(page, 0);
   await expect(page.getByTestId("change-c3")).toBeVisible({ timeout: 30_000 });
   await openChange(page);
   await expandItem(thread);

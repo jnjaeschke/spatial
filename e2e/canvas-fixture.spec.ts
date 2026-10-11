@@ -37,11 +37,11 @@ test("double-click drills into a change, Up and the breadcrumb go back up, zoomi
 
   for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "zoom out" }).click();
   await waitForCanvasSettled(page);
-  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c2$/);
   await expect(page.getByTestId("hunk-f1h0").getByText("mPendingCommit = aPending;")).toBeAttached();
 
   await page.keyboard.press("Escape");
-  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c2$/);
   await page.getByTestId("place-up").click();
   await expect(canvas).toHaveAttribute("data-place", "patch:0");
   await expect(page.getByTestId("change-c2").locator("..")).toHaveClass(/\bselected\b/);
@@ -57,7 +57,7 @@ test("double-click drills into a change, Up and the breadcrumb go back up, zoomi
 
   await page.getByTestId("change-c3").click();
   await page.keyboard.press("Enter");
-  await expect(canvas).toHaveAttribute("data-place", /#c3$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c3$/);
   await page.keyboard.press("Backspace");
   await expect(canvas).toHaveAttribute("data-place", "patch:0");
 });
@@ -71,7 +71,7 @@ test("the Open button opens a change, and only nodes that open a place have one"
   await expect(open).toHaveAttribute("title", "Open (Enter, double-click)");
   await revealNode(page, open);
   await open.click();
-  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c2$/);
   await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
   await expect(page.getByTestId("open-place")).toHaveCount(0);
 });
@@ -84,7 +84,7 @@ test("Back and Forward walk the places", async ({ page }) => {
   await expect(canvas).toHaveAttribute("data-place", "patch:0");
   await expect(page.getByTestId("change-c2")).toBeVisible();
   await page.goForward();
-  await expect(canvas).toHaveAttribute("data-place", /#c2$/);
+  await expect(canvas).toHaveAttribute("data-place", /^change:c2$/);
   await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
 });
 
@@ -102,7 +102,7 @@ test("the place persists across reloads", async ({ page }) => {
   await page.goto(URL);
   await openChange(page, "change-c2");
   await page.reload();
-  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /#c2$/);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", /^change:c2$/);
   await expect(page.getByTestId("hunk-f1h0")).toBeAttached();
   await expect(page.getByTestId("place-crumbs")).toContainText("Patch");
 });

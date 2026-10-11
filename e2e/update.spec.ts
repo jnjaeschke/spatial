@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { expandItem, openChange, openPatch, startReview } from "./canvas.ts";
+import { expandItem, openChange, openPatch, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 
@@ -130,6 +130,7 @@ test("second round: statuses, carried findings, verdict", async ({ page, request
   await expect(page.getByTestId("change-c2").getByTestId("change-status")).toHaveText("unchanged");
   await expect(page.getByTestId("change-c3").getByTestId("change-status")).toHaveText("new");
   const magic = page.getByTestId("summary").getByTestId(/finding-chip/).filter({ hasText: "Magic number" });
+  await revealNode(page, magic);
   await expandItem(magic);
   await expect(magic.getByTestId("finding-outdated")).toBeVisible();
   await expect(magic.getByTestId("finding-epoch")).toHaveText("epoch 1");
