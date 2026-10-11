@@ -480,6 +480,22 @@ test("sessionGraph exposes remote comments in summary data and carries root done
   if (isReviewKind(change?.data, "change")) assert.equal(change.data.phabThreads[0]?.done, true);
 });
 
+test("sessionGraph attaches only a summary covering the current Phabricator thread", () => {
+  const withRevision = { ...diff, data: { ...diff.data, commits: [{ sha: "1", subject: "Bug 1", body: "Differential Revision: https://phab.example.com/D1" }] } };
+  const root = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, body: "first", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 } , epoch: null};
+  const reply = { ...root, id: "PC2", createdAt: "4", data: { ...root.data, phid: "PHID-XCMT-2", replyTo: "PHID-XCMT-1", author: "bob", body: "last", txId: 2, dateCreated: 2 } };
+  const summary = { id: "PS", sessionId: "S", type: "PhabThreadSummary", status: "proposed" as const, createdAt: "5", provenance: { taskId: "summary" }, data: { revision: 1, rootPhid: "PHID-XCMT-1", commentPhids: ["PHID-XCMT-1", "PHID-XCMT-2"], summary: "The issue is resolved." }, epoch: null };
+  const stale = { ...summary, id: "PS-stale", data: { ...summary.data, commentPhids: ["PHID-XCMT-1"] } };
+  const sync = { id: "SYNC", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "2", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 7, latestDiffId: 7, localDiff: "D" }, epoch: null };
+  const graph = sessionGraph(state([withRevision, narrative("N"), sync, root, reply, stale, summary]))!;
+  const node = graph.nodes.find((item) => item.id === "N#c1")!;
+  assert.equal(node.data.kind, "change");
+  if (isReviewKind(node.data, "change")) {
+    assert.equal(node.data.phabThreads[0]?.summary, "The issue is resolved.");
+    assert.deepEqual(node.data.phabThreads[0]?.comments.map((item) => item.data.author), ["alice", "bob"]);
+  }
+});
+
 test("sessionGraph exposes unenabled MCP requests per thread", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } , epoch: null};
   const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools" } , epoch: null};

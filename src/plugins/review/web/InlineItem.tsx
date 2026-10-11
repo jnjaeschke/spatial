@@ -63,7 +63,7 @@ export function PhabItem({ thread }: { thread: PhabThreadData }) {
   const collapse = useContext(CollapseContext);
   const last = thread.comments.at(-1)!.data;
   const who = [...new Set(thread.comments.map((comment) => `@${comment.data.author}`))].join(", ");
-  return <InlineItem kind="phab" id={thread.anchorId} who={who} count={thread.comments.length} dimmed={thread.done} text={`@${last.author}: ${plainText(last.body)}`} testId={`phab-chip-${thread.anchorId}`} body={<PhabBody data={thread} reveal={collapse?.reveal ?? (() => {})} />} onOpenPanel={() => details?.open({ kind: "phab", anchorId: thread.anchorId })} />;
+  return <InlineItem kind="phab" id={thread.anchorId} who={who} count={thread.comments.length} badges={thread.summary && <span className="badge phab-summary-badge">AI summary</span>} dimmed={thread.done} text={thread.summary ? plainText(thread.summary) : `@${last.author}: ${plainText(last.body)}`} testId={`phab-chip-${thread.anchorId}`} body={<PhabBody data={thread} reveal={collapse?.reveal ?? (() => {})} />} onOpenPanel={() => details?.open({ kind: "phab", anchorId: thread.anchorId })} />;
 }
 
 /** A spec section a change supports; expanded it shows the section text. */

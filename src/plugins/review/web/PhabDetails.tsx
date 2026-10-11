@@ -21,6 +21,7 @@ export function PhabBody({ data, reveal }: { data: PhabThreadData; reveal(nodeId
   const thread = data.thread;
   return <CollapseContext.Provider value={{ collapsed, toggle: (id) => setCollapsed((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; }), reveal }}>
     <div className="phab-detail-location">{data.path && `${data.path}:${data.line} (${data.side})`}{data.done && <span className="badge phab-done">Done</span>}{data.fromEpoch !== null && <span className="epoch-marker" data-testid="phab-epoch">epoch {data.fromEpoch}</span>}</div>
+    {data.summary && <div className="phab-thread-summary"><h4>AI summary</h4><p>{data.summary}</p></div>}
     {lead}
     <Conversation anchor={data.anchorId} diffId={data.diffId} hunks={data.hunks} threadId={thread?.threadId ?? null} draftId={null} taskId={thread?.taskId ?? null} messages={thread?.messages ?? []} revisions={thread?.revisions ?? {}} mcpRequests={thread?.mcpRequests ?? []} diagramsByMessage={thread?.diagramsByMessage} />
   </CollapseContext.Provider>;

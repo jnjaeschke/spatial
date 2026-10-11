@@ -8,6 +8,7 @@ import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
 import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
+import { currentSummary, phabThreads } from "../shared/phab-threads.ts";
 import { changeCommit, reviewedChanges, withUnassigned } from "../shared/review-path.ts";
 import { currentUserComments } from "../shared/postable-comments.ts";
 import { commitRevision } from "../shared/phabricator.ts";
@@ -141,6 +142,7 @@ export type PhabThreadData = {
   done: boolean;
   fromEpoch: number | null;
   comments: Artifact<PhabCommentData>[];
+  summary: string | null;
   phabAnchors: Record<string, Id>;
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
@@ -494,13 +496,19 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     if (root) { nodeIds.add(root.id); hostOf.set(root.id, start.id); }
   }
   const phab = phabView(state.artifacts, latest.diff, narrativeData);
+  // Summaries are keyed by the thread as the runtime groups it (`phabThreads`), which follows reply chains.
+  const phabSummaries = state.artifacts.filter((item) => item.type === "PhabThreadSummary");
+  const phabComments = state.artifacts.filter((item): item is Artifact<PhabCommentData> => item.type === "PhabComment");
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
   summary.phabAnchors = phabAnchorsOf(state.artifacts, [...phab.general, ...phab.unanchored.flatMap((group) => group.comments)]);
   const makePhabThread = (remote: typeof phab.anchored[number], anchorId = remote.anchorId): PhabThreadData => {
     const thread = threads.find((item) => item.data.anchor === anchorId);
     if (thread) { hostOf.set(thread.id, anchorId); nodeIds.add(thread.id); }
-    return { ...remote, anchorId, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null };
+    const root = remote.comments[0]!.data;
+    const covered = phabThreads(phabComments.filter((item) => item.data.revision === root.revision)).find((item) => item.comments.some((comment) => comment.data.phid === root.phid));
+    const summary = covered && currentSummary(phabSummaries, covered.rootPhid, covered.comments.map((comment) => comment.data.phid));
+    return { ...remote, anchorId, summary: summary?.data.summary ?? null, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null };
   };
   const childComments = (rootComment: Artifact<PhabCommentData>) => state.artifacts.filter((item): item is Artifact<PhabCommentData> => item.type === "PhabComment" && (item.data as PhabCommentData).replyTo === rootComment.data.phid);
   summary.phabGeneralThreads = phab.general.map((comment) => makePhabThread({ anchorId: comment.id, anchor: latest.narrative.id, path: "", line: 0, side: "new", done: comment.data.done, fromEpoch: null, comments: [comment, ...childComments(comment)] }));

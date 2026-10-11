@@ -513,6 +513,10 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 
 /* Conversations */
 .phab-done { background: var(--badge-muted-bg); color: var(--badge-muted-fg); }
+.phab-summary-badge { flex: none; margin-left: 0; }
+.phab-thread-summary { padding: 8px 10px; border-left: 3px solid var(--kind-phab); background: var(--surface-2); color: var(--text); }
+.phab-thread-summary h4 { margin: 0 0 4px; font-size: 0.85em; color: var(--text-2); }
+.phab-thread-summary p { margin: 0; white-space: pre-wrap; }
 .phab-detail-location { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 0.9em; margin-bottom: 8px; }
 .chat-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .box .messages { margin-top: 6px; scrollbar-width: thin; }
