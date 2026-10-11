@@ -37,3 +37,10 @@ test("latestSymbols returns the last artifact for the diff", () => {
 test("symbolMarks uses the earliest site's commit", () => {
   assert.deepEqual(symbolMarks("NewThing", 0, symbols), [{ start: 0, end: 8, name: "NewThing", highlight: "sym-this", title: "New in this patch" }]);
 });
+
+test("latestSymbols ignores artifacts stored before symbols had sites", () => {
+  const current = { type: "IntroducedSymbols", data: { diffId: "d1", symbols: { A: symbols.Earlier } } };
+  const stale = { type: "IntroducedSymbols", data: { diffId: "d1", symbols: { B: { path: "a.h", hunkId: "h", line: 1, commit: 0 } } } };
+  assert.deepEqual(latestSymbols({ artifacts: [current, stale] } as any, "d1"), current.data);
+  assert.equal(latestSymbols({ artifacts: [stale] } as any, "d1"), null);
+});

@@ -6,7 +6,8 @@ export interface SymbolMark { start: number; end: number; name: string; highligh
 
 /** The latest IntroducedSymbols artifact for a Diff, or null before it exists. */
 export function latestSymbols(state: SessionState, diffId: string): IntroducedSymbolsData | null {
-  const artifact = state.artifacts.findLast((item) => item.type === "IntroducedSymbols" && (item.data as IntroducedSymbolsData).diffId === diffId);
+  // Artifacts stored before symbols listed their sites are skipped; the session keeps working without marks until symbols are recomputed.
+  const artifact = state.artifacts.findLast((item) => item.type === "IntroducedSymbols" && (item.data as IntroducedSymbolsData).diffId === diffId && Object.values((item.data as IntroducedSymbolsData).symbols).every((symbol) => Array.isArray(symbol.sites)));
   return (artifact?.data as IntroducedSymbolsData | undefined) ?? null;
 }
 
