@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReviewSubmissionData } from "../shared/types.ts";
 import { api, Box, type Id, Composer, Dialog, ErrorText, useAction } from "../../../web/plugin-api.ts";
 import type { SummaryNodeData } from "./graph.ts";
+import { mergeServerDraft } from "../shared/postable-comments.ts";
 
 const actionLabel = (action: ReviewSubmissionData["action"]) => action === "accept" ? "accepted" : action === "request-changes" ? "requested changes" : "commented";
 const actionPhrase = (action: ReviewSubmissionData["action"]) => action === "accept" ? "and accept the revision" : action === "request-changes" ? "and request changes" : "and comment on the revision";
@@ -13,10 +14,18 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
   const [confirming, setConfirming] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const serverBody = useRef(review.body);
+  useEffect(() => {
+    const previous = serverBody.current;
+    serverBody.current = review.body;
+    if (review.body !== previous) setBody((current) => mergeServerDraft(current, previous, review.body));
+  }, [review.body]);
+
   const save = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     if (body === review.body) return;
+    serverBody.current = body;
     void run(() => api.saveReviewDraft(sessionId, review.revision, body));
   };
   useEffect(() => {
@@ -30,6 +39,7 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
     void run(async () => {
       await api.submitReview(sessionId, { revision: review.revision, action, body });
       setBody("");
+      serverBody.current = "";
       await api.saveReviewDraft(sessionId, review.revision, "");
     });
   };

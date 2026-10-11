@@ -29,6 +29,7 @@
 - [SpecReferenceData](interfaces/SpecReferenceData.md)
 - [SpecStepMapData](interfaces/SpecStepMapData.md)
 - [StepLink](interfaces/StepLink.md)
+- [SuggestedReplyData](interfaces/SuggestedReplyData.md)
 - [UnmappedLines](interfaces/UnmappedLines.md)
 - [UserCommentData](interfaces/UserCommentData.md)
 

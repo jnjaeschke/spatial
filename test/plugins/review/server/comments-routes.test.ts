@@ -47,3 +47,33 @@ test("comments route validates Diff paths and rejects editing a posted comment",
   assert.equal((await call(edit, [session.id, artifactId], { body: "changed" })).status, 409);
   store.close();
 });
+
+test("a reply names a Phabricator comment of the session", async () => {
+  const { store, session, diff, routes } = fixture();
+  const create = route(routes, "comments");
+  const lines = { path: "a.ts", side: "new", start: 1, end: 1 };
+  assert.equal((await call(create, [session.id], { diffId: diff.id, lines, body: "x", replyTo: diff.id })).status, 404);
+  const phab = store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data: { revision: 7, phid: "P1", version: 1, author: "alice", bot: false, byMe: false, body: "Why?", own: false, done: false, txId: 1, dateCreated: 1 }, provenance: { taskId: "runtime" } });
+  const created = await call(create, [session.id], { diffId: diff.id, lines, body: "Because.", replyTo: phab.id });
+  assert.equal(created.status, 201);
+  const reply = store.getArtifact((created.body as { artifactId: string }).artifactId);
+  assert.equal((reply.data as { replyTo: string }).replyTo, phab.id);
+  const edited = await call(route(routes, `comments/${reply.id}`), [session.id, reply.id], { body: "Edited." });
+  assert.equal((store.getArtifact((edited.body as { artifactId: string }).artifactId).data as { replyTo: string }).replyTo, phab.id);
+  store.close();
+});
+
+test("a general reply is appended to the revision's review draft under a quote", async () => {
+  const { store, session, routes } = fixture();
+  const phab = store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data: { revision: 7, phid: "P1", version: 1, author: "alice", bot: false, byMe: false, body: "Why?\nMore.", own: false, done: false, txId: 1, dateCreated: 1 }, provenance: { taskId: "runtime" } });
+  const draft = () => store.listArtifacts(session.id, "ReviewDraft").at(-1)?.data;
+  const append = route(routes, "review-draft/reply");
+  assert.equal((await call(append, [session.id], { replyTo: phab.id, body: "  " })).status, 400);
+  assert.equal((await call(append, [session.id], { replyTo: phab.id, body: "Because." })).status, 201);
+  assert.deepEqual(draft(), { revision: 7, body: "> @alice: Why?\n\nBecause." });
+  assert.equal((await call(append, [session.id], { replyTo: phab.id, body: "Also." })).status, 201);
+  assert.deepEqual(draft(), { revision: 7, body: "> @alice: Why?\n\nBecause.\n\n> @alice: Why?\n\nAlso." });
+  assert.equal((await call(route(routes, "review-draft"), [session.id], { revision: 7, body: "" })).status, 201);
+  assert.deepEqual(draft(), { revision: 7, body: "" });
+  store.close();
+});

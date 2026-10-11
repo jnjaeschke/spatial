@@ -13,5 +13,7 @@
 ## Functions
 
 - [currentUserComments](functions/currentUserComments.md)
+- [mergeServerDraft](functions/mergeServerDraft.md)
 - [postableComments](functions/postableComments.md)
 - [reviewDraft](functions/reviewDraft.md)
+- [withGeneralReply](functions/withGeneralReply.md)

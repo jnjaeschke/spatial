@@ -144,6 +144,12 @@ export type PhabThreadData = {
   comments: Artifact<PhabCommentData>[];
   summary: string | null;
   phabAnchors: Record<string, Id>;
+  /** The thread's last comment, which a reply answers. */
+  replyTo: Id;
+  /** The row a reply is posted on; null where the thread has none, then a reply goes to the general review comment. */
+  replyLines: UserCommentData["lines"] | null;
+  /** Saved replies; each follows the comment it answers. */
+  replies: ChangeNodeData["comments"];
   diffId: string;
   hunks: { file: DiffFile; hunk: Hunk }[];
   thread: Pick<ChatNodeData, "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage"> & { threadId: string } | null;
@@ -323,6 +329,14 @@ export function latestNarrative(state: SessionState): { narrative: Artifact<Patc
   return { narrative, diff };
 }
 
+function savedComment(diff: DiffData, artifacts: Artifact[], artifact: Artifact<UserCommentData>): ChangeNodeData["comments"][number] {
+  const target = postTarget(diff, artifact.data.lines);
+  const revision = "skip" in target ? null : commitRevision(diff.commits[target.commit]!)?.id ?? null;
+  const stableId = artifact.data.replaces ?? artifact.id;
+  const posted = artifacts.filter((item) => item.type === "PostedComment").find((item) => (item.data as PostedCommentData).comment === stableId);
+  return { artifact, lines: artifact.data.lines, revision, postedTo: posted ? (posted.data as PostedCommentData).revision : null };
+}
+
 export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Artifact<DiffData>, artifacts: Artifact[], drafts: Draft[] = []): Graph {
   const previousNarrative = narrative.data.previous
     ? artifacts.find((a) => a.id === narrative.data.previous && a.type === "PatchNarrative") as Artifact<PatchNarrativeData> | undefined
@@ -349,17 +363,11 @@ export function narrativeGraph(narrative: Artifact<PatchNarrativeData>, diff: Ar
       edges.push({ id: `${narrative.id}->${cardId}`, source: narrative.id, target: cardId });
     });
   }
-  const userComments = currentUserComments(artifacts).filter((comment) => comment.data.diffId === diff.id);
+  const userComments = currentUserComments(artifacts).filter((comment) => comment.data.diffId === diff.id && !comment.data.replyTo);
   const commentDrafts = drafts.filter((draft) => draft.kind === "comment" && draft.lines);
   const commentForHunks = (hunks: { file: DiffFile; hunk: Hunk }[]) => {
     const contains = (range: UserCommentData["lines"]) => hunks.some(({ file, hunk }) => rowsOf(range, file, hunk));
-    const saved = userComments.filter((comment) => contains(comment.data.lines)).map((artifact) => {
-      const target = postTarget(diff.data, artifact.data.lines);
-      const revision = "skip" in target ? null : commitRevision(diff.data.commits[target.commit]!)?.id ?? null;
-      const stableId = artifact.data.replaces ?? artifact.id;
-      const posted = artifacts.filter((item) => item.type === "PostedComment").find((item) => (item.data as PostedCommentData).comment === stableId);
-      return { artifact, lines: artifact.data.lines, revision, postedTo: posted ? (posted.data as PostedCommentData).revision : null };
-    });
+    const saved = userComments.filter((comment) => contains(comment.data.lines)).map((artifact) => savedComment(diff.data, artifacts, artifact));
     const transient = commentDrafts.filter((draft) => !!draft.lines && contains(draft.lines)).map((draft) => {
       const target = postTarget(diff.data, draft.lines!);
       const revision = "skip" in target ? null : commitRevision(diff.data.commits[target.commit]!)?.id ?? null;
@@ -502,13 +510,17 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   summary.phabGeneral = phab.general;
   summary.phabUnanchored = phab.unanchored;
   summary.phabAnchors = phabAnchorsOf(state.artifacts, [...phab.general, ...phab.unanchored.flatMap((group) => group.comments)]);
-  const makePhabThread = (remote: typeof phab.anchored[number], anchorId = remote.anchorId): PhabThreadData => {
+  const replies = currentUserComments(state.artifacts).filter((comment) => comment.data.diffId === latest.diff.id && comment.data.replyTo);
+  const makePhabThread = (remote: typeof phab.anchored[number], anchorId = remote.anchorId, anchored = false): PhabThreadData => {
     const thread = threads.find((item) => item.data.anchor === anchorId);
     if (thread) { hostOf.set(thread.id, anchorId); nodeIds.add(thread.id); }
     const root = remote.comments[0]!.data;
     const covered = phabThreads(phabComments.filter((item) => item.data.revision === root.revision)).find((item) => item.comments.some((comment) => comment.data.phid === root.phid));
     const summary = covered && currentSummary(phabSummaries, covered.rootPhid, covered.comments.map((comment) => comment.data.phid));
-    return { ...remote, anchorId, summary: summary?.data.summary ?? null, phabAnchors: phabAnchorsOf(state.artifacts, remote.comments), diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null };
+    const phabAnchors = phabAnchorsOf(state.artifacts, remote.comments);
+    const anchorIds = new Set(Object.values(phabAnchors));
+    const replyLines = anchored ? { path: remote.path, side: remote.side, start: remote.line, end: remote.line } : null;
+    return { ...remote, anchorId, summary: summary?.data.summary ?? null, phabAnchors, replyTo: phabAnchors[remote.comments.reduce((last, item) => item.data.txId > last.data.txId ? item : last).data.phid]!, replyLines, replies: replies.filter((reply) => anchorIds.has(reply.data.replyTo!)).map((reply) => savedComment(latest.diff.data, state.artifacts, reply)), diffId: latest.diff.id, hunks: allHunks, thread: thread ? threadContent(state, thread, diagramsByMessage) : null };
   };
   const childComments = (rootComment: Artifact<PhabCommentData>): Artifact<PhabCommentData>[] => phabComments.filter((item) => item.data.replyTo === rootComment.data.phid).flatMap((reply) => [reply, ...childComments(reply)]);
   summary.phabGeneralThreads = phab.general.map((comment) => makePhabThread({ anchorId: comment.id, anchor: latest.narrative.id, path: "", line: 0, side: "new", done: comment.data.done, fromEpoch: null, comments: [comment, ...childComments(comment)] }));
@@ -519,7 +531,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   for (const remote of phab.anchored) {
     const node = resolve(remote.anchor);
     const host = node && g.nodes.find((item) => item.id === node);
-    if (host && isReviewKind(host.data, "change")) host.data.phabThreads.push(makePhabThread(remote));
+    if (host && isReviewKind(host.data, "change")) host.data.phabThreads.push(makePhabThread(remote, remote.anchorId, true));
   }
   for (const findingState of findingStates(state, latest.narrative.id)) {
     const finding = findingState.finding;

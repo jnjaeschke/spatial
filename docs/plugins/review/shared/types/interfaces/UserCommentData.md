@@ -6,7 +6,7 @@
 
 # Interface: UserCommentData
 
-A user's inline comment on one side of a Diff. Later versions link back to the first artifact id.
+A user's inline comment on one side of a Diff. Later versions link back to the first artifact id. `replyTo` is the first artifact id of the `PhabComment` it answers; it is posted as an inline on `lines` like any other comment.
 
 ## Properties
 
@@ -37,3 +37,9 @@ A user's inline comment on one side of a Diff. Later versions link back to the f
 ### replaces
 
 > **replaces**: `string` \| `null`
+
+***
+
+### replyTo
+
+> **replyTo**: `string` \| `null`

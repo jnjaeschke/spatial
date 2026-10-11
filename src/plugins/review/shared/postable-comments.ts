@@ -1,4 +1,4 @@
-import type { ReviewCommentData, ReviewDraftData, UserCommentData } from "./types.ts";
+import type { PhabCommentData, ReviewCommentData, ReviewDraftData, UserCommentData } from "./types.ts";
 import type { Artifact, ChatThreadData, Link, PostedCommentData } from "../../../plugin-api.ts";
 import { findingStates } from "./findings.ts";
 
@@ -23,6 +23,19 @@ export function currentUserComments(artifacts: Artifact[]): Artifact<UserComment
 
 export function reviewDraft(artifacts: Artifact[], revision: number): string {
   return (artifacts.filter((artifact) => artifact.type === "ReviewDraft" && (artifact.data as ReviewDraftData).revision === revision).at(-1)?.data as ReviewDraftData | undefined)?.body ?? "";
+}
+
+/** The general review comment `draft` with `reply` appended below a quote of the first line of the Phabricator `comment` it answers. */
+export function withGeneralReply(draft: string, comment: PhabCommentData, reply: string): string {
+  const quote = `> @${comment.author}: ${comment.body.split(/\r?\n/, 1)[0]}`;
+  return `${draft.trim() ? `${draft.trimEnd()}\n\n` : ""}${quote}\n\n${reply}`;
+}
+
+/** The local general comment after the server draft changed from `previous` to `next`: an append-only change is appended to unsent edits, any other change replaces only an unedited `local`. */
+export function mergeServerDraft(local: string, previous: string, next: string): string {
+  if (!next.startsWith(previous)) return local === previous ? next : local;
+  const suffix = next.slice(previous.length);
+  return local + (local.trim() && suffix && !suffix.startsWith("\n") ? "\n\n" : "") + suffix;
 }
 
 /** Accepted findings first, then unposted local comments on the Diff owned by this narrative. */

@@ -3,12 +3,13 @@ import { ImportRevisionError, importRevision } from "../runtime/import-revision.
 import { checkDrift } from "../runtime/drift.ts";
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 import { commitRevision } from "../shared/phabricator.ts";
+import { phabLatest } from "../shared/phab-comments.ts";
 import { latestDiff, narrativeOf, sessionRefs } from "../shared/diffs.ts";
 import { withUnassigned } from "../shared/review-path.ts";
-import { currentUserComments, postableComments } from "../shared/postable-comments.ts";
+import { currentUserComments, postableComments, reviewDraft, withGeneralReply } from "../shared/postable-comments.ts";
 import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
-import type { ChangeReviewData, FindingDecisionData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
+import type { ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
 import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, type Artifact, type DiffData, type LlmSelection, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
@@ -83,7 +84,8 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const start = lines.start as number, end = lines.end as number;
       const text = str(body.body, "body");
       if (!text.trim()) throw new HttpError(400, "Comment body must not be blank");
-      const artifact = putUserArtifact(rt, session.id, "UserComment", { diffId, lines: { path: lines.path, side: lines.side, start, end }, body: text, replaces: null, deleted: false } satisfies UserCommentData, diffId);
+      const replyTo = body.replyTo === undefined || body.replyTo === null ? null : requireArtifact(rt, session.id, str(body.replyTo, "replyTo"), "PhabComment", "comment").id;
+      const artifact = putUserArtifact(rt, session.id, "UserComment", { diffId, lines: { path: lines.path, side: lines.side, start, end }, body: text, replaces: null, deleted: false, replyTo } satisfies UserCommentData, diffId);
       send(res, 201, { artifactId: artifact.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/comments\/([^/]+)$/, async ({ req, res, params }) => {
@@ -110,11 +112,37 @@ export function reviewRoutes(rt: Runtime): Route[] {
       const body = await readJson(req);
       if (!Number.isInteger(body.revision) || (body.revision as number) < 1) throw new HttpError(400, "Invalid revision");
       const revision = body.revision as number;
-      const text = str(body.body, "body");
+      if (typeof body.body !== "string") throw new HttpError(400, "Missing string field: body");
+      const text = body.body;
       const diff = latestDiff(rt.store.listArtifacts(session.id));
       if (!diff) throw new HttpError(409, "Session has no imported diff");
       const artifact = putUserArtifact(rt, session.id, "ReviewDraft", { revision, body: text } satisfies ReviewDraftData, diff.id);
       send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/review-draft\/reply$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const anchor = requireArtifact(rt, session.id, str(body.replyTo, "replyTo"), "PhabComment", "comment") as Artifact<PhabCommentData>;
+      const text = str(body.body, "body");
+      if (!text.trim()) throw new HttpError(400, "Reply body must not be blank");
+      const artifacts = rt.store.listArtifacts(session.id);
+      const diff = latestDiff(artifacts);
+      if (!diff) throw new HttpError(409, "Session has no imported diff");
+      const comment = phabLatest(artifacts, anchor.id) ?? anchor;
+      const revision = comment.data.revision;
+      const draft = withGeneralReply(reviewDraft(artifacts, revision), comment.data, text.trim());
+      const artifact = putUserArtifact(rt, session.id, "ReviewDraft", { revision, body: draft } satisfies ReviewDraftData, diff.id);
+      send(res, 201, { artifactId: artifact.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/phab-threads\/([^/]+)\/draft-reply$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const anchorId = requireArtifact(rt, session.id, params[1]!, "PhabComment", "comment").id;
+      const body = await readJson(req);
+      const threadId = requireArtifact(rt, session.id, str(body.threadId, "threadId"), "ChatThread", "thread").id;
+      let result: { replyId: string; body: string };
+      try { result = await rt.run(session.id, "draftPhabReply", { anchorId, threadId, llm: body.llm as LlmSelection | undefined }); }
+      catch (e) { throw new HttpError(502, (e as Error).message); }
+      send(res, 201, result);
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/findings\/([^/]+)\/comment\/regenerate$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]);
@@ -240,13 +268,14 @@ export function reviewRoutes(rt: Runtime): Route[] {
       } catch (e) {
         throw new HttpError(502, (e as Error).message);
       }
-      rt.store.putArtifact({
+      const submission = rt.store.putArtifact({
         sessionId: session.id,
         type: "ReviewSubmission",
         status: "verified",
         data: { revision: revisionId, action, body, inlines: postedCount } satisfies ReviewSubmissionData,
         provenance: { taskId: "runtime" },
       });
+      rt.emit(session.id, "runtime", "artifact.created", { artifactId: submission.id, type: submission.type });
       send(res, 200, { inlines: postedCount, skipped, revision: `D${revisionId}` });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ req, params, res }) => {

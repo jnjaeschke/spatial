@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { currentUserComments, postableComments } from "../../../../src/plugins/review/shared/postable-comments.ts";
+import { currentUserComments, mergeServerDraft, postableComments, withGeneralReply } from "../../../../src/plugins/review/shared/postable-comments.ts";
 import type { Artifact, Link } from "../../../../src/shared/types.ts";
-import type { UserCommentData } from "../../../../src/plugins/review/shared/types.ts";
+import type { PhabCommentData, UserCommentData } from "../../../../src/plugins/review/shared/types.ts";
 
 test("postableComments selects latest verified comments for accepted findings only", () => {
   const session = { id: "S" };
@@ -133,4 +133,32 @@ test("postableComments includes unposted comments on the latest diff after accep
   const posted = put("POSTED", "PostedComment", { comment: userComment.id, source: userComment.id, revision: 1, diff: 1, inlineId: 1 });
   state.links.push({ id: "pa", sessionId: "S", from: posted.id, to: userComment.id, kind: "about" });
   assert.deepEqual(postableComments(state, narrative.id).map((item) => item.source.id), [finding.id]);
+});
+
+test("postableComments posts a reply to a Phabricator comment as an inline on its line", () => {
+  const state = { artifacts: [] as Artifact[], links: [] as Link[] };
+  const put = (id: string, type: string, data: unknown) => {
+    const item = { id, sessionId: "S", type, status: "verified" as const, data, provenance: { taskId: "t" }, createdAt: id, epoch: null } as Artifact;
+    state.artifacts.push(item);
+    return item;
+  };
+  put("D", "Diff", { baseSha: "b", headSha: "h", commits: [], files: [] });
+  const narrative = put("N", "PatchNarrative", { diffId: "D", summary: "n", changes: [] });
+  const lines = { path: "a.ts", side: "new", start: 4, end: 4 };
+  const reply = put("R", "UserComment", { diffId: "D", lines, body: "Fixed.", replaces: null, deleted: false, replyTo: "PHAB1" });
+  assert.deepEqual(postableComments(state, narrative.id).map((item) => [item.source.id, item.body, item.lines]), [[reply.id, "Fixed.", lines]]);
+});
+
+test("withGeneralReply quotes the first line of the answered comment below the existing draft", () => {
+  const comment = { author: "alice", body: "Why this?\nSecond line." } as PhabCommentData;
+  assert.equal(withGeneralReply("", comment, "Because."), "> @alice: Why this?\n\nBecause.");
+  assert.equal(withGeneralReply("Overall fine.\n", comment, "Because."), "Overall fine.\n\n> @alice: Why this?\n\nBecause.");
+});
+
+test("mergeServerDraft follows the server when nothing is unsent and appends an extension to unsent edits", () => {
+  assert.equal(mergeServerDraft("old", "old", "new"), "new");
+  assert.equal(mergeServerDraft("old + typed", "old", "old\n\nquote"), "old + typed\n\nquote");
+  assert.equal(mergeServerDraft("typed", "", "quote"), "typed\n\nquote");
+  assert.equal(mergeServerDraft("same", "same", "same"), "same");
+  assert.equal(mergeServerDraft("typed", "old", "other"), "typed");
 });

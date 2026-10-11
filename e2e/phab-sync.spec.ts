@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { test, expect, type Page, type APIRequestContext, type Locator } from "@playwright/test";
 import { expandItem, openChange, openInPanel, openPatch, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
@@ -253,4 +253,81 @@ test("Phabricator summaries appear for four comments; shorter threads preview th
   await expect(resolved.locator(".phab-thread-summary")).toContainText("The reviewers question the implementation");
   await openInPanel(resolved);
   await expect(page.getByTestId("phab-panel").locator(".phab-thread-summary")).toContainText("AI summary");
+});
+
+const inlinesOf = async (request: APIRequestContext, revision: number) => await (await request.get(`http://127.0.0.1:4179/control/inlines?revision=${revision}`)).json() as { filePath: string; lineNumber: number; isNewFile: number; content: string }[];
+const submissionsOf = async (request: APIRequestContext, revision: number) => await (await request.get(`http://127.0.0.1:4179/control/submissions?revision=${revision}`)).json() as { message: string; attach_inlines: boolean }[];
+
+async function submitReview(page: Page, revision: number): Promise<Locator> {
+  await openPatch(page, 0);
+  await revealNode(page, "summary");
+  const panel = page.getByTestId(`review-panel-D${revision}`);
+  if (await panel.getByLabel("General comment").count() === 0) await panel.getByRole("button", { name: `Expand review D${revision}` }).click();
+  return panel;
+}
+
+async function confirmSubmit(page: Page, panel: Locator, revision: number) {
+  await panel.getByRole("button", { name: `Submit to D${revision}…` }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
+}
+
+test("a reply to an inline thread, drafted from the chat, is posted as an inline on Submit only", async ({ page, request }) => {
+  const ids = newRevision();
+  await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(300, "a.txt", 30, "DRAFT-REPLY-E2E why THIRTY?", { diffId: ids.d1 })] }));
+  await openChange(page);
+  const thread = page.locator(".inline-item.kind-phab").filter({ hasText: "DRAFT-REPLY-E2E" });
+  await expect(thread).toBeVisible({ timeout: 10_000 });
+  await expandItem(thread);
+  await expect(thread.getByRole("button", { name: "Draft reply from chat" })).toHaveCount(0);
+  await thread.getByLabel("message").fill("Is the name needed?");
+  await thread.getByRole("button", { name: "Send" }).click();
+  await expect(thread).toContainText("Stub answer.", { timeout: 15_000 });
+  await thread.getByRole("button", { name: "Draft reply from chat" }).click();
+  const composer = thread.getByLabel("Reply to Phabricator thread");
+  await expect(composer).toHaveValue("Thanks, I will name the constant.", { timeout: 15_000 });
+  await expect(composer).toHaveAttribute("placeholder", "Posted on this line when you submit");
+  await expect(thread.getByTestId("user-comment")).toHaveCount(0);
+  await composer.fill("Will name it.");
+  await thread.getByRole("button", { name: "Save reply" }).click();
+  const saved = thread.getByTestId("user-comment");
+  await expect(saved).toContainText("Will name it.");
+  await expect(thread.getByLabel("Reply to Phabricator thread")).toHaveCount(0);
+  expect(await inlinesOf(request, ids.revision)).toEqual([]);
+  expect(await submissionsOf(request, ids.revision)).toEqual([]);
+
+  const panel = await submitReview(page, ids.revision);
+  await expect(panel).toContainText("1 inline comment pending");
+  await confirmSubmit(page, panel, ids.revision);
+  await expect(panel.getByText(`Submitted to D${ids.revision}: 1 inline comment`)).toBeVisible({ timeout: 10_000 });
+  expect(await inlinesOf(request, ids.revision)).toMatchObject([{ filePath: "a.txt", lineNumber: 30, isNewFile: 1, content: "Will name it." }]);
+  expect(await submissionsOf(request, ids.revision)).toMatchObject([{ attach_inlines: true }]);
+  await openChange(page);
+  await expect(thread.getByTestId("user-comment")).toContainText(`Posted to D${ids.revision}`);
+});
+
+test("a reply to a general comment is quoted in the general review comment and submitted with it", async ({ page, request }) => {
+  const ids = newRevision();
+  await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [commentTx(310, "General question?\nMore text.")] }));
+  const item = page.getByTestId("summary").locator(".inline-item.kind-phab").filter({ hasText: "General question?" });
+  await expect(item).toBeVisible({ timeout: 10_000 });
+  await expandItem(item);
+  const panel = page.getByTestId(`review-panel-D${ids.revision}`);
+  await panel.getByRole("button", { name: `Expand review D${ids.revision}` }).click();
+  await panel.getByLabel("General comment").fill("Overall fine.");
+  await item.getByRole("button", { name: "Reply", exact: true }).click();
+  const composer = item.getByLabel("Reply to Phabricator thread");
+  await expect(composer).toHaveAttribute("placeholder", "Added to your review comment when you submit");
+  await composer.fill("It is by design.");
+  await item.getByRole("button", { name: "Save reply" }).click();
+  const quoted = "Overall fine.\n\n> @alice: General question?\n\nIt is by design.";
+  await expect(panel.getByLabel("General comment")).toHaveValue(quoted);
+  await expect(item.getByTestId("user-comment")).toHaveCount(0);
+  expect(await submissionsOf(request, ids.revision)).toEqual([]);
+  expect(await inlinesOf(request, ids.revision)).toEqual([]);
+  await confirmSubmit(page, panel, ids.revision);
+  await expect(panel.getByText(`Submitted to D${ids.revision}: 0 inline comments`)).toBeVisible({ timeout: 10_000 });
+  expect(await submissionsOf(request, ids.revision)).toMatchObject([{ message: quoted }]);
+  await expect(panel.getByLabel("General comment")).toHaveValue("");
+  await page.reload();
+  await expect.poll(async () => JSON.stringify((await (await request.get(`http://127.0.0.1:4178/api/sessions/${new URL(page.url()).searchParams.get("session")}/state`)).json()).artifacts.filter((artifact: { type: string }) => artifact.type === "ReviewDraft").at(-1)?.data)).toBe(JSON.stringify({ revision: ids.revision, body: "" }));
 });

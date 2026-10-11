@@ -66,7 +66,7 @@
 
 ### createComment
 
-> **createComment**: (`sessionId`, `diffId`, `lines`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+> **createComment**: (`sessionId`, `diffId`, `lines`, `body`, `replyTo?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
 
 #### Parameters
 
@@ -97,6 +97,10 @@
 `number`
 
 ##### body
+
+`string`
+
+##### replyTo?
 
 `string`
 
@@ -193,6 +197,32 @@
 #### Returns
 
 `Promise`\<[`DirectoryListing`](../../../shared/types/interfaces/DirectoryListing.md)\>
+
+### draftPhabReply
+
+> **draftPhabReply**: (`sessionId`, `anchorId`, `threadId`, `llm?`) => `Promise`\<\{ `body`: `string`; `replyId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### anchorId
+
+`string`
+
+##### threadId
+
+`string`
+
+##### llm?
+
+[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+
+#### Returns
+
+`Promise`\<\{ `body`: `string`; `replyId`: `string`; \}\>
 
 ### editComment
 
@@ -341,6 +371,28 @@
 #### Returns
 
 `Promise`\<\{ `taskId`: `string`; \}\>
+
+### replyInGeneralComment
+
+> **replyInGeneralComment**: (`sessionId`, `replyTo`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### replyTo
+
+`string`
+
+##### body
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `artifactId`: `string`; \}\>
 
 ### repo
 

@@ -41,14 +41,18 @@ export const api = {
   codeLinks: (sessionId: string, tokens: string[]) => post<{ links: Record<string, string | null> }>(`/api/sessions/${sessionId}/code-links`, { tokens }),
   saveComment: (sessionId: string, findingId: string, body: string) =>
     put<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),
-  createComment: (sessionId: string, diffId: string, lines: NonNullable<ChatThreadData["lines"]>, body: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments`, { diffId, lines, body }),
+  createComment: (sessionId: string, diffId: string, lines: NonNullable<ChatThreadData["lines"]>, body: string, replyTo?: string) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments`, { diffId, lines, body, replyTo }),
   editComment: (sessionId: string, stableId: string, body: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments/${stableId}`, { body }),
   deleteComment: (sessionId: string, stableId: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments/${stableId}`, { deleted: true }),
   saveReviewDraft: (sessionId: string, revision: number, body: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/review-draft`, { revision, body }),
+  replyInGeneralComment: (sessionId: string, replyTo: string, body: string) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/review-draft/reply`, { replyTo, body }),
+  draftPhabReply: (sessionId: string, anchorId: string, threadId: string, llm?: LlmSelection) =>
+    post<{ replyId: string; body: string }>(`/api/sessions/${sessionId}/phab-threads/${anchorId}/draft-reply`, { threadId, llm }),
   mapSpecSteps: (sessionId: string, specId: string, llm: LlmSelection) => post<{ taskId: string }>(`/api/sessions/${sessionId}/specs/${specId}/map`, { llm }),
   regenerateComment: (sessionId: string, findingId: string, llm?: LlmSelection) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),

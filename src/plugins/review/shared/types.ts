@@ -52,11 +52,14 @@ export interface FindingVerdictData { finding: Id; verdict: FindingVerdictValue;
 /** First version from the `comment` task; reviewer edits create a verified version. Linked `about → findingId`. */
 export interface ReviewCommentData { finding: Id; body: string }
 
-/** A user's inline comment on one side of a Diff. Later versions link back to the first artifact id. */
-export interface UserCommentData { diffId: Id; lines: LineRange; body: string; replaces: Id | null; deleted: boolean }
+/** A user's inline comment on one side of a Diff. Later versions link back to the first artifact id. `replyTo` is the first artifact id of the `PhabComment` it answers; it is posted as an inline on `lines` like any other comment. */
+export interface UserCommentData { diffId: Id; lines: LineRange; body: string; replaces: Id | null; deleted: boolean; replyTo: Id | null }
 
 /** The user's general review comment for a Phabricator revision. */
 export interface ReviewDraftData { revision: number; body: string }
+
+/** A reply to a Phabricator thread drafted by the `draftPhabReply` task from the thread's chat (status proposed). Linked `about → anchor`, the thread's first comment artifact. */
+export interface SuggestedReplyData { anchor: Id; body: string }
 
 /** Receipt for a submitted Phabricator review. */
 export interface ReviewSubmissionData { revision: number; action: "comment" | "accept" | "request-changes"; body: string; inlines: number }

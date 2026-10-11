@@ -641,6 +641,10 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .user-comment-node .composer { min-height: 4em; }
 .user-comment-node > div:not(.title):has(> button) { display: flex; gap: 6px; margin-top: 6px; }
 .user-comment-status { color: var(--text-3); font-size: .9em; }
+.phab-reply { margin: 8px 0; }
+.phab-reply .composer { min-height: 4em; width: 100%; box-sizing: border-box; }
+.phab-reply > div { display: flex; gap: 6px; margin-top: 6px; }
+.phab-saved-reply { margin: 4px 0 8px 16px; }
 .rewrite-flag { padding: 3px 8px; font: 11px var(--font-mono); color: var(--badge-warn-fg); background: var(--badge-warn-bg); border-top: 1px solid var(--border); }
 .toasts { position: fixed; right: 16px; bottom: 48px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
 .toast {
