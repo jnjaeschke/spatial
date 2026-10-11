@@ -1,4 +1,4 @@
-import { HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Route, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Engine, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
 import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
@@ -6,6 +6,7 @@ import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
+import { storedMappings } from "../runtime/mappings.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -25,6 +26,12 @@ function parseTrace(value: unknown): SpecTraceData {
 
 const isOpen = (rt: Runtime, sessionId: string, anchor: string) => rt.store.listArtifacts(sessionId, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === anchor);
 const lookupStatus = (error: unknown) => (error as Error).cause instanceof SpecNotFoundError ? 404 : 502;
+
+/** An engine named in a request. */
+export function parseEngine(value: unknown): Engine {
+  if (typeof value !== "string" || !(ENGINES as readonly string[]).includes(value)) throw new HttpError(400, "engine must be gecko, blink or webkit");
+  return value as Engine;
+}
 
 /** HTTP routes of the spec explorer: user actions stored as user artifacts. */
 export function specRoutes(rt: Runtime): Route[] {
@@ -75,6 +82,7 @@ export function specRoutes(rt: Runtime): Route[] {
       send(res, 201, { opened: opens.length });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/summaries$/, async ({ params }) => summaryViews(rt, requireSession(rt, params[0]!).id)],
+    ["GET", /^\/api\/sessions\/([^/]+)\/spec\/mappings$/, async ({ params, url }) => storedMappings(rt, requireSession(rt, params[0]!).id, parseEngine(url.searchParams.get("engine")))],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/summaries\/flag$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const ref = text(await readJson(req), "ref");

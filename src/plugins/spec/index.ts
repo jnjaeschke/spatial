@@ -8,6 +8,7 @@ import { summarizeAlgorithm } from "./tasks/summarize-algorithm/task.ts";
 import { verifySummary } from "./tasks/verify-summary/task.ts";
 import { specRoutes } from "./server/routes.ts";
 import { specExploreField } from "./runtime/explore-field.ts";
+import { mapEngine } from "./tasks/map-engine/task.ts";
 
 /** Web spec exploration: spec references, algorithms, traces and summaries. */
-export const specPlugin = definePlugin({ id: "spec", workflows: [exploreWorkflow], phases: [explorePhase], tasks: [loadSpecAlgorithm, searchSpecs, loadEffectPath, summarizeAlgorithm, verifySummary], artifactKinds, searchKinds, chatReplyFields: [specExploreField], server: (rt) => ({ routes: specRoutes(rt) }) });
+export const specPlugin = definePlugin({ id: "spec", workflows: [exploreWorkflow], phases: [explorePhase], tasks: [loadSpecAlgorithm, searchSpecs, loadEffectPath, summarizeAlgorithm, verifySummary, mapEngine], artifactKinds, searchKinds, chatReplyFields: [specExploreField], server: (rt) => ({ routes: specRoutes(rt) }) });

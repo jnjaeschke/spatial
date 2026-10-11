@@ -20,8 +20,33 @@
 - [resolveSpecReference](functions/resolveSpecReference.md)
 - [specReferenceData](functions/specReferenceData.md)
 - [stepComments](functions/stepComments.md)
+- [storedMapping](functions/storedMapping.md)
 
 ## References
+
+### EngineMapping
+
+Re-exports [EngineMapping](../shared/types/interfaces/EngineMapping.md)
+
+***
+
+### EngineSite
+
+Re-exports [EngineSite](../shared/types/interfaces/EngineSite.md)
+
+***
+
+### EngineStep
+
+Re-exports [EngineStep](../shared/types/interfaces/EngineStep.md)
+
+***
+
+### EngineTest
+
+Re-exports [EngineTest](../shared/types/interfaces/EngineTest.md)
+
+***
 
 ### LineRange
 

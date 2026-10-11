@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { codeUrl, engineMapping, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappingKey, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { byPlace, codeUrl, engineMapping, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappingKey, mergeLatest, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");
 
@@ -65,4 +66,14 @@ test("keys, permalinks and stored values", () => {
   assert.equal(siteKey({ path: "a.h", symbol: "", line: 3 }), "a.h:3");
   assert.equal(codeUrl({ repoBase: "https://searchfox.org/mozilla-central/", rev: "0f".repeat(20) }, "dom/a.cpp", 4), `https://searchfox.org/mozilla-central/rev/${"0f".repeat(20)}/dom/a.cpp#4`);
   assert.throws(() => engineMapping({ engine: "gecko" }), /unexpected shape/);
+});
+
+test("mergeLatest keeps rejections, confirmations and proposals stored while a mapping ran", () => {
+  const site = (path: string, line: number, method: EngineSite["method"]): EngineSite => ({ path, line, symbol: `_Z${path}`, signature: `void ${path}() {`, quote: `void ${path}() {`, method, refs: [], steps: [] });
+  const base = { engine: "gecko" as const, repoBase: "r/", rev: "x", tests: [], checkedAt: "t" };
+  const result: EngineMapping = { ...base, rejected: [], sites: [site("a", 1, "spec-link"), site("b", 5, "llm"), site("c", 9, "llm")] };
+  const latest: EngineMapping = { ...base, rejected: [{ path: "c", line: 9, symbol: "_Zc", signature: "void c() {" }], sites: [site("a", 3, "spec-link"), site("b", 5, "user"), site("d", 20, "llm"), site("e", 30, "spec-link")] };
+  const merged = mergeLatest(result, latest);
+  assert.deepEqual(merged.sites.map((s) => [s.path, s.line, s.method]), [["a", 1, "spec-link"], ["b", 5, "user"], ["d", 20, "llm"]]);
+  assert.deepEqual(merged.rejected.map((r) => r.path), ["c"]);
 });

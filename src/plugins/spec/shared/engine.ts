@@ -13,6 +13,16 @@ export const byPlace = (a: Pick<EngineSite, "path" | "line">, b: Pick<EngineSite
 /** Whether tier 1 derives a site from spec-link comments: every mapping run recomputes such sites, so they are never carried over or merged back. */
 export const fromLinks = (site: Pick<EngineSite, "method">) => site.method === "spec-link";
 
+/** A mapping run's result with rejections, confirmations and proposals stored while it ran; tier 1 sites come from the result only. */
+export function mergeLatest(result: EngineMapping, latest: EngineMapping): EngineMapping {
+  const rejected = [...result.rejected, ...latest.rejected.filter((site) => !result.rejected.some((known) => siteKey(known) === siteKey(site)))];
+  const gone = new Set(rejected.map(siteKey));
+  const byKey = new Map(latest.sites.map((site) => [siteKey(site), site]));
+  const sites = result.sites.filter((site) => !gone.has(siteKey(site))).map((site) => site.method === "llm" && byKey.get(siteKey(site))?.method === "user" ? { ...site, method: "user" as const } : site);
+  const added = latest.sites.filter((site) => !fromLinks(site) && !gone.has(siteKey(site)) && !sites.some((known) => siteKey(known) === siteKey(site)));
+  return { ...result, sites: [...sites, ...added].sort(byPlace), rejected };
+}
+
 /** The fragment of a URL without trailing punctuation (`.,;:)]`), percent-decoded; "" without one. */
 export function fragmentOf(url: string): string {
   const hash = url.indexOf("#");

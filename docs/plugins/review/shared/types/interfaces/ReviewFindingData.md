@@ -24,7 +24,7 @@ Data of a `ReviewFinding` artifact; linked `derivedFrom → narrative` and `abou
 
 ### category
 
-> **category**: `"spec"` \| `"correctness"` \| `"tests"` \| `"style"`
+> **category**: `"spec"` \| `"tests"` \| `"correctness"` \| `"style"`
 
 ***
 
