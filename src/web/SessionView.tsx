@@ -12,13 +12,14 @@ import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { SelectorQuestion } from "./SelectorQuestion.tsx";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
-import { activePhaseView } from "./phase-views.ts";
+import { activePhaseView, sessionViews } from "./phase-views.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
 import { openDecision } from "./decisions.ts";
 import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
 import { EpochStrip } from "./EpochStrip.tsx";
 import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
-import { RouteContext, routeUrl } from "./routes.ts";
+import { RouteContext, routeUrl, sessionViewOf, showSessionView } from "./routes.ts";
+import { Segmented } from "./Segmented.tsx";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -28,6 +29,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [viewed, setViewed] = useState<number | null>(null);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const models = useModels();
+  const [viewId, setViewId] = useState(() => sessionViewOf(new URL(location.href)));
+  useEffect(() => {
+    const update = () => setViewId(sessionViewOf(new URL(location.href)));
+    navigation.addEventListener("currententrychange", update);
+    return () => navigation.removeEventListener("currententrychange", update);
+  }, []);
   const [titleParts, setTitleParts] = useState<string[]>([]);
   const route = useMemo(() => ({ sessionId, setTitleParts }), [sessionId]);
   const title = state ? [...titleParts, state.session.title, "spatial"].join(" · ") : "spatial";
@@ -59,15 +66,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const past = viewed !== null && viewed !== latestEpoch?.n ? state.epochs.find((e) => e.n === viewed) ?? null : null;
   const shown = past ? stateAtEpoch(state, past.n) : state;
   const { phase, view } = activePhaseView(webPlugins, shown);
+  const extra = sessionViews(webPlugins, shown, viewId);
+  const Body = extra.active?.Body ?? view?.Body;
   const body = state.session.workflow === null && openQuestion
     ? <SelectorQuestion sessionId={sessionId} question={openQuestion} llm={models.default} />
     : state.session.workflow === null
       ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
-      : view ? <view.Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
+      : Body ? <Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
         : <p className="empty failed">No view for phase {phase}</p>;
   const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
   return <RouteContext.Provider value={route}><div className="app">
-    <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{decision && <DecisionControls key={decision.id} sessionId={sessionId} repoDir={state.session.repoDir} decision={decision} testId="topbar-decision" />}<span className="spacer" />{view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{extra.available.length > 0 && <Segmented label="Session view" className="session-views" options={[{ value: "", label: phase ?? "phase", title: "Phase view" }, ...extra.available.map((candidate) => ({ value: candidate.id, label: candidate.label, title: candidate.label }))]} value={extra.active?.id ?? ""} onChange={(id) => showSessionView(id || null)} />}{decision && <DecisionControls key={decision.id} sessionId={sessionId} repoDir={state.session.repoDir} decision={decision} testId="topbar-decision" />}<span className="spacer" />{view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>

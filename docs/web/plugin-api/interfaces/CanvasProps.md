@@ -68,6 +68,12 @@
 
 > **state**: [`SessionState`](../../../shared/types/interfaces/SessionState.md)
 
+***
+
+### viewKey?
+
+> `optional` **viewKey?**: `string`
+
 ## Methods
 
 ### onDiscard()?

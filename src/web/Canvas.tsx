@@ -117,7 +117,7 @@ function ResizableNode(props: NodeProps) {
     />}
   </>;
 }
-export interface CanvasProps { state: SessionState; model: CanvasModel; closed?: ReturnType<typeof useClosed>; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
+export interface CanvasProps { state: SessionState; model: CanvasModel; /** Key of the canvas's client view state (viewport, free positions, sizes, collapsed and closed nodes); default the session id. */ viewKey?: string; closed?: ReturnType<typeof useClosed>; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
 const NO_DRAFTS: Draft[] = [];
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
@@ -131,13 +131,14 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
+function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
+  const viewKey = viewKeyProp ?? state.session.id;
   const nodeKinds = useContext(NodeKindsContext);
   const routeContext = useContext(RouteContext);
   const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
-  const { sizes, setSize, clear: clearNodeSizes } = useNodeSizes(state.session.id);
-  const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(state.session.id);
+  const { sizes, setSize, clear: clearNodeSizes } = useNodeSizes(viewKey);
+  const { positions: freePositions, set: setFreePosition, move: moveFreePosition, remove: removeFreePosition } = useFreePositions(viewKey);
   const paneHeight = useStore((s) => s.height);
   const colorMode = useResolvedTheme();
   const rf = useReactFlow();
@@ -153,7 +154,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const knownRevealed = useRef<Set<string> | null>(null);
   const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
     [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
-  const ownClosed = useClosed(state.session.id);
+  const ownClosed = useClosed(viewKey);
   const { closed: closedIds, close, reopen } = sharedClosed ?? ownClosed;
   const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers(model.layers?.list.map((layer) => layer.id) ?? []);
   const { graph, closedOn } = useMemo(() => {
@@ -180,12 +181,12 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   }, [drafts, state.artifacts, moveFreePosition]);
   const revealedIds = useMemo(() => model.revealWhenAdded ? graph.nodes.filter(model.revealWhenAdded).map((n) => n.id) : [], [model, graph]);
   const defaults = useMemo(() => new Set(model.collapsedByDefault?.(graph) ?? []), [model, graph]);
-  const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
+  const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(viewKey, defaults);
   const places = model.places;
   // Where the canvas starts: the URL's place if the graph has it, else the stored one, else the initial place. A reload or
   // traversal restores its history entry's own view; any other start uses the stored view, if it was stored for that place.
   const initial = useMemo(() => {
-    const stored = readViewState(state.session.id);
+    const stored = readViewState(viewKey);
     const route = routeContext ? parseRoute(new URL(location.href)) : null;
     const urlPlace = route?.kind === "session" ? route.place : null;
     const wanted = urlPlace ?? stored?.place ?? null;
@@ -510,9 +511,9 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   useEffect(() => {
     if (autoFit.current) return;
     const { x, y, zoom } = rf.getViewport();
-    saveViewState(state.session.id, { x, y, zoom, place, guideStep });
+    saveViewState(viewKey, { x, y, zoom, place, guideStep });
     saveHistoryView({ x, y, zoom, place, guideStep, focusedRow, label: labelRef.current });
-  }, [place, guideStep, focusedRow, rf, state.session.id]);
+  }, [place, guideStep, focusedRow, rf, viewKey]);
 
   const quoteAt = (x: number, y: number) => {
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
@@ -694,12 +695,12 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
 
   const persistView = () => {
     const view = { ...rf.getViewport(), place: placeRef.current, guideStep: guideStepRef.current };
-    saveViewState(state.session.id, view);
+    saveViewState(viewKey, view);
     saveHistoryView({ ...view, focusedRow: focusedRowRef.current, label: labelRef.current });
   };
   const onMoveEnd = (_: unknown, vp: Viewport) => {
     if (autoFit.current) return;
-    saveViewState(state.session.id, { ...vp, place, guideStep });
+    saveViewState(viewKey, { ...vp, place, guideStep });
     saveHistoryView({ ...vp, place, guideStep, focusedRow, label: labelRef.current });
   };
   const historyView = (): HistoryView => ({ ...rf.getViewport(), place: placeRef.current, guideStep, focusedRow, label: labelRef.current });

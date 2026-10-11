@@ -26,6 +26,12 @@
 
 ***
 
+### sessionViews?
+
+> `optional` **sessionViews?**: [`PluginSessionView`](PluginSessionView.md)[]
+
+***
+
 ### workflowPhase?
 
 > `optional` **workflowPhase?**: `Record`\<`string`, `string`\>

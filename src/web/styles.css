@@ -778,3 +778,4 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .try-failures ul { margin: 2px 0 4px; padding-left: 16px; font-family: var(--font-mono); font-size: 0.9em; }
 .terminal-title { color: #9ad; font-family: var(--font-mono); font-size: 12px; }
 .implement-summary, .running { padding: 0 12px; margin: 4px 0; }
+.session-views { margin-left: 8px; }

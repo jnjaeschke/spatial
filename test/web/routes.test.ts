@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseRoute, routeUrl, type Route } from "../../src/web/routes.ts";
+import { parseRoute, routeUrl, sessionViewOf, withSessionView, type Route } from "../../src/web/routes.ts";
 
 const routes: Route[] = [
   { kind: "picker" },
@@ -26,4 +26,12 @@ test("place segments are encoded independently", () => {
 test("unknown and incomplete paths are not app routes", () => {
   assert.equal(parseRoute(new URL("http://localhost/api/x")), null);
   assert.equal(parseRoute(new URL("http://localhost/sessions/")), null);
+});
+
+test("session views live in the view query parameter", () => {
+  assert.equal(sessionViewOf(new URL("http://x/sessions/s1/patch/0?view=spec")), "spec");
+  assert.equal(sessionViewOf(new URL("http://x/sessions/s1")), null);
+  assert.equal(withSessionView(new URL("http://x/sessions/s1/patch/0#h"), "spec"), "/sessions/s1/patch/0?view=spec#h");
+  assert.equal(withSessionView(new URL("http://x/sessions/s1?view=spec&a=1"), null), "/sessions/s1?a=1");
+  assert.deepEqual(parseRoute(new URL("http://x/sessions/s1/patch/0?view=spec")), { kind: "session", sessionId: "s1", place: "patch:0" });
 });

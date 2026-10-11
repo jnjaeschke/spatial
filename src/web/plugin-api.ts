@@ -24,6 +24,8 @@ export interface PhaseView {
   /** Whether a notification is stale for this view and is not shown. */
   isStaleNotice?(state: SessionState, notice: NotifyPayload): boolean;
 }
+/** A view of a session besides its phase view, offered in the topbar while available; a projection of the same state. */
+export interface PluginSessionView { id: string; label: string; available(state: SessionState): boolean; Body: ComponentType<PhaseViewProps> }
 export interface NodeKind {
   component: ComponentType<NodeProps>;
   minimapColor: string;
@@ -32,7 +34,7 @@ export interface NodeKind {
   /** False: no width handle and the width always comes from `size` (diagram). Default true. */
   resizable?: boolean;
 }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -45,6 +47,7 @@ export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal
 }
 
 export { Canvas } from "./Canvas.tsx";
+export { showSessionView } from "./routes.ts";
 export { Box } from "./Box.tsx";
 export type { BoxProps } from "./Box.tsx";
 export { Dialog } from "./Dialog.tsx";

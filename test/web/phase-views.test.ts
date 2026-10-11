@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activePhaseView } from "../../src/web/phase-views.ts";
-import type { PhaseView, WebPlugin } from "../../src/web/plugin-api.ts";
+import { activePhaseView, sessionViews } from "../../src/web/phase-views.ts";
+import type { PhaseView, PluginSessionView, WebPlugin } from "../../src/web/plugin-api.ts";
 import type { Epoch, SessionState } from "../../src/shared/types.ts";
 
 const view = (name: string) => ({ Body: () => name }) as unknown as PhaseView;
@@ -19,4 +19,14 @@ test("the latest epoch's phase picks the view from any plugin; before the first 
   assert.deepEqual(activePhaseView(plugins, state("implement", [])), { phase: "investigate", view: investigate });
   assert.deepEqual(activePhaseView(plugins, state("implement", ["build"])), { phase: "build", view: undefined });
   assert.deepEqual(activePhaseView(plugins, state(null, [])), { phase: undefined, view: undefined });
+});
+
+test("sessionViews lists the available views and picks the wanted one if available", () => {
+  const spec = { id: "spec", label: "Spec explorer", available: (s: SessionState) => s.artifacts.length > 0, Body: () => null } as unknown as PluginSessionView;
+  const withViews: WebPlugin[] = [...plugins, { id: "c", phaseViews: {}, sessionViews: [spec] }];
+  const empty = { ...state("review", ["review"]), artifacts: [] } as SessionState;
+  const full = { ...state("review", ["review"]), artifacts: [{}] } as SessionState;
+  assert.deepEqual(sessionViews(withViews, empty, "spec"), { available: [], active: null });
+  assert.deepEqual(sessionViews(withViews, full, "spec"), { available: [spec], active: spec });
+  assert.deepEqual(sessionViews(withViews, full, null), { available: [spec], active: null });
 });

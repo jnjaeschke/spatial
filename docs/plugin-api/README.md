@@ -38,7 +38,9 @@ Everything a user works on is a plugin; review and chat are the standard library
 
 The web side of a plugin registers phase views and canvas node kinds through
 `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
-`src/plugins/web.ts`. A canvas model (`CanvasModel`) may split its graph into named **places**
+`src/plugins/web.ts`. A web plugin may also offer **session views** (`WebPlugin.sessionViews`):
+projections of the session shown instead of the phase view when chosen in the topbar; the choice
+is in the URL (`?view=`). A canvas model (`CanvasModel`) may split its graph into named **places**
 (`CanvasModel.places`): core owns the current place, its history entries, persistence, breadcrumb and
 drill-in/out keys, and the model defines each place's graph, node representation and guide steps.
 Zoom only scales the canvas. Core shows an Open button in the title bar of every node that opens a place

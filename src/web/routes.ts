@@ -31,3 +31,21 @@ export function routeUrl(route: Route): string {
   const base = `/sessions/${encodeURIComponent(route.sessionId)}`;
   return route.place === null ? base : `${base}/${route.place.split(":").map(encodeURIComponent).join("/")}`;
 }
+
+/** The session view a session URL names (`?view=`), or null for the phase view. */
+export function sessionViewOf(url: URL): string | null {
+  return url.searchParams.get("view");
+}
+
+/** `url` as path, query and hash with the session view set, or removed for null. */
+export function withSessionView(url: URL, view: string | null): string {
+  const next = new URL(url);
+  if (view === null) next.searchParams.delete("view");
+  else next.searchParams.set("view", view);
+  return next.pathname + next.search + next.hash;
+}
+
+/** Shows a session view (null: the phase view) as a new history entry. */
+export function showSessionView(view: string | null): void {
+  navigation.navigate(withSessionView(new URL(location.href), view));
+}
