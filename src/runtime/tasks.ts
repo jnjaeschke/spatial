@@ -76,6 +76,8 @@ export interface TaskContext {
   git: GitCapability;
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
+  /** The knowledge store, read-only: tasks return proposals, plugin runtime code writes them. */
+  knowledge: Pick<Knowledge, "get" | "list">;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult>; readonly defaultSelection: LlmSelection };
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
@@ -244,6 +246,10 @@ export class Runtime {
       git: this.#git(session.worktree),
       webspec: this.#webspec,
       searchfox: this.#searchfox,
+      knowledge: {
+        get: (scope, namespace, key) => this.#knowledge.get(scope, namespace, key),
+        list: (scope, namespace, keyPrefix) => this.#knowledge.list(scope, namespace, keyPrefix),
+      },
       llm: {
         run: async (prompt, selection) => {
           const r = await this.#llm.run(selection, prompt, controller.signal);

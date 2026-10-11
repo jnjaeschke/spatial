@@ -146,6 +146,14 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ***
 
+### knowledge
+
+> **knowledge**: `Pick`\<[`Knowledge`](../../knowledge/interfaces/Knowledge.md), `"get"` \| `"list"`\>
+
+The knowledge store, read-only: tasks return proposals, plugin runtime code writes them.
+
+***
+
 ### links
 
 > **links**: `object`

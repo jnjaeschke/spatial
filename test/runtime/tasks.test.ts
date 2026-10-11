@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
+import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
 import { Runtime, defineTask, TaskFailedError, TaskCancelledError, PhaseBusyError, type Phase, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { RuntimeEvent } from "../../src/shared/types.ts";
@@ -101,6 +102,19 @@ test("run() resolves with output", async () => {
   const { rt, session } = setup();
   const out = await rt.run<{ artifactId: string }>(session.id, "echo", { v: "x" });
   assert.equal(typeof out.artifactId, "string");
+});
+
+test("tasks read the knowledge store and cannot write it", async () => {
+  const knowledge = new KnowledgeStore(":memory:");
+  knowledge.put("global", "spec", "k", 1, { by: "plugin", sessionId: "S" });
+  const peek = defineTask<null, unknown>({ kind: "peek", async run(ctx) {
+    const read = ctx.knowledge.get("global", "spec", "k");
+    return { value: read.state === "current" ? read.entry.value : null, listed: ctx.knowledge.list("global", "spec", "").length, canPut: "put" in ctx.knowledge };
+  } });
+  const store = new Store(":memory:");
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [peek] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox, knowledge });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  assert.deepEqual(await rt.run(session.id, "peek", null), { value: 1, listed: 1, canPut: false });
 });
 
 test("unknown task kind and unknown session throw synchronously", () => {
