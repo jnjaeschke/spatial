@@ -1,8 +1,8 @@
-[**spatial**](../../../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial](../../../../../README.md) / [plugins/review/runtime/diagram-verify](../README.md) / SequenceProposal
+[spatial](../../../README.md) / [runtime/diagram](../README.md) / SequenceProposal
 
 # Type Alias: SequenceProposal
 
@@ -24,7 +24,7 @@
 
 ### lanes
 
-> **lanes**: [`SequenceLane`](../../../../../shared/types/interfaces/SequenceLane.md)[]
+> **lanes**: [`SequenceLane`](../../../shared/types/interfaces/SequenceLane.md)[]
 
 ***
 

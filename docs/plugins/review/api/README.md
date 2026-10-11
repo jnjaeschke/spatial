@@ -14,17 +14,12 @@
 
 - [SpecLookup](type-aliases/SpecLookup.md)
 
-## Variables
-
-- [diagramSchema](variables/diagramSchema.md)
-
 ## Functions
 
 - [lookupSpec](functions/lookupSpec.md)
 - [postInlineReplies](functions/postInlineReplies.md)
 - [resolveSpecReference](functions/resolveSpecReference.md)
 - [specReferenceData](functions/specReferenceData.md)
-- [verifyDiagramAtBase](functions/verifyDiagramAtBase.md)
 
 ## References
 

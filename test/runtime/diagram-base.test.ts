@@ -1,10 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { verifyDiagramAtBase } from "../../../../src/plugins/review/runtime/diagram-chat.ts";
+import { isDiagram, verifyDiagramAtBase } from "../../src/runtime/diagram.ts";
 
 const step = (symbol: string, line: number) => ({ from: "a", to: "a", symbol, call: `${symbol}()`, what: "w", when: null, guard: null, phase: null, status: "existing", cite: { path: "x.cpp", line } });
 const proposal = (over: object = {}) => ({ commit: 1, title: "T", summary: "S", lanes: [{ id: "a", label: "A", note: null }], steps: [step("Foo", 2), step("Missing", 2)], before: null, ...over });
 const show = async (sha: string, path: string) => { assert.equal(sha, "BASE"); assert.equal(path, "x.cpp"); return "line one\nFoo();\n"; };
+
+test("isDiagram accepts a proposal and rejects a wrong shape", () => {
+  assert.equal(isDiagram(proposal()), true);
+  assert.equal(isDiagram({ ...proposal(), lanes: [{ id: "a" }] }), false);
+});
 
 test("a sequence about existing code is verified against the base commit", async () => {
   const result = await verifyDiagramAtBase(proposal(), "BASE", show);

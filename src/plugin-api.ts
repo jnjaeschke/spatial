@@ -78,3 +78,7 @@ export { numberLines, fileRows } from "./shared/diff-lines.ts";
 export type { Row } from "./shared/diff-lines.ts";
 export type { GitWriter, PatchIdentity } from "./runtime/git.ts";
 export type { LlmPrompt, LlmEvent } from "./runtime/llm/types.ts";
+
+/** Sequence diagram proposals: schema, shape check and citation verification. */
+export { diagramSchema, isDiagram, verifyDiagramAtBase, verifySequence } from "./runtime/diagram.ts";
+export type { SequenceProposal, SequenceStepProposal } from "./runtime/diagram.ts";

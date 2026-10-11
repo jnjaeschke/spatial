@@ -188,6 +188,12 @@ Re-exports [DiagramData](../shared/types/interfaces/DiagramData.md)
 
 ***
 
+### diagramSchema
+
+Re-exports [diagramSchema](../runtime/diagram/variables/diagramSchema.md)
+
+***
+
 ### DiffData
 
 Re-exports [DiffData](../shared/types/interfaces/DiffData.md)
@@ -269,6 +275,12 @@ Re-exports [Hunk](../shared/types/interfaces/Hunk.md)
 ### Id
 
 Re-exports [Id](../shared/types/type-aliases/Id.md)
+
+***
+
+### isDiagram
+
+Re-exports [isDiagram](../runtime/diagram/functions/isDiagram.md)
 
 ***
 
@@ -572,6 +584,12 @@ Re-exports [SequenceLane](../shared/types/interfaces/SequenceLane.md)
 
 ***
 
+### SequenceProposal
+
+Re-exports [SequenceProposal](../runtime/diagram/type-aliases/SequenceProposal.md)
+
+***
+
 ### SequenceStatus
 
 Re-exports [SequenceStatus](../shared/types/type-aliases/SequenceStatus.md)
@@ -581,6 +599,12 @@ Re-exports [SequenceStatus](../shared/types/type-aliases/SequenceStatus.md)
 ### SequenceStep
 
 Re-exports [SequenceStep](../shared/types/interfaces/SequenceStep.md)
+
+***
+
+### SequenceStepProposal
+
+Re-exports [SequenceStepProposal](../runtime/diagram/type-aliases/SequenceStepProposal.md)
 
 ***
 
@@ -683,6 +707,18 @@ Re-exports [TaskStatus](../shared/types/type-aliases/TaskStatus.md)
 ### text
 
 Re-exports [text](../server/http/functions/text.md)
+
+***
+
+### verifyDiagramAtBase
+
+Re-exports [verifyDiagramAtBase](../runtime/diagram/functions/verifyDiagramAtBase.md)
+
+***
+
+### verifySequence
+
+Re-exports [verifySequence](../runtime/diagram/functions/verifySequence.md)
 
 ***
 

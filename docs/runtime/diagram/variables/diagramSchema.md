@@ -1,14 +1,14 @@
-[**spatial**](../../../../README.md)
+[**spatial**](../../../README.md)
 
 ***
 
-[spatial](../../../../README.md) / [plugins/review/api](../README.md) / diagramSchema
+[spatial](../../../README.md) / [runtime/diagram](../README.md) / diagramSchema
 
 # Variable: diagramSchema
 
 > `const` **diagramSchema**: `object`
 
-JSON schema of the `diagram` chat reply field: one commit's sequence diagram with cited steps.
+JSON schema for a sequence diagram proposal with cited steps.
 
 ## Type Declaration
 

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { verifySequence, type SequenceProposal } from "../../../../src/plugins/review/runtime/diagram-verify.ts";
-import type { DiffData } from "../../../../src/shared/types.ts";
+import { verifySequence, type SequenceProposal } from "../../src/runtime/diagram.ts";
+import type { DiffData } from "../../src/shared/types.ts";
 
 const diff: DiffData = { baseSha: "base", headSha: "c2", commits: [{ sha: "c1", subject: "one", body: "" }, { sha: "c2", subject: "two", body: "" }], files: [] };
 const lane = (id: string) => ({ id, label: id, note: null });
