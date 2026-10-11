@@ -12,6 +12,7 @@
 - [ChatMessageData](interfaces/ChatMessageData.md)
 - [ChatThreadData](interfaces/ChatThreadData.md)
 - [CodeLinksData](interfaces/CodeLinksData.md)
+- [CodeScope](interfaces/CodeScope.md)
 - [CommandRunData](interfaces/CommandRunData.md)
 - [Commit](interfaces/Commit.md)
 - [DecisionData](interfaces/DecisionData.md)

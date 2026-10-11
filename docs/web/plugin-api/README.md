@@ -181,6 +181,12 @@ Re-exports [CodeLinksData](../../shared/types/interfaces/CodeLinksData.md)
 
 ***
 
+### CodeScope
+
+Re-exports [CodeScope](../../shared/types/interfaces/CodeScope.md)
+
+***
+
 ### CommandRunData
 
 Re-exports [CommandRunData](../../shared/types/interfaces/CommandRunData.md)

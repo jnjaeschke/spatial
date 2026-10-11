@@ -1,5 +1,5 @@
 import type {
-  Actor, Artifact, ArtifactStatus, Commit, DecisionData, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecSearchResult, SpecSection,
+  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecSearchResult, SpecSection,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -28,9 +28,13 @@ export interface SearchfoxCapability {
   readonly effect: "read-only";
   /** Resolve a symbol to its definition at Searchfox's current indexed revision. Network. */
   define(symbol: string, signal: AbortSignal): Promise<{ path: string; line: number; text: string } | null>;
-  /** Existing Gecko lines referencing a spec section. Network. */
-  specRefs(url: string, signal: AbortSignal): Promise<GeckoSpecRef[]>;
-  /** Searchfox repository base and indexed revision; cached after first success. Network. */
+  /** Existing Gecko lines referencing a spec section, at most `limit` (default 30); Searchfox matches fragments as prefixes. Network. */
+  specRefs(url: string, signal: AbortSignal, limit?: number): Promise<GeckoSpecRef[]>;
+  /** The scopes enclosing a line, innermost first; empty at file scope. Network. */
+  functionAt(path: string, line: number, signal: AbortSignal): Promise<CodeScope[]>;
+  /** A file's text at Searchfox's current indexed revision. Network. */
+  file(path: string, signal: AbortSignal): Promise<string>;
+  /** Searchfox repository base and indexed revision; cached for at most an hour after success. Network. */
   tip(): Promise<{ repoBase: string; rev: string }>;
 }
 

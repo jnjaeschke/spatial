@@ -1,0 +1,7 @@
+docshell/base/BrowsingContext.cpp:2722
+in _ZN7mozilla3dom15BrowsingContext8NavigateEP6nsIURIPNS0_8DocumentER12nsIPrincipalRNS_11ErrorResultENS0_25NavigationHistoryBehaviorEbP27nsIStructuredCloneContainerPNS0_26NavigationAPIMethodTrackerE
+  void BrowsingContext::Navigate(
+  in NS_mozilla::dom
+    namespace dom {
+    in NS_mozilla
+      namespace mozilla {

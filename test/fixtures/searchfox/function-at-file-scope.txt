@@ -1,0 +1,1 @@
+docshell/base/BrowsingContext.cpp:1: (file scope — not inside any function or class)

@@ -1,0 +1,3 @@
+docshell/base/nsDocShellLoadState.h:451
+in T_nsDocShellLoadState
+  class nsDocShellLoadState final {

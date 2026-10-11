@@ -130,6 +130,9 @@ export interface GeckoSpecRef {
   url: string;
 }
 
+/** One scope enclosing a source line (`searchfox-cli --function-at`): its Searchfox symbol and the first line of its definition. */
+export interface CodeScope { symbol: string; signature: string }
+
 /** Resolved inline code links pinned to a patch's upstream revision. */
 export interface CodeLinksData { rev: string; links: Record<string, string | null> }
 

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { GeckoSpecRef } from "../shared/types.ts";
+import type { CodeScope, GeckoSpecRef } from "../shared/types.ts";
 import { runChecked } from "./process.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
 
@@ -20,9 +20,21 @@ export function parseSpecRefs(markdown: string): GeckoSpecRef[] {
   return out;
 }
 
-export function makeSearchfox(opts: { bin?: string } = {}): SearchfoxCapability {
+/** The scopes of `searchfox-cli --function-at` output, innermost first. */
+export function parseFunctionAt(output: string): CodeScope[] {
+  const lines = output.split("\n");
+  return lines.flatMap((line, index) => {
+    const scope = /^\s*in (\S+)$/.exec(line);
+    return scope ? [{ symbol: scope[1]!, signature: (lines[index + 1] ?? "").trim() }] : [];
+  });
+}
+
+export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () => number } = {}): SearchfoxCapability {
   const bin = opts.bin ?? "searchfox-cli";
+  const tipTtlMs = opts.tipTtlMs ?? 60 * 60 * 1000;
+  const now = opts.now ?? Date.now;
   let tipResult: Promise<{ repoBase: string; rev: string }> | undefined;
+  let tipAt = 0;
   const run = async (args: string[], signal: AbortSignal) => {
     return (await runChecked(bin, args, { stdin: "", signal, label: "searchfox-cli" })).stdout;
   };
@@ -38,16 +50,25 @@ export function makeSearchfox(opts: { bin?: string } = {}): SearchfoxCapability 
       if (!permalink || !definition || Number(definition[1]) !== Number(permalink[2])) return null;
       return { path: permalink[1], line: Number(permalink[2]), text: definition[2] };
     },
-    async specRefs(url, signal) {
-      return parseSpecRefs(await run(["--spec-refs", url, "-l", "30"], signal));
+    async specRefs(url, signal, limit = 30) {
+      return parseSpecRefs(await run(["--spec-refs", url, "-l", String(limit)], signal));
     },
+    async functionAt(path, line, signal) {
+      return parseFunctionAt(await run(["--function-at", `${path}:${line}`], signal));
+    },
+    file: (path, signal) => run(["--get-file", path], signal),
     tip() {
-      tipResult ??= run(["--get-file", "moz.build", "--lines", "1", "--permalink"], new AbortController().signal).then((out) => {
-        const m = /^(https:\/\/\S+\/)rev\/([0-9a-f]{40})\/moz\.build#1$/.exec(out.trim());
-        if (!m) throw new Error(`Unexpected searchfox-cli permalink output: ${out.trim().slice(0, 200)}`);
-        return { repoBase: m[1], rev: m[2] };
-      });
-      tipResult.catch(() => { tipResult = undefined; });
+      if (tipResult && now() - tipAt >= tipTtlMs) tipResult = undefined;
+      if (!tipResult) {
+        tipAt = now();
+        const result = run(["--get-file", "moz.build", "--lines", "1", "--permalink"], new AbortController().signal).then((out) => {
+          const m = /^(https:\/\/\S+\/)rev\/([0-9a-f]{40})\/moz\.build#1$/.exec(out.trim());
+          if (!m) throw new Error(`Unexpected searchfox-cli permalink output: ${out.trim().slice(0, 200)}`);
+          return { repoBase: m[1]!, rev: m[2]! };
+        });
+        tipResult = result;
+        result.catch(() => { if (tipResult === result) tipResult = undefined; });
+      }
       return tipResult;
     },
   };

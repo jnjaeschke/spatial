@@ -36,11 +36,59 @@ Resolve a symbol to its definition at Searchfox's current indexed revision. Netw
 
 ***
 
+### file()
+
+> **file**(`path`, `signal`): `Promise`\<`string`\>
+
+A file's text at Searchfox's current indexed revision. Network.
+
+#### Parameters
+
+##### path
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
+### functionAt()
+
+> **functionAt**(`path`, `line`, `signal`): `Promise`\<[`CodeScope`](../../../shared/types/interfaces/CodeScope.md)[]\>
+
+The scopes enclosing a line, innermost first; empty at file scope. Network.
+
+#### Parameters
+
+##### path
+
+`string`
+
+##### line
+
+`number`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<[`CodeScope`](../../../shared/types/interfaces/CodeScope.md)[]\>
+
+***
+
 ### specRefs()
 
-> **specRefs**(`url`, `signal`): `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>
+> **specRefs**(`url`, `signal`, `limit?`): `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>
 
-Existing Gecko lines referencing a spec section. Network.
+Existing Gecko lines referencing a spec section, at most `limit` (default 30); Searchfox matches fragments as prefixes. Network.
 
 #### Parameters
 
@@ -52,6 +100,10 @@ Existing Gecko lines referencing a spec section. Network.
 
 `AbortSignal`
 
+##### limit?
+
+`number`
+
 #### Returns
 
 `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>
@@ -62,7 +114,7 @@ Existing Gecko lines referencing a spec section. Network.
 
 > **tip**(): `Promise`\<\{ `repoBase`: `string`; `rev`: `string`; \}\>
 
-Searchfox repository base and indexed revision; cached after first success. Network.
+Searchfox repository base and indexed revision; cached for at most an hour after success. Network.
 
 #### Returns
 

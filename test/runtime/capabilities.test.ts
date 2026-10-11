@@ -5,12 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeWebspec } from "../../src/runtime/webspec.ts";
-import { isGeckoRepo, makeSearchfox, parseSpecRefs } from "../../src/runtime/searchfox.ts";
+import { isGeckoRepo, makeSearchfox, parseFunctionAt, parseSpecRefs } from "../../src/runtime/searchfox.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 const FAKE = fileURLToPath(new URL("../stubs/fake-webspec.mjs", import.meta.url));
 const NAVIGATE = readFileSync(new URL("../fixtures/webspec/navigate-query.json", import.meta.url), "utf8");
 const NAVIGATE_EFFECTS = readFileSync(new URL("../fixtures/webspec/navigate-effects.json", import.meta.url), "utf8");
+const SEARCHFOX_FIXTURE = (name: string) => readFileSync(new URL(`../fixtures/searchfox/${name}`, import.meta.url), "utf8");
+const FAKE_SEARCHFOX = fileURLToPath(new URL("../stubs/fake-searchfox.mjs", import.meta.url));
 const signal = new AbortController().signal;
 let dir: string;
 
@@ -24,6 +26,56 @@ const stdout = (s: string) => {
   process.env.FAKE_LLM_STDOUT = join(dir, "out");
 };
 const argv = () => readFileSync(process.env.FAKE_LLM_LOG!, "utf8").trim().split("\n").map((l) => JSON.parse(l).argv);
+
+test("searchfox: functionAt parses the enclosing scopes, innermost first", async () => {
+  stdout(SEARCHFOX_FIXTURE("function-at-inside.txt"));
+  const sf = makeSearchfox({ bin: STUB });
+  assert.deepEqual(await sf.functionAt("docshell/base/BrowsingContext.cpp", 2722, signal), [
+    { symbol: "_ZN7mozilla3dom15BrowsingContext8NavigateEP6nsIURIPNS0_8DocumentER12nsIPrincipalRNS_11ErrorResultENS0_25NavigationHistoryBehaviorEbP27nsIStructuredCloneContainerPNS0_26NavigationAPIMethodTrackerE", signature: "void BrowsingContext::Navigate(" },
+    { symbol: "NS_mozilla::dom", signature: "namespace dom {" },
+    { symbol: "NS_mozilla", signature: "namespace mozilla {" },
+  ]);
+  assert.deepEqual(argv()[0], ["--function-at", "docshell/base/BrowsingContext.cpp:2722"]);
+  assert.deepEqual(parseFunctionAt(SEARCHFOX_FIXTURE("function-at-file-scope.txt")), []);
+  assert.deepEqual(parseFunctionAt(SEARCHFOX_FIXTURE("function-at-class.txt")), [{ symbol: "T_nsDocShellLoadState", signature: "class nsDocShellLoadState final {" }]);
+  assert.deepEqual(parseFunctionAt(SEARCHFOX_FIXTURE("function-at-js.txt")), [{ symbol: "#M-buildOptionList", signature: "function buildOptionList(select, group, uniqueStyles) {" }]);
+});
+
+test("searchfox: file returns the raw text; specRefs passes its limit", async () => {
+  stdout("line 1\nline 2\n");
+  const sf = makeSearchfox({ bin: STUB });
+  assert.equal(await sf.file("dom/a.cpp", signal), "line 1\nline 2\n");
+  assert.deepEqual(argv()[0], ["--get-file", "dom/a.cpp"]);
+  stdout(SEARCHFOX_FIXTURE("navigate-spec-refs.md"));
+  const refs = await sf.specRefs("https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate", signal, 500);
+  assert.deepEqual(argv()[1], ["--spec-refs", "https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate", "-l", "500"]);
+  assert.deepEqual([refs.length, refs.filter((r) => r.group === "Code").length, refs.filter((r) => r.group === "Web-Platform Test").length], [44, 32, 12]);
+});
+
+test("searchfox: tip expires after its time to live", async () => {
+  let now = 0;
+  stdout("https://searchfox.org/firefox-main/rev/b4b9efb6ee130740a94caf46ffff0625af1d51db/moz.build#1\n");
+  const sf = makeSearchfox({ bin: STUB, tipTtlMs: 1000, now: () => now });
+  await sf.tip();
+  now = 999;
+  await sf.tip();
+  assert.equal(argv().length, 1);
+  stdout("https://searchfox.org/firefox-main/rev/0123456789012345678901234567890123456789/moz.build#1\n");
+  now = 1001;
+  assert.equal((await sf.tip()).rev, "0123456789012345678901234567890123456789");
+  assert.equal(argv().length, 2);
+});
+
+test("fake searchfox serves the Fake::Navigate fixture", async () => {
+  const sf = makeSearchfox({ bin: FAKE_SEARCHFOX });
+  assert.deepEqual((await sf.specRefs("https://html.spec.whatwg.org/#navigate", signal, 500)).map((r) => `${r.group} ${r.path}:${r.line}`), ["Code dom/fake/Fake.cpp:3", "Code dom/fake/Fake.cpp:9", "Web-Platform Test testing/web-platform/tests/fake/navigate.html:2"]);
+  assert.deepEqual(await sf.specRefs("https://html.spec.whatwg.org/#setup", signal), []);
+  assert.deepEqual(await sf.functionAt("dom/fake/Fake.cpp", 5, signal), [{ symbol: "_ZN4Fake8NavigateEv", signature: "void Fake::Navigate() {" }]);
+  assert.deepEqual(await sf.functionAt("dom/fake/Fake.cpp", 3, signal), []);
+  assert.equal((await sf.file("dom/fake/Fake.cpp", signal)).split("\n")[3], "void Fake::Navigate() {");
+  assert.deepEqual(await sf.tip(), { repoBase: "https://searchfox.org/mozilla-central/", rev: "0f".repeat(20) });
+  await assert.rejects(sf.file("nope.cpp", signal), /404 Not Found/);
+});
 
 test("webspec: found", async () => {
   stdout(JSON.stringify({ spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: "https://html.spec.whatwg.org/#navigate", content: "To **navigate**...", sha: "x" }));

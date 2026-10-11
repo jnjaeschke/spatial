@@ -1,0 +1,5 @@
+docshell/base/BrowsingContext.cpp:2645
+in NS_mozilla::dom
+  namespace dom {
+  in NS_mozilla
+    namespace mozilla {

@@ -41,6 +41,8 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
       if (opts.searchfoxFails) throw new Error("searchfox-cli failed: offline");
       return [{ group: "Code", path: "dom/N.cpp", line: 1, url: "https://sf/dom/N.cpp#1" }];
     },
+    async functionAt() { return []; },
+    async file() { return ""; },
     async tip() { return { repoBase: "https://sf/", rev: "0".repeat(40) }; },
   };
   const store = new Store(":memory:");
