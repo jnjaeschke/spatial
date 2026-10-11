@@ -5,6 +5,7 @@ import { latestDiff } from "../shared/diffs.ts";
 import { commitRevision, phabRevision } from "../shared/phabricator.ts";
 import { parseUnifiedDiff } from "./diff-parse.ts";
 import { latestPhabSync } from "../shared/phab-anchor.ts";
+import { currentSummary, phabThreads } from "../shared/phab-threads.ts";
 import { checkDrift } from "./drift.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
 import { fetchTransactions, quoteLine, storeRemoteComments } from "./phab-transactions.ts";
@@ -174,6 +175,17 @@ export class PhabricatorSyncer {
     const posted = postedComments(current, this.#rt.store.listLinks(sessionId));
     const beforeLinks = new Set(this.#rt.store.listLinks(sessionId).map((link) => link.id));
     const created = storeRemoteComments(this.#rt.store, sessionId, revision.id, comments, authors, { phid: whoami.phid, posted });
+    const storedComments = this.#rt.store.listArtifacts(sessionId, "PhabComment") as Artifact<PhabCommentData>[];
+    const revisionComments = storedComments.filter((item) => item.data.revision === revision.id);
+    const summaries = this.#rt.store.listArtifacts(sessionId, "PhabThreadSummary");
+    const runs = this.#rt.store.listTasks(sessionId).filter((task) => task.kind === "summarizePhabThread" && (task.input as { revision: number }).revision === revision.id);
+    for (const thread of phabThreads(revisionComments)) {
+      if (thread.comments.length < 4 || currentSummary(summaries, thread.rootPhid, thread.comments.map((item) => item.data.phid))) continue;
+      // A run started after the thread's newest comment covers this comment set, whether it is still running or failed.
+      const newest = thread.comments.reduce((latest, item) => item.createdAt > latest ? item.createdAt : latest, "");
+      if (runs.some((task) => (task.input as { rootPhid: string }).rootPhid === thread.rootPhid && task.createdAt >= newest)) continue;
+      void this.#rt.run(sessionId, "summarizePhabThread", { revision: revision.id, rootPhid: thread.rootPhid }).catch(() => undefined);
+    }
     const newLinks = this.#rt.store.listLinks(sessionId).filter((link) => !beforeLinks.has(link.id));
     const view = sessionView(this.#rt.store, sessionId);
     for (const artifact of created) {

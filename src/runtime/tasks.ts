@@ -63,7 +63,7 @@ export interface TaskContext {
   git: GitCapability;
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
-  llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult> };
+  llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult>; readonly defaultSelection: LlmSelection };
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
   repoMcp: Record<string, McpServerSpec>;
@@ -228,6 +228,7 @@ export class Runtime {
           emit("llm.usage", { selection: r.selection, usage: r.usage ?? null });
           return r;
         },
+        defaultSelection: this.#llm.defaultSelection,
       },
       sessionMcp: this.#sessionMcp(sessionId),
       repoMcp: {},

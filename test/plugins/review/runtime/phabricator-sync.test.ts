@@ -20,7 +20,7 @@ const inlineTx = (id: number, done: boolean) => ({
   comments: [{ phid: "CI", version: 1, authorPHID: "U1", content: { raw: "inline" }, removed: false }],
 });
 
-function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[]; pages?: unknown[]; commits?: { sha: string; body: string }[]; texts?: Record<string, string>; pagesByRevision?: Record<number, unknown> } = {}) {
+function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[]; pages?: unknown[]; commits?: { sha: string; body: string }[]; texts?: Record<string, string>; pagesByRevision?: Record<number, unknown>; llm?: unknown } = {}) {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   const commits = opts.commits ?? [{ sha: "H", body: opts.trailer === false ? "" : "Differential Revision: https://phab.example.com/D1" }];
@@ -40,7 +40,7 @@ function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[];
     if (method === "user.search") return { data: [{ phid: "U1", fields: { username: "alice" } }] };
     throw new Error(`unexpected ${method}`);
   } } as unknown as ConduitClient;
-  const runtime = new Runtime({ store, plugins: [corePlugin, ...plugins], llm: {} as never, webspec: {} as never, searchfox: {} as never,
+  const runtime = new Runtime({ store, plugins: [corePlugin, ...plugins], llm: (opts.llm ?? {}) as never, webspec: {} as never, searchfox: {} as never,
     git: () => ({ diff: async (base: string, head: string) => opts.texts?.[`${base}..${head}`] ?? local } as unknown as GitCapability) });
   const watcher = { watchedSessions: () => [session.id] };
   const events: RuntimeEvent[] = [];
@@ -53,6 +53,35 @@ test("does not contact Conduit for an unwatched session", async () => {
   const x = setup();
   await new PhabricatorSyncer(x.runtime, { watchedSessions: () => [] }, { makeConduit: () => { throw new Error("must not construct"); } }).tick();
   assert.equal(x.calls.length, 0);
+  x.store.close();
+});
+
+test("starts one Phabricator thread summary for a new four-comment set and no duplicate while pending", async () => {
+  let release!: (value: unknown) => void;
+  let calls = 0;
+  const llm = { defaultSelection: { backend: "claude", model: "sonnet", effort: "low" }, run: async () => { calls++; return new Promise((resolve) => { release = resolve; }); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const items = ["C1", "C2", "C3", "C4"].map((phid, index) => ({ id: index + 10, type: "inline", dateCreated: index + 10, fields: { path: "a.txt", line: 1, length: 1, diff: { id: 1 }, isNewFile: true, isDone: false, ...(index ? { replyToCommentPHID: `C${index}` } : {}) }, comments: [{ phid, version: 1, authorPHID: "U1", content: { raw: `body ${index + 1}` }, removed: false }] }));
+  const x = setup({ pages: [transactions(items)], llm });
+  await x.syncer.tick();
+  assert.equal(x.store.listTasks(x.session.id).filter((task) => task.kind === "summarizePhabThread").length, 1);
+  await x.syncer.tick();
+  assert.equal(x.store.listTasks(x.session.id).filter((task) => task.kind === "summarizePhabThread").length, 1);
+  assert.equal(calls, 1);
+  release({ json: { summary: "A summary." }, selection: { backend: "claude", model: "haiku", effort: "low" } });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  x.store.close();
+});
+
+test("a failed Phabricator thread summary is not retried until the thread gets a new comment", async () => {
+  let calls = 0;
+  const llm = { defaultSelection: { backend: "claude", model: "sonnet", effort: "low" }, run: async () => { calls++; throw new Error("model down"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const items = ["C1", "C2", "C3", "C4"].map((phid, index) => ({ id: index + 10, type: "inline", dateCreated: index + 10, fields: { path: "a.txt", line: 1, length: 1, diff: { id: 1 }, isNewFile: true, isDone: false, ...(index ? { replyToCommentPHID: `C${index}` } : {}) }, comments: [{ phid, version: 1, authorPHID: "U1", content: { raw: `body ${index + 1}` }, removed: false }] }));
+  const x = setup({ pages: [transactions(items)], llm });
+  await x.syncer.tick();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await x.syncer.tick();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(calls, 1);
   x.store.close();
 });
 

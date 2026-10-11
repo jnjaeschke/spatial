@@ -72,6 +72,9 @@ export interface PhabCommentData {
   diffId?: number; isNewFile?: boolean; replyTo?: string; own: boolean; done: boolean; txId: number; dateCreated: number;
 }
 
+/** Data of a `PhabThreadSummary` artifact: an LLM summary of one Phabricator thread (status proposed), keyed by its root comment and the comments it covered. */
+export interface PhabThreadSummaryData { revision: number; rootPhid: string; commentPhids: string[]; summary: string }
+
 /** Receipt for a draft inline created on a Phabricator revision. Linked `about → comment`. */
 export interface PostedReplyData { comment: Id; body: string; revision: number; diff: number; inlineId: number }
 

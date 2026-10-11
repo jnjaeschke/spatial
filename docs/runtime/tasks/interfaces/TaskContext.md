@@ -178,6 +178,10 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 > **llm**: `object`
 
+#### defaultSelection
+
+> `readonly` **defaultSelection**: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+
 #### run()
 
 > **run**(`prompt`, `selection?`): `Promise`\<[`LlmRunResult`](../../llm/types/interfaces/LlmRunResult.md)\>
