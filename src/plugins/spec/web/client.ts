@@ -1,0 +1,13 @@
+import type { SpecOpenedData } from "../shared/types.ts";
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as { error?: string }).error ?? `${res.status} ${res.statusText}`);
+  return json as T;
+}
+
+/** HTTP calls of the spec explorer. */
+export const specClient = {
+  open: (sessionId: string, anchor: string, from: SpecOpenedData["from"]) => post<{ openedId: string }>(`/api/sessions/${sessionId}/spec/open`, { anchor, from }),
+};
