@@ -36,6 +36,8 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
   const now = opts.now ?? Date.now;
   let tipResult: Promise<{ repoBase: string; rev: string }> | undefined;
   let tipAt = 0;
+  /** A value for a searchfox-cli flag; its parser would take a leading `-` for another flag. */
+  const value = (text: string) => { if (text.startsWith("-")) throw new Error(`searchfox-cli argument must not start with "-": ${text}`); return text; };
   const run = async (args: string[], signal: AbortSignal) => {
     return (await runChecked(bin, args, { stdin: "", signal, label: "searchfox-cli" })).stdout;
   };
@@ -43,8 +45,8 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
     effect: "read-only",
     async define(symbol, signal) {
       const [permalinks, source] = await Promise.all([
-        run(["--define", symbol, "--permalink"], signal),
-        run(["--define", symbol], signal),
+        run(["--define", value(symbol), "--permalink"], signal),
+        run(["--define", value(symbol)], signal),
       ]);
       const permalink = /^https:\/\/\S+\/rev\/[0-9a-f]{40}\/(\S+?)#(\d+)/m.exec(permalinks);
       const definition = /^>>> (\d+): (.*)$/m.exec(source);
@@ -52,12 +54,13 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
       return { path: permalink[1], line: Number(permalink[2]), text: definition[2] };
     },
     async specRefs(url, signal, limit = 30) {
-      return parseSpecRefs(await run(["--spec-refs", url, "-l", String(limit)], signal));
+      return parseSpecRefs(await run(["--spec-refs", value(url), "-l", String(limit)], signal));
     },
     async functionAt(path, line, signal) {
-      return parseFunctionAt(await run(["--function-at", `${path}:${line}`], signal));
+      if (!Number.isInteger(line) || line < 1) throw new Error(`searchfox-cli line must be a positive integer: ${line}`);
+      return parseFunctionAt(await run(["--function-at", `${value(path)}:${line}`], signal));
     },
-    file: (path, signal) => run(["--get-file", path], signal),
+    file: async (path, signal) => run(["--get-file", value(path)], signal),
     tip() {
       if (tipResult && now() - tipAt >= tipTtlMs) tipResult = undefined;
       if (!tipResult) {

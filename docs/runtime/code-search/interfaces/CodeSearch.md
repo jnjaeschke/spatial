@@ -100,7 +100,7 @@ Lines linking a spec section, at most `limit` (default 30), grouped `Code` or a 
 
 > **tip**(): `Promise`\<\{ `repoBase`: `string`; `rev`: `string`; \}\>
 
-Permalink base and the revision `file` reads. Network.
+Permalink base and the current revision, cached for up to an hour, so `file` may already read a newer one. Network.
 
 #### Returns
 

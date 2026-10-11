@@ -263,7 +263,7 @@ export class Runtime {
         get: (scope, namespace, key) => this.#knowledge.get(scope, namespace, key),
         list: (scope, namespace, keyPrefix) => this.#knowledge.list(scope, namespace, keyPrefix),
       },
-      codeSearch: this.#codeSearch,
+      codeSearch: Object.freeze({ ...this.#codeSearch }),
       llm: {
         run: async (prompt, selection) => {
           const r = await this.#llm.run(selection, prompt, controller.signal);

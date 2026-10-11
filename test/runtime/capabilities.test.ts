@@ -52,6 +52,14 @@ test("searchfox: file returns the raw text; specRefs passes its limit", async ()
   assert.deepEqual([refs.length, refs.filter((r) => r.group === "Code").length, refs.filter((r) => r.group === "Web-Platform Test").length], [44, 32, 12]);
 });
 
+test("searchfox: values that searchfox-cli would read as flags are rejected before it runs", async () => {
+  const sf = makeSearchfox({ bin: STUB });
+  await assert.rejects(sf.file("--clear-cache", signal), /must not start with "-"/);
+  await assert.rejects(sf.functionAt("-R", 3, signal), /must not start with "-"/);
+  await assert.rejects(sf.functionAt("dom/a.cpp", 0, signal), /positive integer/);
+  await assert.rejects(sf.define("--log-requests", signal), /must not start with "-"/);
+});
+
 test("searchfox: tip expires after its time to live", async () => {
   let now = 0;
   stdout("https://searchfox.org/firefox-main/rev/b4b9efb6ee130740a94caf46ffff0625af1d51db/moz.build#1\n");

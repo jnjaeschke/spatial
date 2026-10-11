@@ -13,7 +13,7 @@ export interface CodeSearch {
   functionAt(path: string, line: number, signal: AbortSignal): Promise<CodeScope[]>;
   /** A file's text at the current revision; null when it does not exist. Network. */
   file(path: string, signal: AbortSignal): Promise<string | null>;
-  /** Permalink base and the revision `file` reads. Network. */
+  /** Permalink base and the current revision, cached for up to an hour, so `file` may already read a newer one. Network. */
   tip(): Promise<{ repoBase: string; rev: string }>;
 }
 
