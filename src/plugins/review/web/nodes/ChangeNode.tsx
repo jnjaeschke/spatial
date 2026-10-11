@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeNodeData } from "../graph.ts";
+import { ChatItem } from "../InlineItem.tsx";
 import { InlineText, AskContext, ChatActionsContext, ReopenClosed, api, Box, ErrorText, useAction, commitColors } from "../../../../web/plugin-api.ts";
 
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string } & Record<string, unknown>, "change">;
@@ -21,6 +22,7 @@ export function ChangeNode({ id: nodeId, data }: NodeProps<ChangeFlowNode>) {
         <ul className="files">
           {files.map((f) => <li key={f}>{f}</li>)}
         </ul>
+        <div className="inline-strip">{data.threads.map((thread) => <ChatItem key={thread.threadId ?? thread.draftId} thread={thread} />)}</div>
         <ReopenClosed hostId={nodeId} />
       </div>
     </Box>

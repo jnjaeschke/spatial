@@ -22,7 +22,8 @@ export function FindingDetails({ data, actions, onClose, onBack }: { data: Findi
   </ChatActionsContext.Provider>;
 }
 
-function FindingBody({ data }: { data: FindingData }) {
+/** The finding with its decision controls, comment editor and conversation. */
+export function FindingBody({ data }: { data: FindingData }) {
   const actions = useContext(ChatActionsContext);
   const { error, run } = useAction();
   const dismissed = data.decision === "dismissed";

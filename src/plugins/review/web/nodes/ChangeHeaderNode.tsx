@@ -2,8 +2,7 @@ import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeHeaderNodeData } from "../graph.ts";
 import { InlineText, AskContext, ChatActionsContext, ReopenClosed, api, Box, ErrorText, useAction, commitColors } from "../../../../web/plugin-api.ts";
-import { Chip, FindingChip, PhabChip, SpecChip } from "../Chip.tsx";
-import { DetailsContext } from "../details.ts";
+import { ChatItem, FindingItem, PhabItem, SpecItem } from "../InlineItem.tsx";
 
 export type ChangeHeaderFlowNode = Node<ChangeHeaderNodeData & { sessionId: string } & Record<string, unknown>, "changeHeader">;
 
@@ -12,7 +11,6 @@ export function ChangeHeaderNode({ id: nodeId, data }: NodeProps<ChangeHeaderFlo
   const { change, hunks, diffId } = data;
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);
-  const details = useContext(DetailsContext);
   const { error, run } = useAction();
   const errorText = <ErrorText error={error} />;
   return (
@@ -21,7 +19,7 @@ export function ChangeHeaderNode({ id: nodeId, data }: NodeProps<ChangeHeaderFlo
       <div className="body nodrag nopan">
         <p className="explanation"><InlineText text={change.explanation} hunks={hunks} diffId={diffId} /></p>
         <p className="rationale"><b>Why:</b> <InlineText text={change.rationale} hunks={hunks} diffId={diffId} /></p>
-        <div className="chip-strip">{data.findings.map((finding) => <FindingChip key={finding.findingId} finding={finding} />)}{data.phabThreads.map((thread) => <PhabChip key={thread.anchorId} thread={thread} />)}{data.specs.map((spec) => <SpecChip key={spec.specId} {...spec} />)}{data.threads.map((thread) => <Chip key={thread.threadId ?? thread.draftId} kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />)}</div>
+        <div className="inline-strip">{data.findings.map((finding) => <FindingItem key={finding.findingId} finding={finding} />)}{data.phabThreads.map((thread) => <PhabItem key={thread.anchorId} thread={thread} />)}{data.specs.map((spec) => <SpecItem key={spec.specId} {...spec} />)}{data.threads.map((thread) => <ChatItem key={thread.threadId ?? thread.draftId} thread={thread} />)}</div>
         <ReopenClosed hostId={nodeId} />
       </div>
     </Box>

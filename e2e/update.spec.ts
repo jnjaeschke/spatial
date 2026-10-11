@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { openChange, openPatch, startReview } from "./canvas.ts";
+import { expandItem, openChange, openPatch, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 
@@ -113,14 +113,13 @@ test("author rebases onto a moved base: interdiff excludes the base's own change
 test("second round: statuses, carried findings, verdict", async ({ page, request }) => {
   const { dir } = await openNarrated(page, request);
   const chip = (title: string) => page.getByTestId(/finding-chip/).filter({ hasText: title });
-  const panel = page.getByTestId("finding-panel");
   await openChange(page, "change-c1");
   await expect(chip("Magic number")).toBeVisible({ timeout: 15_000 });
   await openChange(page, "change-c2");
   await expect(chip("Untested c")).toBeVisible();
-  await chip("Untested c").click();
-  await panel.getByLabel("Accept finding").click();
-  await expect(panel.getByLabel("Dismiss finding")).toBeVisible();
+  await expandItem(chip("Untested c"));
+  await chip("Untested c").getByLabel("Accept finding").click();
+  await expect(chip("Untested c").getByLabel("Dismiss finding")).toBeVisible();
   amend(dir);
   await page.getByTestId(/^toast-revision:/).getByRole("button", { name: "Update" }).click();
   await expect(page.getByTestId("epoch")).toHaveText("Epoch 2");
@@ -131,16 +130,17 @@ test("second round: statuses, carried findings, verdict", async ({ page, request
   await expect(page.getByTestId("change-c2").getByTestId("change-status")).toHaveText("unchanged");
   await expect(page.getByTestId("change-c3").getByTestId("change-status")).toHaveText("new");
   const magic = page.getByTestId("summary").getByTestId(/finding-chip/).filter({ hasText: "Magic number" });
-  await magic.click();
-  await expect(panel.getByTestId("finding-outdated")).toBeVisible();
-  await expect(panel.getByTestId("finding-epoch")).toHaveText("epoch 1");
+  await expandItem(magic);
+  await expect(magic.getByTestId("finding-outdated")).toBeVisible();
+  await expect(magic.getByTestId("finding-epoch")).toHaveText("epoch 1");
   await openChange(page, "change-c2");
-  await chip("Untested c").click();
-  await expect(panel.getByTestId("finding-status")).toHaveText("addressed", { timeout: 30_000 });
-  await expect(panel.getByTestId("finding-verdict")).toHaveText("Test coverage for c.txt was added.");
-  await expect(panel.getByLabel("Comment")).toBeVisible();
+  const untested = chip("Untested c");
+  await expandItem(untested);
+  await expect(untested.getByTestId("finding-status")).toHaveText("addressed", { timeout: 30_000 });
+  await expect(untested.getByTestId("finding-verdict")).toHaveText("Test coverage for c.txt was added.");
+  await expect(untested.getByLabel("Comment")).toBeVisible();
   await page.reload();
   await openChange(page, "change-c2");
-  await chip("Untested c").click();
-  await expect(panel.getByTestId("finding-status")).toHaveText("addressed");
+  await expandItem(untested);
+  await expect(untested.getByTestId("finding-status")).toHaveText("addressed");
 });

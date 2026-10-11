@@ -40,6 +40,14 @@ Layers the user can hide ("Show on canvas"); `hide` removes the hidden layers' n
 
 ***
 
+### PanelExtras?
+
+> `optional` **PanelExtras?**: `ComponentType`
+
+Controls shown in the canvas panel (top right) after the layer toggles; rendered inside `Provider`.
+
+***
+
 ### places?
 
 > `optional` **places?**: `object`

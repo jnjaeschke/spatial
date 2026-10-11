@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { openChange, openPatch, placeUp, revealNode, startReview } from "./canvas.ts";
+import { expandItem, openChange, openInPanel, openPatch, placeUp, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 let revisionCount = 0;
@@ -63,13 +63,14 @@ async function narrate(page: Page, stack: Awaited<ReturnType<typeof buildStack>>
 async function reviewAndPost(page: Page, revision: number, commit: number, change: string) {
   await openPatch(page, commit);
   await openChange(page, change);
-  const chip = page.getByTestId(/finding-chip/);
-  await expect(chip).toBeVisible({ timeout: 15_000 });
-  await chip.click();
-  const finding = page.getByTestId("finding-panel");
+  const finding = page.getByTestId(/finding-chip/);
+  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await expandItem(finding);
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
-  await finding.getByRole("button", { name: "Save" }).click();
+  const save = finding.getByRole("button", { name: "Save" });
+  await revealNode(page, save);
+  await save.click();
   await placeUp(page);
   await placeUp(page);
   const panel = page.getByTestId(`review-panel-D${revision}`);
@@ -169,7 +170,11 @@ test("a comment on the first stack revision anchors to its commit line", async (
   await expect(page.getByTestId("summary")).not.toContainText("Phabricator comments");
   await openPatch(page, 0);
   await openChange(page, "change-c2");
-  await page.locator(".review-chip.kind-phab").filter({ hasText: "Why c?" }).click();
+  const phab = page.locator(".inline-item.kind-phab").filter({ hasText: "Why c?" });
+  await expandItem(phab);
+  await expect(phab).toContainText("c.txt:1");
+  await expect(page.getByTestId("phab-panel")).toHaveCount(0);
+  await openInPanel(phab);
   await expect(page.getByTestId("phab-panel")).toContainText("c.txt:1");
 });
 
@@ -249,7 +254,8 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   const firstCard = page.getByTestId("commit-0");
   await revealNode(page, firstCard);
   await firstCard.getByRole("button", { name: "Ask about commit 1" }).click();
-  const draft = page.getByTestId("chat-panel");
+  const draft = firstCard.locator(".inline-item.kind-chat");
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
   await draft.getByLabel("message").fill("DIAGRAM-PLEASE");
   await draft.getByRole("button", { name: "Send" }).click();
   const answer = draft.locator(".msg.assistant").filter({ hasText: "Here is the sequence." });
@@ -298,6 +304,7 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await collapseDiagram.click();
   await expect(diagram.locator(".sequence-step")).toHaveCount(0);
   const showDiagram = answer.getByRole("button", { name: "Show diagram" });
+  await revealNode(page, showDiagram);
   await showDiagram.click();
   await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
   await expect(diagram.locator('.sequence-step[data-verified="true"]')).toHaveCount(2);
@@ -310,6 +317,7 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   expect(Math.abs(revealedBox.y + revealedBox.height / 2 - (paneBox.y + paneBox.height / 2))).toBeLessThan(2);
   await diagram.getByRole("button", { name: "Close" }).click();
   await expect(diagram).toHaveCount(0);
+  await revealNode(page, showDiagram);
   await showDiagram.click();
   await expect(diagram.getByRole("button", { name: "Collapse" })).toBeVisible();
 });
@@ -372,13 +380,14 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   await narrate(page, stack);
   await openPatch(page, 0);
   await openChange(page, "change-c1");
-  const chip = page.getByTestId(/finding-chip/).filter({ hasText: "Magic number" });
-  await expect(chip).toBeVisible({ timeout: 15_000 });
-  await chip.click();
-  const finding = page.getByTestId("finding-panel");
+  const finding = page.getByTestId(/finding-chip/).filter({ hasText: "Magic number" });
+  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await expandItem(finding);
   await finding.getByLabel("Accept finding").click();
   await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
-  await finding.getByRole("button", { name: "Save" }).click();
+  const save = finding.getByRole("button", { name: "Save" });
+  await revealNode(page, save);
+  await save.click();
   await placeUp(page);
   await placeUp(page);
   const panel = page.getByTestId(`review-panel-D${ids[0]!.revision}`);
@@ -398,6 +407,8 @@ test("drift blocks posting without poisoning a later retry", async ({ page, requ
   await post.click();
   await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
   await openPatch(page, 0);
+  await openChange(page, "change-c1");
+  await expandItem(finding);
   await expect(finding).toContainText(`Posted to D${ids[0]!.revision}`);
   await expect.poll(async () => inlines(request, ids[0]!.revision)).toHaveLength(1);
 });

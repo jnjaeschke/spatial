@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { openChange, openPatch, waitForCanvasSettled } from "./canvas.ts";
+import { expandItem, openChange, openInPanel, openPatch, waitForCanvasSettled } from "./canvas.ts";
 
 const URL = "http://localhost:5174/?fixture=1";
 
@@ -115,8 +115,14 @@ test("explanation text is selectable without panning", async ({ page }) => {
 test("spec text is selectable without panning", async ({ page }) => {
   await page.goto(URL);
   await openChange(page, "change-c2");
-  await page.getByTestId("spec-chip-R").click();
+  const spec = page.getByTestId("spec-chip-R");
+  await expandItem(spec);
   const before = await page.locator(".react-flow__viewport").getAttribute("style");
+  await spec.locator(".spec-section-text").dblclick();
+  const inlineSelected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+  expect(inlineSelected.length).toBeGreaterThan(0);
+  expect(await page.locator(".react-flow__viewport").getAttribute("style")).toBe(before);
+  await openInPanel(spec);
   await page.getByTestId("spec-panel").locator(".spec-section-text").dblclick();
   const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
   expect(selected.length).toBeGreaterThan(0);
@@ -169,7 +175,7 @@ test("dragging a node by its title survives a relayout until reset", async ({ pa
   expect(Math.abs(dragged - await relX() - offset)).toBeLessThan(1);
 });
 
-test("spec sections are change chips and diff lines link to Searchfox", async ({ page }) => {
+test("spec sections are inline items of the change and diff lines link to Searchfox", async ({ page }) => {
   await page.goto(URL);
   await expect(page.getByTestId("summary").locator(".spec-status")).toContainText("Specs: 1 cited in code");
   await expect(page.getByTestId("change-c1").locator(".explanation a.code-link")).toHaveCount(0);
@@ -182,7 +188,7 @@ test("spec sections are change chips and diff lines link to Searchfox", async ({
     .toHaveAttribute("href", "https://searchfox.org/firefox-main/rev/5555555555555555555555555555555555555555/dom/navigation/Navigation.cpp#200");
   await expect(page.getByTestId("hunk-f1h0").locator(".sf-link"))
     .toHaveAttribute("title", "Searchfox at the patch's base");
-  await spec.click();
+  await openInPanel(spec);
   const panel = page.getByTestId("spec-panel");
   await expect(panel.getByRole("link", { name: /open spec/ })).toBeAttached();
   await expect(panel.getByText("cited in code")).toBeVisible();

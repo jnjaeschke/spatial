@@ -1,7 +1,9 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
+import { openChange, openInPanel, openPatch, revealNode, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
+
+const changeChats = (page: Page) => page.getByTestId("change-c1").locator(".inline-item.kind-chat");
 
 async function openNarrated(page: Page, request: APIRequestContext): Promise<string> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -9,15 +11,19 @@ async function openNarrated(page: Page, request: APIRequestContext): Promise<str
   return await startReview(page, fixture.worktree, "HEAD~1..HEAD");
 }
 
-test("ask about a change: draft, send, stub answer appears and persists", async ({ page, request }) => {
+test("ask about a change: the chat starts inline, send, stub answer appears and persists", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const chat = page.getByTestId("chat-panel");
-  await expect(chat).toBeVisible();
+  const chat = changeChats(page);
+  await expect(chat).toHaveAttribute("data-state", "expanded");
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
+  await expect(chat.getByLabel("message")).toBeFocused();
   await chat.getByLabel("message").fill("Why this change?");
   await chat.getByRole("button", { name: "Send" }).click();
   await expect(chat.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
+  await expect(chat).toHaveAttribute("data-state", "expanded");
   const assistant = chat.locator(".msg.assistant");
   await expect(assistant.locator("li strong", { hasText: "THIRTY" })).toBeVisible();
   await expect(assistant.locator(".chat-questions li")).toContainText("Should c2 really depend on c1?");
@@ -37,58 +43,59 @@ test("ask about a change: draft, send, stub answer appears and persists", async 
   await openPatch(page, 0);
   await expect(page.getByTestId("change-c1").locator("> .title")).toContainText("💬 1");
   await expect(page.getByTestId("chat-panel")).toHaveCount(0);
-  await openChange(page);
-  await page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ }).click();
-  const answer = page.getByTestId("chat-panel").locator(".msg.assistant", { hasText: "Stub answer." });
+  const answer = changeChats(page).locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible();
   await answer.locator("p").first().click({ clickCount: 3 });
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
-test("the chat panel closes with × or Escape; an empty draft is discarded, a draft with text reopens from its chip", async ({ page, request }) => {
+test("the panel has one ×; an empty draft is discarded, a draft with text stays inline, Close chat closes it for reopening", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);
   const panel = page.getByTestId("chat-panel");
   const change = page.getByTestId("change-c1");
+  const chat = changeChats(page);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  await expect(panel).toBeVisible();
+  await expect(chat).toHaveCount(1);
   await expect(change.locator("> .title")).toContainText("💬 1");
+  await openInPanel(chat);
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole("button", { name: /^Close/ })).toHaveCount(1);
   await panel.getByRole("button", { name: "Close chat panel" }).click();
   await expect(panel).toHaveCount(0);
+  await expect(chat).toHaveCount(0);
   await expect(change.locator("> .title")).not.toContainText("💬");
   await expect(change.getByRole("button", { name: /Reopen/ })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  await panel.getByLabel("message").fill("keep me");
+  await chat.getByLabel("message").fill("keep me");
+  await openInPanel(chat);
+  await expect(panel.getByLabel("message")).toHaveValue("keep me");
   await panel.getByLabel("message").press("Escape");
   await expect(panel).toHaveCount(0);
   await expect(change.locator("> .title")).toContainText("💬 1");
-  await openChange(page);
-  await page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ }).click();
-  await expect(panel.getByLabel("message")).toHaveValue("keep me");
-  await panel.getByRole("button", { name: "Close chat", exact: true }).click();
-  await expect(panel).toHaveCount(0);
-  await expect(page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ })).toHaveCount(0);
-  await page.getByTestId("change-c1").getByRole("button", { name: "Reopen 1 closed chat" }).click();
-  await page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ }).click();
-  await expect(panel.getByLabel("message")).toHaveValue("keep me");
-  await panel.getByLabel("message").fill("");
-  await panel.getByLabel("message").press("Escape");
-  await expect(panel).toHaveCount(0);
-  await expect(page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ })).toHaveCount(0);
+  await expect(chat.getByLabel("message")).toHaveValue("keep me");
+  await chat.getByRole("button", { name: "Close chat" }).click();
+  await expect(chat).toHaveCount(0);
+  await change.getByRole("button", { name: "Reopen 1 closed chat" }).click();
+  await expect(chat.getByLabel("message")).toHaveValue("keep me");
+  await chat.getByLabel("message").fill("");
+  await chat.getByRole("button", { name: "Close chat" }).click();
+  await expect(chat).toHaveCount(0);
+  await expect(change.getByRole("button", { name: /Reopen/ })).toHaveCount(0);
 });
 
 test("a closed chat stays closed after reload and reopens from its change", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const panel = page.getByTestId("chat-panel");
-  await panel.getByLabel("message").fill("Why this change?");
-  await panel.getByRole("button", { name: "Send" }).click();
-  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
+  const chat = changeChats(page);
+  await chat.getByLabel("message").fill("Why this change?");
+  await chat.getByRole("button", { name: "Send" }).click();
+  const answer = chat.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible({ timeout: 10_000 });
-  await panel.getByRole("button", { name: "Close chat", exact: true }).click();
-  await expect(panel).toHaveCount(0);
+  await chat.getByRole("button", { name: "Close chat" }).click();
+  await expect(chat).toHaveCount(0);
   await page.reload();
   await openPatch(page, 0);
   const reopen = page.getByTestId("change-c1").getByRole("button", { name: "Reopen 1 closed chat" });
@@ -96,8 +103,6 @@ test("a closed chat stays closed after reload and reopens from its change", asyn
   await expect(page.getByTestId("change-c1").locator("> .title")).not.toContainText("💬");
   await reopen.click();
   await expect(reopen).toHaveCount(0);
-  await openChange(page);
-  await page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ }).click();
   await expect(answer).toBeVisible();
 });
 
@@ -190,8 +195,8 @@ test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", as
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const panel = page.getByTestId("chat-panel");
-  const input = panel.getByLabel("message");
+  const chat = changeChats(page);
+  const input = chat.getByLabel("message");
   await input.press("Enter");
   await expect(input).toHaveValue("");
   await input.fill("ab");
@@ -200,14 +205,14 @@ test("Enter sends a chat message; Ctrl+Enter inserts a newline at the caret", as
   await expect(input).toHaveValue("a\nb");
   await input.press("Enter");
   await expect(page.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
-  await expect(panel.locator(".msg.user")).toHaveText(/^a\nb$/);
+  await expect(chat.locator(".msg.user")).toHaveText(/^a\nb$/);
 });
 
 test("saying an answer is wrong strikes it through", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const threadChat = page.getByTestId("chat-panel");
+  const threadChat = changeChats(page);
   await threadChat.getByLabel("message").fill("Why?");
   await threadChat.getByRole("button", { name: "Send" }).click();
   await expect(threadChat.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
@@ -219,8 +224,7 @@ test("saying an answer is wrong strikes it through", async ({ page, request }) =
   await page.reload();
   await openPatch(page, 0);
   await openChange(page);
-  await page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ }).click();
-  const persisted = page.getByTestId("chat-panel").locator(".msg.assistant").filter({ has: page.locator("del", { hasText: "Stub answer." }) });
+  const persisted = changeChats(page).locator(".msg.assistant").filter({ has: page.locator("del", { hasText: "Stub answer." }) });
   await expect(persisted).toContainText("Corrected stub answer.");
 });
 
@@ -228,7 +232,7 @@ test("a failed first turn shows its error in the chat", async ({ page, request }
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const draft = page.getByTestId("chat-panel");
+  const draft = changeChats(page);
   await draft.getByLabel("message").fill("FAIL-THIS-TURN");
   await draft.getByRole("button", { name: "Send" }).click();
   await expect(draft.locator(".msg.failed")).toContainText("stub failure", { timeout: 10_000 });
@@ -239,18 +243,18 @@ test("ask about a hunk anchors the chat to its change", async ({ page, request }
   await openChange(page);
   await revealNode(page, page.getByRole("button", { name: "Ask about f0h0" }));
   await page.getByRole("button", { name: "Ask about f0h0" }).click();
-  await expect(page.getByTestId("chat-panel")).toBeVisible();
-  await expect(page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ })).toHaveCount(1);
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
+  await expect(changeChats(page)).toHaveCount(1);
 });
 
 test("selecting text in a chat opens a chat anchored to the original chat", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const panel = page.getByTestId("chat-panel");
-  await panel.getByLabel("message").fill("Start a chat");
-  await panel.getByRole("button", { name: "Send" }).click();
-  const answer = panel.locator(".msg.assistant", { hasText: "Stub answer." });
+  const chats = changeChats(page);
+  await chats.getByLabel("message").fill("Start a chat");
+  await chats.getByRole("button", { name: "Send" }).click();
+  const answer = chats.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible({ timeout: 10_000 });
   const box = (await answer.locator("p").first().boundingBox())!;
   await page.mouse.move(box.x + 2, box.y + box.height / 2);
@@ -259,11 +263,14 @@ test("selecting text in a chat opens a chat anchored to the original chat", asyn
   await page.mouse.up();
   await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toBeVisible();
   await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(panel.locator(".msg")).toHaveCount(0);
-  await expect(panel.getByLabel("message")).toBeFocused();
+  await expect(chats).toHaveCount(2);
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
+  const created = chats.last();
+  await expect(created.locator(".msg")).toHaveCount(0);
+  await expect(created.getByLabel("message")).toBeFocused();
   await expect(page.getByTestId("change-c1").locator("> .title")).toContainText("💬 2");
   await openChange(page);
-  await expect(page.getByTestId("change-c1").getByRole("button", { name: /^chat:/ })).toHaveCount(2);
+  await expect(changeChats(page)).toHaveCount(2);
 });
 
 test("selecting text on a change opens a quoted chat; cross-card selection is ignored", async ({ page, request }) => {
@@ -277,7 +284,8 @@ test("selecting text on a change opens a quoted chat; cross-card selection is ig
   await page.mouse.up();
   await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toBeVisible();
   await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
-  const draft = page.getByTestId("chat-panel");
+  const draft = changeChats(page);
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
   await expect(draft.locator("blockquote.chat-quote")).toContainText("Replaces");
   await expect(draft.getByLabel("message")).toBeFocused();
   await expect(page.getByTestId("change-c1").locator("> .title")).toContainText("💬 1");
@@ -310,7 +318,7 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
   await page.mouse.up();
   await expect(page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true })).toBeVisible();
   await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
-  const draft = page.getByTestId("chat-panel");
+  const draft = page.locator(".inline-item.kind-chat");
   await draft.getByLabel("message").fill("Explain these lines");
   await draft.getByRole("button", { name: "Send" }).click();
   await expect(draft.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
@@ -326,7 +334,7 @@ test("selecting diff rows stores the selected line range", async ({ page, reques
     .toEqual([quote.replace(/\s+/g, "")]);
 });
 
-test("a quoted diff chat appears as a chip and opens in the details panel", async ({ page, request }) => {
+test("a quoted diff chat appears inline after its row and opens in the details panel on request", async ({ page, request }) => {
   await openNarrated(page, request);
   await openChange(page);
   const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
@@ -337,17 +345,19 @@ test("a quoted diff chat appears as a chip and opens in the details panel", asyn
   const ask = page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true });
   await expect(ask).toBeVisible();
   await ask.click();
-  const draft = page.getByTestId("chat-panel");
-  await expect(draft).toBeVisible();
+  const draft = page.getByTestId("hunk-card-f0h0").locator(".inline-item.kind-chat");
+  await expect(draft).toHaveCount(1);
+  await expect(draft).toHaveAttribute("data-state", "expanded");
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
   await expect(draft.getByLabel("message")).toBeFocused();
-  await expect(page.getByTestId("hunk-card-f0h0").getByRole("button", { name: /^chat:/ })).toHaveCount(1);
   expect(selected).toContain(word);
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])]
     .map((r) => `${r.startContainer.parentElement?.closest("td")?.className}:${(r as Range).toString()}`))).toContain(`code:${word}`);
   await draft.getByLabel("message").fill("Why?");
   await draft.getByRole("button", { name: "Send" }).click();
-  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
-  await expect(answer).toBeVisible({ timeout: 10_000 });
+  await expect(draft.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
+  await openInPanel(draft);
   await expect(page.getByTestId("chat-panel").locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible();
   await openPatch(page, 0);
   await openChange(page);
@@ -369,48 +379,85 @@ test("collapse a change and expand it after reload", async ({ page, request }) =
   await expect(reloaded.locator(".explanation")).toBeVisible();
 });
 
-test("a quoted chat chip opens its details panel", async ({ page, request }) => {
+test("clicking a quoted chat's highlight expands its inline item", async ({ page, request }) => {
   await openNarrated(page, request);
   await openChange(page);
   const code = page.locator('[data-testid="hunk-f0h0"] tr:not(.expand) td.code').last();
   await code.dblclick();
   const word = await page.evaluate(() => getSelection()!.toString().trim());
   await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
-  const draft = page.getByTestId("chat-panel");
+  const draft = page.getByTestId("hunk-card-f0h0").locator(".inline-item.kind-chat");
   await draft.getByLabel("message").fill("Why?");
   await draft.getByRole("button", { name: "Send" }).click();
-  const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
-  await expect(answer).toBeVisible({ timeout: 10_000 });
-  await expect(draft.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible();
+  await expect(draft.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get("chat-quote") ?? [])].map((r) => (r as Range).toString()))).toContain(word);
-  await page.getByRole("button", { name: "Close chat panel" }).click();
+  await draft.getByRole("button", { name: "Collapse item" }).click();
+  await expect(draft).toHaveAttribute("data-state", "preview");
   const point = await page.evaluate(() => {
     const box = ([...(CSS.highlights.get("chat-quote") ?? [])][0] as Range).getBoundingClientRect();
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   });
   await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId("chat-panel")).toBeVisible();
+  await expect(draft).toHaveAttribute("data-state", "expanded");
+  await expect(page.getByTestId("chat-panel")).toHaveCount(0);
 });
 
-test("a review finding chip opens its detail panel with the thread", async ({ page, request }) => {
+test("a review finding is an inline item with its thread and opens in the panel on request", async ({ page, request }) => {
   await openNarrated(page, request);
   await openChange(page, "change-c2");
-  const row = page.locator('[data-testid="hunk-f1h0"] tr:not(.expand)').filter({ has: page.locator("td.code", { hasText: /^c$/ }) });
   const finding = page.getByTestId(/finding-chip/);
   await expect(finding).toBeVisible({ timeout: 15_000 });
   await expect(finding).toContainText("No test for c");
   await expect(finding).toHaveClass(/severity-medium/);
-  await expect(finding.locator("xpath=ancestor::tr")).toHaveAttribute("class", /chip-row/);
-  await finding.click();
+  await expect(finding.locator("xpath=ancestor::tr")).toHaveAttribute("class", /inline-row/);
+  await expect(finding).toHaveAttribute("data-state", "preview");
+  await finding.locator(".inline-text").click();
+  await expect(finding).toHaveAttribute("data-state", "expanded");
+  await expect(finding.getByRole("button", { name: "Accept finding" })).toBeVisible();
+  await expect(finding.getByLabel("message")).toBeVisible();
+  await finding.getByLabel("message").fill("Why?");
+  await finding.getByRole("button", { name: "Send" }).click();
+  await expect(finding.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(finding.locator(".msg.user")).toHaveText("Why?");
+  await expect(page.locator(".finding-node")).toHaveCount(0);
+  await expect(page.locator(".review-detail-panel")).toHaveCount(0);
+  await openInPanel(finding);
   const panel = page.locator(".review-detail-panel");
   await expect(panel).toContainText("No test for c");
-  await expect(panel.getByRole("button", { name: "Accept finding" })).toBeVisible();
-  await expect(panel.getByLabel("message")).toBeVisible();
-  await panel.getByLabel("message").fill("Why?");
-  await panel.getByRole("button", { name: "Send" }).click();
-  await expect(panel.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await expect(panel.getByRole("button", { name: /^Close/ })).toHaveCount(1);
   await expect(panel.locator(".msg.user")).toHaveText("Why?");
-  await expect(page.locator(".finding-node")).toHaveCount(0);
+});
+
+test("an inline item cycles line, preview and expanded and keeps its state across reload; Compact shows every item as a line", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await openChange(page, "change-c2");
+  const finding = page.getByTestId(/finding-chip/);
+  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await expect(finding).toHaveAttribute("data-state", "preview");
+  await finding.getByRole("button", { name: "Show as line" }).click();
+  await expect(finding).toHaveAttribute("data-state", "line");
+  await page.reload();
+  await openChange(page, "change-c2");
+  await expect(finding).toHaveAttribute("data-state", "line");
+  await finding.locator(".inline-text").click();
+  await expect(finding).toHaveAttribute("data-state", "expanded");
+  await expect(finding.getByRole("button", { name: "Collapse item" })).toHaveAttribute("aria-expanded", "true");
+  await page.reload();
+  await openChange(page, "change-c2");
+  await expect(finding).toHaveAttribute("data-state", "expanded");
+  await finding.getByRole("button", { name: "Collapse item" }).click();
+  await expect(finding).toHaveAttribute("data-state", "preview");
+  const compact = page.getByRole("button", { name: "Compact" });
+  await expect(compact).toHaveAttribute("aria-pressed", "false");
+  await compact.click();
+  await expect(compact).toHaveAttribute("aria-pressed", "true");
+  await expect(finding).toHaveAttribute("data-state", "line");
+  await page.reload();
+  await openChange(page, "change-c2");
+  await expect(page.getByRole("button", { name: "Compact" })).toHaveAttribute("aria-pressed", "true");
+  await expect(finding).toHaveAttribute("data-state", "line");
+  await page.getByRole("button", { name: "Compact" }).click();
+  await expect(finding).toHaveAttribute("data-state", "preview");
 });
 
 test("a finding quote stays highlighted under its row", async ({ page, request }) => {
@@ -425,22 +472,22 @@ test("a finding quote stays highlighted under its row", async ({ page, request }
   })).toBe(true);
 });
 
-test("a chat on code lines appears as a chip after its last quoted row", async ({ page, request }) => {
+test("a chat on code lines appears inline after its last quoted row", async ({ page, request }) => {
   await openNarrated(page, request);
   await openChange(page);
   const row = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').last();
   await row.locator("td.code").dblclick();
   await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
-  const draft = page.getByTestId("chat-panel");
+  const draft = page.getByTestId("hunk-card-f0h0").locator(".inline-item.kind-chat");
   await draft.getByLabel("message").fill("Why?");
   await draft.getByRole("button", { name: "Send" }).click();
   const answer = page.locator(".msg.assistant", { hasText: "Stub answer." });
   await expect(answer).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId("hunk-card-f0h0").getByRole("button", { name: /^chat:/ })).toHaveCount(1);
+  await expect(draft).toHaveCount(1);
   await expect.poll(async () => {
-    const chipBox = await page.locator("tr.chip-row").boundingBox();
+    const itemBox = await page.locator("tr.inline-row").boundingBox();
     const rowBox = await row.boundingBox();
-    return chipBox && rowBox ? Math.abs(chipBox.y - (rowBox.y + rowBox.height)) : Infinity;
+    return itemBox && rowBox ? Math.abs(itemBox.y - (rowBox.y + rowBox.height)) : Infinity;
   }).toBeLessThan(6);
   await openPatch(page, 0);
   await expect(page.getByTestId("change-c1").locator("> .title")).toContainText("💬 1");

@@ -19,7 +19,15 @@ export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string
   };
 }
 
-/** Panel × and Escape dismiss the panel (an empty draft is discarded); the header × closes the chat itself. */
+/** The quote and conversation of a chat; a new draft's composer is focused. */
+export function ChatBody({ thread }: { thread: HostedThread }) {
+  const body = useRef<HTMLDivElement>(null);
+  const draftId = thread.threadId ? null : thread.draftId;
+  useEffect(() => { if (draftId) body.current?.querySelector("textarea")?.focus({ preventScroll: true }); }, [draftId]);
+  return <div ref={body}>{thread.quote && <blockquote className="chat-quote">{thread.quote.length > 300 ? `${thread.quote.slice(0, 300)}…` : thread.quote}</blockquote>}<Conversation {...thread} /></div>;
+}
+
+/** Panel × and Escape dismiss the panel (an empty draft is discarded); closing the chat itself is on its inline item. */
 export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }: {
   thread: HostedThread;
   actions: ChatActions | null;
@@ -28,17 +36,14 @@ export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }
   onClose(): void;
   onBack?(): void;
 }) {
-  const body = useRef<HTMLDivElement>(null);
-  const draftId = thread.threadId ? null : thread.draftId;
-  useEffect(() => { if (draftId) body.current?.querySelector("textarea")?.focus(); }, [draftId]);
   const dismiss = () => closeChat(thread.threadId, thread.draftId, actions, { close: onClose });
   return <ChatActionsContext.Provider value={actions}>
     <ClosedContext.Provider value={{ close: closed.close, reopen: closed.reopen, closedOn: new Map() }}>
       <CollapseContext.Provider value={{ collapsed: new Set(), toggle: () => {}, reveal }}>
-        <SidePanel className="review-detail-panel" bodyRef={body} title={`Chat · ${thread.messages.length}`} closeLabel="Close chat panel" testId="chat-panel" onClose={dismiss}
+        <SidePanel className="review-detail-panel" title={`Chat · ${thread.messages.length}`} closeLabel="Close chat panel" testId="chat-panel" onClose={dismiss}
           onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); dismiss(); } }}
-          headerExtra={<>{onBack && <button aria-label="Back" onClick={onBack}>←</button>}<button aria-label="Close chat" onClick={() => closeChat(thread.threadId, thread.draftId, actions, { close: (id) => { closed.close(id); onClose(); } })}>×</button></>}>
-          {thread.quote && <blockquote className="chat-quote">{thread.quote.length > 300 ? `${thread.quote.slice(0, 300)}…` : thread.quote}</blockquote>}<Conversation {...thread} />
+          headerExtra={onBack && <button aria-label="Back" onClick={onBack}>←</button>}>
+          <ChatBody thread={thread} />
         </SidePanel>
       </CollapseContext.Provider>
     </ClosedContext.Provider>

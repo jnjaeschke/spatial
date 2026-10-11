@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { type Artifact, type CanvasModel, type CanvasProviderProps, type DiagramData, type SequenceStep, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
 import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
-import { DetailsContext } from "./details.ts";
+import { InlineStatesContext } from "./inline-state.ts";
 
 /** Holds the canvas's reveal function so panels outside the canvas can reveal nodes in it. */
 export const RevealContext = createContext<MutableRefObject<((nodeId: string, collapseId: string) => void) | null> | null>(null);
@@ -18,7 +18,7 @@ export const DiagramStepContext = createContext<{
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
 function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, children }: CanvasProviderProps) {
-  const details = useContext(DetailsContext);
+  const setInline = useContext(InlineStatesContext)?.set;
   const revealer = useContext(RevealContext);
   useEffect(() => { if (revealer) revealer.current = reveal; });
   const [resolvedLinks, setResolvedLinks] = useState<Record<string, string | null>>({});
@@ -45,14 +45,14 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
   }, [state, request, resolvedLinks]);
   const jump = useContext(JumpContext);
   useEffect(() => {
-    if (!details) return;
+    if (!setInline) return;
     const click = (event: MouseEvent) => {
       const hits = CSS.highlights.highlightsFromPoint(event.clientX, event.clientY);
       const findingRanges = hits.filter((hit) => hit.highlight === CSS.highlights.get("finding-quote")).flatMap((hit) => hit.ranges);
       for (const range of findingRanges) {
         for (const node of graph.nodes) {
           const finding = findingsOf(node.data).find((item) => item.quote === range.toString());
-          if (finding) { details.open({ kind: "finding", id: finding.findingId }); return; }
+          if (finding) { setInline(finding.findingId, "expanded"); return; }
         }
       }
       const ranges = hits.filter((hit) => hit.highlight === CSS.highlights.get("chat-quote")).flatMap((hit) => hit.ranges);
@@ -61,12 +61,12 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
       for (const node of graph.nodes) {
         if (!("threads" in node.data) || !Array.isArray(node.data.threads)) continue;
         const thread = node.data.threads.find((item) => item.quote === quote);
-        if (thread) { details.open({ kind: "chat", id: thread.threadId ?? thread.draftId! }); return; }
+        if (thread) { setInline(thread.threadId ?? thread.draftId!, "expanded"); return; }
       }
     };
     document.addEventListener("click", click);
     return () => document.removeEventListener("click", click);
-  }, [details, graph]);
+  }, [setInline, graph]);
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
     if (!node || !isReviewKind(node.data, "change")) return;
@@ -84,6 +84,11 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
   </SearchfoxContext.Provider>;
 }
 
+function CompactToggle() {
+  const inline = useContext(InlineStatesContext);
+  return inline && <button type="button" aria-pressed={inline.compact} onClick={() => inline.setCompact(!inline.compact)}>Compact</button>;
+}
+
 export const reviewCanvas: CanvasModel = {
   graph: reviewGraph,
   collapsedByDefault: (graph) => graph.nodes.flatMap((n) => isReviewKind(n.data, "summary") ? [
@@ -99,5 +104,6 @@ export const reviewCanvas: CanvasModel = {
   layoutEdges: (nodes, edges) => changeLayoutEdges(nodes, diagramLayoutEdges(nodes, edges)),
   quotes: (data) => findingsOf(data).flatMap((finding) => finding.quote ? [{ id: finding.findingId, kind: "finding", anchor: finding.anchor, quote: finding.quote, lines: finding.lines }] : []),
   revealWhenAdded: (node) => node.data.kind === "diagram",
+  PanelExtras: CompactToggle,
   Provider: ReviewCanvasProvider,
 };

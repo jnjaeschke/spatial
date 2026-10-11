@@ -10,11 +10,11 @@ test("export saves a read-only copy without closed chats that expands context of
   await startReview(page, fixture.worktree, "HEAD~1..HEAD");
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();
-  const panel = page.getByTestId("chat-panel");
-  await panel.getByLabel("message").fill("Why this change?");
-  await panel.getByRole("button", { name: "Send" }).click();
-  await expect(panel.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
-  await panel.getByRole("button", { name: "Close chat", exact: true }).click();
+  const chat = page.getByTestId("change-c1").locator(".inline-item.kind-chat");
+  await chat.getByLabel("message").fill("Why this change?");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(chat.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await chat.getByRole("button", { name: "Close chat" }).click();
 
   await page.getByRole("button", { name: "Export…" }).click();
   const dialog = page.getByRole("dialog", { name: "Export read-only copy" });

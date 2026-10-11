@@ -613,17 +613,22 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .running { color: var(--link); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); }
 .activity .running::before, .activity .pending::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .diff tr.thread-row > td { padding: 0; white-space: normal; word-break: normal; font-family: var(--font-sans); }
-.diff tr.chip-row > td { padding: 2px 4px 4px; }
-.review-chip { --chip-kind: var(--kind-chat); display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 3px 8px; border: 1px solid var(--border); border-left: 3px solid var(--chip-kind); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
-.review-chip.kind-comment { --chip-kind: var(--kind-phab); }
-.review-chip.kind-finding { --chip-kind: var(--kind-finding); }
-.review-chip.dismissed { opacity: 0.5; }
-.review-chip.kind-phab { --chip-kind: var(--kind-phab); }
-.review-chip.kind-spec { --chip-kind: var(--kind-spec); }
-.review-chip > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.review-chip small { flex: none; margin-left: auto; color: var(--text-3); }
-.review-chip[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
-.chip-strip { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.diff tr.inline-row > td { padding: 2px 4px 4px; }
+.inline-item { --inline-kind: var(--kind-chat); display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 3px 8px; border: 1px solid var(--border); border-left: 3px solid var(--inline-kind); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-size: 12px; text-align: left; }
+.inline-item.kind-comment { --inline-kind: var(--kind-phab); }
+.inline-item.kind-finding { --inline-kind: var(--kind-finding); }
+.inline-item.kind-phab { --inline-kind: var(--kind-phab); }
+.inline-item.kind-spec { --inline-kind: var(--kind-spec); }
+.inline-item.dismissed { opacity: 0.5; }
+.inline-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.inline-who { flex: none; font-weight: 600; color: var(--text); }
+.inline-count { flex: none; color: var(--text-3); }
+.inline-actions { flex: none; display: flex; gap: 4px; margin-left: auto; }
+.inline-text { min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.inline-head > .inline-text { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.inline-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.inline-body { margin-top: 4px; }
+.inline-strip { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 .review-detail-panel .side-panel-body { display: flex; flex-direction: column; gap: 8px; }
 .review-detail-panel .messages { max-height: none; }
 .user-comment-discard { position: absolute; top: 4px; right: 4px; }
@@ -720,6 +725,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .place-crumbs { display: flex; align-items: center; gap: 4px; font-size: 12.5px; }
 .place-crumbs .sep { color: var(--text-3); }
 .place-crumbs > [aria-current="page"] { padding: 4px 6px; color: var(--text-2); }
+.react-flow__panel.top.right { display: flex; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; max-width: calc(100% - 260px); }
 .layers { display: inline-flex; margin-right: 8px; }
 .layers button { border-radius: 0; margin-left: -1px; color: var(--text-3); text-decoration: line-through; }
 .layers button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }

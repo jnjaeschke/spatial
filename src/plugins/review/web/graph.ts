@@ -27,7 +27,7 @@ export type ChangeNodeData = {
   reviewed: boolean;
   threads: HostedThread[];
   phabThreads: PhabThreadData[];
-  specs: { specId: Id; title: string }[];
+  specs: { specId: Id; title: string; text: string }[];
   comments: { artifact?: Artifact<UserCommentData>; draft?: Draft; lines: UserCommentData["lines"]; revision: number | null; postedTo: number | null }[];
   findings: FindingData[];
   symbols?: IntroducedSymbolsData["symbols"];
@@ -459,7 +459,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     const ref = a as Artifact<SpecReferenceData>;
     for (const target of anchors) {
       const host = g.nodes.find((node) => node.id === target);
-      if (host && isReviewKind(host.data, "change")) host.data.specs.push({ specId: ref.id, title: ref.data.resolved?.title ?? ref.data.resolved?.anchor ?? ref.data.url });
+      if (host && isReviewKind(host.data, "change")) host.data.specs.push({ specId: ref.id, title: ref.data.resolved?.title ?? ref.data.resolved?.anchor ?? ref.data.url, text: ref.data.resolved?.content ?? ref.data.reason ?? "" });
     }
   }
   const nodeIds = new Set(g.nodes.map((n) => n.id));

@@ -439,7 +439,7 @@ test("sessionGraph adds spec chips to supported changes", () => {
   const g = sessionGraph(st)!;
   const change = g.nodes.find((n) => n.id === "N#c2")!;
   assert.equal(change.data.kind, "change");
-  if (isReviewKind(change.data, "change")) assert.deepEqual(change.data.specs, [{ specId: "R", title: "u" }]);
+  if (isReviewKind(change.data, "change")) assert.deepEqual(change.data.specs, [{ specId: "R", title: "u", text: "x" }]);
   assert.ok(!g.nodes.some((node) => node.id === "R"));
   assert.equal(sessionGraph(state([diff])), null);
 });

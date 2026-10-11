@@ -1,13 +1,13 @@
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
 import { api, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
-import { DetailsContext } from "./details.ts";
+import { InlineStatesContext } from "./inline-state.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
 
 export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: string }) {
   const actions = useContext(ChatActionsContext);
-  const details = useContext(DetailsContext);
+  const inline = useContext(InlineStatesContext);
   const [body, setBody, clearDraft] = useDraftText(item.draft?.id, item.artifact?.data.body ?? "");
   const [editing, setEditing] = useState(false);
   const { busy, error, run } = useAction();
@@ -19,7 +19,7 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
       const { artifactId } = await api.createComment(actions.sessionId, diffId, item.lines, body.trim());
       clearDraft();
       actions.onDiscard(item.draft!.id);
-      details?.open({ kind: "comment", id: artifactId });
+      inline?.move(item.draft!.id, artifactId);
     });
   };
   const saveEdit = async () => {

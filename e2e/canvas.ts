@@ -122,3 +122,14 @@ export async function revealNode(page: Page, target: string | Locator): Promise<
   }
   throw new Error(`could not reveal ${typeof target === "string" ? target : target.toString()}`);
 }
+
+/** Expands an inline item to its whole body. */
+export async function expandItem(item: Locator): Promise<void> {
+  if (await item.getAttribute("data-state") !== "expanded") await item.locator(".inline-text").click();
+  await expect(item).toHaveAttribute("data-state", "expanded");
+}
+
+/** Shows an inline item in the side panel. */
+export async function openInPanel(item: Locator): Promise<void> {
+  await item.getByRole("button", { name: "Open in panel" }).click();
+}

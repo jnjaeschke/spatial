@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { openChange, openPatch, startReview } from "./canvas.ts";
+import { expandItem, openChange, openInPanel, openPatch, startReview } from "./canvas.ts";
 
 async function openCodeReview(page: Page, request: APIRequestContext, place: "patch" | "change" = "change"): Promise<string> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -24,36 +24,54 @@ async function selectDiffText(page: Page): Promise<void> {
 
 test.describe.configure({ mode: "serial" });
 
-test("comment on selected diff lines opens as a chip in the details panel", async ({ page, request }) => {
+test("comment on selected diff lines is an inline item; edit and delete happen inline", async ({ page, request }) => {
   await openCodeReview(page, request);
   await selectDiffText(page);
   await page.getByRole("button", { name: "Comment", exact: true }).click();
-  const draft = page.getByLabel("Comment for Phabricator");
+  const item = page.locator(".inline-item.kind-comment");
+  await expect(item).toHaveAttribute("data-state", "expanded");
+  await expect(page.getByTestId("comment-panel")).toHaveCount(0);
+  const draft = item.getByLabel("Comment for Phabricator");
   await draft.fill("Please keep this behavior.");
   await draft.press("Enter");
-  const comment = page.getByTestId("comment-panel").getByTestId("user-comment");
-  await expect(comment).toContainText("Please keep this behavior.");
-  await page.reload();
-  await expect(page.getByRole("button", { name: /^comment: Please keep this behavior\./ })).toBeVisible();
-  await page.getByRole("button", { name: /^comment: Please keep this behavior\./ }).click();
-  await expect(page.getByTestId("comment-panel").getByTestId("user-comment")).toContainText("Please keep this behavior.");
-
-  await page.getByTestId("comment-panel").getByRole("button", { name: "Edit" }).click();
-  await page.getByLabel("Edit comment").fill("Updated review comment.");
-  await page.getByTestId("comment-panel").getByRole("button", { name: "Save" }).click();
-  await expect(page.getByTestId("comment-panel").getByTestId("user-comment")).toContainText("Updated review comment.");
-  await page.getByTestId("comment-panel").getByRole("button", { name: "Delete" }).click();
+  await expect(item.getByTestId("user-comment")).toContainText("Please keep this behavior.");
   await expect(page.getByTestId("comment-panel")).toHaveCount(0);
+  await page.reload();
+  await expect(item).toContainText("Please keep this behavior.");
+  await expandItem(item);
+  await expect(item.getByTestId("user-comment")).toContainText("Please keep this behavior.");
+
+  await item.getByRole("button", { name: "Edit" }).click();
+  await item.getByLabel("Edit comment").fill("Updated review comment.");
+  await item.getByRole("button", { name: "Save" }).click();
+  await expect(item.getByTestId("user-comment")).toContainText("Updated review comment.");
+  await openInPanel(item);
+  const panel = page.getByTestId("comment-panel");
+  await expect(panel.getByTestId("user-comment")).toContainText("Updated review comment.");
+  await expect(panel.getByRole("button", { name: /^Close/ })).toHaveCount(1);
+  await panel.getByRole("button", { name: "Close comment panel" }).click();
+  await expect(panel).toHaveCount(0);
+  await item.getByRole("button", { name: "Delete" }).click();
+  await expect(item).toHaveCount(0);
 });
 
-test("Escape closes an empty comment draft", async ({ page, request }) => {
+test("an empty comment draft is discarded by its × inline and by Escape in the panel", async ({ page, request }) => {
   await openCodeReview(page, request);
+  const item = page.locator(".inline-item.kind-comment");
   await selectDiffText(page);
   await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await expect(item.getByLabel("Comment for Phabricator")).toBeVisible();
+  await item.getByRole("button", { name: "Discard comment" }).click();
+  await expect(item).toHaveCount(0);
+
+  await selectDiffText(page);
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await openInPanel(item);
   const draft = page.getByTestId("comment-panel").getByLabel("Comment for Phabricator");
   await expect(draft).toBeVisible();
   await draft.press("Escape");
   await expect(page.getByTestId("comment-panel")).toHaveCount(0);
+  await expect(item).toHaveCount(0);
 });
 
 test("review panel saves its general comment and opens a confirmation dialog", async ({ page, request }) => {

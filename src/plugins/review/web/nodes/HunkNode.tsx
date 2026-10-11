@@ -1,17 +1,18 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { HunkNodeData } from "../graph.ts";
-import { Box, DiffView, commitColors, type Row } from "../../../../web/plugin-api.ts";
+import { Box, DiffView, ReopenClosed, commitColors, type Row } from "../../../../web/plugin-api.ts";
 import { UserCommentBox } from "../UserCommentBox.tsx";
 import { SpecStepContext } from "../SpecPanel.tsx";
-import { Chip, FindingChip, PhabChip } from "../Chip.tsx";
+import { commentId } from "../CommentDetails.tsx";
+import { ChatItem, FindingItem, PhabItem, UserCommentItem } from "../InlineItem.tsx";
 import { DetailsContext } from "../details.ts";
 import { symbolMarks } from "../symbols.ts";
 
 export type HunkFlowNode = Node<HunkNodeData & { sessionId: string } & Record<string, unknown>, "hunk">;
 
 /** One hunk of a change with the chats and comments anchored in it. */
-export function HunkNode({ data }: NodeProps<HunkFlowNode>) {
+export function HunkNode({ id, data }: NodeProps<HunkFlowNode>) {
   const { file, hunk, diffId, sessionId, commit } = data;
   const selection = useContext(SpecStepContext);
   const details = useContext(DetailsContext);
@@ -28,7 +29,8 @@ export function HunkNode({ data }: NodeProps<HunkFlowNode>) {
         <DiffView sessionId={sessionId} diffId={diffId} file={file} hunk={hunk} rowClass={rowClass}
           marks={data.symbols ? (row) => symbolMarks(row.text, row.commit ?? commit ?? 0, data.symbols!) : undefined}
           onMark={(mark) => details?.open({ kind: "symbol", name: mark.name })}
-          afterRow={(row) => <>{data.threads.filter((thread) => thread.lines?.path === file.path && thread.lines.end === (thread.lines.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row chip-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}><Chip kind="chat" label={thread.messages.at(-1)?.data.text ?? "New chat"} count={thread.messages.length} selected={details?.current?.kind === "chat" && details.current.id === (thread.threadId ?? thread.draftId)} testId={`chat-chip-${thread.threadId ?? thread.draftId}`} onOpen={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} /></td></tr>)}{data.phabThreads.filter((thread) => thread.path === file.path && thread.line === (thread.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row chip-row" key={thread.anchorId}><td colSpan={4}><PhabChip thread={thread} /></td></tr>)}{data.comments.filter((comment) => comment.lines.path === file.path && comment.lines.end === (comment.lines.side === "new" ? row.new : row.old)).map((item) => { const id = item.artifact?.id ?? item.draft!.id; return <tr className="thread-row chip-row" key={id}><td colSpan={4}><Chip kind="comment" label={(item.artifact?.data.body ?? "New comment").split("\n")[0]!} selected={details?.current?.kind === "comment" && details.current.id === id} testId={`comment-chip-${id}`} onOpen={() => details?.open({ kind: "comment", id })} /></td></tr>; })}{data.findings.filter((finding) => finding.lines?.path === file.path && finding.lines.end === (finding.lines.side === "new" ? row.new : row.old)).map((finding) => <tr className="thread-row chip-row" key={finding.findingId}><td colSpan={4}><FindingChip finding={finding} /></td></tr>)}</>} />
+          afterRow={(row) => <>{data.threads.filter((thread) => thread.lines?.path === file.path && thread.lines.end === (thread.lines.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row inline-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}><ChatItem thread={thread} /></td></tr>)}{data.phabThreads.filter((thread) => thread.path === file.path && thread.line === (thread.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row inline-row" key={thread.anchorId}><td colSpan={4}><PhabItem thread={thread} /></td></tr>)}{data.comments.filter((comment) => comment.lines.path === file.path && comment.lines.end === (comment.lines.side === "new" ? row.new : row.old)).map((item) => <tr className="thread-row inline-row" key={commentId(item)}><td colSpan={4}><UserCommentItem item={item} diffId={diffId} /></td></tr>)}{data.findings.filter((finding) => finding.lines?.path === file.path && finding.lines.end === (finding.lines.side === "new" ? row.new : row.old)).map((finding) => <tr className="thread-row inline-row" key={finding.findingId}><td colSpan={4}><FindingItem finding={finding} /></td></tr>)}</>} />
+        <ReopenClosed hostId={id} />
       </div>
     </Box>
   );

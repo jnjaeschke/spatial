@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
+import { expandItem, openChange, openPatch, revealNode, startReview } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -15,15 +15,16 @@ test("accept a finding, edit comment, and submit a confirmed review", async ({ p
   await openChange(page, "change-c2");
   const finding = page.getByTestId(/finding-chip/);
   await expect(finding).toBeVisible({ timeout: 15_000 });
-  await finding.click();
-  const findingPanel = page.getByTestId("finding-panel");
-  await expect(findingPanel).toContainText("No test for c");
-  await findingPanel.getByLabel("Accept finding").click();
-  await expect(findingPanel.getByLabel("Dismiss finding")).toBeVisible();
-  await expect(findingPanel.getByLabel("Accept finding")).toHaveCount(0);
-  await expect(findingPanel.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
-  await findingPanel.getByLabel("Comment").fill("Edited comment text.");
-  await findingPanel.getByRole("button", { name: "Save" }).click();
+  await expandItem(finding);
+  await expect(finding).toContainText("No test for c");
+  await finding.getByLabel("Accept finding").click();
+  await expect(finding.getByLabel("Dismiss finding")).toBeVisible();
+  await expect(finding.getByLabel("Accept finding")).toHaveCount(0);
+  await expect(finding.getByLabel("Comment")).toHaveValue("No test was added for the c.txt change.", { timeout: 10_000 });
+  await finding.getByLabel("Comment").fill("Edited comment text.");
+  const save = finding.getByRole("button", { name: "Save" });
+  await revealNode(page, save);
+  await save.click();
   await openPatch(page, 0);
   const panel = page.getByTestId("review-panel-D1");
   await expect(panel).toBeVisible({ timeout: 5_000 });
@@ -61,8 +62,8 @@ test("accept a finding, edit comment, and submit a confirmed review", async ({ p
   await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
   await expect(panel.getByText(/Submitted to D1: 2 inline comments, requested changes/)).toBeVisible({ timeout: 10_000 });
   await openChange(page, "change-c2");
-  await finding.click();
-  await expect(findingPanel.getByText("Posted to D1")).toBeVisible();
+  await expandItem(finding);
+  await expect(finding.getByText("Posted to D1")).toBeVisible();
   const submissions = await (await request.get("http://127.0.0.1:4179/control/submissions?revision=1")).json();
   expect(submissions.at(-1)).toMatchObject({ action: "reject", attach_inlines: true, message: "Please address both findings." });
 });
@@ -72,10 +73,9 @@ test("dismiss a finding makes it dimmed", async ({ page, request }) => {
   await openChange(page, "change-c2");
   const finding = page.getByTestId(/finding-chip/);
   await expect(finding).toBeVisible({ timeout: 15_000 });
-  await finding.click();
-  const panel = page.getByTestId("finding-panel");
-  await panel.getByLabel("Dismiss finding").click();
+  await expandItem(finding);
+  await finding.getByLabel("Dismiss finding").click();
   await expect(finding).toHaveClass(/dismissed/);
-  await panel.getByLabel("Accept finding").click();
+  await finding.getByLabel("Accept finding").click();
   await expect(finding).not.toHaveClass(/dismissed/);
 });

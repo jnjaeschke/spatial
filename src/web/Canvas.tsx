@@ -80,6 +80,8 @@ export interface CanvasModel {
   revealWhenAdded?(node: GraphNode): boolean;
   /** Wraps the canvas in the plugin's contexts. */
   Provider?: ComponentType<CanvasProviderProps>;
+  /** Controls shown in the canvas panel (top right) after the layer toggles; rendered inside `Provider`. */
+  PanelExtras?: ComponentType;
 }
 const NO_STEPS: GuideStep[] = [];
 const MIN_NODE_WIDTH = 240;
@@ -784,7 +786,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
         {places && <Panel position="top-left"><nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav></Panel>}
-        <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
+        <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}{model.PanelExtras && <model.PanelExtras />}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap
         position="top-right"

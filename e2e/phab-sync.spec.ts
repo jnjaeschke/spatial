@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { openChange, openPatch, revealNode, startReview } from "./canvas.ts";
+import { expandItem, openChange, openInPanel, openPatch, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 const control = "http://127.0.0.1:4179/control";
@@ -83,10 +83,13 @@ test("remote diff and inline comment: toast, anchored thread, general comment", 
   await expect(notice).toContainText(`moz-phab patch D${ids.revision}`, { timeout: 10_000 });
   await expect(notice.locator("button")).toHaveCount(1);
   await openChange(page);
-  const chip = page.locator(".review-chip.kind-phab").filter({ hasText: "Why THIRTY?" });
-  await expect(chip).toBeVisible({ timeout: 10_000 });
-  await chip.click();
-  await expect(page.getByTestId("phab-panel")).toContainText("alice");
+  const item = page.locator(".inline-item.kind-phab").filter({ hasText: "Why THIRTY?" });
+  await expect(item).toBeVisible({ timeout: 10_000 });
+  await expect(item.locator(".inline-who")).toHaveText("@alice");
+  await expect(item).toContainText("@alice: Why THIRTY?");
+  await expandItem(item);
+  await expect(item).toContainText("alice");
+  await expect(page.getByTestId("phab-panel")).toHaveCount(0);
   await expect(page.getByTestId(/^toast-phab-comments:/)).toContainText("1 new comment");
 });
 
@@ -94,10 +97,10 @@ test("old-side inline is listed unanchored", async ({ page, request }) => {
   const ids = newRevision();
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(130, "a.txt", 30, "Old side note", { diffId: ids.d1, isNewFile: false })] }));
   const summary = page.getByTestId("summary");
-  const chip = summary.locator(".review-chip.kind-phab").filter({ hasText: "Old side note" });
-  await expect(chip).toBeVisible({ timeout: 10_000 });
-  await chip.click();
-  await expect(page.getByTestId("phab-panel")).toContainText("alice");
+  const item = summary.locator(".inline-item.kind-phab").filter({ hasText: "Old side note" });
+  await expect(item).toBeVisible({ timeout: 10_000 });
+  await expandItem(item);
+  await expect(item).toContainText("alice");
 });
 
 test("done thread is collapsed and follows isDone", async ({ page, request }) => {
@@ -105,12 +108,12 @@ test("done thread is collapsed and follows isDone", async ({ page, request }) =>
   const initial = [inlineTx(140, "a.txt", 30, "Finished", { diffId: ids.d1, isDone: true, phid: "PHID-XCMT-DONE" }), inlineTx(141, "a.txt", 31, "Still open", { diffId: ids.d1, phid: "PHID-XCMT-OPEN" })];
   const { diff } = await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: initial }));
   await openChange(page);
-  const done = page.locator(".review-chip.kind-phab").filter({ hasText: "Finished" });
+  const done = page.locator(".inline-item.kind-phab").filter({ hasText: "Finished" });
   await expect(done).toHaveClass(/dismissed/, { timeout: 10_000 });
-  const open = page.locator(".review-chip.kind-phab").filter({ hasText: "Still open" });
+  const open = page.locator(".inline-item.kind-phab").filter({ hasText: "Still open" });
   await expect(open).not.toHaveClass(/dismissed/);
-  await done.click();
-  await expect(page.getByTestId("phab-panel").locator(".phab-detail-location .phab-done")).toBeVisible();
+  await expandItem(done);
+  await expect(done.locator(".phab-detail-location .phab-done")).toBeVisible();
   initial[1].fields.isDone = true;
   await configure(request, ids.revision, { diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: initial });
   await expect(open).toHaveClass(/dismissed/, { timeout: 10_000 });
@@ -119,9 +122,9 @@ test("done thread is collapsed and follows isDone", async ({ page, request }) =>
 test("inline on a non-matching diff goes to the summary list", async ({ page, request }) => {
   const ids = newRevision();
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d2, ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(150, "a.txt", 30, "Different patch", { diffId: ids.d2 })] }));
-  const chip = page.getByTestId("summary").locator(".review-chip.kind-phab").filter({ hasText: "Different patch" });
-  await expect(chip).toBeVisible({ timeout: 10_000 });
-  await chip.click();
+  const item = page.getByTestId("summary").locator(".inline-item.kind-phab").filter({ hasText: "Different patch" });
+  await expect(item).toBeVisible({ timeout: 10_000 });
+  await openInPanel(item);
   await expect(page.getByTestId("phab-panel")).toContainText("alice");
 });
 
@@ -129,10 +132,9 @@ test("ask about a remote comment: chat inside the thread node", async ({ page, r
   const ids = newRevision();
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(160, "a.txt", 30, "Why is this needed?", { diffId: ids.d1 })] }));
   await openChange(page);
-  const chip = page.locator(".review-chip.kind-phab").filter({ hasText: "Why is this needed?" });
-  await expect(chip).toBeVisible({ timeout: 10_000 });
-  await chip.click();
-  const thread = page.getByTestId("phab-panel");
+  const thread = page.locator(".inline-item.kind-phab").filter({ hasText: "Why is this needed?" });
+  await expect(thread).toBeVisible({ timeout: 10_000 });
+  await expandItem(thread);
   await thread.getByLabel("message").fill("Explain this comment");
   await thread.getByRole("button", { name: "Send" }).click();
   await expect(thread).toContainText("Stub answer.", { timeout: 15_000 });
@@ -145,10 +147,9 @@ test("remote inline follows the patch across an amend", async ({ page, request }
   const ids = newRevision();
   const { dir } = await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(170, "a.txt", 30, "Why THIRTY?", { diffId: ids.d1 })] }));
   await openChange(page);
-  const chip = page.locator(".review-chip.kind-phab").filter({ hasText: "Why THIRTY?" });
-  await expect(chip).toBeVisible({ timeout: 10_000 });
-  await chip.click();
-  const thread = page.getByTestId("phab-panel");
+  const thread = page.locator(".inline-item.kind-phab").filter({ hasText: "Why THIRTY?" });
+  await expect(thread).toBeVisible({ timeout: 10_000 });
+  await expandItem(thread);
   await expect(thread.getByTestId("phab-epoch")).toHaveCount(0);
   await amendWith(dir, { insertAfter27: true });
   const toast = page.getByTestId(/^toast-revision:/);
@@ -157,7 +158,7 @@ test("remote inline follows the patch across an amend", async ({ page, request }
   await expect(page.getByTestId("epoch")).toHaveText("Epoch 2");
   await expect(page.getByTestId("change-c3")).toBeVisible({ timeout: 30_000 });
   await openChange(page);
-  await page.locator(".review-chip.kind-phab").filter({ hasText: "Why THIRTY?" }).click();
+  await expandItem(thread);
   await expect(thread).toContainText("Why THIRTY?");
   await expect(thread.getByTestId("phab-epoch")).toHaveText("epoch 1");
   await expect(thread).toContainText("a.txt:31");
@@ -167,7 +168,7 @@ test("remote inline whose line is gone after an amend is listed as outdated", as
   const ids = newRevision();
   const { dir } = await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [inlineTx(180, "a.txt", 30, "Why THIRTY?", { diffId: ids.d1 })] }));
   await openChange(page);
-  await expect(page.locator(".review-chip.kind-phab").filter({ hasText: "Why THIRTY?" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(".inline-item.kind-phab").filter({ hasText: "Why THIRTY?" })).toBeVisible({ timeout: 10_000 });
   await amendWith(dir, { replaceLine30: true });
   const toast = page.getByTestId(/^toast-revision:/);
   await expect(toast).toBeVisible({ timeout: 10_000 });
@@ -176,9 +177,12 @@ test("remote inline whose line is gone after an amend is listed as outdated", as
   await openPatch(page, 0);
   await expect(page.getByTestId("change-c3")).toBeVisible({ timeout: 30_000 });
   const summary = page.getByTestId("summary");
-  const chip = summary.locator(".review-chip.kind-phab").filter({ hasText: "Why THIRTY?" });
-  await expect(chip).toBeVisible();
-  await chip.click();
+  const item = summary.locator(".inline-item.kind-phab").filter({ hasText: "Why THIRTY?" });
+  await expect(item).toBeVisible();
+  await expandItem(item);
+  await expect(item).toContainText("alice");
+  await expect(item).toContainText("epoch 1");
+  await openInPanel(item);
   await expect(page.getByTestId("phab-panel")).toContainText("alice");
   await expect(page.getByTestId("phab-panel")).toContainText("epoch 1");
 });
@@ -191,9 +195,11 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
     commentTx(190, botBody, "reviewbot"), commentTx(191, "This is **important** feedback"), commentTx(192, longBody),
   ] }));
   const summary = page.getByTestId("summary");
-  const botChip = summary.locator(".review-chip.kind-phab").filter({ hasText: "The analysis task" });
-  await botChip.click();
-  const bot = page.getByTestId("phab-panel").getByTestId("phab-comment").filter({ hasText: "@reviewbot" });
+  const phab = (text: string) => summary.locator(".inline-item.kind-phab").filter({ hasText: text });
+  const botItem = phab("The analysis task");
+  await expect(botItem).toContainText("@reviewbot: The analysis task lint failed. Details More details.");
+  await expandItem(botItem);
+  const bot = botItem.getByTestId("phab-comment").filter({ hasText: "@reviewbot" });
   await expect(bot).toBeVisible({ timeout: 10_000 });
   await expect(bot.locator(".phab-bot")).toHaveText("bot");
   await expect(bot.locator(".phab-preview")).toHaveText("The analysis task lint failed.");
@@ -203,20 +209,22 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
   const link = bot.locator("a");
   await expect(link).toHaveText("lint");
   await expect(link).toHaveAttribute("target", "_blank");
-  await page.getByTestId("phab-panel").getByRole("button", { name: "Close Phabricator panel" }).click();
-  await summary.locator(".review-chip.kind-phab").filter({ hasText: "This is **important** feedback" }).click();
-  const important = page.getByTestId("phab-panel").getByTestId("phab-comment").filter({ hasText: "important" });
+  await botItem.getByRole("button", { name: "Collapse item" }).click();
+  const importantItem = phab("important feedback");
+  await expandItem(importantItem);
+  const important = importantItem.getByTestId("phab-comment").filter({ hasText: "important" });
   await expect(important.locator("strong").filter({ hasText: "important" })).toBeVisible();
   await expect(important.getByRole("button", { name: "Show more" })).toHaveCount(0);
-  await page.getByTestId("phab-panel").getByRole("button", { name: "Close Phabricator panel" }).click();
-  await summary.locator(".review-chip.kind-phab").filter({ hasText: "Long comment line 1" }).click();
-  const long = page.getByTestId("phab-panel").getByTestId("phab-comment").filter({ hasText: "Long comment line 1" });
+  await importantItem.getByRole("button", { name: "Collapse item" }).click();
+  const longItem = phab("Long comment line 1");
+  await expandItem(longItem);
+  const long = longItem.getByTestId("phab-comment").filter({ hasText: "Long comment line 1" });
   await expect(long.getByRole("button", { name: "Show more" })).toBeVisible();
   await expect(long.locator(".phab-body")).toHaveClass(/clamped/);
   await long.getByRole("button", { name: "Show more" }).click();
   await expect(long.getByRole("button", { name: "Show less" })).toBeVisible();
   await expect(long.locator(".phab-body")).not.toHaveClass(/clamped/);
   await page.reload();
-  await summary.locator(".review-chip.kind-phab").filter({ hasText: "The analysis task" }).click();
-  await expect(page.getByTestId("phab-panel").getByTestId("phab-comment").filter({ hasText: "@reviewbot" }).locator("h2")).toHaveCount(0, { timeout: 10_000 });
+  await expandItem(phab("The analysis task"));
+  await expect(phab("The analysis task").getByTestId("phab-comment").filter({ hasText: "@reviewbot" }).locator("h2")).toHaveCount(0, { timeout: 10_000 });
 });

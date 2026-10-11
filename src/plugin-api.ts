@@ -33,7 +33,8 @@
  * `src/plugins/web.ts`. A canvas model (`CanvasModel`) may split its graph into named **places**
  * (`CanvasModel.places`): core owns the current place, its history entries, persistence, breadcrumb and
  * drill-in/out keys, and the model defines each place's graph, node representation and guide steps.
- * Zoom only scales the canvas.
+ * Zoom only scales the canvas. A model may add controls to the canvas panel next to Expand all and
+ * Reset layout (`CanvasModel.PanelExtras`, rendered inside the model's `Provider`).
  *
  * Boundary, checked by `scripts/plugin-boundary.ts` in `npm run check`: plugin code imports only its own
  * directory and these API modules. A plugin may also import the public API of another plugin it lists in

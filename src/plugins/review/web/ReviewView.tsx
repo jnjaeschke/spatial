@@ -14,12 +14,14 @@ import { CommentDetails, findComment } from "./CommentDetails.tsx";
 import { FindingDetails, findFinding } from "./FindingDetails.tsx";
 import { PhabDetails, findPhabThread } from "./PhabDetails.tsx";
 import { SymbolDetails, findSymbol } from "./SymbolDetails.tsx";
+import { InlineStatesContext, useInlineStates } from "./inline-state.ts";
 
 export function ReviewView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   const [details, setDetails] = useState<DetailsState>(closeDetails);
   const [jump, setJump] = useState<HunkRow | null>(null);
   const [specSelection, setSpecSelection] = useState<SpecStepSelection | null>(null);
   const closed = useClosed(state.session.id);
+  const inline = useInlineStates(state.session.id);
   const knownDrafts = useRef(new Set(drafts.map((draft) => draft.id)));
   const revealer = useRef<((nodeId: string, collapseId: string) => void) | null>(null);
   const narrative = latestNarrative(state);
@@ -33,9 +35,15 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
     for (const draft of drafts) {
       if (knownDrafts.current.has(draft.id)) continue;
       knownDrafts.current.add(draft.id);
-      if (!draft.aside) setDetails((current) => openDetail(current, { kind: draft.kind === "comment" ? "comment" : "chat", id: draft.id }));
+      if (!draft.aside) inline.set(draft.id, "expanded");
     }
-  }, [drafts]);
+  }, [drafts, inline.set]);
+  useEffect(() => {
+    for (const draft of drafts) {
+      const thread = draft.taskId ? state.artifacts.find((artifact) => artifact.type === "ChatThread" && artifact.provenance.taskId === draft.taskId) : undefined;
+      if (thread) inline.move(draft.id, thread.id);
+    }
+  }, [drafts, state.artifacts, inline.move]);
   const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : detail.kind === "finding" ? findFinding(graph, detail.id) !== null : detail.kind === "phab" ? findPhabThread(graph, detail.anchorId) !== null : detail.kind === "symbol" ? findSymbol(state, diff, detail.name) !== null : true;
   const back = canGoBack(details, resolves) ? () => setDetails((current) => backDetail(current, resolves)) : undefined;
   const closePanel = () => setDetails(closeDetails());
@@ -70,8 +78,8 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   const session = <StackContext.Provider value={stack}><div className="session-body">{body}{panels}</div></StackContext.Provider>;
   return <SpecStepContext.Provider value={details.current?.kind === "spec" ? specSelection : null}>
     <TopbarExtras>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => setDetails((current) => current.current?.kind === "interdiff" ? closeDetails() : openDetail(current, { kind: "interdiff" }))}>Interdiff</button>}</TopbarExtras>
-    <DetailsContext.Provider value={{ current: details.current, open: (detail) => { setSpecSelection(null); setDetails((current) => openDetail(current, detail)); } }}>
+    <InlineStatesContext.Provider value={inline}><DetailsContext.Provider value={{ current: details.current, open: (detail) => { setSpecSelection(null); setDetails((current) => openDetail(current, detail)); } }}>
       {readOnly ? session : <FileViewContext.Provider value={(file) => { if (file.row && narrative) setJump({ hunkId: file.hunkId, ...file.row }); else { setSpecSelection(null); setDetails((current) => openDetail(current, { kind: "file", file })); } }}>{session}</FileViewContext.Provider>}
-    </DetailsContext.Provider>
+    </DetailsContext.Provider></InlineStatesContext.Provider>
   </SpecStepContext.Provider>;
 }

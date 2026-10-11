@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openChange, startReview } from "./canvas.ts";
+import { expandItem, openChange, startReview } from "./canvas.ts";
 
 test("chat can request a denylisted repo server and enable it for that thread", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -7,10 +7,9 @@ test("chat can request a denylisted repo server and enable it for that thread", 
   await startReview(page, fixture.worktree, "HEAD~1..HEAD");
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
   await openChange(page, "change-c2");
-  const chip = page.getByTestId(/finding-chip/).first();
-  await expect(chip).toBeVisible({ timeout: 15_000 });
-  await chip.click();
-  const finding = page.getByTestId("finding-panel");
+  const finding = page.getByTestId(/finding-chip/).first();
+  await expect(finding).toBeVisible({ timeout: 15_000 });
+  await expandItem(finding);
   await finding.getByLabel("message").fill("ENABLE-DEVTOOLS-PLEASE");
   await finding.getByRole("button", { name: "Send" }).click();
 
