@@ -42,6 +42,7 @@
 - [RowMark](interfaces/RowMark.md)
 - [SearchfoxLinks](interfaces/SearchfoxLinks.md)
 - [Segment](interfaces/Segment.md)
+- [SequenceArrow](interfaces/SequenceArrow.md)
 - [WebPlugin](interfaces/WebPlugin.md)
 
 ## Type Aliases
@@ -117,6 +118,8 @@
 - [rowSegments](functions/rowSegments.md)
 - [searchfoxLinks](functions/searchfoxLinks.md)
 - [Segmented](functions/Segmented.md)
+- [SequenceDiagram](functions/SequenceDiagram.md)
+- [sequenceLayout](functions/sequenceLayout.md)
 - [SidePanel](functions/SidePanel.md)
 - [subgraph](functions/subgraph.md)
 - [threadContent](functions/threadContent.md)
