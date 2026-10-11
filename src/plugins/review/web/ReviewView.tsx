@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, numberLines, useClosed } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, useClosed } from "../../../web/plugin-api.ts";
 import { latestNarrative, reviewGraph } from "./graph.ts";
 import { JumpContext, RevealContext, reviewCanvas } from "./canvas.tsx";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
@@ -15,18 +15,12 @@ import { FindingDetails, findFinding } from "./FindingDetails.tsx";
 import { PhabDetails, findPhabThread } from "./PhabDetails.tsx";
 import { SymbolDetails, findSymbol } from "./SymbolDetails.tsx";
 import { InlineStatesContext, useInlineStates } from "./inline-state.ts";
-import { latestSymbols } from "./symbols.ts";
-import { SymbolCard, SymbolMarkContext, type SymbolCardSite } from "./SymbolCard.tsx";
-
-interface OpenSymbolCard { name: string; rect: DOMRect; pinned: boolean }
+import { SymbolMarkContext, useSymbolCard } from "./SymbolCard.tsx";
 
 export function ReviewView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   const [details, setDetails] = useState<DetailsState>(closeDetails);
   const [jump, setJump] = useState<HunkRow | null>(null);
   const [specSelection, setSpecSelection] = useState<SpecStepSelection | null>(null);
-  const [symbolCard, setSymbolCard] = useState<OpenSymbolCard | null>(null);
-  const symbolTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hoveredSymbol = useRef<string | null>(null);
   const closed = useClosed(state.session.id);
   const inline = useInlineStates(state.session.id);
   const knownDrafts = useRef(new Set(drafts.map((draft) => draft.id)));
@@ -35,32 +29,10 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   const graph = useMemo(() => reviewGraph(state, drafts), [state, drafts]);
   const diff = latestDiff(state.artifacts);
   const stack = diff && diff.data.commits.length > 1 ? diff.data.commits : null;
-  const clearSymbolTimer = () => { if (symbolTimer.current) clearTimeout(symbolTimer.current); symbolTimer.current = null; };
-  const symbolMarks = {
-    hover: (mark: { name: string } | null, rect: DOMRect | null) => {
-      if (!mark || !rect) { hoveredSymbol.current = null; if (!symbolCard?.pinned) { clearSymbolTimer(); symbolTimer.current = setTimeout(() => setSymbolCard(null), 200); } return; }
-      if (hoveredSymbol.current === mark.name) return;
-      hoveredSymbol.current = mark.name;
-      clearSymbolTimer();
-      if (symbolCard?.pinned && symbolCard.name === mark.name) return;
-      symbolTimer.current = setTimeout(() => setSymbolCard({ name: mark.name, rect, pinned: false }), 300);
-    },
-    click: (mark: { name: string }, rect: DOMRect) => { hoveredSymbol.current = mark.name; clearSymbolTimer(); setSymbolCard({ name: mark.name, rect, pinned: true }); },
-  };
+  const symbolCard = useSymbolCard(state, diff, (name, site) => setDetails((current) => openDetail(current, { kind: "symbol", name, site })));
   const epoch = diff ? diffNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const chatThread = useChatLookup(graph, drafts);
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => { if (event.key === "Escape") { clearSymbolTimer(); setSymbolCard(null); } };
-    const outside = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const markedCode = target?.closest("td.code") as HTMLTableCellElement | null;
-      if (!target?.closest("[data-testid='symbol-card']") && !(markedCode && getComputedStyle(markedCode).cursor === "pointer")) { clearSymbolTimer(); setSymbolCard(null); }
-    };
-    document.addEventListener("keydown", key);
-    document.addEventListener("click", outside);
-    return () => { document.removeEventListener("keydown", key); document.removeEventListener("click", outside); clearSymbolTimer(); };
-  }, []);
   useEffect(() => {
     for (const draft of drafts) {
       if (knownDrafts.current.has(draft.id)) continue;
@@ -105,20 +77,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
     {details.current?.kind === "spec" && narrative && <SpecPanel state={state} specId={details.current.specId} llm={readOnly ? null : models.default} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} onFocusRange={focusSpecRange} onSelection={setSpecSelection} />}
     {!readOnly && (details.current?.kind === "interdiff" && interdiff && epoch !== null ? <InterdiffPanel interdiff={interdiff} epoch={epoch} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} /> : details.current?.kind === "file" && diff && details.current.file.diffId === diff.id && <FilePanel sessionId={state.session.id} diff={diff} open={details.current.file} onClose={() => { setSpecSelection(null); setDetails(closeDetails()); }} onBack={back} onJump={setJump} />)}
   </>;
-  const symbolData = diff && symbolCard ? latestSymbols(state, diff.id)?.symbols[symbolCard.name] : undefined;
-  const symbolSites: SymbolCardSite[] = symbolData?.sites.flatMap((site) => {
-    const file = diff?.data.files.find((item) => item.path === site.path);
-    const hunk = file?.hunks.find((item) => item.id === site.hunkId);
-    if (!hunk) return [];
-    const rows = numberLines(hunk);
-    const index = rows.findIndex((row) => row.new === site.line);
-    if (index < 0) return [];
-    const following = [];
-    for (const row of rows.slice(index + 1)) { if (row.kind !== "add" || following.length === 2) break; following.push(row); }
-    const code = [rows[index]!, ...following].map((row) => row.text);
-    return [{ label: `${site.kind === "declaration" ? "declared" : "defined"} in ${site.path}:${site.line}`, code, commit: site.commit }];
-  }) ?? [];
-  const session = <StackContext.Provider value={stack}><div className="session-body"><SymbolMarkContext.Provider value={symbolMarks}>{body}</SymbolMarkContext.Provider>{panels}{symbolCard && symbolSites.length > 0 && <SymbolCard name={symbolCard.name} sites={symbolSites} rect={symbolCard.rect} stack={!!stack} pinned={symbolCard.pinned} onEnter={clearSymbolTimer} onLeave={() => { if (!symbolCard.pinned) { clearSymbolTimer(); symbolTimer.current = setTimeout(() => setSymbolCard(null), 200); } }} onSite={(site) => { clearSymbolTimer(); setDetails((current) => openDetail(current, { kind: "symbol", name: symbolCard.name, site })); setSymbolCard(null); }} />}</div></StackContext.Provider>;
+  const session = <StackContext.Provider value={stack}><div className="session-body"><SymbolMarkContext.Provider value={symbolCard.marks}>{body}</SymbolMarkContext.Provider>{panels}{symbolCard.card}</div></StackContext.Provider>;
   return <SpecStepContext.Provider value={details.current?.kind === "spec" ? specSelection : null}>
     <TopbarExtras>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => setDetails((current) => current.current?.kind === "interdiff" ? closeDetails() : openDetail(current, { kind: "interdiff" }))}>Interdiff</button>}</TopbarExtras>
     <InlineStatesContext.Provider value={inline}><DetailsContext.Provider value={{ current: details.current, open: (detail) => { setSpecSelection(null); setDetails((current) => openDetail(current, detail)); } }}>

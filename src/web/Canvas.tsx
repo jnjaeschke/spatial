@@ -255,8 +255,8 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   marksById.current = useMemo(() => new Map(nodes.map((node) => [node.id, model.minimapMarks?.(node.data as GraphNodeData) ?? []])), [nodes, model]);
   const minimapNode = useMemo(() => {
     return function CanvasMiniMapNode({ id, x, y, width, height, borderRadius, className, color, strokeColor, strokeWidth, shapeRendering, selected }: MiniMapNodeProps) {
-      return <g className={className} transform={`translate(${x},${y})`}>
-        <rect x={0} y={0} width={width} height={height} rx={borderRadius} ry={borderRadius} fill={color} stroke={strokeColor} strokeWidth={strokeWidth} shapeRendering={shapeRendering} className={selected ? "selected" : undefined} />
+      return <g transform={`translate(${x},${y})`}>
+        <rect x={0} y={0} width={width} height={height} rx={borderRadius} ry={borderRadius} fill={color} stroke={strokeColor} strokeWidth={strokeWidth} shapeRendering={shapeRendering} className={["react-flow__minimap-node", selected && "selected", className].filter(Boolean).join(" ")} />
         {(marksById.current.get(id) ?? []).map((mark, index) => <line key={index} className={`minimap-mark kind-${mark.kind}`} x1={0} x2={width} y1={height * mark.at} y2={height * mark.at} strokeWidth={2} vectorEffect="non-scaling-stroke" />)}
       </g>;
     };
