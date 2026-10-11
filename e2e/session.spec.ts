@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -132,20 +132,60 @@ test("the focus crumb names the jumped-to row and re-centers it", async ({ page 
   await expect(crumb).toHaveText("a.txt:30");
 });
 
-test("the canvas works without the Navigation API", async ({ page }) => {
-  await page.addInitScript(() => Object.defineProperty(window, "navigation", { value: undefined }));
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+const viewportOf = (page: Page) => page.locator(".react-flow__viewport").getAttribute("style");
+
+test("the place is in the URL and the title; reload keeps the place and the viewport", async ({ page }) => {
   await page.goto("http://127.0.0.1:4178/");
   await page.getByRole("link", { name: "fixture" }).click();
-  await expect(page.getByTestId("change-c1")).toBeVisible();
-  await page.locator(".canvas").focus();
-  await page.keyboard.press("n");
-  await expect(page.getByTestId("guide")).toContainText("1/");
-  await openChange(page, "change-c2");
+  await openChange(page, "change-c1");
+  await expect(page).toHaveURL(/\/sessions\/[^/]+\/change\/c1$/);
+  await expect(page).toHaveTitle(/^Edit a · .* · spatial$/);
+  await page.getByTestId("change-c1").getByRole("button", { name: "THIRTY" }).click();
+  await expect(page).toHaveTitle(/^a\.txt:30 · Edit a · /);
+  await waitForCanvasSettled(page);
+  const before = await viewportOf(page);
+  await page.reload();
+  await waitForCanvasSettled(page);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "change:c1");
+  expect(await viewportOf(page)).toBe(before);
+  await expect(page.locator('tr.focus[data-new="30"]')).toHaveCount(1);
   await placeUp(page);
-  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "patch:0");
-  expect(errors).toEqual([]);
+  await expect(page).toHaveURL(/\/patch\/0$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/change\/c1$/);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "change:c1");
+});
+
+test("a place the graph does not have shows the initial place and replaces the URL", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
+  const initial = page.url();
+  const place = await page.locator(".canvas").getAttribute("data-place");
+  await page.goto(`${initial.replace(/\/$/, "")}/change/nope`);
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", place!);
+  await expect.poll(() => new URL(page.url()).pathname.endsWith("/change/nope")).toBe(false);
+  const length = await page.evaluate(() => history.length);
+  await page.reload();
+  expect(await page.evaluate(() => history.length)).toBe(length);
+});
+
+test("the Recent menu lists the visited places and traverses to one", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "fixture" }).click();
+  await openChange(page, "change-c1");
+  await placeUp(page);
+  await openChange(page, "change-c2");
+  await page.getByTestId("place-recent").click();
+  const items = page.getByTestId("place-recent-menu").getByRole("menuitem");
+  await expect(items.first()).toHaveAttribute("aria-current", "true");
+  await expect(items.first()).toBeDisabled();
+  expect(await items.allTextContents()).toEqual(expect.arrayContaining(["Add c · Patch", "Edit a · Patch"]));
+  const index = await page.evaluate(() => navigation.currentEntry!.index);
+  await items.filter({ hasText: /^Edit a/ }).first().click();
+  await expect(page.locator(".canvas")).toHaveAttribute("data-place", "change:c1");
+  expect(await page.evaluate(() => navigation.currentEntry!.index)).toBeLessThan(index);
+  await expect(page.getByTestId("place-recent-menu")).toHaveCount(0);
 });
 
 test("a large diff whose narration failed lists files and mounts hunks on demand", async ({ page }) => {

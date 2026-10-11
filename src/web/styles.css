@@ -748,6 +748,10 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .place-crumbs > [aria-current="page"] { padding: 4px 6px; color: var(--text); font-weight: 600; }
 .focus-crumb { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .place-up { flex: 0 0 auto; }
+.place-recent { position: relative; flex: 0 0 auto; }
+.place-recent-menu { position: absolute; top: 100%; left: 0; z-index: 10; display: flex; flex-direction: column; min-width: 240px; max-width: 480px; margin-top: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-1); }
+.place-recent-menu button { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: none; }
+.place-recent-menu button[aria-current="true"] { font-weight: 600; }
 .box > .title > .open { margin-left: 8px; font-size: 0.8em; font-weight: 500; }
 .react-flow__panel.top.right { max-width: 50%; display: flex; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 .layers { display: inline-flex; margin-right: 8px; }

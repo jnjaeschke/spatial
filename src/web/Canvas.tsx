@@ -16,8 +16,10 @@ import { GuideBar } from "./GuideBar.tsx";
 import { moveStep, startStep } from "./guide.ts";
 import { useNodeSizes, type NodeSize } from "./node-sizes.ts";
 import { useFreePositions } from "./free-positions.ts";
-import { clampGuideStep, readViewState, saveViewState } from "./view-state.ts";
-import { pushJump, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
+import { clampGuideStep, readViewState, saveViewState, type ViewState } from "./view-state.ts";
+import { parseHistoryView, pushJump, replaceUrl, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
+import { RouteContext, parseRoute, routeUrl } from "./routes.ts";
+import { RecentPlaces } from "./RecentPlaces.tsx";
 import { IconButton, NodeKindsContext } from "./plugin-api.ts";
 import { OpenPlaceContext } from "./open-place.ts";
 
@@ -131,6 +133,7 @@ export function Canvas(props: CanvasProps) {
 
 function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
   const nodeKinds = useContext(NodeKindsContext);
+  const routeContext = useContext(RouteContext);
   const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
   const { sizes, setSize, clear: clearNodeSizes } = useNodeSizes(state.session.id);
@@ -168,7 +171,6 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
     focusDraft.current = added.id;
     anchor.current = host?.id ?? (added.aside ? null : added.id);
   }, [drafts, graph]);
-  const storedView = useRef(readViewState(state.session.id));
   useEffect(() => {
     for (const draft of drafts) {
       if (!draft.taskId) continue;
@@ -180,7 +182,22 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const defaults = useMemo(() => new Set(model.collapsedByDefault?.(graph) ?? []), [model, graph]);
   const { collapsed, toggle, expandAll, reveal: expandExplicitly } = useCollapsed(state.session.id, defaults);
   const places = model.places;
-  const [placeState, setPlaceState] = useState<string | null>(() => places ? storedView.current?.place ?? null : null);
+  // Where the canvas starts: the URL's place if the graph has it, else the stored one, else the initial place. A reload or
+  // traversal restores its history entry's own view; any other start uses the stored view, if it was stored for that place.
+  const initial = useMemo(() => {
+    const stored = readViewState(state.session.id);
+    const route = routeContext ? parseRoute(new URL(location.href)) : null;
+    const urlPlace = route?.kind === "session" ? route.place : null;
+    const wanted = urlPlace ?? stored?.place ?? null;
+    const chosen = places ? wanted !== null && places.graph(graph, wanted) ? wanted : places.initial(graph) : null;
+    const type = navigation.activation?.navigationType;
+    const entry = routeContext && (type === "reload" || type === "traverse") ? parseHistoryView(navigation.currentEntry?.getState()) : null;
+    const restored = entry?.place === chosen ? entry : null;
+    const view: ViewState | null = restored ?? (stored?.place === chosen ? stored : null);
+    return { place: chosen, view, focusedRow: restored?.focusedRow ?? null };
+  }, []);
+  const storedView = useRef(initial.view);
+  const [placeState, setPlaceState] = useState<string | null>(initial.place);
   const { place, placed } = useMemo(() => {
     if (!places) return { place: null, placed: graph };
     const stored = placeState === null ? null : places.graph(graph, placeState);
@@ -192,6 +209,12 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   }, [places, graph, placeState]);
   const placeRef = useRef(place);
   placeRef.current = place;
+  // Every place change that is not already a navigation (the first mount, a graph that drops the place) rewrites the URL in place.
+  useEffect(() => {
+    if (!routeContext || place === null) return;
+    const route = parseRoute(new URL(location.href));
+    if (route?.kind === "session" && route.place !== place) replaceUrl(routeUrl({ kind: "session", sessionId: routeContext.sessionId, place }));
+  }, [routeContext, place]);
   useEffect(() => {
     if (place === placeState) return;
     if (placeState !== null) storedView.current = null;
@@ -239,7 +262,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const guideStepRef = useRef(guideStep);
   guideStepRef.current = guideStep;
   const guideByPlace = useRef(new Map<string, number | null>());
-  const savePlaceView = useRef(false);
+  const savePlaceView = useRef(routeContext !== null);
   const selectAfterLayout = useRef<string | null>(null);
   const opening = useRef(false);
   useEffect(() => {
@@ -261,10 +284,11 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       </g>;
     };
   }, []);
-  const [focusedRow, setFocusedRow] = useState<FocusedRow | null>(null);
+  const [focusedRow, setFocusedRow] = useState<FocusedRow | null>(initial.focusedRow);
   const focusedRowRef = useRef(focusedRow);
   focusedRowRef.current = focusedRow;
-  const focusCentered = useRef(false);
+  const labelRef = useRef("");
+  const focusCentered = useRef(initial.focusedRow !== null);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   useLayoutEffect(() => {
     const root = container.current;
@@ -487,7 +511,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
     if (autoFit.current) return;
     const { x, y, zoom } = rf.getViewport();
     saveViewState(state.session.id, { x, y, zoom, place, guideStep });
-    saveHistoryView({ x, y, zoom, place, guideStep, focusedRow });
+    saveHistoryView({ x, y, zoom, place, guideStep, focusedRow, label: labelRef.current });
   }, [place, guideStep, focusedRow, rf, state.session.id]);
 
   const quoteAt = (x: number, y: number) => {
@@ -671,25 +695,27 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const persistView = () => {
     const view = { ...rf.getViewport(), place: placeRef.current, guideStep: guideStepRef.current };
     saveViewState(state.session.id, view);
-    saveHistoryView({ ...view, focusedRow: focusedRowRef.current });
+    saveHistoryView({ ...view, focusedRow: focusedRowRef.current, label: labelRef.current });
   };
   const onMoveEnd = (_: unknown, vp: Viewport) => {
     if (autoFit.current) return;
     saveViewState(state.session.id, { ...vp, place, guideStep });
-    saveHistoryView({ ...vp, place, guideStep, focusedRow });
+    saveHistoryView({ ...vp, place, guideStep, focusedRow, label: labelRef.current });
   };
-  const historyView = (): HistoryView => ({ ...rf.getViewport(), place: placeRef.current, guideStep, focusedRow });
-  useViewHistory((view) => {
-    autoFit.current = false;
+  const historyView = (): HistoryView => ({ ...rf.getViewport(), place: placeRef.current, guideStep, focusedRow, label: labelRef.current });
+  useViewHistory(routeContext?.sessionId ?? null, (view, urlPlace) => {
     anchor.current = null;
-    if (view.place !== placeRef.current) {
-      placeRef.current = view.place;
-      setPlaceState(view.place);
+    storedView.current = null;
+    const target = view ? view.place : places ? urlPlace !== null && places.graph(graph, urlPlace) ? urlPlace : places.initial(graph) : null;
+    if (target !== placeRef.current) {
+      placeRef.current = target;
+      setPlaceState(target);
     }
-    setGuideStep(view.guideStep);
+    autoFit.current = view === null;
+    setGuideStep(view ? view.guideStep : target === null ? null : guideByPlace.current.get(target) ?? stepOfPlace(target));
     focusCentered.current = true;
-    setFocusedRow(view.focusedRow);
-    void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
+    setFocusedRow(view?.focusedRow ?? null);
+    if (view) void rf.setViewport({ x: view.x, y: view.y, zoom: view.zoom });
   });
 
   const stepOfPlace = (target: string) => {
@@ -700,7 +726,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   // centers and selects `center` in it.
   const goTo = (target: string, how: { guideStep?: number | null; center?: string; select?: boolean }, from: HistoryView = historyView()) => {
     if (placeRef.current !== null) guideByPlace.current.set(placeRef.current, guideStep);
-    pushJump(from);
+    pushJump(from, routeContext ? routeUrl({ kind: "session", sessionId: routeContext.sessionId, place: target }) : undefined);
     storedView.current = null;
     placeRef.current = target;
     setPlaceState(target);
@@ -750,6 +776,17 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
   const selectedId = nodes.find((n) => n.selected)?.id;
   const focusId = focusNodeId ?? selectedId;
   const focus = model.focusLabel && focusId ? model.focusLabel(placed, focusId, focusNodeId ? focusedRow : null) : null;
+  const title = useMemo(() => places ? [focus, ...crumbs.map((crumb) => crumb.label).reverse()].filter((part): part is string => !!part) : [], [places, focus, crumbs]);
+  const titleKey = JSON.stringify(title);
+  labelRef.current = title.length ? title.join(" · ") : state.session.title;
+  useEffect(() => {
+    if (!routeContext) return;
+    routeContext.setTitleParts(title);
+    return () => routeContext.setTitleParts([]);
+  }, [routeContext, titleKey]);
+  useEffect(() => {
+    if (routeContext && !autoFit.current) saveHistoryView(historyView());
+  }, [titleKey]);
   const centerFocus = () => {
     if (focusNodeId && focusedRow) {
       focusCentered.current = false;
@@ -813,7 +850,7 @@ function CanvasInner({ state, model, closed: sharedClosed, models = null, drafts
       >
         <Background />
         <Controls showInteractive={false} onZoomIn={() => { autoFit.current = false; }} onZoomOut={() => { autoFit.current = false; }} />
-        {(crumbs.length > 0 || focus) && <Panel position="top-left" className="place-panel"><IconButton className="place-up" data-testid="place-up" label="Up one level" disabled={!places || place === null || !places.up(graph, place)} onClick={() => ascend()}>↑</IconButton>{crumbs.length > 0 && <nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav>}{focus && <>{crumbs.length > 0 && <span className="sep" aria-hidden="true">›</span>}<button type="button" data-testid="focus-crumb" className="focus-crumb" title={focus} onClick={centerFocus}>{focus}</button></>}</Panel>}
+        {(crumbs.length > 0 || focus) && <Panel position="top-left" className="place-panel"><IconButton className="place-up" data-testid="place-up" label="Up one level" disabled={!places || place === null || !places.up(graph, place)} onClick={() => ascend()}>↑</IconButton>{routeContext && <RecentPlaces sessionId={routeContext.sessionId} />}{crumbs.length > 0 && <nav aria-label="Place" data-testid="place-crumbs" className="place-crumbs">{crumbs.map((crumb, index) => <Fragment key={crumb.place}>{index > 0 && <span className="sep" aria-hidden="true">›</span>}{index < crumbs.length - 1 ? <button type="button" onClick={() => ascend(crumb.place)}>{crumb.label}</button> : <span aria-current="page">{crumb.label}</span>}</Fragment>)}</nav>}{focus && <>{crumbs.length > 0 && <span className="sep" aria-hidden="true">›</span>}<button type="button" data-testid="focus-crumb" className="focus-crumb" title={focus} onClick={centerFocus}>{focus}</button></>}</Panel>}
         <Panel position="top-right">{model.layers && <span className="layers" role="group" aria-label="Show on canvas">{model.layers.list.map((layer) => <button key={layer.id} type="button" aria-pressed={!hiddenLayers.has(layer.id)} onClick={() => toggleLayer(layer.id)}>{layer.label}</button>)}</span>}{model.PanelExtras && <model.PanelExtras />}<button onClick={expandAll}>Expand all</button><button onClick={reset}>Reset layout</button></Panel>
       </ReactFlow>
       <MiniMap

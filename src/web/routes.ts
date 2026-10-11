@@ -1,13 +1,9 @@
-/** The Navigation API, absent where the browser does not expose it (it can be disabled); without it app links load the page. */
-export const nav: Navigation | undefined = (globalThis as { navigation?: Navigation }).navigation;
-
-/** Goes to an app URL: same-document with the Navigation API, else a page load. */
-export function navigateTo(url: string): void {
-  if (nav) nav.navigate(url);
-  else location.assign(url);
-}
+import { createContext } from "react";
 
 export type Route = { kind: "picker" } | { kind: "repo"; path: string } | { kind: "session"; sessionId: string; place: string | null } | { kind: "fixture" };
+
+/** What the live session view offers its canvas: the session the URL belongs to and the page title. */
+export const RouteContext = createContext<{ sessionId: string; setTitleParts(parts: string[]): void } | null>(null);
 
 /** Parses a browser URL as an app route, or returns null for paths owned elsewhere. */
 export function parseRoute(url: URL): Route | null {

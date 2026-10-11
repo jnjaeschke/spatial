@@ -285,10 +285,10 @@ test("ask for a structure diagram from a commit card", async ({ page, request })
   await expect(diagram.locator('.sequence-step[data-status="existing"]')).toHaveCount(1);
   const changedStep = diagram.locator('button.sequence-step[data-status="changed"]');
   await expect(changedStep).toHaveCount(1);
+  const sessionUrl = page.url();
   await changedStep.click();
   await expect(page.locator("tr.focus")).toHaveCount(1);
   await expect(page.locator('tr.focus[data-new="1"]')).toBeInViewport();
-  const sessionUrl = page.url();
   await page.goBack();
   expect(page.url()).toBe(sessionUrl);
   await expect(page.locator("tr.focus")).toHaveCount(0);

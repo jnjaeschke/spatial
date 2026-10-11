@@ -3,7 +3,7 @@ import type { DirectoryListing, RecentRepo } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { ErrorText, useAction } from "./action.tsx";
 import { Dialog } from "./Dialog.tsx";
-import { navigateTo, routeUrl } from "./routes.ts";
+import { routeUrl } from "./routes.ts";
 
 const RECENT_LIMIT = 6;
 
@@ -58,7 +58,7 @@ export function FolderPicker({ onClose }: { onClose: () => void }) {
       else if (event.key === "Enter" && (event.target === event.currentTarget || event.target.closest(".folder-entries"))) { event.preventDefault(); goSelected(); }
     }
   }
-  return <Dialog title="Open folder" onClose={onClose} className="folder-picker" footer={<><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!target} onClick={() => { if (target) navigateTo(routeUrl({ kind: "repo", path: target })); }}>Open</button></>}>
+  return <Dialog title="Open folder" onClose={onClose} className="folder-picker" footer={<><button type="button" onClick={onClose}>Cancel</button><button type="button" disabled={!target} onClick={() => { if (target) navigation.navigate(routeUrl({ kind: "repo", path: target })); }}>Open</button></>}>
     <div onKeyDown={keyDown}>
     {recents && recents.length > 0 && <nav aria-label="Recent folders" className="folder-recents"><h3>Recent</h3><ul>{recents.map((repo) => <li key={repo.worktree}>
       <a href={routeUrl({ kind: "repo", path: repo.worktree })}><b>{repo.name}</b> <code>{repo.worktree}</code></a>

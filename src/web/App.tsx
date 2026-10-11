@@ -8,7 +8,7 @@ import { SessionView } from "./SessionView.tsx";
 import { StartScreen } from "./StartScreen.tsx";
 import { ExportView } from "./ExportView.tsx";
 import { exported } from "./exported.ts";
-import { nav, parseRoute, type Route } from "./routes.ts";
+import { parseRoute, type Route } from "./routes.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
 
 export function App() {
@@ -19,7 +19,6 @@ export function App() {
 function LiveApp() {
   const [route, setRoute] = useState<Route | null>(() => parseRoute(new URL(location.href)));
   useEffect(() => {
-    if (!nav) return;
     const onNavigate = (event: NavigateEvent) => {
       if (!event.canIntercept || event.downloadRequest || event.hashChange) return;
       const next = parseRoute(new URL(event.destination.url));
@@ -28,8 +27,8 @@ function LiveApp() {
         setRoute((current) => current?.kind === "session" && next.kind === "session" && current.sessionId === next.sessionId ? current : next);
       } });
     };
-    nav.addEventListener("navigate", onNavigate);
-    return () => nav!.removeEventListener("navigate", onNavigate);
+    navigation.addEventListener("navigate", onNavigate);
+    return () => navigation.removeEventListener("navigate", onNavigate);
   }, []);
   if (route?.kind === "fixture") {
     const state = fixture as SessionState;

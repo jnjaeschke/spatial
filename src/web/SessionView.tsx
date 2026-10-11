@@ -18,7 +18,7 @@ import { openDecision } from "./decisions.ts";
 import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
 import { EpochStrip } from "./EpochStrip.tsx";
 import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
-import { routeUrl } from "./routes.ts";
+import { RouteContext, routeUrl } from "./routes.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -28,6 +28,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [viewed, setViewed] = useState<number | null>(null);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const models = useModels();
+  const [titleParts, setTitleParts] = useState<string[]>([]);
+  const route = useMemo(() => ({ sessionId, setTitleParts }), [sessionId]);
+  const title = state ? [...titleParts, state.session.title, "spatial"].join(" · ") : "spatial";
+  useEffect(() => { document.title = title; }, [title]);
   useEffect(() => {
     if (!state) return;
     const completed = new Set(state.artifacts.filter((a) => a.type === "ChatThread").map((a) => a.provenance.taskId));
@@ -62,7 +66,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       : view ? <view.Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
         : <p className="empty failed">No view for phase {phase}</p>;
   const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
-  return <div className="app">
+  return <RouteContext.Provider value={route}><div className="app">
     <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{decision && <DecisionControls key={decision.id} sessionId={sessionId} repoDir={state.session.repoDir} decision={decision} testId="topbar-decision" />}<span className="spacer" />{view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
@@ -72,5 +76,5 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}
-  </div>;
+  </div></RouteContext.Provider>;
 }

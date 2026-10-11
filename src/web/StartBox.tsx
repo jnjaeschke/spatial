@@ -8,7 +8,7 @@ import { readWriteMode, saveWriteMode, WRITE_MODES } from "./write-mode.ts";
 import { Composer } from "./Composer.tsx";
 import { COMPOSER_HINT } from "./composer-key.ts";
 import { ErrorText, useAction } from "./action.tsx";
-import { navigateTo, routeUrl } from "./routes.ts";
+import { routeUrl } from "./routes.ts";
 
 export function StartBox({ path, repoDir, models }: { path: string; repoDir: string; models: ModelsResponse }) {
   const [commands, setCommands] = useState<WorkflowInfo[]>([]);
@@ -28,7 +28,7 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
     void run(async () => {
       const result = await api.start(path, text, llm, { writeMode, ...(answer === undefined ? {} : { answer }) });
       if ("question" in result) { setQuestion(result); return; }
-      navigateTo(routeUrl({ kind: "session", sessionId: result.id, place: null }));
+      navigation.navigate(routeUrl({ kind: "session", sessionId: result.id, place: null }));
     });
   };
   return <form className="start-box" onSubmit={(e) => { e.preventDefault(); submit(); }}>
