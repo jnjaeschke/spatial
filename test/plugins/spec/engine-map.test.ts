@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { addSteps, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
+import { addSteps, carryOver, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
+import type { EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
 import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
 import type { CodeScope, GeckoSpecRef } from "../../../src/shared/types.ts";
@@ -102,4 +103,12 @@ test("Step comments of the algorithm inside a site's function become its steps, 
   assert.deepEqual(out[1], sites[1]);
   assert.deepEqual(analyzed, ["nsDocShell.cpp"]);
   assert.deepEqual(lookups, [8769, 8772, 8774, 8779], "navigate-fragid scopes are not looked up; 21.2 is in another function");
+});
+
+test("carried sites follow their quote, go stale without it, and yield to sites tier 1 finds", async () => {
+  const site = (path: string, line: number, quote: string, method: EngineSite["method"] = "llm"): EngineSite => ({ path, line, symbol: `_Z${quote.replace(/\W/g, "")}`, signature: quote, quote, method, refs: [], steps: [] });
+  const files: Record<string, string[]> = { "a.cpp": ["x", "void A() {", "}"], "b.cpp": ["", "", "", "void B() {"], "c.cpp": ["void Other() {"], "f.cpp": [] };
+  const previous = [{ ...site("a.cpp", 2, "void A() {"), stale: true as const }, site("b.cpp", 1, "void B() {", "user"), site("c.cpp", 1, "void C() {"), site("gone.cpp", 1, "void G() {"), site("s.cpp", 1, "void S() {", "spec-link"), site("f.cpp", 3, "void F() {")];
+  const carried = await carryOver(async (path) => files[path] ?? null, previous, [site("f.cpp", 9, "void F() {", "spec-link")]);
+  assert.deepEqual(carried, [site("a.cpp", 2, "void A() {"), site("b.cpp", 4, "void B() {", "user"), { ...site("c.cpp", 1, "void C() {"), stale: true }, { ...site("gone.cpp", 1, "void G() {"), stale: true }]);
 });

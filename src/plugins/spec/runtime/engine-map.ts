@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import type { CodeScope, CodeSearch, GeckoSpecRef, WebspecCapability } from "../../../plugin-api.ts";
 import type { EngineSite, EngineStep, EngineTest } from "../shared/types.ts";
-import { byPlace, fragmentOf, innermostFunction, isCodePath, linksAnchor, siteKey } from "../shared/engine.ts";
+import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodePath, linksAnchor, siteKey } from "../shared/engine.ts";
 
 /** Searchfox's default is 50; `#navigate` alone has 44 references in Gecko. */
 const REF_LIMIT = 500;
@@ -62,4 +62,18 @@ export async function addSteps(search: Pick<CodeSearch, "functionAt">, analyze: 
     }
   }
   return sites.map((site) => site.symbol ? { ...site, steps: steps.get(siteKey(site)) ?? [] } : site);
+}
+
+/** The LLM and user sites of a previous mapping at the current revision: kept while their quote is at their line, moved to the nearest line with it, or marked stale when it (or the file, `file` null) is gone. Sites tier 1 found again (`fresh`) are not carried. */
+export async function carryOver(file: (path: string) => Promise<string[] | null>, previous: EngineSite[], fresh: EngineSite[]): Promise<EngineSite[]> {
+  const found = new Set(fresh.map(siteKey));
+  const out: EngineSite[] = [];
+  for (const site of previous) {
+    if (fromLinks(site) || found.has(siteKey(site))) continue;
+    const lines = await file(site.path);
+    const line = lines ? followQuote(lines, site.line, site.quote) : null;
+    const { stale: _stale, ...rest } = site;
+    out.push(line === null ? { ...rest, stale: true } : { ...rest, line });
+  }
+  return out;
 }
