@@ -1,5 +1,5 @@
 import type {
-  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecSearchResult, SpecSection,
+  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecSearchResult, SpecSection,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -7,6 +7,8 @@ import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
 import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Step, type Workflow } from "./plugins.ts";
 import { KnowledgeStore, type Knowledge } from "./knowledge.ts";
+import { missingCodeSearch, type CodeSearch } from "./code-search.ts";
+import { searchfoxCodeSearch } from "./searchfox.ts";
 
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
@@ -78,6 +80,8 @@ export interface TaskContext {
   searchfox: SearchfoxCapability;
   /** The knowledge store, read-only: tasks return proposals, plugin runtime code writes them. */
   knowledge: Pick<Knowledge, "get" | "list">;
+  /** Read-only code search per engine. */
+  codeSearch: Record<Engine, CodeSearch>;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult>; readonly defaultSelection: LlmSelection };
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
@@ -148,6 +152,8 @@ export interface RuntimeOptions {
   git: (repo: string) => GitCapability;
   webspec: WebspecCapability;
   searchfox: SearchfoxCapability;
+  /** Code search per engine; Gecko defaults to `searchfox`, engines without a tool to a code search that fails every call. */
+  codeSearch?: Partial<Record<Engine, CodeSearch>>;
   /** Plugin data that outlives sessions; defaults to an in-memory store. */ knowledge?: Knowledge;
   sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
   /** Called once at task start to load repo MCP servers, skills, and instructions. Defaults to an empty context. */
@@ -166,6 +172,7 @@ export class Runtime {
   #git: (repo: string) => GitCapability;
   #webspec: WebspecCapability;
   #searchfox: SearchfoxCapability;
+  #codeSearch: Record<Engine, CodeSearch>;
   #knowledge: Knowledge;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
   #repoContext: (repo: string) => RepoContext;
@@ -186,6 +193,7 @@ export class Runtime {
     this.#git = opts.git;
     this.#webspec = opts.webspec;
     this.#searchfox = opts.searchfox;
+    this.#codeSearch = { gecko: searchfoxCodeSearch("gecko", opts.searchfox), blink: missingCodeSearch("blink"), webkit: missingCodeSearch("webkit"), ...opts.codeSearch };
     this.#knowledge = opts.knowledge ?? new KnowledgeStore(":memory:");
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
     this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: null }));
@@ -201,6 +209,11 @@ export class Runtime {
 
   get searchfox(): SearchfoxCapability {
     return this.#searchfox;
+  }
+
+  /** Read-only code search per engine, for server code outside tasks. */
+  get codeSearch(): Record<Engine, CodeSearch> {
+    return this.#codeSearch;
   }
 
   /** Plugin data that outlives sessions. */
@@ -250,6 +263,7 @@ export class Runtime {
         get: (scope, namespace, key) => this.#knowledge.get(scope, namespace, key),
         list: (scope, namespace, keyPrefix) => this.#knowledge.list(scope, namespace, keyPrefix),
       },
+      codeSearch: this.#codeSearch,
       llm: {
         run: async (prompt, selection) => {
           const r = await this.#llm.run(selection, prompt, controller.signal);

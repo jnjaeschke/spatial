@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { CodeScope, GeckoSpecRef } from "../shared/types.ts";
 import { runChecked } from "./process.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
+import type { CodeSearch } from "./code-search.ts";
 
 export function isGeckoRepo(repo: string): boolean {
   return existsSync(join(repo, "mach")) && existsSync(join(repo, "moz.build"));
@@ -71,5 +72,19 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
       }
       return tipResult;
     },
+  };
+}
+
+/** `CodeSearch` over a searchfox repository (searchfox indexes Gecko and WebKit); a missing file (`404 Not Found`) reads as null. */
+export function searchfoxCodeSearch(engine: "gecko" | "webkit", searchfox: SearchfoxCapability): CodeSearch {
+  return {
+    effect: "read-only", engine,
+    specRefs: (url, signal, limit) => searchfox.specRefs(url, signal, limit),
+    functionAt: (path, line, signal) => searchfox.functionAt(path, line, signal),
+    async file(path, signal) {
+      try { return await searchfox.file(path, signal); }
+      catch (error) { if (/404 Not Found/.test((error as Error).message)) return null; throw error; }
+    },
+    tip: () => searchfox.tip(),
   };
 }

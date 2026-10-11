@@ -8,6 +8,14 @@
 
 ## Properties
 
+### codeSearch?
+
+> `optional` **codeSearch?**: `Partial`\<`Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>\>
+
+Code search per engine; Gecko defaults to `searchfox`, engines without a tool to a code search that fails every call.
+
+***
+
 ### git
 
 > **git**: (`repo`) => [`GitCapability`](GitCapability.md)

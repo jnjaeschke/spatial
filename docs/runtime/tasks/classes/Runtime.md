@@ -36,6 +36,20 @@
 
 ## Accessors
 
+### codeSearch
+
+#### Get Signature
+
+> **get** **codeSearch**(): `Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
+
+Read-only code search per engine, for server code outside tasks.
+
+##### Returns
+
+`Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
+
+***
+
 ### knowledge
 
 #### Get Signature

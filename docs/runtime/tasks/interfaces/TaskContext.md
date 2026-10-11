@@ -140,6 +140,14 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ***
 
+### codeSearch
+
+> **codeSearch**: `Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
+
+Read-only code search per engine.
+
+***
+
 ### git
 
 > **git**: [`GitCapability`](GitCapability.md)
