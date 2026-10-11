@@ -1,5 +1,5 @@
-import type { CodeScope, Engine } from "../../../plugin-api.ts";
-import type { EngineMapping, EngineSite } from "./types.ts";
+import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
+import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */
 export const mappingKey = (engine: Engine, ref: string) => `impl|${engine}|${ref}`;
@@ -66,6 +66,15 @@ export function quoteProblem(text: string | null, ref: { path: string; line: num
   const actual = text.split("\n")[ref.line - 1];
   if (actual === undefined) return `${ref.path} has no line ${ref.line}`;
   return actual.includes(quote) ? null : `${ref.path}:${ref.line} does not read \`${ref.quote}\``;
+}
+
+/** The Step comments mapped to `step` across a mapping's sites; stale sites are left out. */
+export const mappedSteps = (mapping: EngineMapping, step: string) => mapping.sites.flatMap((site) => site.stale ? [] : site.steps.filter((mapped) => mapped.step === step).map((mapped) => ({ site, step: mapped as EngineStep })));
+
+/** Whether a mapping or an LLM search of the algorithm in `engine` is pending or running, from the session's tasks. */
+export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "input">[], algorithmId: string, engine: Engine): { mapping: boolean; searching: boolean } {
+  const running = (kind: string) => tasks.some((task) => task.kind === kind && (task.status === "pending" || task.status === "running") && (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
+  return { mapping: running("mapEngine"), searching: running("findImplementation") };
 }
 
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */

@@ -721,6 +721,14 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-algorithm-node .title { display: flex; align-items: baseline; gap: 8px; }
 .spec-algorithm-node .spec-title { color: var(--text-2); }
 .spec-summary { margin: 4px 12px 8px; padding: 6px 8px; border-left: 3px solid var(--kind-spec); }
+.spec-impl { padding: 2px 12px 4px; font-size: 0.85em; }
+.spec-impl-row { display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow-x: auto; }
+.spec-impl-label { font-weight: 600; color: var(--text-2); }
+.spec-impl-note, .spec-impl-group { color: var(--text-2); }
+.spec-site.method-llm { text-decoration: none; border-bottom: 1px dashed currentColor; }
+.spec-impl-test-list { margin: 4px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; }
+.spec-g-link { margin-left: 4px; padding: 0 3px; font-size: 0.75em; font-weight: 600; text-decoration: none; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.spec-g-link.mismatch { color: var(--danger); border-color: currentColor; }
 .spec-summary ol { margin: 4px 0; padding-left: 18px; }
 .spec-cites { color: var(--text-2); font-size: 0.85em; }
 .spec-no-summary { margin: 4px 12px; color: var(--text-2); font-size: 0.85em; }

@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow } from "../../../web/plugin-api.ts";
-import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import type { Engine, TaskRecord } from "../../../plugin-api.ts";
+import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import { latestTraces, traceSequence, type TraceRow } from "../shared/traces.ts";
 import { explorerGraph, explorerLayout, specNodeId } from "./graph.ts";
 import { ExplorerContext, ExplorerViewContext, type SpecFocus } from "./context.ts";
@@ -8,6 +9,9 @@ import { specClient } from "./client.ts";
 import { useActiveTrace, useTraceWriter } from "./trace-state.ts";
 import { TracePanel } from "./TracePanel.tsx";
 import type { SummaryView } from "../runtime/summaries.ts";
+
+/** The engines whose mappings the explorer shows. */
+const MAPPED_ENGINES: Engine[] = ["gecko"];
 
 function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderProps) {
   const view = useContext(ExplorerViewContext)!;
@@ -28,6 +32,8 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
     addToTrace: view.addToTrace,
     focus: view.focus,
     summaries: view.summaries,
+    mappings: view.mappings,
+    tasks: view.tasks,
     flag: view.flag,
   }), [view, readOnly]);
   useEffect(() => { if (view.focus && view.takeFocus(view.focus)) latest.current.reveal(specNodeId(view.focus.anchor), specNodeId(view.focus.anchor)); }, [view]);
@@ -47,6 +53,11 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const focusNonce = useRef(0);
   const focusTaken = useRef(0);
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
+  const [mappings, setMappings] = useState<Partial<Record<Engine, Record<string, EngineMapping | null>>>>({});
+  useEffect(() => { let cancelled = false; for (const engine of MAPPED_ENGINES) specClient.mappings(state.session.id, engine).then((byRef) => { if (!cancelled) setMappings((current) => ({ ...current, [engine]: byRef })); }, (error: Error) => console.error(error)); return () => { cancelled = true; }; }, [state.session.id, state.lastEventId]);
+  const engineTaskList = state.tasks.filter((task) => (task.kind === "mapEngine" || task.kind === "findImplementation") && (task.status === "pending" || task.status === "running"));
+  const engineTaskKey = engineTaskList.map((task) => `${task.id}:${task.status}`).join(",");
+  const engineTasks = useMemo(() => engineTaskList, [engineTaskKey]);
   const [summariesRefresh, setSummariesRefresh] = useState(0);
   useEffect(() => {
     let current = true;
@@ -73,7 +84,7 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   }), [closed.closed, active]);
   const flag = useCallback(async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummariesRefresh((n) => n + 1); }, [state.session.id]);
   const takeFocus = useCallback((taken: SpecFocus) => { if (focusTaken.current === taken.nonce) return false; focusTaken.current = taken.nonce; return true; }, []);
-  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, flag }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, flag]);
+  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: engineTasks, flag }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, engineTasks, flag]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
     <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={selectTrace} onClose={() => setPanel(false)} />}</div>

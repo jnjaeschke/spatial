@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { byPlace, codeUrl, engineMapping, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { byPlace, codeUrl, engineActivity, engineMapping, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");
@@ -86,4 +86,16 @@ test("mergeLatest keeps rejections, confirmations and proposals stored while a m
   const merged = mergeLatest(result, latest);
   assert.deepEqual(merged.sites.map((s) => [s.path, s.line, s.method]), [["a", 1, "spec-link"], ["b", 5, "user"], ["d", 20, "llm"]]);
   assert.deepEqual(merged.rejected.map((r) => r.path), ["c"]);
+});
+
+test("mappedSteps lists a step's comments across live sites; engineActivity reads one engine's tasks of an algorithm", () => {
+  const step = (s: string, line: number) => ({ step: s, line, verdict: "match" as const, detail: "" });
+  const site = (path: string, steps: ReturnType<typeof step>[], stale?: true) => ({ path, line: 1, symbol: `_Z${path}`, signature: "", quote: "", method: "spec-link" as const, refs: [1], steps, ...(stale ? { stale } : {}) });
+  const mapping: EngineMapping = { engine: "gecko", repoBase: "r/", rev: "x", tests: [], rejected: [], checkedAt: "", sites: [site("a", [step("1", 3), step("2", 5)]), site("b", [step("1", 9)]), site("c", [step("1", 4)], true)] };
+  assert.deepEqual(mappedSteps(mapping, "1").map(({ site, step }) => `${site.path}:${step.line}`), ["a:3", "b:9"]);
+  assert.deepEqual(mappedSteps(mapping, "7"), []);
+  const task = (kind: string, status: string, algorithmId: string, engine = "gecko") => ({ kind, status, input: { algorithmId, engine } }) as never;
+  const tasks = [task("mapEngine", "running", "A"), task("findImplementation", "succeeded", "A"), task("findImplementation", "pending", "B"), task("findImplementation", "running", "A", "blink")];
+  assert.deepEqual(engineActivity(tasks, "A", "gecko"), { mapping: true, searching: false });
+  assert.deepEqual(engineActivity(tasks, "A", "blink"), { mapping: false, searching: true });
 });

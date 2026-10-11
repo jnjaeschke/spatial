@@ -1,5 +1,7 @@
 import type { SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
+import type { EngineMapping } from "../shared/types.ts";
+import type { Engine } from "../../../plugin-api.ts";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -11,6 +13,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 /** HTTP calls of the spec explorer. */
 export const specClient = {
   summaries: (sessionId: string) => fetch(`/api/sessions/${sessionId}/spec/summaries`).then(async (res) => { if (!res.ok) throw new Error(`${res.status} ${res.statusText}`); return await res.json() as Record<string, SummaryView>; }),
+  mappings: (sessionId: string, engine: Engine) => fetch(`/api/sessions/${sessionId}/spec/mappings?engine=${engine}`).then(async (res) => { if (!res.ok) throw new Error(`${res.status} ${res.statusText}`); return await res.json() as Record<string, EngineMapping | null>; }),
   flagSummary: (sessionId: string, ref: string) => post<{ entryId: string }>(`/api/sessions/${sessionId}/spec/summaries/flag`, { ref }),
   open: (sessionId: string, anchor: string, from: SpecOpenedData["from"]) => post<{ openedId: string }>(`/api/sessions/${sessionId}/spec/open`, { anchor, from }),
   showEffectPath: (sessionId: string, ref: string, effectId: string) => post<{ opened: number }>(`/api/sessions/${sessionId}/spec/effect-path`, { ref, effectId }),

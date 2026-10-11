@@ -80,3 +80,16 @@ test("a review chat proposes an exploration; Explore opens the explorer and Back
   await expect(page.locator(".canvas")).toHaveAttribute("data-place", place!);
   await expect(page.getByTestId("change-c1").locator(".inline-item.kind-chat")).toBeVisible();
 });
+
+test("an algorithm box shows where Gecko implements it, with step links and tests", async ({ page }) => {
+  const navigate = await exploreNavigate(page);
+  const rev = "0f".repeat(20);
+  const strip = navigate.getByTestId("spec-impl");
+  await expect(strip.getByRole("link", { name: "Fake::Navigate" })).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/dom/fake/Fake.cpp#4`, { timeout: 15_000 });
+  await expect(navigate.locator('li[data-step="1"]').getByTestId("spec-g-link").first()).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/dom/fake/Fake.cpp#5`);
+  const mismatch = navigate.locator('li[data-step="2"]').getByTestId("spec-g-link").first();
+  await expect(mismatch).toHaveClass(/mismatch/);
+  await expect(mismatch).toHaveAttribute("title", "webspec-index: mismatch. The comment says: “Add the files.”");
+  await strip.getByRole("button", { name: "1 test" }).click();
+  await expect(navigate.getByRole("link", { name: "testing/web-platform/tests/fake/navigate.html:2" })).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/testing/web-platform/tests/fake/navigate.html#2`);
+});
