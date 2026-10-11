@@ -29,3 +29,32 @@ test("explore HTML#navigate from the start screen: a link opens a box with an ed
   await navigate.getByRole("button", { name: "Reopen 1 closed box" }).click();
   await expect(target).toBeVisible();
 });
+
+test("steps go into a trace, export as markdown, and show as a sequence diagram", async ({ page }) => {
+  const navigate = await exploreNavigate(page);
+  const add = async (box: ReturnType<Page["getByTestId"]>, step: string, count: number) => {
+    await box.locator(`li[data-step="${step}"]`).first().hover();
+    await box.getByRole("button", { name: `Add step ${step} to trace` }).click();
+    await expect(page.getByTestId("traces-toggle")).toHaveText(`Traces · ${count}`);
+  };
+  await add(navigate, "2", 1);
+  await navigate.locator('li[data-step="2"]').getByTestId("spec-link").first().click();
+  const target = page.getByTestId("spec-box-HTML#snapshotting-source-snapshot-params");
+  await expect(target).toBeVisible();
+  await add(target, "1", 2);
+  await page.getByRole("button", { name: "Fit view" }).click();
+  await add(navigate, "3", 3);
+  await expect(page.locator(".react-flow__edge.trace-hop")).toHaveCount(2);
+  await page.getByTestId("traces-toggle").click();
+  const panel = page.getByTestId("trace-panel");
+  await expect(panel.getByTestId(/^trace-entry-/)).toHaveCount(3);
+  await panel.getByRole("button", { name: "Export" }).click();
+  await expect(page.getByTestId("trace-export").getByLabel("Trace markdown")).toHaveValue("[navigate step 2](https://html.spec.whatwg.org/#navigate)\n→ [snapshotting-source-snapshot-params step 1](https://html.spec.whatwg.org/#snapshotting-source-snapshot-params)\n→ [navigate step 3](https://html.spec.whatwg.org/#navigate)");
+  await page.getByTestId("trace-export").getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Trace sequence" }).click();
+  const sequence = page.getByTestId("trace-sequence");
+  await expect(sequence.locator('.sequence-step[data-kind="call"]')).toHaveCount(1);
+  await expect(sequence.locator('.sequence-step[data-kind="return"]')).toHaveCount(1);
+  await sequence.locator('.sequence-step[data-kind="return"]').click();
+  await expect(page.getByTestId("spec-box-HTML#navigate").locator('li[data-step="3"]')).toHaveClass(/step-focus/);
+});
