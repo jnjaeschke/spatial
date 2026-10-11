@@ -5,7 +5,7 @@ import { parseSteps } from "../../spec/web/api.ts";
 import { latestNarrative } from "./graph.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 import { ErrorText, useAction } from "../../../web/plugin-api.ts";
-import { SpecMarkdown } from "./SpecMarkdown.tsx";
+import { SpecMarkdown } from "../../spec/web/api.ts";
 
 export interface SpecStepSelection { ranges: LineRange[]; kind: string | null }
 export const SpecStepContext = createContext<SpecStepSelection | null>(null);

@@ -9,7 +9,7 @@ import { commentId } from "./CommentDetails.tsx";
 import { FindingBody } from "./FindingDetails.tsx";
 import { PhabBody } from "./PhabDetails.tsx";
 import { UserCommentBox } from "./UserCommentBox.tsx";
-import { SpecLinkContext, SpecMarkdown } from "./SpecMarkdown.tsx";
+import { SpecLinkContext, SpecMarkdown } from "../../spec/web/api.ts";
 
 type Kind = "chat" | "comment" | "finding" | "phab" | "spec";
 
@@ -71,6 +71,6 @@ export function PhabItem({ thread }: { thread: PhabThreadData }) {
 export function SpecItem({ specId, title, text }: { specId: string; title: string; text: string }) {
   const details = useContext(DetailsContext);
   const links = useContext(SpecLinkContext);
-  const specLinks = links && { follow: async (ref: string) => { details?.open({ kind: "spec", specId }); await links.follow(ref); } };
+  const specLinks = links && { follow: async (ref: string, _step: string | null) => { details?.open({ kind: "spec", specId }); await links.follow(ref, null); } };
   return <SpecLinkContext.Provider value={specLinks}><InlineItem kind="spec" id={specId} who="Spec" text={`${title} — ${plainText(text)}`} testId={`spec-chip-${specId}`} body={<div className="spec-section-text"><SpecMarkdown text={text} /></div>} onOpenPanel={() => details?.open({ kind: "spec", specId })} /></SpecLinkContext.Provider>;
 }

@@ -16,7 +16,7 @@ import { PhabDetails, findPhabThread } from "./PhabDetails.tsx";
 import { SymbolDetails, findSymbol } from "./SymbolDetails.tsx";
 import { InlineStatesContext, useInlineStates } from "./inline-state.ts";
 import { SymbolMarkContext, useSymbolCard } from "./SymbolCard.tsx";
-import { SpecLinkContext } from "./SpecMarkdown.tsx";
+import { SpecLinkContext } from "../../spec/web/api.ts";
 
 export function ReviewView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   const [details, setDetails] = useState<DetailsState>(closeDetails);

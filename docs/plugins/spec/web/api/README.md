@@ -6,6 +6,14 @@
 
 # plugins/spec/web/api
 
+## Variables
+
+- [SpecLinkContext](variables/SpecLinkContext.md)
+
+## Functions
+
+- [SpecMarkdown](functions/SpecMarkdown.md)
+
 ## References
 
 ### LineRange
