@@ -971,7 +971,7 @@ test("spec ref lookup reuses existing sections and caches newly linked sections"
   const routeStore = new Store(":memory:");
   const routeWebspec: WebspecCapability = {
     effect: "read-only", async analyze() { return []; },
-    async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
+    async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async idl() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
     async resolve(ref) { const anchor = ref.split("#").at(-1)!; return { found: true, spec: { spec: "HTML", anchor, title: anchor, type: "section", url: `https://html.spec.whatwg.org/#${anchor}`, content: "Section." } }; },
   };
   const routeRuntime = new Runtime({ store: routeStore, plugins: [{ id: "route-test", tasks: [lookupSpecRef] }], llm, git: () => ({}) as never, webspec: routeWebspec, searchfox: {} as SearchfoxCapability });

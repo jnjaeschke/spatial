@@ -8,7 +8,7 @@ import { lookupSpec, resolveSpecReference } from "../../../src/plugins/spec/runt
 
 const spec: ResolvedSpec = { spec: "HTML", anchor: "a", title: "T", type: "dfn", url: "https://html.spec/#a", content: "c" };
 const env = (resolve: WebspecCapability["resolve"], repo = "/nonexistent", specRefs: SearchfoxCapability["specRefs"] = async () => []) =>
-  ({ webspec: { effect: "read-only", resolve, analyze: async () => [], query: async () => { throw new Error("not used"); }, search: async () => { throw new Error("not used"); }, refs: async () => { throw new Error("not used"); }, effectPaths: async () => { throw new Error("not used"); } } as WebspecCapability, searchfox: { effect: "read-only", specRefs, tip: async () => ({ repoBase: "", rev: "" }) } as SearchfoxCapability, repo, signal: new AbortController().signal });
+  ({ webspec: { effect: "read-only", resolve, analyze: async () => [], query: async () => { throw new Error("not used"); }, search: async () => { throw new Error("not used"); }, refs: async () => { throw new Error("not used"); }, idl: async () => { throw new Error("not used"); }, effectPaths: async () => { throw new Error("not used"); } } as WebspecCapability, searchfox: { effect: "read-only", specRefs, tip: async () => ({ repoBase: "", rev: "" }) } as SearchfoxCapability, repo, signal: new AbortController().signal });
 
 test("a found spec is a verified-style reference without Searchfox lookups outside Gecko", async () => {
   const data = await resolveSpecReference(env(async () => ({ found: true, spec })), "https://html.spec/#a", "llm");

@@ -511,6 +511,12 @@ Re-exports [SpecHop](../../shared/types/interfaces/SpecHop.md)
 
 ***
 
+### SpecIdlMember
+
+Re-exports [SpecIdlMember](../../shared/types/interfaces/SpecIdlMember.md)
+
+***
+
 ### SpecSearchResult
 
 Re-exports [SpecSearchResult](../../shared/types/interfaces/SpecSearchResult.md)

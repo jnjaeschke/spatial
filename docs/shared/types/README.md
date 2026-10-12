@@ -54,6 +54,7 @@
 - [SpecEffectPaths](interfaces/SpecEffectPaths.md)
 - [SpecEffectsStatus](interfaces/SpecEffectsStatus.md)
 - [SpecHop](interfaces/SpecHop.md)
+- [SpecIdlMember](interfaces/SpecIdlMember.md)
 - [SpecSearchResult](interfaces/SpecSearchResult.md)
 - [SpecSection](interfaces/SpecSection.md)
 - [SpecSite](interfaces/SpecSite.md)

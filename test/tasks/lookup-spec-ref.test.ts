@@ -8,7 +8,7 @@ import { lookupSpecRef } from "../../src/plugins/review/tasks/lookup-spec-ref/ta
 
 function setup(found: boolean) {
   const store = new Store(":memory:");
-  const webspec: WebspecCapability = { effect: "read-only", async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); }, async analyze() { return []; }, async resolve() { return found
+  const webspec: WebspecCapability = { effect: "read-only", async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async idl() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); }, async analyze() { return []; }, async resolve() { return found
     ? { found: true, spec: { spec: "HTML", anchor: "setup", title: "The setup", type: "section", url: "https://html.spec.whatwg.org/#setup", content: "A setup." } }
     : { found: false, reason: "no such section" };
   } };

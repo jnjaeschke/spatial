@@ -66,6 +66,28 @@ The effects of `ref` with their witness paths: of one effect, or of all of them 
 
 ***
 
+### idl()
+
+> **idl**(`query`, `signal`): `Promise`\<[`SpecIdlMember`](../../../shared/types/interfaces/SpecIdlMember.md)[]\>
+
+IDL members matching a query, `SPEC#anchor` or URL (`webspec-index idl`); empty when the section is no IDL member.
+
+#### Parameters
+
+##### query
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<[`SpecIdlMember`](../../../shared/types/interfaces/SpecIdlMember.md)[]\>
+
+***
+
 ### query()
 
 > **query**(`ref`, `signal`): `Promise`\<\{ `found`: `true`; `section`: [`SpecSection`](../../../shared/types/interfaces/SpecSection.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>

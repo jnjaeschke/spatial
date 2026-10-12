@@ -1,5 +1,5 @@
 import type {
-  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecSearchResult, SpecSection,
+  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -22,6 +22,8 @@ export interface WebspecCapability {
   search(phrase: string, signal: AbortSignal): Promise<SpecSearchResult[]>;
   /** Sections whose steps link `ref` (`incoming`) and that `ref`'s steps link (`outgoing`), as `SPEC#anchor` refs without repeats (`webspec-index refs <ref> --kind step`). */
   refs(ref: string, signal: AbortSignal): Promise<{ incoming: string[]; outgoing: string[] }>;
+  /** IDL members matching a query, `SPEC#anchor` or URL (`webspec-index idl`); empty when the section is no IDL member. */
+  idl(query: string, signal: AbortSignal): Promise<SpecIdlMember[]>;
   /** The effects of `ref` with their witness paths: of one effect, or of all of them when `effectId` is null. */
   effectPaths(ref: string, effectId: string | null, signal: AbortSignal): Promise<SpecEffectPaths>;
   /** Step comments of a source file checked against the spec algorithms it links (`webspec-index analyze`, as its LSP does). `name` is the file's base name. */

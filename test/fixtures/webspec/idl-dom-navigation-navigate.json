@@ -1,0 +1,14 @@
+{
+  "query": "HTML#dom-navigation-navigate",
+  "matches": [
+    {
+      "spec": "HTML",
+      "anchor": "dom-navigation-navigate",
+      "kind": "method",
+      "name": "navigate(url, options)",
+      "owner": "Navigation",
+      "canonical_name": "Navigation.navigate",
+      "title": "navigate(url, options)"
+    }
+  ]
+}

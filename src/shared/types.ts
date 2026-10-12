@@ -118,6 +118,8 @@ export interface SpecEffectsStatus { state: string; semantics: string; coverage?
 export interface SpecSection { spec: string; anchor: string; title: string; type: string; url: string; content: string; outgoingRefs: number; effects: SpecEffect[]; effectsStatus: SpecEffectsStatus; sha: string }
 /** A specification section matching a search phrase. */
 export interface SpecSearchResult { spec: string; anchor: string; title: string; type: string; snippet: string }
+/** An IDL member as webspec-index knows it. */
+export interface SpecIdlMember { spec: string; anchor: string; kind: string; name: string; owner: string; canonicalName: string }
 /** One hop in an effect witness path. */
 export interface SpecHop { from: SpecSite; to: SpecSite; site: SpecSite }
 /** Effects and their witness paths. */

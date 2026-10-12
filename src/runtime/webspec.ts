@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSite, SpecSearchResult } from "../shared/types.ts";
+import type { ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecIdlMember, SpecSite, SpecSearchResult } from "../shared/types.ts";
 import { runChecked, runProcess } from "./process.ts";
 import type { StepCommentCheck, WebspecCapability } from "./tasks.ts";
 
@@ -44,6 +44,10 @@ export function makeWebspec(opts: { bin?: string } = {}): WebspecCapability {
       const match = (JSON.parse(stdout) as { matches: { incoming?: { spec: string; anchor: string }[]; outgoing?: { spec: string; anchor: string }[] }[] }).matches[0];
       const refsOf = (sites: { spec: string; anchor: string }[] = []) => [...new Set(sites.map((site) => `${site.spec}#${site.anchor}`))];
       return { incoming: refsOf(match?.incoming), outgoing: refsOf(match?.outgoing) };
+    },
+    async idl(query, signal) {
+      const { stdout } = await runChecked(bin, ["idl", "--format", "json", "--", query], { stdin: "", signal, label: "webspec-index idl" });
+      return (JSON.parse(stdout) as { matches: { spec: string; anchor: string; kind: string; name: string; owner: string; canonical_name: string }[] }).matches.map(({ spec, anchor, kind, name, owner, canonical_name }) => ({ spec, anchor, kind, name, owner, canonicalName: canonical_name }));
     },
     async effectPaths(ref, effectId, signal) {
       const { stdout } = await runChecked(bin, ["effects", ...(effectId ? ["--effect-id", effectId] : []), "--", ref], { stdin: "", signal, label: "webspec-index effects" });

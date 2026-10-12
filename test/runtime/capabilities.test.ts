@@ -163,6 +163,13 @@ test("webspec: refs lists linked sections both ways without repeats", async () =
   assert.deepEqual(argv()[0], ["refs", "--kind", "step", "--", "HTML#navigate"]);
 });
 
+test("webspec: idl maps members; a section that is no IDL member has none", async () => {
+  stdout(readFileSync(new URL("../fixtures/webspec/idl-dom-navigation-navigate.json", import.meta.url), "utf8"));
+  assert.deepEqual(await makeWebspec({ bin: STUB }).idl("HTML#dom-navigation-navigate", signal), [{ spec: "HTML", anchor: "dom-navigation-navigate", kind: "method", name: "navigate(url, options)", owner: "Navigation", canonicalName: "Navigation.navigate" }]);
+  assert.deepEqual(argv()[0], ["idl", "--format", "json", "--", "HTML#dom-navigation-navigate"]);
+  assert.deepEqual(await makeWebspec({ bin: FAKE }).idl("HTML#navigate", signal), []);
+});
+
 test("webspec: effectPaths reduces witness hops to their sites", async () => {
   stdout(NAVIGATE_EFFECTS);
   const paths = await makeWebspec({ bin: STUB }).effectPaths("HTML#navigate", "ef_e6c5f8c3e2980985", signal);
