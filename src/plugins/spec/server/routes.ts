@@ -49,12 +49,12 @@ function parseFrom(value: unknown): SpecOpenedData["from"] {
 function parseTrace(value: unknown): SpecTraceData {
   const trace = value as Partial<SpecTraceData> | null | undefined;
   if (typeof trace !== "object" || trace === null || !isString(trace.traceId) || !trace.traceId || !isString(trace.title) || !Array.isArray(trace.entries)
-    || !trace.entries.every((entry) => typeof entry === "object" && entry !== null && isString(entry.anchor) && isString(entry.step) && isString(entry.note) && (entry.hop === undefined || HOPS.has(entry.hop as string)))) throw new HttpError(400, "trace must be { traceId, title, entries: { anchor, step, note, hop? }[] }");
+    || !trace.entries.every((entry) => typeof entry === "object" && entry !== null && isString(entry.anchor) && isString(entry.step) && isString(entry.note) && (entry.hop === undefined || HOPS.has(entry.hop as string)) && (entry.code === undefined || Array.isArray(entry.code) && entry.code.every((ref) => typeof ref === "object" && ref !== null && ["gecko", "blink", "webkit"].includes(ref.engine as string) && isString(ref.path) && Number.isInteger(ref.line) && (ref.line as number) >= 1 && isString(ref.quote))))) throw new HttpError(400, "trace must be { traceId, title, entries: { anchor, step, note, hop?, code? }[] }");
   if (trace.question !== undefined) {
     const q = trace.question as { mode?: unknown; text?: unknown } | null;
     if (typeof q !== "object" || q === null || !isMode(q.mode) || !isString(q.text)) throw new HttpError(400, "trace.question must be { mode, text }");
   }
-  return { traceId: trace.traceId, title: trace.title, entries: trace.entries.map(({ anchor, step, note, hop }) => ({ anchor, step, note, ...(hop ? { hop } : {}) })), ...(trace.question ? { question: { mode: trace.question.mode, text: trace.question.text } } : {}) };
+  return { traceId: trace.traceId, title: trace.title, entries: trace.entries.map(({ anchor, step, note, hop, code }) => ({ anchor, step, note, ...(hop ? { hop } : {}), ...(code ? { code } : {}) })), ...(trace.question ? { question: { mode: trace.question.mode, text: trace.question.text } } : {}) };
 }
 
 const isOpen = (rt: Runtime, sessionId: string, anchor: string) => rt.store.listArtifacts(sessionId, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === anchor);

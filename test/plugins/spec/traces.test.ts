@@ -47,7 +47,7 @@ test("traceSequence draws generated hops: async rows, next as self", () => {
 
 let n = 0;
 const artifact = <T>(type: string, data: T, taskId = "user") => ({ id: `a${++n}`, sessionId: "s", type, status: "verified", data, provenance: { taskId }, epoch: 1, createdAt: "" }) as Artifact<T>;
-const check = (traceArtifactId: string, extra: Partial<SpecTraceCheckData> = {}): SpecTraceCheckData => ({ traceId: "t", traceArtifactId, verdict: null, hops: [], notes: [], ...extra });
+const check = (traceArtifactId: string, extra: Partial<SpecTraceCheckData> = {}): SpecTraceCheckData => ({ traceId: "t", traceArtifactId, verdict: null, hops: [], notes: [], code: [], droppedCode: [], ...extra });
 
 test("traceStatus: a check of the latest version is current, a user edit after it makes it outdated", () => {
   const generated = artifact<SpecTraceData>("SpecTrace", { traceId: "t", title: "T", question: { mode: "claim", text: "q" }, entries: [hopEntry("A#a", "1", "start")] }, "task-1");
@@ -64,6 +64,7 @@ test("verdictLine counts steps, unverified hops and unsupported notes; a scenari
   const hops = [ok, ok, bad, ok, ok, ok, ok, ok, ok];
   assert.equal(verdictLine(check("a", { verdict: { answer: "fails", reasoning: "r" }, hops, notes: hops.map(() => null) })), "fails · 9 steps, 1 unverified hop, 0 unsupported notes");
   assert.equal(verdictLine(check("a", { hops: [ok], notes: [{ supported: false, reason: "no" }] })), "1 step, 0 unverified hops, 1 unsupported note");
+  assert.equal(verdictLine(check("a", { droppedCode: [{ entry: 0, ref: 0, reason: "gone" }] })).endsWith(", 1 code reference dropped"), true);
 });
 
 test("isSpecRef accepts SPEC#anchor refs only", () => {

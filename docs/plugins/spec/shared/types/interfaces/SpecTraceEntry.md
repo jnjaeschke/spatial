@@ -14,6 +14,12 @@
 
 ***
 
+### code?
+
+> `optional` **code?**: [`TraceCodeRef`](../type-aliases/TraceCodeRef.md)[]
+
+***
+
 ### hop?
 
 > `optional` **hop?**: `"start"` \| `"return"` \| `"call"` \| `"next"` \| `"async"`

@@ -822,6 +822,7 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .box > .title > .open { margin-left: 8px; font-size: 0.8em; font-weight: 500; }
 .react-flow__panel.top.right { max-width: 50%; display: flex; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 .layers { display: inline-flex; margin-right: 8px; }
+.trace-code-links { display: inline-flex; gap: 4px; margin-right: 4px; }
 .layers button { border-radius: 0; margin-left: -1px; color: var(--text-3); text-decoration: line-through; }
 .layers button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .layers button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }

@@ -8,6 +8,7 @@ import { EffectBadges } from "./EffectBadges.tsx";
 import { ClauseText, SummaryBlock } from "./SummaryBlock.tsx";
 import { GeckoStrip, GeckoStepLinks } from "./GeckoStrip.tsx";
 import { engineActivity } from "../shared/engine.ts";
+import { TraceCodeLinks } from "./TraceCodeLinks.tsx";
 
 export type AlgorithmFlowNode = Node<Record<string, unknown> & AlgorithmNodeData, "spec-algorithm">;
 const ORDERED_LIST = /^\s*\d+\. /m;
@@ -23,7 +24,7 @@ export function AlgorithmNode({ id, data }: NodeProps<AlgorithmFlowNode>) {
   const mapping = explorer?.mappings.gecko?.[algorithm.ref];
   const geckoActions = useMemo(() => explorer && !explorer.readOnly ? { find: (stale: string | null) => explorer.findInGecko(algorithm.ref, stale), decide: (key: string, decision: "confirm" | "reject") => explorer.decideGecko(algorithm.ref, key, decision) } : null, [explorer, algorithm.ref]);
   const links = useMemo(() => explorer && !explorer.readOnly ? { follow: (target: string, step: string | null) => explorer.open(target, { anchor: algorithm.ref, step: step ?? "" }) } : null, [explorer, algorithm.ref]);
-  const stepExtras = useCallback((step: string) => <><GeckoStepLinks mapping={mapping} step={step} />{explorer && !explorer.readOnly && <AddToTrace onAdd={() => explorer.addToTrace(algorithm.ref, step)} step={step} />}<EffectBadges algorithm={algorithm} step={step} onShowPath={explorer && !explorer.readOnly ? (effectId) => explorer.showPath(algorithm.ref, effectId) : null} /></>, [algorithm, explorer, mapping]);
+  const stepExtras = useCallback((step: string) => <><GeckoStepLinks mapping={mapping} step={step} /><TraceCodeLinks refs={explorer?.traceCode.get(`${algorithm.ref}|${step}`) ?? []} />{explorer && !explorer.readOnly && <AddToTrace onAdd={() => explorer.addToTrace(algorithm.ref, step)} step={step} />}<EffectBadges algorithm={algorithm} step={step} onShowPath={explorer && !explorer.readOnly ? (effectId) => explorer.showPath(algorithm.ref, effectId) : null} /></>, [algorithm, explorer, mapping]);
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => { const root = container.current; if (!root) return; root.querySelector("li.step-focus")?.classList.remove("step-focus"); if (explorer?.focus?.anchor === algorithm.ref) root.querySelector(`li[data-step="${CSS.escape(explorer.focus.step)}"]`)?.classList.add("step-focus"); }, [explorer?.focus, algorithm.ref, algorithm.content]);
   useEffect(() => { const root = container.current; if (!root) return; root.querySelectorAll("li.step-highlight").forEach((li) => li.classList.remove("step-highlight")); for (const step of highlighted) root.querySelector(`li[data-step="${CSS.escape(step)}"]`)?.classList.add("step-highlight"); }, [highlighted]);

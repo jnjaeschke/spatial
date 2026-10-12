@@ -34,6 +34,7 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
     focus: view.focus,
     summaries: view.summaries,
     mappings: view.mappings,
+    traceCode: view.traceCode,
     tasks: view.tasks,
     flag: view.flag,
     findInGecko: view.findInGecko,
@@ -52,6 +53,11 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const active = traces.find((trace) => trace.traceId === activeId) ?? null;
   const status = useMemo(() => activeId ? traceStatus(state.artifacts, activeId) : null, [state.artifacts, activeId]);
   const current = currentCheck(status);
+  const traceCode = useMemo(() => {
+    const byStep = new Map<string, { engine: Engine; path: string; line: number; quote: string; url: string }[]>();
+    if (current && active) for (const { entry, ref, url } of current.code) { const item = active.entries[entry], code = item?.code?.[ref]; if (item && code) byStep.set(`${item.anchor}|${item.step}`, [...(byStep.get(`${item.anchor}|${item.step}`) ?? []), { ...code, url }]); }
+    return byStep;
+  }, [current, active]);
   const unverified = useMemo(() => new Map(current ? current.hops.flatMap((hop, index) => hop.ok ? [] : [[index, hop.reason] as const]) : []), [current]);
   const [mode, setMode] = useState<"map" | "sequence">("map");
   const [panel, setPanel] = useTracePanel(state.session.id);
@@ -98,7 +104,7 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const takeFocus = useCallback((taken: SpecFocus) => { if (focusTaken.current === taken.nonce) return false; focusTaken.current = taken.nonce; return true; }, []);
   const findInGecko = useCallback(async (ref: string, stale: string | null) => { await specClient.findImplementation(state.session.id, ref, "gecko", stale); }, [state.session.id]);
   const decideGecko = useCallback(async (ref: string, key: string, decision: "confirm" | "reject") => { await specClient.decideImplementation(state.session.id, ref, "gecko", key, decision); }, [state.session.id]);
-  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: stableEngineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, stableEngineTasks, flag, findInGecko, decideGecko]);
+  const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, traceCode, tasks: stableEngineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, traceCode, stableEngineTasks, flag, findInGecko, decideGecko]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
     <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} check={current} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={select} onClose={() => setPanel(false)} sessionId={state.session.id} activeId={activeId} status={status} tasks={state.tasks} openRefs={openRefs} />}</div>

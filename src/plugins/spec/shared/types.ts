@@ -15,17 +15,18 @@ export type TraceHop = typeof TRACE_HOPS[number];
 export interface TraceQuestion { mode: "claim" | "scenario"; text: string }
 /** The tracer's answer to a claim (LLM interpretation; shown only with its trace and counts). */
 export interface TraceVerdict { answer: "holds" | "fails" | "unclear"; reasoning: string }
-export interface SpecTraceEntry { anchor: string; step: string; note: string; /** Set on generated traces. */ hop?: TraceHop }
+export type TraceCodeRef = CodeCitation & { engine: Engine };
+export interface SpecTraceEntry { anchor: string; step: string; note: string; /** Set on generated traces. */ hop?: TraceHop; /** Set on generated traces: code lines the tracer cites for this step, verbatim. */ code?: TraceCodeRef[] }
 /** Data of a `SpecTrace` artifact (user); the latest artifact per `traceId` is the trace. */
 export interface SpecTraceData { traceId: string; title: string; entries: SpecTraceEntry[]; /** Set on generated traces and the user versions that supersede them. */ question?: TraceQuestion; /** Set on generated traces: the tracer's answer to a claim, null for a scenario. */ verdict?: TraceVerdict | null }
 /** The structured reply of task `traceSpec`. */
-export interface GeneratedTrace { title: string; entries: { anchor: string; step: string; note: string; hop: TraceHop }[]; verdict: TraceVerdict | null }
+export interface GeneratedTrace { title: string; entries: { anchor: string; step: string; note: string; hop: TraceHop; code: TraceCodeRef[] }[]; verdict: TraceVerdict | null }
 /** A deterministic hop check; `reason` is empty when it passes. */
 export interface HopResult { ok: boolean; reason: string }
 /** The adversarial verdict on one note. */
 export interface NoteResult { supported: boolean; reason: string }
 /** Data of a `SpecTraceCheck` artifact: the checks of one `SpecTrace` version (`traceArtifactId`), index-aligned with its entries (`notes` null for an empty note), and the verdict of the generation the trace belongs to. */
-export interface SpecTraceCheckData { traceId: string; traceArtifactId: string; verdict: TraceVerdict | null; hops: HopResult[]; notes: (NoteResult | null)[] }
+export interface SpecTraceCheckData { traceId: string; traceArtifactId: string; verdict: TraceVerdict | null; hops: HopResult[]; notes: (NoteResult | null)[]; code: { entry: number; ref: number; url: string }[]; droppedCode: { entry: number; ref: number; reason: string }[] }
 /** Data of a `SpecExploreRequest` artifact: sections a chat reply proposed to explore. */
 export interface SpecExploreRequestData { anchors: string[]; /** A claim or scenario to trace once the boxes are open. */ question: TraceQuestion | null }
 /** Data of a `SummaryRejected` artifact: the summary of `anchor` at `sha` failed a check in this session. */

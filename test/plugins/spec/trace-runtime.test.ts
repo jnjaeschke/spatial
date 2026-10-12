@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import type { WebspecCapability } from "../../../src/runtime/tasks.ts";
 import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { fakeCode } from "../../helpers/fake-code.ts";
+import type { CodeSearch } from "../../../src/runtime/code-search.ts";
 import { generateTrace } from "../../../src/plugins/spec/runtime/traces.ts";
 import { traceStatus } from "../../../src/plugins/spec/shared/traces.ts";
 import type { GeneratedTrace, NoteResult, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../../../src/plugins/spec/shared/types.ts";
@@ -10,14 +12,16 @@ import { specRuntime } from "../../helpers/spec-runtime.ts";
 
 const fake = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 const TRACE: GeneratedTrace = { title: "Snapshot before origin", entries: [
-  { anchor: "HTML#navigate", step: "2", note: "Snapshots the source params.", hop: "start" },
-  { anchor: "HTML#snapshotting-source-snapshot-params", step: "1", note: "Edits the line.", hop: "call" },
-  { anchor: "HTML#navigate", step: "3", note: "Creates the opaque origin.", hop: "return" },
-  { anchor: "HTML#setup", step: "1", note: "", hop: "call" },
+  { anchor: "HTML#navigate", step: "2", note: "Snapshots the source params.", hop: "start", code: [{ engine: "gecko", path: "a.cc", line: 3, quote: "if (!doc) return;" }, { engine: "gecko", path: "a.cc", line: 2, quote: "nope" }] },
+  { anchor: "HTML#snapshotting-source-snapshot-params", step: "1", note: "Edits the line.", hop: "call", code: [] },
+  { anchor: "HTML#navigate", step: "3", note: "Creates the opaque origin.", hop: "return", code: [] },
+  { anchor: "HTML#setup", step: "1", note: "", hop: "call", code: [] },
 ], verdict: { answer: "fails", reasoning: "Step 3 runs after step 2." } };
+const FILE = "int a;\nvoid Navigate() {\n  if (!doc) return;\n}";
+const CODE = fakeCode({ "a.cc": FILE }, [], { engine: "gecko", repoBase: "https://sf/" }).code;
 
-function setup(notes: NoteResult[] | (() => NoteResult[]), webspec: WebspecCapability = fake) {
-  const { rt, session, prompts } = specRuntime({ webspec, reply: (prompt) => prompt.system!.startsWith("You trace web spec algorithms") ? TRACE : prompt.system!.startsWith("You check notes on a trace") ? { notes: (typeof notes === "function" ? notes() : notes).slice(0, (prompt.prompt.match(/^## Note /gm) ?? []).length) } : { clauses: [] } });
+function setup(notes: NoteResult[] | (() => NoteResult[]), webspec: WebspecCapability = fake, gecko: CodeSearch = CODE) {
+  const { rt, session, prompts } = specRuntime({ webspec, codeSearch: { gecko }, reply: (prompt) => prompt.system!.startsWith("You trace web spec algorithms") ? TRACE : prompt.system!.startsWith("You check notes on a trace") ? { notes: (typeof notes === "function" ? notes() : notes).slice(0, (prompt.prompt.match(/^## Note /gm) ?? []).length) } : { clauses: [] } });
   rt.store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "explore", params: { query: "HTML#navigate" }, title: "t", prompt: "HTML#navigate" } });
   const artifacts = () => [...rt.store.listArtifacts(session.id, "SpecTrace"), ...rt.store.listArtifacts(session.id, "SpecTraceCheck")];
   const check = (traceId: string, traceArtifactId: string) => rt.run<{ checkId: string }>(session.id, "checkTrace", { traceId, traceArtifactId }).then(({ checkId }) => rt.store.getArtifact<SpecTraceCheckData>(checkId).data);
@@ -29,9 +33,13 @@ test("generateTrace stores the LLM trace verbatim, checks it, verifies its notes
   const { rt, session, prompts, artifacts } = setup([supported, supported, supported]);
   await generateTrace(rt, session.id, { traceId: "T1", mode: "claim", question: "Is the snapshot first?", anchors: [], contextTraceId: null });
   const status = traceStatus(artifacts(), "T1")!;
-  assert.deepEqual(status.trace.data.entries, TRACE.entries);
-  assert.equal(status.trace.status, "proposed");
   const check = status.check!.data;
+  assert.deepEqual(status.trace.data.entries, TRACE.entries);
+  assert.deepEqual(check.code, [{ entry: 0, ref: 0, url: "https://sf/rev/r1/a.cc#3" }]);
+  assert.deepEqual(check.droppedCode, [{ entry: 0, ref: 1, reason: "a.cc:2 does not read `nope`" }]);
+  assert.match(prompts.find((p) => p.system!.startsWith("You check notes on a trace"))!.prompt, /gecko a\.cc:3: if \(!doc\) return;/);
+  assert.doesNotMatch(prompts.find((p) => p.system!.startsWith("You check notes on a trace"))!.prompt, /nope/);
+  assert.equal(status.trace.status, "proposed");
   assert.deepEqual(check.hops.map((hop) => hop.ok ? "" : hop.reason), ["", "", "", "HTML#navigate step 3 does not link HTML#setup"]);
   assert.deepEqual(check.notes, [supported, supported, supported, null]);
   assert.deepEqual(check.verdict, TRACE.verdict);
@@ -45,6 +53,17 @@ test("generateTrace stores the LLM trace verbatim, checks it, verifies its notes
     { anchor: "HTML#snapshotting-source-snapshot-params", from: { anchor: "HTML#navigate", step: "2" } },
     { anchor: "HTML#setup", from: { anchor: "HTML#navigate", step: "3" } },
   ]);
+});
+
+test("a re-check verifies the code references again", async () => {
+  const files = { "a.cc": FILE };
+  const { rt, session, artifacts, check: run } = setup([supported, supported, supported], fake, fakeCode(files, [], { engine: "gecko", repoBase: "https://sf/" }).code);
+  await generateTrace(rt, session.id, { traceId: "T1", mode: "claim", question: "q", anchors: [], contextTraceId: null });
+  files["a.cc"] = `int b;\n${FILE}`;
+  const status = traceStatus(artifacts(), "T1")!;
+  const checked = await run("T1", status.trace.id);
+  assert.deepEqual(checked.code, []);
+  assert.deepEqual(checked.droppedCode[0], { entry: 0, ref: 0, reason: "a.cc:3 does not read `if (!doc) return;`" });
 });
 
 test("checkTrace on a user version: the old check is outdated until the re-check, which keeps the generated verdict and opens nothing", async () => {

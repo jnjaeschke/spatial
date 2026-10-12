@@ -117,10 +117,13 @@ test("ask validates the question and context; trace check and open need a known 
 test("user trace versions keep entry hops and the question; a bad hop is rejected", async () => {
   const { rt, session, routes } = setup();
   await openSpec(rt, session.id, "HTML#navigate", null);
-  const trace = { traceId: "g1", title: "Generated", question: { mode: "scenario", text: "A click" }, entries: [{ anchor: "HTML#navigate", step: "2", note: "edited", hop: "start" }] };
+  const trace = { traceId: "g1", title: "Generated", question: { mode: "scenario", text: "A click" }, entries: [{ anchor: "HTML#navigate", step: "2", note: "edited", hop: "start", code: [{ engine: "gecko", path: "a.cc", line: 3, quote: "return;" }] }] };
   const r = await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace });
   assert.equal(r.status, 201);
   assert.deepEqual(rt.store.getArtifact(r.body.artifactId).data, trace);
+  for (const code of [[{ engine: "gecko", path: "a.cc", line: 0, quote: "x" }], [{ engine: "unknown", path: "a.cc", line: 1, quote: "x" }], [{ engine: "gecko", path: "a.cc", line: 1.5, quote: "x" }]]) {
+    assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace: { ...trace, entries: [{ ...trace.entries[0]!, code }] } })).status, 400);
+  }
   for (const bad of [{ ...trace, entries: [{ ...trace.entries[0], hop: "jump" }] }, { ...trace, question: { mode: "x", text: "y" } }]) assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace: bad })).status, 400);
 });
 

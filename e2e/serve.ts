@@ -135,10 +135,10 @@ const implementRoutes = { "You interpret reviewer comments": reviewerInterpretOu
 const specSummaryOut = stubOut("spec-summary", { clauses: [{ text: "Starts with the first step.", steps: ["1"] }] });
 const specVerifyOut = stubOut("spec-verify", { clauses: [{ supported: true, reason: "Step 1 says so." }] });
 const specTraceOut = stubOut("spec-trace", { title: "Source snapshot before the origin snapshot", entries: [
-  { anchor: "HTML#navigate", step: "2", note: "Takes the source snapshot params.", hop: "start" },
-  { anchor: "HTML#snapshotting-source-snapshot-params", step: "1", note: "Edits the line.", hop: "call" },
-  { anchor: "HTML#navigate", step: "3", note: "Creates the opaque origin snapshot.", hop: "return" },
-  { anchor: "HTML#setup", step: "1", note: "Runs the setup.", hop: "call" },
+  { anchor: "HTML#navigate", step: "2", note: "Takes the source snapshot params.", hop: "start", code: [] },
+  { anchor: "HTML#snapshotting-source-snapshot-params", step: "1", note: "Edits the line.", hop: "call", code: [] },
+  { anchor: "HTML#navigate", step: "3", note: "Creates the opaque origin snapshot.", hop: "return", code: [] },
+  { anchor: "HTML#setup", step: "1", note: "Runs the setup.", hop: "call", code: [] },
 ], verdict: { answer: "fails", reasoning: "The origin snapshot is created at step 3, after step 2." } });
 const specTraceNotesOut = stubOut("spec-trace-notes", { notes: Array.from({ length: 4 }, () => ({ supported: true, reason: "The step says so." })) });
 const specExploreChatOut = stubOut("spec-explore-chat", { answer: "Read the navigate algorithm.", questions: [], revisions: [], requestMcpServers: [], diagram: null, specExplore: { anchors: ["HTML#navigate"], question: null } });

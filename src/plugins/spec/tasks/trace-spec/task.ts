@@ -10,10 +10,12 @@ Use the spec tools of the spatial MCP server: spec_query reads an algorithm's st
 
 Each entry has a hop saying how the walk reached it from the previous entry: "start" for the first entry only; "call" follows a link in the previous step; "return" goes back to an algorithm earlier on the path, at or after the step that made the call; "next" is a later step of the same algorithm; "async" is a task, microtask or event the previous step schedules. Steps are dotted paths ("4.2"); anchors are SPEC#anchor refs.
 
+When the spec text alone cannot answer (what an engine checks before a step, what it does when a value is null), use spec_impl for the stored engine mapping of an algorithm, then code_search and code_read. spec_impl gives lines at the current revision, as code_read numbers them. For each entry, cite the code implementing that step as { engine, path, line, quote } with the quote copied exactly from code_read; cite nothing you did not read. Leave code empty when you did not look.
+
 For a claim, give a verdict: "holds", "fails", or "unclear" when the steps do not decide it, with your reasoning. For a scenario, the verdict is null.`;
 const SCHEMA: JsonSchema = { type: "object", additionalProperties: false, required: ["title", "entries", "verdict"], properties: {
   title: { type: "string" },
-  entries: { type: "array", items: { type: "object", additionalProperties: false, required: ["anchor", "step", "note", "hop"], properties: { anchor: { type: "string" }, step: { type: "string" }, note: { type: "string" }, hop: { type: "string", enum: [...TRACE_HOPS] } } } },
+  entries: { type: "array", items: { type: "object", additionalProperties: false, required: ["anchor", "step", "note", "hop", "code"], properties: { anchor: { type: "string" }, step: { type: "string" }, note: { type: "string" }, hop: { type: "string", enum: [...TRACE_HOPS] }, code: { type: "array", items: { type: "object", additionalProperties: false, required: ["engine", "path", "line", "quote"], properties: { engine: { type: "string", enum: ["gecko", "blink", "webkit"] }, path: { type: "string" }, line: { type: "integer" }, quote: { type: "string" } } } } } } },
   verdict: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["answer", "reasoning"], properties: { answer: { type: "string", enum: ["holds", "fails", "unclear"] }, reasoning: { type: "string" } } }] },
 } };
 
@@ -25,6 +27,7 @@ function traceErrors(trace: GeneratedTrace, mode: TraceQuestion["mode"]): string
     if (index > 0 && entry.hop === "start") errors.push(`Entry ${index + 1}: only the first entry has hop "start"`);
     if (!isSpecRef(entry.anchor)) errors.push(`Entry ${index + 1}: anchor must be a SPEC#anchor ref, got ${JSON.stringify(entry.anchor)}`);
     if (!/^\d+(\.\d+)*$/.test(entry.step)) errors.push(`Entry ${index + 1}: step must be a dotted step path like "4.2", got ${JSON.stringify(entry.step)}`);
+    entry.code.forEach((ref, i) => { if (ref.line < 1) errors.push(`Entry ${index + 1}, code ${i + 1}: line must be at least 1`); });
   });
   if (mode === "claim" && trace.verdict === null) errors.push("A claim needs a verdict");
   if (mode === "scenario" && trace.verdict !== null) errors.push("A scenario has no verdict; use null");
@@ -46,7 +49,7 @@ export const traceSpec = defineTask<{ traceId: string; mode: TraceQuestion["mode
       ...(context ? ["", "# Active trace", "", fence([context.title, "", ...context.entries.map((entry, index) => `${index + 1}. ${entry.anchor} step ${entry.step}${entry.note.trim() ? `: ${entry.note.trim().replace(/\s+/g, " ")}` : ""}`)].join("\n"))] : []),
     ].join("\n");
     const { json, result } = await runStructured<GeneratedTrace>(ctx.llm, { prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp }, label: "Trace", repairs: 1, validate: (reply) => traceErrors(reply as GeneratedTrace, mode) });
-    const data: SpecTraceData = { traceId, title: json.title, question: { mode, text: question }, entries: json.entries.map(({ anchor, step, note, hop }) => ({ anchor, step, note, hop })), verdict: json.verdict };
+    const data: SpecTraceData = { traceId, title: json.title, question: { mode, text: question }, entries: json.entries.map(({ anchor, step, note, hop, code }) => ({ anchor, step, note, hop, code })), verdict: json.verdict };
     return { traceArtifactId: ctx.artifacts.put("SpecTrace", "proposed", data, result.selection).id };
   },
 });

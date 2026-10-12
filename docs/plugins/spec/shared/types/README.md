@@ -43,6 +43,7 @@
 - [ComparisonView](type-aliases/ComparisonView.md)
 - [DifferenceKind](type-aliases/DifferenceKind.md)
 - [StepLinkKind](type-aliases/StepLinkKind.md)
+- [TraceCodeRef](type-aliases/TraceCodeRef.md)
 - [TraceHop](type-aliases/TraceHop.md)
 - [UnmappedReason](type-aliases/UnmappedReason.md)
 

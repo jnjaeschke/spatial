@@ -65,6 +65,6 @@ const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : 
 
 /** `fails · 9 steps, 1 unverified hop, 0 unsupported notes`; without the answer for a scenario. Counts are of the checked version. */
 export function verdictLine(check: SpecTraceCheckData): string {
-  const counts = [count(check.hops.length, "step", "steps"), count(check.hops.filter((hop: HopResult) => !hop.ok).length, "unverified hop", "unverified hops"), count(check.notes.filter((note) => note !== null && !note.supported).length, "unsupported note", "unsupported notes")].join(", ");
+  const counts = [count(check.hops.length, "step", "steps"), count(check.hops.filter((hop: HopResult) => !hop.ok).length, "unverified hop", "unverified hops"), count(check.notes.filter((note) => note !== null && !note.supported).length, "unsupported note", "unsupported notes")].join(", ") + (check.droppedCode.length ? `, ${count(check.droppedCode.length, "code reference dropped", "code references dropped")}` : "");
   return check.verdict ? `${check.verdict.answer} · ${counts}` : counts;
 }

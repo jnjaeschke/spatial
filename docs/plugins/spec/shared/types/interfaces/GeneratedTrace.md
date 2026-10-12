@@ -18,6 +18,10 @@ The structured reply of task `traceSpec`.
 
 > **anchor**: `string`
 
+#### code
+
+> **code**: [`TraceCodeRef`](../type-aliases/TraceCodeRef.md)[]
+
 #### hop
 
 > **hop**: `"start"` \| `"return"` \| `"call"` \| `"next"` \| `"async"`

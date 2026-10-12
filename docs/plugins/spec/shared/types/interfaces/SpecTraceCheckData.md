@@ -10,6 +10,42 @@ Data of a `SpecTraceCheck` artifact: the checks of one `SpecTrace` version (`tra
 
 ## Properties
 
+### code
+
+> **code**: `object`[]
+
+#### entry
+
+> **entry**: `number`
+
+#### ref
+
+> **ref**: `number`
+
+#### url
+
+> **url**: `string`
+
+***
+
+### droppedCode
+
+> **droppedCode**: `object`[]
+
+#### entry
+
+> **entry**: `number`
+
+#### reason
+
+> **reason**: `string`
+
+#### ref
+
+> **ref**: `number`
+
+***
+
 ### hops
 
 > **hops**: [`HopResult`](HopResult.md)[]
