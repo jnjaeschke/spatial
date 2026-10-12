@@ -9,7 +9,7 @@ import { corePlugin } from "../runtime/create.ts";
 import { plugins } from "../plugins/index.ts";
 import { Store } from "../runtime/store.ts";
 import { readRepoSkill } from "../runtime/repo-context.ts";
-import { MAX_TOOL_OUTPUT, scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
+import { MAX_TOOL_OUTPUT, scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmRangeDiff, scmShow, scmStatus } from "../runtime/git.ts";
 import { capOutput } from "../runtime/process.ts";
 import { makeWebspec } from "../runtime/webspec.ts";
 import type { WebspecCapability } from "../runtime/tasks.ts";
@@ -53,6 +53,7 @@ function registerRepoTools(server: McpServer, repoRoot: string): void {
   server.registerTool("scm_merge_base", { description: "Find the common ancestor of two revisions", inputSchema: { a: z.string(), b: z.string() }, annotations }, async ({ a, b }) => answerAsync(() => scmMergeBase(repoRoot, a, b)));
   server.registerTool("scm_show", { description: "Show commit metadata and changed-file summary", inputSchema: { rev: z.string() }, annotations }, async ({ rev }) => answerAsync(() => scmShow(repoRoot, rev)));
   server.registerTool("scm_diff", { description: "Show the patch for a commit", inputSchema: { rev: z.string(), path: z.string().optional() }, annotations }, async ({ rev, path }) => answerAsync(() => scmDiff(repoRoot, rev, path)));
+  server.registerTool("scm_range_diff", { description: "Show the patch between two revisions (a..b as git diff a b), optionally of one path", inputSchema: { a: z.string(), b: z.string(), path: z.string().optional() }, annotations }, async ({ a, b, path }) => answerAsync(() => scmRangeDiff(repoRoot, a, b, path)));
   server.registerTool("scm_file", { description: "Read numbered lines from a file at a revision", inputSchema: { rev: z.string(), path: z.string(), start: z.number().int().min(1).optional(), end: z.number().int().min(1).optional() }, annotations }, async ({ rev, path, start, end }) => answerAsync(() => scmFile(repoRoot, rev, path, start, end)));
 }
 

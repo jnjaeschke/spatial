@@ -41,7 +41,7 @@ test("session MCP exposes live read-only overview, get, and search", async () =>
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["code_read", "code_search", "get", "read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview", "spec_effects", "spec_flow", "spec_impl", "spec_query", "spec_refs", "spec_state"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["code_read", "code_search", "get", "read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_range_diff", "scm_show", "scm_status", "search", "session_overview", "spec_effects", "spec_flow", "spec_impl", "spec_query", "spec_refs", "spec_state"]);
   assert.ok(tools.every((tool) => tool.annotations?.readOnlyHint === true));
   const got = await client.callTool({ name: "get", arguments: { ref: `${narrative.id}#c1` } });
   assert.match(text(got), /Useful explanation/);
@@ -74,7 +74,7 @@ test("the repo MCP server exposes the repo tools only and answers for its reposi
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status"]);
+    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_range_diff", "scm_show", "scm_status"]);
     assert.match(text(await client.callTool({ name: "scm_log", arguments: { range: "HEAD", limit: 1 } })), /only commit/);
     await client.close();
     await server.close();
@@ -109,6 +109,15 @@ test("session MCP exposes bounded read-only SCM tools for its worktree", async (
     assert.match(text(shown), /second commit/);
     const patch = await client.callTool({ name: "scm_diff", arguments: { rev: second } });
     assert.match(text(patch), /two/);
+    const range = await client.callTool({ name: "scm_range_diff", arguments: { a: first, b: second } });
+    assert.match(text(range), /^diff --git a\/a\.txt b\/a\.txt/m);
+    assert.match(text(range), /^-one$/m);
+    assert.match(text(range), /^\+two$/m);
+    assert.match(text(range), /many\.txt/);
+    const rangePath = await client.callTool({ name: "scm_range_diff", arguments: { a: first, b: second, path: "a.txt" } });
+    assert.doesNotMatch(text(rangePath), /many\.txt/);
+    assert.equal((await client.callTool({ name: "scm_range_diff", arguments: { a: "--output=x", b: second } })).isError, true);
+    assert.equal((await client.callTool({ name: "scm_range_diff", arguments: { a: first, b: second, path: "../a.txt" } })).isError, true);
     const file = await client.callTool({ name: "scm_file", arguments: { rev: second, path: "a.txt", start: 1, end: 1 } });
     assert.equal(text(file), "1: two");
     const bounded = await client.callTool({ name: "scm_file", arguments: { rev: second, path: "many.txt" } });

@@ -109,6 +109,15 @@ export async function scmDiff(repo: string, rev: string, path?: string): Promise
   return kept < lines.length ? `${text}\n[diff truncated at a whole line]` : text;
 }
 
+export async function scmRangeDiff(repo: string, a: string, b: string, path?: string): Promise<string> {
+  safeRevision(a, "revision"); safeRevision(b, "revision");
+  const args = ["diff", "--no-color", "--no-ext-diff", "-M", "-U5", "--end-of-options", a, b];
+  if (path !== undefined) args.push("--", safeRepoPath(path));
+  const lines = (await git(repo, args)).trimEnd().split("\n");
+  const { text, kept } = capWholeLines(lines);
+  return kept < lines.length ? `${text}\n[diff truncated at a whole line]` : text || "No differences.";
+}
+
 export async function scmFile(repo: string, rev: string, path: string, start = 1, end?: number): Promise<string> {
   safeRevision(rev, "revision");
   safeRepoPath(path);
