@@ -113,3 +113,51 @@ test("an unknown repo view says so", async ({ page }) => {
   await page.goto(`http://127.0.0.1:4178/repo/nope?path=${encodeURIComponent(dir)}`);
   await expect(page.getByTestId("repo-view-page")).toContainText("No repository view");
 });
+
+test("selecting a commit shows its message, files and diff; n steps through changes", async ({ page }) => {
+  const { dir, feature } = makeRepo();
+  await page.goto(graphUrl(dir));
+  await rows(page).filter({ hasText: "feature two" }).click();
+  const panel = page.getByTestId("commit-panel");
+  await expect(panel).toContainText("feature two");
+  await expect(panel).toContainText(feature.slice(0, 12));
+  await expect(panel.getByRole("button", { name: "f.txt" })).toBeVisible();
+  const diff = panel.getByTestId("file-diff-f.txt");
+  await expect(diff.locator("tr.add")).toHaveText(/two/);
+  await panel.getByTestId("commit-panel-body").press("n");
+  await expect(diff.locator("tr.add.focus")).toHaveCount(1);
+  await panel.getByRole("button", { name: "Close commit" }).click();
+  await expect(page).not.toHaveURL(/commit=/);
+});
+
+test("a merge diffs against its first parent, a root commit has no Review action, and a deep selection survives reload", async ({ page }) => {
+  const { dir, root, merge } = makeRepo();
+  await page.goto(graphUrl(dir, `&commit=${merge}`));
+  const panel = page.getByTestId("commit-panel");
+  await expect(panel).toContainText("merge feature");
+  await expect(panel.getByRole("button", { name: "f.txt" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Review this" })).toBeVisible();
+  await page.goto(graphUrl(dir, `&commit=${root}`));
+  await expect(panel).toContainText("root commit");
+  await expect(panel.getByRole("button", { name: "a.txt" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Review this" })).toHaveCount(0);
+});
+
+test("ctrl+click compares two commits from the older to the newer", async ({ page }) => {
+  const { dir, merge } = makeRepo();
+  await page.goto(graphUrl(dir));
+  await rows(page).filter({ hasText: "filler 250" }).click();
+  await rows(page).first().click({ modifiers: ["Control"] });
+  await expect(page).toHaveURL(new RegExp(`compare=${merge}`));
+  const panel = page.getByTestId("commit-panel");
+  await expect(panel).toContainText("Compare");
+  await expect(panel.getByRole("button", { name: "f.txt" })).toBeVisible();
+  await expect(panel.getByTestId("file-diff-f.txt").locator("tr.add")).toHaveCount(2);
+});
+
+test("Review this starts a review session for the commit", async ({ page }) => {
+  const { dir, feature } = makeRepo();
+  await page.goto(graphUrl(dir, `&commit=${feature}`));
+  await page.getByTestId("commit-panel").getByRole("button", { name: "Review this" }).click();
+  await expect(page).toHaveURL(/\/sessions\//);
+});
