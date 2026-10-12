@@ -67,15 +67,16 @@ test("refs lists heads, remotes, peeled tags, HEAD and worktree checkouts", asyn
   r.git("branch", "-q", "--set-upstream-to=origin/main", "main");
   const other = join(realpathSync(mkdtempSync(join(tmpdir(), "wt-"))), "linked");
   r.git("worktree", "add", "-q", other, "feature/x");
+  const date = (sha: string) => r.git("show", "--no-patch", "--format=%cI", sha);
   const rows = await refs(r.dir);
   const byName = new Map(rows.map((row) => [`${row.kind}:${row.name}`, row]));
-  assert.deepEqual(byName.get("head:main"), { name: "main", kind: "head", sha: rename, upstream: "origin/main", worktree: realpathSync(r.dir) });
-  assert.deepEqual(byName.get("head:feature/x"), { name: "feature/x", kind: "head", sha: side, worktree: other });
-  assert.deepEqual(byName.get("remote:origin/main"), { name: "origin/main", kind: "remote", sha: main2 });
+  assert.deepEqual(byName.get("head:main"), { name: "main", kind: "head", sha: rename, date: date(rename), upstream: "origin/main", worktree: realpathSync(r.dir) });
+  assert.deepEqual(byName.get("head:feature/x"), { name: "feature/x", kind: "head", sha: side, date: date(side), worktree: other });
+  assert.deepEqual(byName.get("remote:origin/main"), { name: "origin/main", kind: "remote", sha: main2, date: date(main2) });
   assert.equal(byName.has("remote:origin/HEAD"), false);
-  assert.deepEqual(byName.get("tag:v1"), { name: "v1", kind: "tag", sha: main2 });
-  assert.deepEqual(byName.get("HEAD:HEAD"), { name: "HEAD", kind: "HEAD", sha: rename });
-  assert.deepEqual((await refs(other)).find((row) => row.kind === "HEAD"), { name: "HEAD", kind: "HEAD", sha: side });
+  assert.deepEqual(byName.get("tag:v1"), { name: "v1", kind: "tag", sha: main2, date: date(main2) });
+  assert.deepEqual(byName.get("HEAD:HEAD"), { name: "HEAD", kind: "HEAD", sha: rename, date: date(rename) });
+  assert.deepEqual((await refs(other)).find((row) => row.kind === "HEAD"), { name: "HEAD", kind: "HEAD", sha: side, date: date(side) });
 });
 
 // REQUIRES_REAL_GIT

@@ -33,10 +33,10 @@ export async function logPage(repo: string, scope: LogScope, skip: number, limit
   return logRows(await runGit(repo, args));
 }
 
-/** Local branches, remote branches (without `<remote>/HEAD`), tags peeled to their commit, and this work tree's HEAD. */
+/** Local branches, remote branches (without `<remote>/HEAD`), tags peeled to their commit, and this work tree's HEAD, each with its commit's committer date. */
 export async function refs(repo: string): Promise<RefRow[]> {
   const [out, worktrees] = await Promise.all([
-    runGit(repo, ["for-each-ref", "--format=%(refname)%00%(objectname)%00%(*objectname)%00%(upstream:short)", "refs/heads", "refs/remotes", "refs/tags"]),
+    runGit(repo, ["for-each-ref", "--format=%(refname)%00%(objectname)%00%(*objectname)%00%(upstream:short)%00%(committerdate:iso-strict)%00%(*committerdate:iso-strict)", "refs/heads", "refs/remotes", "refs/tags"]),
     runGit(repo, ["worktree", "list", "--porcelain"]),
   ]);
   const checkedOut = new Map<string, string>();
@@ -47,17 +47,21 @@ export async function refs(repo: string): Promise<RefRow[]> {
   }
   const rows: RefRow[] = [];
   for (const line of out.split("\n").filter(Boolean)) {
-    const [refname, object, peeled, upstream] = line.split("\0") as [string, string, string, string];
+    const [refname, object, peeled, upstream, ownDate, peeledDate] = line.split("\0") as [string, string, string, string, string, string];
     const sha = peeled || object;
+    const date = peeledDate || ownDate;
     if (refname.startsWith("refs/heads/")) {
       const name = refname.slice("refs/heads/".length);
       const worktree = checkedOut.get(name);
-      rows.push({ name, kind: "head", sha, ...(upstream ? { upstream } : {}), ...(worktree ? { worktree } : {}) });
+      rows.push({ name, kind: "head", sha, date, ...(upstream ? { upstream } : {}), ...(worktree ? { worktree } : {}) });
     } else if (refname.startsWith("refs/remotes/")) {
-      if (!refname.endsWith("/HEAD")) rows.push({ name: refname.slice("refs/remotes/".length), kind: "remote", sha });
-    } else rows.push({ name: refname.slice("refs/tags/".length), kind: "tag", sha });
+      if (!refname.endsWith("/HEAD")) rows.push({ name: refname.slice("refs/remotes/".length), kind: "remote", sha, date });
+    } else rows.push({ name: refname.slice("refs/tags/".length), kind: "tag", sha, date });
   }
-  try { rows.push({ name: "HEAD", kind: "HEAD", sha: (await runGit(repo, ["rev-parse", "--verify", "--quiet", "HEAD"])).trim() }); }
+  try {
+    const [sha, date] = (await runGit(repo, ["show", "--no-patch", "--format=%H%x00%cI", "HEAD"])).trim().split("\0") as [string, string];
+    rows.push({ name: "HEAD", kind: "HEAD", sha, date });
+  }
   catch { /* An empty repository has no HEAD commit. */ }
   return rows;
 }

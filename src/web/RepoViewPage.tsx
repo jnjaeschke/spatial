@@ -18,6 +18,6 @@ export function RepoViewPage({ path, view, views }: { path: string; view: string
   useEffect(() => { document.title = `${found?.label ?? view} · ${repo?.name ?? "spatial"}`; }, [found, view, repo]);
   return <div className="repo-view-page" data-testid="repo-view-page">
     <header><h2>{repo ? <a href={routeUrl({ kind: "repo", path: repo.worktree })}>{repo.name}</a> : "Repository"} · {found?.label ?? view}</h2><ThemeToggle /></header>
-    {error ? <p className="failed">{error}</p> : !found ? <p className="failed">No repository view “{view}”.</p> : repo ? <found.Body worktree={repo.worktree} repoDir={repo.repoDir} name={repo.name} /> : <p className="empty">Loading…</p>}
+    <div className="repo-view-body">{error ? <p className="failed">{error}</p> : !found ? <p className="failed">No repository view “{view}”.</p> : repo ? <found.Body worktree={repo.worktree} repoDir={repo.repoDir} name={repo.name} /> : <p className="empty">Loading…</p>}</div>
   </div>;
 }

@@ -8,7 +8,7 @@
 
 > **refs**(`repo`): `Promise`\<[`RefRow`](../../../shared/types/interfaces/RefRow.md)[]\>
 
-Local branches, remote branches (without `<remote>/HEAD`), tags peeled to their commit, and this work tree's HEAD.
+Local branches, remote branches (without `<remote>/HEAD`), tags peeled to their commit, and this work tree's HEAD, each with its commit's committer date.
 
 ## Parameters
 

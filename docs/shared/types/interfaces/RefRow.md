@@ -6,9 +6,15 @@
 
 # Interface: RefRow
 
-A ref; `sha` is the commit it points at (tags peeled). `worktree` is set for a local branch checked out in a work tree.
+A ref; `sha` is the commit it points at (tags peeled) and `date` that commit's committer date, ISO 8601. `worktree` is set for a local branch checked out in a work tree.
 
 ## Properties
+
+### date
+
+> **date**: `string`
+
+***
 
 ### kind
 

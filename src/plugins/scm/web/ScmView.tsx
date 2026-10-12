@@ -1,10 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ErrorText, getJson, repoName, type PhaseViewProps, type RefRow, type RepoViewProps } from "../../../web/plugin-api.ts";
+import { groupRefs } from "../shared/refs.ts";
 
-/** The repository's refs: branches with the work tree they are checked out in, remote branches, tags and HEAD. */
+const basename = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+
+function RefTable({ label, rows, chips }: { label: string; rows: RefRow[]; chips?: (ref: RefRow) => ReactNode }) {
+  return <table className="scm-refs" aria-label={label}><thead><tr><th>Name</th><th>Commit</th><th>Date</th></tr></thead><tbody>
+    {rows.map((ref) => <tr key={`${ref.kind}:${ref.name}`}><td>{ref.name}{chips?.(ref)}</td><td><code>{ref.sha.slice(0, 12)}</code></td><td title={ref.date}>{ref.date.slice(0, 10)}</td></tr>)}
+  </tbody></table>;
+}
+
+/** The repository's refs: local branches with their remote counterparts and work trees, remote-only branches, and tags (collapsed: a repository may have thousands). */
 export function ScmView({ worktree }: RepoViewProps) {
   const [data, setData] = useState<{ refs: RefRow[]; commitGraph: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tagsOpen, setTagsOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setData(null);
@@ -14,11 +24,18 @@ export function ScmView({ worktree }: RepoViewProps) {
   }, [worktree]);
   if (error) return <ErrorText error={error} />;
   if (!data) return <p className="empty">Loading…</p>;
+  const { local, remoteOnly, tags } = groupRefs(data.refs);
+  const remotesOf = new Map(local.map((ref) => [ref.name, ref.remotes]));
   return <div className="scm-view" data-testid="scm-view">
     {!data.commitGraph && <p className="commit-graph-warning">This repository has no commit-graph file, so history loads slowly. Run <code>git commit-graph write --reachable</code>.</p>}
-    <table className="scm-refs"><thead><tr><th>Ref</th><th>Kind</th><th>Commit</th><th>Work tree</th></tr></thead><tbody>
-      {data.refs.map((ref) => <tr key={`${ref.kind}:${ref.name}`}><td>{ref.name}{ref.upstream && <span className="upstream"> → {ref.upstream}</span>}</td><td>{ref.kind}</td><td><code>{ref.sha.slice(0, 12)}</code></td><td>{ref.worktree && <code>{ref.worktree}</code>}</td></tr>)}
-    </tbody></table>
+    <h3>Local branches <span className="count">{local.length}</span></h3>
+    <RefTable label="Local branches" rows={local} chips={(ref) => <>
+      {remotesOf.get(ref.name)!.map((remote) => <span key={remote} className="ref-chip" title={remote}>{remote.slice(0, remote.indexOf("/"))}</span>)}
+      {ref.worktree && <span className={`ref-chip worktree${ref.worktree === worktree ? " current" : ""}`} title={ref.worktree}>⌂ {basename(ref.worktree)}</span>}
+    </>} />
+    <h3>Remote only <span className="count">{remoteOnly.length}</span></h3>
+    <RefTable label="Remote only" rows={remoteOnly} />
+    <details onToggle={(event) => setTagsOpen(event.currentTarget.open)}><summary>Tags <span className="count">{tags.length}</span></summary>{tagsOpen && <RefTable label="Tags" rows={tags} />}</details>
   </div>;
 }
 

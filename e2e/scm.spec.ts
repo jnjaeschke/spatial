@@ -20,6 +20,8 @@ function makeRepo() {
   git(dir, "commit", "-q", "-m", "base");
   git(dir, "branch", "feature/x");
   git(dir, "tag", "v1");
+  git(dir, "update-ref", "refs/remotes/origin/main", "HEAD");
+  git(dir, "update-ref", "refs/remotes/origin/gone", "HEAD");
   return { dir, head: git(dir, "rev-parse", "HEAD") };
 }
 
@@ -29,10 +31,18 @@ test("the repo page links the Git page, which lists the refs", async ({ page }) 
   await page.getByRole("navigation", { name: "Repository views" }).getByRole("link", { name: "Git" }).click();
   await expect(page).toHaveURL(new RegExp(`/repo/scm\\?path=${encodeURIComponent(dir)}$`));
   const view = page.getByTestId("scm-view");
-  await expect(view.getByRole("row", { name: /main/ })).toContainText(head.slice(0, 12));
-  await expect(view.getByRole("row", { name: /main/ })).toContainText(dir);
-  await expect(view.getByRole("row", { name: /feature\/x/ })).toBeVisible();
-  await expect(view.getByRole("row", { name: /v1/ })).toContainText("tag");
+  const local = view.getByRole("table", { name: "Local branches" });
+  const main = local.getByRole("row", { name: /^main/ });
+  await expect(main).toContainText(head.slice(0, 12));
+  await expect(main.locator(".ref-chip", { hasText: "origin" })).toHaveAttribute("title", "origin/main");
+  await expect(main.locator(".ref-chip.worktree.current")).toHaveAttribute("title", dir);
+  await expect(local.getByRole("row", { name: /feature\/x/ })).toBeVisible();
+  const remoteOnly = view.getByRole("table", { name: "Remote only" });
+  await expect(remoteOnly.getByRole("row", { name: /origin\/gone/ })).toBeVisible();
+  await expect(remoteOnly.getByRole("row", { name: /origin\/main/ })).toHaveCount(0);
+  await expect(view.getByRole("table", { name: "Tags" })).toHaveCount(0);
+  await view.getByText("Tags").click();
+  await expect(view.getByRole("table", { name: "Tags" }).getByRole("row", { name: /v1/ })).toBeVisible();
   await page.getByRole("link", { name: /spatial-scm-/ }).click();
   await expect(page.getByTestId("start-screen")).toBeVisible();
 });
