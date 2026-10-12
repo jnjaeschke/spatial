@@ -8,7 +8,7 @@ import { ImplementationsView } from "./ImplementationsView.tsx";
 
 export const specWeb: WebPlugin = {
   id: "spec",
-  phaseViews: { explore: { Body: ExplorerView } },
+  phaseViews: { explore: { Body: ExplorerView, conversationOnCanvas: true } },
   sessionViews: [
     { id: "spec", label: "Spec explorer", available: (state) => state.session.workflow !== "explore" && state.artifacts.some((a) => a.type === "SpecOpened"), Body: ExplorerView },
     { id: "impl", label: "Implementations", available: (state) => state.artifacts.some((a) => a.type === "SpecAlgorithm"), Body: ImplementationsView },

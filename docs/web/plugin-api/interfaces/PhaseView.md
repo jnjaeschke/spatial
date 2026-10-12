@@ -20,6 +20,14 @@
 
 Whether selected diff lines can start a local inline comment.
 
+***
+
+### conversationOnCanvas?
+
+> `optional` **conversationOnCanvas?**: `boolean`
+
+Whether the view shows the session's main conversation itself; the footer then offers no session chip.
+
 ## Methods
 
 ### exportable()?

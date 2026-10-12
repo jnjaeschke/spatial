@@ -1,5 +1,6 @@
 import { useContext, useEffect } from "react";
 import type { SessionState } from "../shared/types.ts";
+import type { PhaseView } from "./plugin-api.ts";
 import { ChatActionsContext, type ChatActions } from "./chat-context.ts";
 import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
 import { IconButton } from "./IconButton.tsx";
@@ -7,11 +8,8 @@ import { MainConversation } from "./MainConversation.tsx";
 import { openDecision } from "./decisions.ts";
 import { conversationNode, latestStart, rootThread, type ConversationNodeData } from "./graph.ts";
 
-/** Workflows whose canvas shows the root conversation itself. */
-const CONVERSATION_ON_CANVAS = ["chat", "explore"];
-
-/** Whether the footer offers the session chat: the session has a request and its canvas does not show the conversation. */
-export const hasSessionChip = (state: SessionState) => state.session.workflow !== null && !CONVERSATION_ON_CANVAS.includes(state.session.workflow) && latestStart(state) !== undefined;
+/** Whether the footer offers the session chat: the session has a request and the phase view does not show the conversation itself. */
+export const hasSessionChip = (state: SessionState, view: PhaseView | null) => state.session.workflow !== null && !view?.conversationOnCanvas && latestStart(state) !== undefined;
 
 const shownKey = (decisionId: string) => `spatial:decision-shown:${decisionId}`;
 

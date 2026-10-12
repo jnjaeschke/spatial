@@ -640,9 +640,10 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity-log { position: fixed; z-index: 20; right: 12px; bottom: 36px; display: flex; flex-direction: column; width: min(640px, calc(100vw - 24px)); max-height: 55vh; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 8px 28px rgb(0 0 0 / 0.25); font-size: 12px; color: var(--text-2); }
 .activity .session-chip { padding: 1px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--session-chip); font: inherit; font-weight: 600; color: var(--text); cursor: pointer; white-space: nowrap; }
 .activity .session-chip[data-state="running"]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
-.activity .session-chip[data-state="pending"] { border-color: var(--warning); color: var(--warning); }
+.activity .session-chip[data-state="pending"] { border-color: var(--warning); background: color-mix(in oklab, var(--warning) 30%, var(--surface)); }
 .activity-log.session-log { left: 12px; right: auto; }
 .session-log-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; overflow-y: auto; }
+.session-log-body textarea { box-sizing: border-box; max-width: 100%; }
 .session-log .messages { max-height: 40vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .activity-log header { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); }
 .activity-log header b { color: var(--text); }

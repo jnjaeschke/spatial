@@ -25,6 +25,8 @@ export interface PhaseView {
   exportDiff?(state: SessionState): ExportDiff | null;
   /** Whether a notification is stale for this view and is not shown. */
   isStaleNotice?(state: SessionState, notice: NotifyPayload): boolean;
+  /** Whether the view shows the session's main conversation itself; the footer then offers no session chip. */
+  conversationOnCanvas?: boolean;
 }
 /** A view of a session besides its phase view, offered in the topbar while available; a projection of the same state. */
 export interface PluginSessionView { id: string; label: string; available(state: SessionState): boolean; Body: ComponentType<PhaseViewProps> }
