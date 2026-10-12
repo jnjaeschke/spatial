@@ -36,6 +36,8 @@ export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "dif
   title: string;
   /** The request; shown until the first turn has created the thread. */
   prompt: string;
+  /** Whether an epoch of the session is running: the conversation offers Stop & steer. */
+  epochRunning?: boolean;
 }
 
 /** The open decision of the session, drawn beside the root node. */
@@ -120,7 +122,7 @@ export const rootThread = (state: SessionState, startId: string) => (state.artif
 
 export function conversationNode(state: SessionState, start: Artifact<WorkflowStartData>, root: Artifact<ChatThreadData> | undefined, anchors?: string[]): GraphNode {
   return { id: start.id, ...(anchors ? { anchors } : {}), data: {
-    kind: "conversation", title: state.session.title, prompt: start.data.prompt || `/${start.data.workflow}`, anchor: start.id, diffId: "", hunks: [], draftId: null,
+    kind: "conversation", title: state.session.title, prompt: start.data.prompt || `/${start.data.workflow}`, anchor: start.id, diffId: "", hunks: [], draftId: null, epochRunning: state.epochs.some((epoch) => epoch.status === "running"),
     ...(root ? threadContent(state, root) : { threadId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
   } };
 }

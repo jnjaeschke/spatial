@@ -10,6 +10,10 @@
 
 ## Type Declaration
 
+### canSteer?
+
+> `optional` **canSteer?**: `boolean`
+
 ### lead?
 
 > `optional` **lead?**: `ReactNode`

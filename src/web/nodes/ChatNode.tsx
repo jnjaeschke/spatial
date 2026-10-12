@@ -33,7 +33,7 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   );
 }
 
-export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode };
+export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Stop & steer beside Send: the text stops the running epoch and steers its rerun. */ canSteer?: boolean };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -103,6 +103,7 @@ export function Conversation(data: ConversationProps) {
         <Composer textareaRef={textarea} label="message" placeholder={`Ask AI — ${COMPOSER_HINT}`} value={text} onChange={setText} rows={2} canSubmit={canSend} onSubmit={() => textarea.current?.form?.requestSubmit()} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
+        {data.canSteer && <button type="button" disabled={text.trim() === ""} onClick={() => void run(async () => { await api.steer(actions.sessionId, text); setText(""); })}>Stop &amp; steer</button>}
         <ErrorText error={error} />
       </form>}
   </>;

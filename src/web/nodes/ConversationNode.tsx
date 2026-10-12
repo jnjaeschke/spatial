@@ -8,7 +8,7 @@ export type ConversationFlowNode = Node<ConversationNodeData & Record<string, un
 
 export function ConversationNode({ id, data }: NodeProps<ConversationFlowNode>) {
   return <Box kind="conversation" testId="conversation" title={data.title} handles={{ source: Position.Bottom }}>
-    <Conversation {...data} lead={data.threadId === null ? <div className="msg user">{data.prompt}</div> : undefined} />
+    <Conversation {...data} canSteer={data.epochRunning === true} lead={data.threadId === null ? <div className="msg user">{data.prompt}</div> : undefined} />
     <ReopenClosed hostId={id} />
   </Box>;
 }

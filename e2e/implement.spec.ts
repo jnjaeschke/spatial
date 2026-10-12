@@ -85,6 +85,27 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   expect(git(dir, "status", "--porcelain")).toBe("");
 });
 
+test("steering a running implement epoch restarts it, resumed with the steer", async ({ page }) => {
+  test.setTimeout(120_000);
+  const dir = makeRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-STEER make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const bar = page.getByTestId("topbar-decision");
+  await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByTestId("implement-running")).toBeVisible({ timeout: 20_000 });
+  const sessionId = /\/sessions\/([^/?#]+)/.exec(page.url())![1];
+  await expect.poll(async () => ((await (await page.request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json()) as { artifacts: { type: string }[] }).artifacts.some((a) => a.type === "AgentSession"), { timeout: 20_000 }).toBe(true);
+  const conversation = page.getByTestId("conversation");
+  await conversation.getByLabel("message").fill("STEER-ME name the helper");
+  await conversation.getByRole("button", { name: "Stop & steer" }).click();
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await page.getByTestId("epoch-chip-2").click();
+  await expect(page.getByTestId("steer-outcome")).toContainText(/resumed with your steer/i);
+  expect(git(dir, "log", "--format=%s", "main..spatial/impl-steer-make-c-txt-exist")).toBe("Fix the c thing");
+});
+
 test("a dirty checkout asks before /implement starts and the changes move to the new branch", async ({ page }) => {
   const dir = makeRepo();
   writeFileSync(join(dir, "a.txt"), "dirty\n");

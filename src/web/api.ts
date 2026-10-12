@@ -60,6 +60,7 @@ export const api = {
   submitReview: (sessionId: string, body: { revision: number; action: "comment" | "accept" | "request-changes"; body: string }) =>
     post<{ inlines: number; skipped: { source: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/review-submit`, body),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
+  steer: (sessionId: string, text: string) => post<{ steerId: string }>(`/api/sessions/${sessionId}/steer`, { text }),
   decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
   decideFinding: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
