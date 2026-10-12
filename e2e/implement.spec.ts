@@ -106,6 +106,8 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
   await page.getByTestId("epoch-chip-2").click();
   await expect(page.getByTestId("steer-outcome")).toContainText(/resumed with your steer/i);
+  const [canvasWidth, bodyWidth] = await Promise.all([page.locator(".phase-shell > .canvas").boundingBox(), page.locator(".phase-shell").boundingBox()]).then((boxes) => boxes.map((box) => box!.width));
+  expect(canvasWidth).toBeGreaterThan(bodyWidth! * 0.9);
   expect(git(dir, "log", "--format=%s", "main..spatial/impl-steer-make-c-txt-exist")).toBe("Fix the c thing");
   await page.getByTestId("epoch-chip-3").click();
   await expect(page.getByTestId("toasts")).toContainText("Remembered: Name helpers after what they return");

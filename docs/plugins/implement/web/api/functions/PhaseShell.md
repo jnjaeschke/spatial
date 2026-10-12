@@ -8,7 +8,7 @@
 
 > **PhaseShell**(`__namedParameters`): `Element`
 
-The frame of an implement-style phase view: run status, a running line, the check results, the command strip, then the body. A check result opens its proving command in the strip.
+The frame of an implement-style phase view: run status, a running line, `head` (lines spanning the view's width), the check results, the command strip, then the body. A check result opens its proving command in the strip.
 
 ## Parameters
 
@@ -21,6 +21,10 @@ The frame of an implement-style phase view: run status, a running line, the chec
 #### epoch
 
 [`Epoch`](../../../../../shared/types/interfaces/Epoch.md) \| `null`
+
+#### head?
+
+`ReactNode`
 
 #### readOnly?
 

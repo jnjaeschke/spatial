@@ -875,7 +875,7 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .try-failures { margin: 4px 0 0; padding-left: 18px; }
 .try-failures ul { margin: 2px 0 4px; padding-left: 16px; font-family: var(--font-mono); font-size: 0.9em; }
 .terminal-title { color: #9ad; font-family: var(--font-mono); font-size: 12px; }
-.implement-summary, .running { padding: 0 12px; margin: 4px 0; }
+.implement-summary, .steer-outcome, .running { padding: 0 12px; margin: 4px 0; }
 .session-views { margin-left: 8px; }
 .plan-checks { margin: 4px 0 0; padding-left: 1.2em; font-size: 12px; }
 .check-evidence { color: var(--text-2); }
