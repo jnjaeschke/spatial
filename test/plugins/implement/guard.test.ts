@@ -17,6 +17,13 @@ function setup() {
   return { store, rt, make };
 }
 
+test("the start box refuses a checkout with another running implement session before a session exists", async () => {
+  const { store, rt, make } = setup();
+  const busy = make("/repo");
+  store.createEpoch(busy.id, "implement", null);
+  await assert.rejects(implementWorkflow.precheck!("/repo", { request: "x", profile: null, checkout: "new-branch" }, rt), new RegExp(`in use by the implement session "t" ${busy.id} \\(implement running\\); finish or abandon it first`));
+});
+
 test("a checkout with another running implement session is refused with a notice", async () => {
   const { store, rt, make } = setup();
   const busy = make("/repo");

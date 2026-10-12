@@ -22,7 +22,7 @@ function setup() {
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const start = (input: object) => rt.run<{ branchId: string }>(session.id, "implementStart", input);
-  return { repo, base, store, session, start };
+  return { repo, base, store, rt, session, start };
 }
 const params = { request: "x", profile: null, checkout: null } as const;
 
@@ -60,8 +60,8 @@ test("start refuses a detached HEAD, an unknown profile and edits-only without a
 });
 
 test("precheck asks only when the checkout is unclear and dirty or off main", async () => {
-  const { repo } = setup();
-  const precheck = implementWorkflow.precheck!;
+  const { repo, rt } = setup();
+  const precheck = (dir: string, p: typeof params | { request: string; profile: null; checkout: "new-branch" }) => implementWorkflow.precheck!(dir, p, rt);
   assert.equal(await precheck(repo.dir, params), null, "clean main");
   writeFileSync(join(repo.dir, "a.txt"), "changed\n");
   const dirty = (await precheck(repo.dir, params))!;

@@ -50,7 +50,7 @@ async function select(rt: Runtime, pending: Map<string, PendingStart>, base: Sta
 }
 
 async function precheck(rt: Runtime, pending: Map<string, PendingStart>, base: StartBase, start: Chosen, selection?: LlmSelection): Promise<Session | StartQuestion> {
-  const question = await rt.workflows.get(start.workflow)!.precheck?.(base.worktree, start.params);
+  const question = await rt.workflows.get(start.workflow)!.precheck?.(base.worktree, start.params, rt);
   if (!question) return begin(rt, base, start, selection);
   return ask(pending, { base, question: question.question, start, ...(selection ? { selection } : {}), options: question.options });
 }

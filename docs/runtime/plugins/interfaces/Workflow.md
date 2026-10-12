@@ -144,9 +144,9 @@ Deterministic parser for slash-command arguments.
 
 ### precheck()?
 
-> `optional` **precheck**(`repo`, `params`): `Promise`\<[`PrecheckQuestion`](PrecheckQuestion.md)\<`P`\> \| `null`\>
+> `optional` **precheck**(`repo`, `params`, `rt`): `Promise`\<[`PrecheckQuestion`](PrecheckQuestion.md)\<`P`\> \| `null`\>
 
-Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box with its options as buttons, and the chosen option's `params` complete the start.
+Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box with its options as buttons, and the chosen option's `params` complete the start. Throwing refuses the start with that message, before any session is created.
 
 #### Parameters
 
@@ -157,6 +157,10 @@ Deterministic check of the work tree `repo` before the session exists; a questio
 ##### params
 
 `P`
+
+##### rt
+
+[`Runtime`](../../tasks/classes/Runtime.md)
 
 #### Returns
 
