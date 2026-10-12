@@ -1,4 +1,4 @@
-import type { Artifact, DecisionData, Epoch, Phase, Step, WorkflowView } from "../../../plugin-api.ts";
+import { chosenDecision, type Artifact, type Epoch, type Phase, type Step, type WorkflowView } from "../../../plugin-api.ts";
 import type { PhabSubmissionData, PhabSubmitInput, ReviewerSuggestionData, SubmitInput } from "../shared/types.ts";
 import { REVIEWERS_PATTERN } from "../runtime/submit-command.ts";
 
@@ -10,7 +10,7 @@ export function submitNext(view: WorkflowView, epoch: Epoch): Step | null {
   const suggestion = view.artifacts.findLast((a) => a.type === "ReviewerSuggestion" && a.epoch === epoch.n) as Artifact<ReviewerSuggestionData> | undefined;
   if (!suggestion) return null;
   const { base, head } = epoch.input as SubmitInput, question = submitQuestion(suggestion.data.commits, head);
-  const chosen = (view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).key === "submit" && (a.data as DecisionData).chosen) as Artifact<DecisionData> | undefined)?.data.chosen;
+  const chosen = chosenDecision(view, epoch.n, "submit");
   const reviewers = suggestion.data.suggested.join(", ");
   const text = { takesText: true, textPattern: REVIEWERS_PATTERN, ...(reviewers ? { defaultText: reviewers } : {}) };
   if (!chosen) return { decide: { key: "submit", question, options: [{ id: "submit", label: "Submit", ...text }, { id: "wip", label: "Submit as WIP", ...text }, { id: "skip", label: "Not yet" }] } };
