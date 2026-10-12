@@ -4,5 +4,6 @@ import { chatPlugin } from "./chat/index.ts";
 import { geckoPlugin } from "./gecko/index.ts";
 import { implementPlugin } from "./implement/index.ts";
 import { specPlugin } from "./spec/index.ts";
+import { scmPlugin } from "./scm/index.ts";
 
-export const plugins: Plugin[] = [reviewPlugin, chatPlugin, geckoPlugin, implementPlugin, specPlugin];
+export const plugins: Plugin[] = [reviewPlugin, chatPlugin, geckoPlugin, implementPlugin, specPlugin, scmPlugin];
