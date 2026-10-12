@@ -57,3 +57,21 @@ test("a steer needs text, a running epoch and a phase that reads steers", async 
   await running;
   assert.equal(store.listArtifacts(session.id, "Steer").length, 0);
 });
+
+test("steers are limited to implement sessions and concurrent steers store only one artifact", async () => {
+  const { rt, store, session, routes } = setup();
+  const other = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "other", workflow: "investigate" });
+  store.createEpoch(other.id, "implement", { round: 1 });
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${other.id}/steer`, { text: "x" })).status, 409);
+  assert.equal(store.listArtifacts(other.id, "Steer").length, 0);
+
+  const running = rt.runPhase(session.id, "implement", { round: 1 });
+  await tick();
+  const responses = await Promise.all([
+    routeCall(routes, "POST", `/api/sessions/${session.id}/steer`, { text: "first" }),
+    routeCall(routes, "POST", `/api/sessions/${session.id}/steer`, { text: "second" }),
+  ]);
+  assert.deepEqual(responses.map(({ status, body }) => [status, status === 202 ? "accepted" : body]), [[202, "accepted"], [409, { error: "A steer is already being handled for this session" }]]);
+  assert.equal(store.listArtifacts(session.id, "Steer").length, 1);
+  await running;
+});

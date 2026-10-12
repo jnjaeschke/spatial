@@ -30,13 +30,11 @@ export function MemoriesPanel({ repoDir }: RepoPanelProps) {
   const { error, run } = useAction();
   const reload = useCallback(() => memoriesClient.list(repoDir).then(setMemories), [repoDir]);
   useEffect(() => { void run(reload); }, [run, reload]);
-  const save = (view: MemoryView) => async (memory: SteerMemory) => { await memoriesClient.put(repoDir, view.scope, view.key, memory); setEditing(null); await reload(); };
+  const save = (view: MemoryView) => async (memory: SteerMemory) => { await memoriesClient.put(repoDir, view.scope, view.key, memory, view.entryId); setEditing(null); await reload(); };
   const remove = (view: MemoryView) => run(async () => { await memoriesClient.remove(repoDir, view.scope, view.key); await reload(); });
   const move = (view: MemoryView) => run(async () => {
     const to: MemoryScope = view.scope === "repo" ? "global" : "repo";
-    if (memories?.some((other) => other.scope === to && other.key === view.key)) throw new Error(`${to === "repo" ? "This repo" : "Everywhere"} already has a memory named ${view.key}`);
-    await memoriesClient.put(repoDir, to, view.key, view.memory);
-    await memoriesClient.remove(repoDir, view.scope, view.key);
+    await memoriesClient.move(repoDir, view.scope, to, view.key, view.entryId);
     await reload();
   });
   return <section className="memories-panel" data-testid="memories-panel">

@@ -25,14 +25,32 @@ export function memoryRoutes(rt: Runtime): Route[] {
     ["PUT", /^\/api\/memories$/, async ({ req, res }) => {
       const body = await readJson(req);
       const repo = repoOf(body.repo), scope = scopeOf(body.scope), key = slugOf(body.key);
+      if (body.entryId !== undefined && typeof body.entryId !== "string") throw new HttpError(400, "entryId must be a string");
+      const id = scopeId(scope, repo), current = rt.knowledge.get(id, MEMORY_NAMESPACE, memoryKey(key));
+      if (body.entryId !== undefined && (current.state !== "current" || current.entry.id !== body.entryId)) throw new HttpError(409, `The memory ${key} changed since it was opened`);
       const problems = memoryProblems(body.memory);
       const source = (body.memory as { source?: Partial<SteerMemory["source"]> } | null)?.source;
-      if (typeof source?.sessionId !== "string" || typeof source.steer !== "string" || !Number.isInteger(source.epoch)) problems.push("source must be { sessionId, epoch, steer }");
+      if (current.state !== "current" && (typeof source?.sessionId !== "string" || typeof source.steer !== "string" || !Number.isInteger(source.epoch))) problems.push("source must be { sessionId, epoch, steer }");
       if (problems.length) throw new HttpError(400, problems.join("; "));
       const m = body.memory as SteerMemory;
-      const value: SteerMemory = { situation: m.situation, observed: m.observed, wanted: m.wanted, why: m.why, phases: m.phases, kinds: m.kinds, source: { sessionId: m.source.sessionId, epoch: m.source.epoch, steer: m.source.steer } };
-      const entry = rt.knowledge.put(scopeId(scope, repo), MEMORY_NAMESPACE, memoryKey(key), value, { by: "user", sessionId: value.source.sessionId });
+      const origin = current.state === "current" ? (current.entry.value as SteerMemory).source : m.source;
+      const value: SteerMemory = { situation: m.situation, observed: m.observed, wanted: m.wanted, why: m.why, phases: m.phases, kinds: m.kinds, source: { sessionId: origin.sessionId, epoch: origin.epoch, steer: origin.steer } };
+      const entry = rt.knowledge.put(id, MEMORY_NAMESPACE, memoryKey(key), value, { by: "user", sessionId: value.source.sessionId });
       send(res, 201, { entryId: entry.id });
+    }],
+    ["POST", /^\/api\/memories\/move$/, async ({ req, res }) => {
+      const body = await readJson(req);
+      const repo = repoOf(body.repo), from = scopeOf(body.from), to = scopeOf(body.to), key = slugOf(body.key);
+      const entryId = str(body.entryId, "entryId");
+      const fromId = scopeId(from, repo), toId = scopeId(to, repo), keyName = memoryKey(key);
+      const source = rt.knowledge.get(fromId, MEMORY_NAMESPACE, keyName);
+      if (source.state !== "current" || source.entry.id !== entryId) throw new HttpError(409, `The memory ${key} changed since it was opened`);
+      if (rt.knowledge.get(toId, MEMORY_NAMESPACE, keyName).state === "current") throw new HttpError(409, `The memory ${key} already exists in ${to} scope`);
+      const value = source.entry.value as SteerMemory;
+      const provenance = { by: "user", sessionId: value.source.sessionId } as const;
+      const moved = rt.knowledge.put(toId, MEMORY_NAMESPACE, keyName, value, provenance);
+      rt.knowledge.put(fromId, MEMORY_NAMESPACE, keyName, null, provenance);
+      send(res, 201, { entryId: moved.id });
     }],
     ["DELETE", /^\/api\/memories$/, async ({ req, res }) => {
       const body = await readJson(req);

@@ -354,11 +354,13 @@ test("edits-only stores CheckResults from the runs the runtime made", async () =
 });
 
 test("after a steer the agent resumes its stopped session with only the steer", async () => {
+  const knowledge = new KnowledgeStore(":memory:");
   const { store, session, put, prompts, run } = setup((_, prompt, r) => {
     prompt.onEvent?.({ kind: "session", providerSessionId: "p-2" });
     r.commit({ "b.txt": "b\n" }, "Add b");
     return ok;
-  });
+  }, "plain-git", investigation, undefined, knowledge);
+  knowledge.put(session.repoDir, "implement", "memory/for-bugfixes", { situation: "the plan is a bug fix", observed: "o", wanted: "add a test first", why: null, phases: ["implement"], kinds: [], source: { sessionId: "S", epoch: 1, steer: "ST" } }, { by: "user", sessionId: "S" });
   store.createEpoch(session.id, "implement", null);
   put("AgentSession", { providerSessionId: "p-1", backend: "claude", model: "sonnet", resumed: false });
   put("Steer", { text: "use a helper", epoch: 1, phase: "implement" });
@@ -366,6 +368,7 @@ test("after a steer the agent resumes its stopped session with only the steer", 
   assert.equal(prompts.length, 1);
   assert.equal(prompts[0]!.resumeProviderSession, "p-1");
   assert.equal(prompts[0]!.prompt, "# The user stopped you and said\n\nuse a helper\n\nThe work tree may hold edits from the stopped run.");
+  assert.equal(store.listArtifacts(session.id, "UsedMemories").length, 0);
   const latest = store.listArtifacts(session.id, "AgentSession").at(-1)!.data as { providerSessionId: string; resumed: boolean };
   assert.deepEqual([latest.providerSessionId, latest.resumed], ["p-2", true]);
 });

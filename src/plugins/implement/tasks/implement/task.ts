@@ -63,7 +63,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     });
     const prompt = [
       ...steerSections(steer.all, true),
-      ...memorySections(ctx, "implement", investigation.kind),
+      ...(steer.resume ? [] : memorySections(ctx, "implement", investigation.kind)),
       "# Investigation", ctx.artifacts.render(input.investigationId),
       "# Checkout", `Branch ${branch.branch}, base ${branch.baseSha}.${input.bug !== null ? ` Bug ${input.bug}.` : ""}\n${profile.description}`,
       ...(await ctx.git.isDirty() ? ["# Uncommitted changes", "The work tree has uncommitted changes from an earlier run; they are yours to keep, adjust or revert."] : []),

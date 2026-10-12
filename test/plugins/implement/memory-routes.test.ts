@@ -42,10 +42,54 @@ test("a PUT supersedes a memory, checks its fields and source, and keeps the use
   assert.deepEqual((await list()).map((view) => view.entryId), [ok.body.entryId]);
   assert.equal((await put({ key: "No Spaces" })).status, 400);
   assert.equal((await put({ memory: memory({ phases: [] }) })).status, 400);
-  assert.equal((await put({ memory: { ...memory(), source: undefined } })).status, 400);
+  assert.equal((await put({ memory: { ...memory(), source: undefined } })).status, 201);
   assert.equal((await put({ scope: "somewhere" })).status, 400);
+  assert.equal((await put({ scope: "global", key: "short-commits", memory: { ...memory(), source: undefined } })).status, 400);
   assert.equal((await put({ scope: "global", key: "short-commits" })).status, 201);
   assert.deepEqual((await list()).map((view) => [view.scope, view.key]), [["repo", "name-helpers"], ["global", "short-commits"]]);
+});
+
+test("editing a memory requires the version opened by the form and preserves its source", async () => {
+  const { routes, knowledge, entry } = setup();
+  const put = (entryId: string, value: SteerMemory) => routeCall(routes, "PUT", "/api/memories", { repo: REPO, scope: "repo", key: "name-helpers", entryId, memory: value });
+  const edited = await put(entry.id, memory({ wanted: "Keep the original source", source: { sessionId: "client", epoch: 99, steer: "fake" } }));
+  assert.equal(edited.status, 201);
+  let read = knowledge.get(REPO, "implement", memoryKey("name-helpers"));
+  assert.equal(read.state, "current");
+  if (read.state === "current") {
+    assert.equal((read.entry.value as SteerMemory).source.sessionId, "origin");
+    assert.equal((read.entry.value as SteerMemory).source.steer, "ST");
+  }
+  assert.equal((await put(entry.id, memory({ wanted: "stale edit" }))).status, 409);
+  assert.equal((await put("missing", memory())).status, 409);
+  await routeCall(routes, "DELETE", "/api/memories", { repo: REPO, scope: "repo", key: "name-helpers" });
+  read = knowledge.get(REPO, "implement", memoryKey("name-helpers"));
+  assert.equal(read.state, "deleted");
+  const currentId = read.state === "deleted" ? read.entry.id : "";
+  assert.equal((await put(currentId, memory())).status, 409);
+});
+
+test("moving a memory atomically tombstones its source and refuses stale sources or occupied targets", async () => {
+  const moved = setup();
+  const response = await routeCall(moved.routes, "POST", "/api/memories/move", { repo: REPO, from: "repo", to: "global", key: "name-helpers", entryId: moved.entry.id });
+  assert.equal(response.status, 201);
+  assert.equal(moved.knowledge.get(REPO, "implement", memoryKey("name-helpers")).state, "deleted");
+  const target = moved.knowledge.get("global", "implement", memoryKey("name-helpers"));
+  assert.equal(target.state, "current");
+  if (target.state === "current") {
+    assert.deepEqual(target.entry.value, moved.entry.value);
+    assert.deepEqual(target.entry.provenance, { by: "user", sessionId: "origin" });
+  }
+
+  const stale = setup();
+  stale.knowledge.put(REPO, "implement", memoryKey("name-helpers"), memory({ wanted: "new version" }), { by: "user", sessionId: "origin" });
+  assert.equal((await routeCall(stale.routes, "POST", "/api/memories/move", { repo: REPO, from: "repo", to: "global", key: "name-helpers", entryId: stale.entry.id })).status, 409);
+  assert.equal(stale.knowledge.get("global", "implement", memoryKey("name-helpers")).state, "absent");
+
+  const occupied = setup();
+  occupied.knowledge.put("global", "implement", memoryKey("name-helpers"), memory(), { by: "user", sessionId: "origin" });
+  assert.equal((await routeCall(occupied.routes, "POST", "/api/memories/move", { repo: REPO, from: "repo", to: "global", key: "name-helpers", entryId: occupied.entry.id })).status, 409);
+  assert.equal(occupied.knowledge.get(REPO, "implement", memoryKey("name-helpers")).state, "current");
 });
 
 test("a DELETE tombstones the current memory and a second one is refused", async () => {
