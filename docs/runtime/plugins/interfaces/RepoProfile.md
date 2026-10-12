@@ -26,6 +26,14 @@ Automatic fix rounds before the user is asked; default 2, 0 always asks.
 
 ***
 
+### buildCommand?
+
+> `optional` **buildCommand?**: `string`
+
+Shell command that builds the project; edits-only runs it before the tests and reports its failure as its own problem.
+
+***
+
 ### commitStyle
 
 > **commitStyle**: `"stack"` \| `"single"`
@@ -61,24 +69,6 @@ Phase id that investigates; default `investigate`.
 A bug number is given or asked for, never invented.
 
 ## Methods
-
-### checkCommand()?
-
-> `optional` **checkCommand**(`paths`): `string`
-
-Shell command that builds and runs the tests covering `paths`; its presence makes edits-only mode available. It runs through `sh -c` and the paths come from the agent, so implementations must shell-quote them.
-
-#### Parameters
-
-##### paths
-
-`string`[]
-
-#### Returns
-
-`string`
-
-***
 
 ### detect()?
 
@@ -131,3 +121,21 @@ Null when the commit subject is acceptable, else what is wrong.
 #### Returns
 
 `string` \| `null`
+
+***
+
+### testCommand()?
+
+> `optional` **testCommand**(`paths`): `string`
+
+Shell command that runs the tests at `paths`; its presence makes edits-only mode available. It runs through `sh -c` and the paths come from the investigation, so implementations must shell-quote them.
+
+#### Parameters
+
+##### paths
+
+`string`[]
+
+#### Returns
+
+`string`

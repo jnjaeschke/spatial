@@ -19,7 +19,8 @@ export const geckoProfile: RepoProfile = {
     if (/ r\?\S*$/.test(summary)) return "Malformed reviewer list; end the message with ` r?name1,name2`";
     return null;
   },
-  checkCommand: (paths) => `./mach build && ./mach test ${paths.map(quote).join(" ")}`,
+  buildCommand: "./mach build",
+  testCommand: (paths) => `./mach test ${paths.map(quote).join(" ")}`,
   isTestCommand: (command) => TEST_COMMAND.test(command.trim()),
   afterAccept: ["try", "submit"],
 };

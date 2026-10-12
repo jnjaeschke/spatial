@@ -11,7 +11,7 @@ import type { Artifact, CommandRunData, LlmSelection } from "../../../src/shared
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import type { AcceptanceCheck, ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
+import type { AcceptanceCheck, CheckResultsData, ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
 import type { ImplementInput } from "../../../src/plugins/implement/tasks/implement/task.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 
@@ -24,8 +24,8 @@ const investigation: InvestigationData = {
 const testProfilePlugin = { id: "tp", repoProfiles: [
   { id: "tp", description: "t", commitStyle: "single" as const, isTestCommand: (c: string) => c.startsWith("t ") },
   { id: "needs-bug", description: "b", commitStyle: "single" as const, requiresBug: true },
-  { id: "checked", description: "c", commitStyle: "single" as const, checkCommand: () => "true" },
-  { id: "checked-stack", description: "c", commitStyle: "stack" as const, checkCommand: () => "true" },
+  { id: "checked", description: "c", commitStyle: "single" as const, testCommand: () => "true" },
+  { id: "checked-stack", description: "c", commitStyle: "stack" as const, testCommand: () => "true" },
 ] };
 
 function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation, providerSessionId: (call: number) => string | undefined = (call) => `p${call + 1}`) {
@@ -290,4 +290,16 @@ test("edits-only continues past a reported invalid plan when the user chose to c
   assert.equal(prompts.length, 1);
   assert.equal(store.getArtifact<ImplementResultData>(resultId).data.planInvalid, null);
   assert.equal(repo.git("log", "--format=%s", "-1"), "Add b");
+});
+
+test("edits-only stores CheckResults from the runs the runtime made", async () => {
+  const { store, session, run } = setup((_, __, r) => { writeFileSync(join(r.dir, "b.txt"), "b\n"); return ok; }, "checked", withChecks({ kind: "covering-test", path: "t/c.js" }, { kind: "measure", command: "bench", goal: "faster" }));
+  await run({ writeMode: "editsOnly" });
+  const stored = store.listArtifacts(session.id, "CheckResults");
+  assert.equal(stored.length, 1);
+  const runs = store.listArtifacts(session.id, "CommandRun").map((a) => a.id);
+  assert.deepEqual((stored[0]!.data as CheckResultsData).results, [
+    { step: 0, check: 0, label: "covering-test t/c.js", ok: true, message: "passed", runs },
+    { step: 0, check: 1, label: "measure `bench` - faster", ok: false, message: "not run in edits-only mode", runs: [] },
+  ]);
 });

@@ -8,7 +8,7 @@ export const implementStart = defineTask<{ request: string; profile: string | nu
   kind: "implementStart",
   async run(ctx, { request, profile: requested, checkout, writeMode }) {
     const profile = await chooseProfile(ctx.repoProfiles, ctx.repo, requested);
-    if (writeMode === "editsOnly" && !profile.checkCommand) throw new Error(`Edits-only mode needs a check command and the ${profile.id} profile has none`);
+    if (writeMode === "editsOnly" && !profile.testCommand) throw new Error(`Edits-only mode needs a test command and the ${profile.id} profile has none`);
     const writer = makeGitWriter(ctx.repo);
     if (checkout === "new-branch") {
       ctx.progress({ kind: "indeterminate", message: "resolving the base branch" });

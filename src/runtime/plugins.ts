@@ -29,8 +29,10 @@ export interface RepoProfile {
   requiresBug?: boolean;
   /** Null when the commit subject is acceptable, else what is wrong. */
   messageCheck?(message: string): string | null;
-  /** Shell command that builds and runs the tests covering `paths`; its presence makes edits-only mode available. It runs through `sh -c` and the paths come from the agent, so implementations must shell-quote them. */
-  checkCommand?(paths: string[]): string;
+  /** Shell command that builds the project; edits-only runs it before the tests and reports its failure as its own problem. */
+  buildCommand?: string;
+  /** Shell command that runs the tests at `paths`; its presence makes edits-only mode available. It runs through `sh -c` and the paths come from the investigation, so implementations must shell-quote them. */
+  testCommand?(paths: string[]): string;
   /** Whether a shell command runs tests (shown as a pass/fail chip). */
   isTestCommand?(command: string): boolean;
   /** Phase id that investigates; default `investigate`. */

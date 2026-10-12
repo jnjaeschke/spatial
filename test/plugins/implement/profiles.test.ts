@@ -18,8 +18,9 @@ test("without a request the single detected profile is chosen, else plain-git", 
   assert.equal((await chooseProfile(map(plainGitProfile, profile("a", true), profile("b", true)), "/r", null)).id, PLAIN_GIT);
 });
 
-test("plain-git takes one commit and has no check command", () => {
+test("plain-git takes one commit and has no build or test command", () => {
   assert.equal(plainGitProfile.commitStyle, "single");
-  assert.equal(plainGitProfile.checkCommand, undefined);
+  assert.equal(plainGitProfile.buildCommand, undefined);
+  assert.equal(plainGitProfile.testCommand, undefined);
   assert.equal(plainGitProfile.afterAccept, undefined);
 });

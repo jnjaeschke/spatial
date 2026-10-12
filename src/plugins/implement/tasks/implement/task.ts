@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
-import type { AgentSessionData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
+import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
+import { describeCheck } from "../../shared/acceptance.ts";
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
@@ -30,9 +31,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const profile = ctx.repoProfiles.get(branch.profile);
     if (!profile) throw new Error(`Unknown repo profile: ${branch.profile}`);
     if (profile.requiresBug && input.bug === null) throw new Error(`The ${profile.id} profile needs a bug number`);
-    if (input.writeMode === "editsOnly" && !profile.checkCommand) throw new Error(`Edits-only mode needs a check command and the ${profile.id} profile has none`);
+    if (input.writeMode === "editsOnly" && !profile.testCommand) throw new Error(`Edits-only mode needs a test command and the ${profile.id} profile has none`);
     const investigation = ctx.artifacts.get<InvestigationData>(input.investigationId).data;
-    const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug) }));
+    const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug), checks: step.checks }));
     const writer = makeGitWriter(ctx.repo);
     const view = ctx.artifacts.view();
     const previous = (view.artifacts.filter((a) => a.type === "ImplementResult") as Artifact<ImplementResultData>[]).at(-1);
@@ -102,19 +103,22 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     if (input.writeMode === "editsOnly") {
       const existing = await ctx.git.log(branch.baseSha, "HEAD");
       const commitSubjects = existing.map((commit) => commit.subject);
+      const checksLine = (index: number) => { const { checks } = investigation.steps[index]!; return checks.length ? ` Checks: ${checks.map(describeCheck).join("; ")}.` : ""; };
       const step = (index: number | null, problems: string[]) => (index === null
         ? "# Edits only\n\nYou cannot run commands. Edit the files that address the feedback and set `step` to the 0-based index of the commit (oldest first) the edits belong to:\n" + commitSubjects.map((subject, i) => `${i}: ${subject}`).join("\n")
-        : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}). The runtime runs the checks and commits.`)
+        : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}).${checksLine(index)} The runtime builds, runs the tests and commits.`)
         + (problems.length ? `\n\n${problemsSection(problems)}` : "");
       const runCheck = async (command: string) => {
         const started = Date.now();
         const out = await runProcess("sh", ["-c", command], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
         const output = out.stdout + out.stderr;
-        ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, true));
-        return { exitCode: out.code, output };
+        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, true));
+        return { id: run.id, exitCode: out.code, output };
       };
       const outcome = await runEditsOnly({
-        plan: planned, baseSha: branch.baseSha, bugfix: investigation.kind === "bugfix", maxRetries: MAX_RETRIES, checkCommand: profile.checkCommand!, runCheck,
+        plan: planned, baseSha: branch.baseSha, bugfix: investigation.kind === "bugfix", maxRetries: MAX_RETRIES,
+        ...(profile.buildCommand ? { buildCommand: profile.buildCommand } : {}), testCommand: profile.testCommand!, runCheck,
+        onResults: (results) => { if (results.length) ctx.artifacts.put<CheckResultsData>("CheckResults", "verified", { results }); },
         agent: async ({ step: index, problems }) => {
           const reply = await call([prompt, step(index, problems)].join("\n\n"), step(index, problems));
           return input.ignorePlanInvalid ? { ...reply, planInvalid: null } : reply;

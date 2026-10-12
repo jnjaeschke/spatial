@@ -51,10 +51,10 @@ test("start on the current branch uses its fork point from main", async () => {
   assert.deepEqual(store.getArtifact<ImplementBranchData>(branchId).data, { branch: "feature", baseSha: base, baseRef: null, profile: "plain-git", checkout: "current-branch" });
 });
 
-test("start refuses a detached HEAD, an unknown profile and edits-only without a check command", async () => {
+test("start refuses a detached HEAD, an unknown profile and edits-only without a test command", async () => {
   const { repo, start } = setup();
   await assert.rejects(start({ request: "x", profile: "nope", checkout: "new-branch" }), /Unknown repo profile: nope/);
-  await assert.rejects(start({ request: "x", profile: null, checkout: "new-branch", writeMode: "editsOnly" }), /Edits-only mode needs a check command/);
+  await assert.rejects(start({ request: "x", profile: null, checkout: "new-branch", writeMode: "editsOnly" }), /Edits-only mode needs a test command/);
   repo.git("checkout", "--detach");
   await assert.rejects(start({ request: "x", profile: null, checkout: "current-branch" }), /detached/);
 });

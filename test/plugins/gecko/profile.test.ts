@@ -12,8 +12,9 @@ test("gecko test commands are ./mach test runners", () => {
   for (const no of ["./mach build", "git status", "./mach testing"]) assert.equal(geckoProfile.isTestCommand!(no), false, no);
 });
 
-test("gecko check command builds then tests the changed paths, quoted", () => {
-  assert.equal(geckoProfile.checkCommand!(["dom/a.cpp", "it's.js"]), "./mach build && ./mach test 'dom/a.cpp' 'it'\\''s.js'");
+test("gecko builds with ./mach build and tests the given paths with ./mach test, quoted", () => {
+  assert.equal(geckoProfile.buildCommand, "./mach build");
+  assert.equal(geckoProfile.testCommand!(["dom/a.cpp", "it's.js"]), "./mach test 'dom/a.cpp' 'it'\\''s.js'");
 });
 
 test("gecko is a stack profile that requires a bug and runs try and submit after Accept", () => {
