@@ -14,9 +14,9 @@ export const stepLines = (steps: SpecStep[]) => steps.map((step) => `${"    ".re
 
 const ITEM = /^( *)(\d+)\.\s+(.*)$/;
 
-/** The steps of the first numbered algorithm in a section's markdown, numbered as webspec-index addresses them, so step numbers are unique (webspec-index indents nested lists by 4 spaces); empty when the section has none. Indented lines that are not items, such as notes, continue the previous step. */
-export function parseSteps(markdown: string): SpecStep[] {
-  const steps: { number: string; depth: number; parts: string[] }[] = [];
+/** The steps of the first numbered algorithm in a section's markdown, each with its own source lines; sub-steps are separate steps. */
+export function stepSources(markdown: string): { number: string; depth: number; lines: string[] }[] {
+  const steps: { number: string; depth: number; lines: string[] }[] = [];
   const path: string[] = [];
   for (const line of markdown.replaceAll("\t", "    ").split("\n")) {
     const item = ITEM.exec(line);
@@ -25,10 +25,21 @@ export function parseSteps(markdown: string): SpecStep[] {
       if (depth === 0 && item[2] === "1" && steps.length > 0) break;
       path.length = depth;
       path.push(item[2]!);
-      steps.push({ number: path.join("."), depth, parts: [item[3]!] });
+      steps.push({ number: path.join("."), depth, lines: [item[3]!] });
     } else if (steps.length > 0 && /^ +\S/.test(line)) {
-      steps.at(-1)!.parts.push(line.trim().replace(/^>\s*/, ""));
+      steps.at(-1)!.lines.push(line.trim());
     }
   }
-  return steps.map(({ number, depth, parts }) => ({ number, depth, text: stepText(parts.join(" ").replace(/\s+/g, " ").trim()) }));
+  return steps;
+}
+
+export function parseSteps(markdown: string): SpecStep[] {
+  return stepSources(markdown).map(({ number, depth, lines }) => ({ number, depth, text: stepText(lines.map((line, i) => i ? line.replace(/^>\s*/, "") : line).join(" ").replace(/\s+/g, " ").trim()) }));
+}
+
+const LINK = /\]\(([A-Za-z0-9-]+#[^)\s]+)\)/g;
+
+/** The `SPEC#anchor` refs each step links in its own text, by dotted step path; notes (`>` lines) are not part of it. */
+export function stepLinks(markdown: string): Record<string, string[]> {
+  return Object.fromEntries(stepSources(markdown).map(({ number, lines }) => [number, [...new Set(lines.filter((line) => !line.startsWith(">")).flatMap((line) => [...line.matchAll(LINK)].map((match) => match[1]!)))]]));
 }
