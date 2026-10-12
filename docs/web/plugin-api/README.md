@@ -112,6 +112,7 @@
 - [DiffRows](functions/DiffRows.md)
 - [DiffView](functions/DiffView.md)
 - [ErrorText](functions/ErrorText.md)
+- [FileDiff](functions/FileDiff.md)
 - [FilePanel](functions/FilePanel.md)
 - [fileUrl](functions/fileUrl.md)
 - [getJson](functions/getJson.md)

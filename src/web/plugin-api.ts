@@ -100,6 +100,7 @@ export { loadFileLines } from "./file-lines.ts";
 export { promiseCache } from "./promise-cache.ts";
 export { DiffRows, changeStarts, type RowMark } from "./diff/DiffRows.tsx";
 export { DiffView } from "./diff/DiffView.tsx";
+export { FileDiff } from "./diff/FileDiff.tsx";
 export { FilePanel } from "./diff/FilePanel.tsx";
 export type { HunkRow } from "./diff/FilePanel.tsx";
 export { SidePanel } from "./SidePanel.tsx";
