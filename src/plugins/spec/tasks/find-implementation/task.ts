@@ -1,7 +1,7 @@
 import { defineTask, enclosingFunction, isGeckoRepo, plainText, readRepoSkill, runStructured, type Engine, type Id, type JsonSchema, type SpecIdlMember, type TaskContext } from "../../../../plugin-api.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../shared/types.ts";
 import { parseSteps } from "../../shared/steps.ts";
-import { fence, numbered, siteKey, siteName, usedSites } from "../../shared/engine.ts";
+import { fence, followQuote, numbered, siteKey, siteName, usedSites } from "../../shared/engine.ts";
 import { storedMapping } from "../../runtime/mappings.ts";
 import { verifyCandidate, type ImplementationCandidate } from "../../runtime/engine-map.ts";
 
@@ -88,10 +88,11 @@ async function idlEntryPoints(ctx: TaskContext, ref: string, incoming: string[])
 async function geckoCode(ctx: TaskContext, ref: string): Promise<string[]> {
   const out: string[] = [];
   for (const site of usedSites(storedMapping(ctx.knowledge, "gecko", ref)).slice(0, 3)) {
-    const text = await ctx.codeSearch.gecko.file(site.path, ctx.signal);
-    if (text === null) continue;
-    const lines = text.split("\n");
-    out.push(fence(`${siteName(site)} (${site.path}:${site.line})\n${numbered(lines, site.line, Math.min(enclosingFunction(lines, site.line)?.end ?? site.line, site.line + 59))}`));
+    // The file is read at the tip, which may be newer than the mapping's revision.
+    const lines = (await ctx.codeSearch.gecko.file(site.path, ctx.signal))?.split("\n");
+    const at = lines ? followQuote(lines, site.line, site.quote) : null;
+    if (at === null) continue;
+    out.push(fence(`${siteName(site)} (${site.path}:${at})\n${numbered(lines!, at, Math.min(enclosingFunction(lines!, at)?.end ?? at, at + 59))}`));
   }
   return out;
 }

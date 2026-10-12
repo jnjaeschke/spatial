@@ -6,7 +6,7 @@
 
 # Interface: ScannedFunction
 
-A function found by brace scan: `line` names it (1-based), `end` holds its closing brace; `symbol` is the qualified name before its parameter list, `signature` the trimmed text of `line`.
+A function found by brace scan: `line` names it (1-based), `end` holds its closing brace; `symbol` is the qualified name and parameter list (whitespace collapsed, so overloads differ), `signature` the trimmed text of `line`.
 
 ## Properties
 

@@ -57,7 +57,7 @@ test("a path that chromium-search would read as a flag, and a line that is no po
 test("functionAt is the brace scan's function; the tip is main", async () => {
   stdout(fixture("frame_loader.cc.txt"));
   const chromium = makeChromiumSearch({ bin: STUB });
-  assert.deepEqual(await chromium.functionAt(FL, 1816, signal), [{ symbol: "FrameLoader::CancelProvisionalLoaderForNewNavigation", signature: "bool FrameLoader::CancelProvisionalLoaderForNewNavigation() {" }]);
+  assert.deepEqual(await chromium.functionAt(FL, 1816, signal), [{ symbol: "FrameLoader::CancelProvisionalLoaderForNewNavigation()", signature: "bool FrameLoader::CancelProvisionalLoaderForNewNavigation() {" }]);
   assert.deepEqual(await chromium.functionAt(FL, 1, signal), []);
   assert.deepEqual(await chromium.tip(), { repoBase: "https://source.chromium.org/chromium/chromium/src/", rev: "main" });
   assert.deepEqual([chromium.engine, chromium.pinned, chromium.heuristicScopes], ["blink", false, true]);

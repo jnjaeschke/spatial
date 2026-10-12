@@ -28,16 +28,16 @@ export const fromLinks = (site: Pick<EngineSite, "method">) => site.method === "
 /** `steps` moved by `offset` lines. */
 export const shiftSteps = (steps: EngineStep[], offset: number) => steps.map((step) => ({ ...step, line: step.line + offset, ...(step.end !== undefined ? { end: step.end + offset } : {}) }));
 
-/** Freshly derived spec-link sites, each with the proposed steps of the previous site of the same key, moved by as much as the site moved. */
+/** Freshly derived spec-link sites, each with the proposed steps of the previous site of the same key (whatever found it), moved by as much as the site moved. */
 export function keepAlignedSteps(previous: EngineSite[], fresh: EngineSite[]): EngineSite[] {
   return fresh.map((site) => {
-    const before = previous.find((old) => fromLinks(old) && siteKey(old) === siteKey(site));
+    const before = previous.find((old) => siteKey(old) === siteKey(site));
     const kept = before ? shiftSteps(before.steps.filter((step) => step.verdict === "proposed"), site.line - before.line) : [];
     return kept.length ? { ...site, steps: [...site.steps, ...kept] } : site;
   });
 }
 
-/** A mapping run's `result` with what was stored while it ran (`latest`): rejections, confirmations of the result's proposals, proposals the result lacks, and step alignments (moved with their site). Sites tier 1 derives come from `result` only. */
+/** A mapping run's `result` with what was stored while it ran (`latest`): rejections, confirmations of the result's proposals, proposals the result lacks, and the proposed steps as `latest` has them (moved with their site). Sites tier 1 derives come from `result` only. */
 export function mergeLatest(result: EngineMapping, latest: EngineMapping): EngineMapping {
   const rejected = [...result.rejected, ...latest.rejected.filter((site) => !result.rejected.some((known) => siteKey(known) === siteKey(site)))];
   const gone = new Set(rejected.map(siteKey));
@@ -46,8 +46,8 @@ export function mergeLatest(result: EngineMapping, latest: EngineMapping): Engin
     const now = byKey.get(siteKey(site));
     if (!now) return site;
     const method: EngineSite["method"] = site.method === "llm" && now.method === "user" ? "user" : site.method;
-    const aligned = site.steps.some((step) => step.verdict === "proposed") ? [] : shiftSteps(now.steps.filter((step) => step.verdict === "proposed"), site.line - now.line);
-    return { ...site, method, steps: [...site.steps, ...aligned] };
+    const proposed = shiftSteps(now.steps.filter((step) => step.verdict === "proposed"), site.line - now.line);
+    return { ...site, method, steps: [...site.steps.filter((step) => step.verdict !== "proposed"), ...proposed] };
   });
   const added = latest.sites.filter((site) => !fromLinks(site) && !gone.has(siteKey(site)) && !sites.some((known) => siteKey(known) === siteKey(site)));
   return { ...result, sites: [...sites, ...added].sort(byPlace), rejected };

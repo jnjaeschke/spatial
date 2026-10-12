@@ -1,4 +1,4 @@
-/** A function found by brace scan: `line` names it (1-based), `end` holds its closing brace; `symbol` is the qualified name before its parameter list, `signature` the trimmed text of `line`. */
+/** A function found by brace scan: `line` names it (1-based), `end` holds its closing brace; `symbol` is the qualified name and parameter list (whitespace collapsed, so overloads differ), `signature` the trimmed text of `line`. */
 export interface ScannedFunction { symbol: string; signature: string; line: number; end: number }
 
 const CONTROL = new Set(["if", "for", "while", "switch", "catch", "do", "else", "try", "return", "sizeof", "decltype", "alignof", "static_assert", "noexcept", "case", "default"]);
@@ -30,6 +30,13 @@ function outerText(head: string): string {
   let out = head;
   while (nested.test(out)) out = out.replace(nested, "");
   return out;
+}
+
+/** The parameter list `text` starts with, whitespace collapsed. */
+function parameters(text: string): string {
+  let depth = 0, end = 0;
+  while (end < text.length) { const c = text[end++]; if (c === "(") depth++; else if (c === ")" && --depth === 0) break; }
+  return text.slice(0, end).replace(/\s+/g, " ").replace(/\( /g, "(").replace(/ \)/g, ")");
 }
 
 const NAME = /((?:[A-Za-z_~][\w~]*::)*operator\s*(?:\(\)|[^\s\w(][^\s(]*|[A-Za-z_][\w\s:*&<>]*?)|[A-Za-z_~][\w:~]*)\s*\(/;
@@ -64,7 +71,7 @@ export function functionsIn(lines: string[]): ScannedFunction[] {
     const name = NAME.exec(head);
     if (!name || CONTROL.has(name[1]!)) return;
     const at = lineOf(start + 1 + name.index);
-    out.push({ symbol: name[1]!, signature: lines[at]!.trim(), line: at + 1, end: lineOf(close) + 1 });
+    out.push({ symbol: name[1]! + parameters(head.slice(name.index + name[0].length - 1)), signature: lines[at]!.trim(), line: at + 1, end: lineOf(close) + 1 });
   };
   const stack: number[] = [];
   for (let i = 0; i < code.length; i++) {

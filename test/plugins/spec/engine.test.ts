@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, fragmentOf, fromLinks, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, fragmentOf, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");
@@ -83,10 +83,6 @@ test("keys, permalinks and stored values", () => {
   assert.throws(() => engineMapping({ ...validMapping, sites: [{ ...validSite, steps: [{ step: "1", line: 1, verdict: "proposed", detail: "", origin: "bogus" }] }] }), /unexpected shape/);
 });
 
-test("heuristic spec-link sites count as links", () => {
-  assert.equal(fromLinks({ method: "spec-link-heuristic" }), true);
-});
-
 test("mergeLatest keeps rejections, confirmations and proposals stored while a mapping ran", () => {
   const site = (path: string, line: number, method: EngineSite["method"]): EngineSite => ({ path, line, symbol: `_Z${path}`, signature: `void ${path}() {`, quote: `void ${path}() {`, method, refs: [], steps: [] });
   const base = { engine: "gecko" as const, repoBase: "r/", rev: "x", tests: [], checkedAt: "t" };
@@ -100,17 +96,19 @@ test("mergeLatest keeps rejections, confirmations and proposals stored while a m
 const alignmentSite = (path: string, line: number, method: EngineSite["method"], extra: Partial<EngineSite> = {}): EngineSite => ({ path, line, symbol: `_Z${path}`, signature: `void ${path}() {`, quote: `void ${path}() {`, method, refs: [], steps: [], ...extra });
 const aligned = (step: string, line: number, end: number) => ({ step, line, end, quote: "x", verdict: "proposed" as const, detail: "why", origin: "align" as const });
 
-test("keepAlignedSteps moves a re-derived site's proposed steps with it", () => {
-  const before = [alignmentSite("a", 10, "spec-link", { steps: [aligned("1", 11, 12), { step: "2", line: 11, verdict: "match", detail: "" }] })];
-  assert.deepEqual(keepAlignedSteps(before, [alignmentSite("a", 15, "spec-link", { steps: [{ step: "2", line: 16, verdict: "match", detail: "" }] })])[0]!.steps, [{ step: "2", line: 16, verdict: "match", detail: "" }, aligned("1", 16, 17)]);
+test("keepAlignedSteps moves a re-derived site's proposed steps with it, also when tier 1 now finds a site the user confirmed", () => {
+  const before = [alignmentSite("a", 10, "spec-link", { steps: [aligned("1", 11, 12), { step: "2", line: 11, verdict: "match", detail: "" }] }), alignmentSite("b", 1, "user", { steps: [aligned("3", 2, 2)] })];
+  const kept = keepAlignedSteps(before, [alignmentSite("a", 15, "spec-link", { steps: [{ step: "2", line: 16, verdict: "match", detail: "" }] }), alignmentSite("b", 5, "spec-link")]);
+  assert.deepEqual(kept.map((site) => site.steps), [[{ step: "2", line: 16, verdict: "match", detail: "" }, aligned("1", 16, 17)], [aligned("3", 6, 6)]]);
 });
 
 test("mergeLatest also keeps the step alignments stored while a mapping ran, moved with their site", () => {
   const base = { engine: "blink" as const, repoBase: "r/", rev: "main", tests: [], checkedAt: "t" };
-  const result = { ...base, rejected: [], sites: [alignmentSite("a", 3, "spec-link-heuristic"), alignmentSite("b", 5, "llm"), alignmentSite("c", 9, "llm")] };
-  const latest = { ...base, rejected: [{ path: "c", line: 9, symbol: "_Zc", signature: "void c() {" }], sites: [alignmentSite("a", 1, "spec-link-heuristic", { steps: [aligned("1", 2, 3)] }), alignmentSite("b", 5, "user"), alignmentSite("c", 9, "llm"), alignmentSite("d", 20, "llm")] };
+  const match = { step: "3", line: 4, verdict: "match" as const, detail: "" };
+  const result = { ...base, rejected: [], sites: [alignmentSite("a", 3, "spec-link-heuristic", { steps: [match, aligned("1", 4, 5)] }), alignmentSite("b", 5, "llm", { steps: [aligned("1", 6, 6)] }), alignmentSite("c", 9, "llm")] };
+  const latest = { ...base, rejected: [{ path: "c", line: 9, symbol: "_Zc", signature: "void c() {" }], sites: [alignmentSite("a", 1, "spec-link-heuristic", { steps: [aligned("2", 2, 3)] }), alignmentSite("b", 5, "user"), alignmentSite("c", 9, "llm"), alignmentSite("d", 20, "llm")] };
   const merged = mergeLatest(result, latest);
-  assert.deepEqual(merged.sites.map((s) => [s.path, s.method, s.steps]), [["a", "spec-link-heuristic", [aligned("1", 4, 5)]], ["b", "user", []], ["d", "llm", []]]);
+  assert.deepEqual(merged.sites.map((s) => [s.path, s.method, s.steps]), [["a", "spec-link-heuristic", [match, aligned("2", 4, 5)]], ["b", "user", []], ["d", "llm", []]], "the steps proposed by the end of the run replace those the run started with");
   assert.deepEqual(merged.rejected.map((r) => r.path), ["c"]);
 });
 

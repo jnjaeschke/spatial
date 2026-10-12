@@ -38,17 +38,17 @@ void Frame::Navigate() {
 
 }  // namespace blink`.split("\n");
 
-const CANCEL = { symbol: "FrameLoader::CancelProvisionalLoaderForNewNavigation", signature: "bool FrameLoader::CancelProvisionalLoaderForNewNavigation(", line: 18, end: 28 };
+const CANCEL = { symbol: "FrameLoader::CancelProvisionalLoaderForNewNavigation(int reason)", signature: "bool FrameLoader::CancelProvisionalLoaderForNewNavigation(", line: 18, end: 28 };
 
 test("a line in a function resolves to it from its name line to its closing brace, past if blocks, lambdas, and braces in strings and comments", () => {
   for (const line of [18, 19, 22, 24, 28]) assert.deepEqual(enclosingFunction(SOURCE, line), CANCEL, `line ${line}`);
-  assert.deepEqual(enclosingFunction(SOURCE, 31), { symbol: "Frame::Navigate", signature: "void Frame::Navigate() {", line: 31, end: 33 });
-  assert.deepEqual(enclosingFunction(SOURCE, 15), { symbol: "Count", signature: "int Count() const { return count_; }", line: 15, end: 15 });
+  assert.deepEqual(enclosingFunction(SOURCE, 31), { symbol: "Frame::Navigate()", signature: "void Frame::Navigate() {", line: 31, end: 33 });
+  assert.deepEqual(enclosingFunction(SOURCE, 15), { symbol: "Count()", signature: "int Count() const { return count_; }", line: 15, end: 15 });
 });
 
 test("lines outside function bodies resolve to nothing: namespace and class scope, declarations, comments above a definition", () => {
   for (const line of [3, 7, 13, 14, 30, 35]) assert.equal(enclosingFunction(SOURCE, line), null, `line ${line}`);
-  assert.deepEqual(functionsIn(SOURCE).map((fn) => fn.symbol).sort(), ["Count", "Frame::Navigate", "FrameLoader::CancelProvisionalLoaderForNewNavigation"]);
+  assert.deepEqual(functionsIn(SOURCE).map((fn) => fn.symbol).sort(), ["Count()", "Frame::Navigate()", "FrameLoader::CancelProvisionalLoaderForNewNavigation(int reason)"]);
 });
 
 test("templates, elaborated parameter types, operators and constructors with brace member initializers are functions; a braced argument is not", () => {
@@ -75,8 +75,8 @@ int Bar::operator()(int x) const {
   return x;
 }`.split("\n");
   assert.deepEqual(functionsIn(source).map(({ symbol, line, end }) => [symbol, line, end]).sort(), [
-    ["Bar::operator()", 20, 22], ["F", 6, 10], ["Foo", 2, 4], ["Foo::Foo", 16, 18], ["operator==", 12, 14],
+    ["Bar::operator()(int x)", 20, 22], ["F(struct stat* s)", 6, 10], ["Foo(T t)", 2, 4], ["Foo::Foo(int a)", 16, 18], ["operator==(const A& a, const A& b)", 12, 14],
   ]);
-  assert.equal(enclosingFunction(source, 8)!.symbol, "F");
-  assert.equal(enclosingFunction(source, 17)!.symbol, "Foo::Foo");
+  assert.equal(enclosingFunction(source, 8)!.symbol, "F(struct stat* s)");
+  assert.equal(enclosingFunction(source, 17)!.symbol, "Foo::Foo(int a)");
 });

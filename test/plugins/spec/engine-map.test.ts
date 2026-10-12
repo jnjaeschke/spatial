@@ -110,7 +110,7 @@ test("Blink: the captured spec links become a declaration site, a heuristic func
   const { sites, tests } = await specLinkSites(code, { url: "https://html.spec.whatwg.org/#navigate", anchor: "navigate" }, signal);
   assert.deepEqual(sites.map((site) => [site.path, site.line, site.symbol, site.signature, site.method, site.refs]), [
     [DOC, 910, "", "void Abort();", "spec-link", [909]],
-    [FL, 1813, "FrameLoader::CancelProvisionalLoaderForNewNavigation", "bool FrameLoader::CancelProvisionalLoaderForNewNavigation() {", "spec-link-heuristic", [1816]],
+    [FL, 1813, "FrameLoader::CancelProvisionalLoaderForNewNavigation()", "bool FrameLoader::CancelProvisionalLoaderForNewNavigation() {", "spec-link-heuristic", [1816]],
   ]);
   assert.equal(tests.length, 8);
 });

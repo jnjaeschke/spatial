@@ -111,7 +111,7 @@ test("an alignment stored while a mapping runs survives the mapping's write", as
   const slow = { ...code, async specRefs(url: string, signal: AbortSignal, limit?: number) { await gate; return code.specRefs(url, signal, limit); } };
   const { rt, session } = specRuntime({ codeSearch: { blink: slow } });
   const algorithm = putAlgorithm(rt, session.id);
-  const existing: EngineSite = { path: "a.cc", line: 2, symbol: "Setup", signature: "void Setup() {", quote: "void Setup() {", method: "spec-link-heuristic", refs: [1], steps: [] };
+  const existing: EngineSite = { path: "a.cc", line: 2, symbol: "Setup()", signature: "void Setup() {", quote: "void Setup() {", method: "spec-link-heuristic", refs: [1], steps: [] };
   updateMapping(rt, session.id, "blink", "HTML#setup", { by: "plugin", sessionId: session.id }, () => ({ engine: "blink", repoBase: "r/", rev: "main", sites: [existing], tests: [], rejected: [], checkedAt: new Date(0).toISOString() }));
   const running = ensureMapping(rt, session.id, "blink", algorithm);
   await new Promise((resolve) => setImmediate(resolve));
