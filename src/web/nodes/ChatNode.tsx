@@ -1,7 +1,7 @@
 import { IconButton } from "../IconButton.tsx";
-import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
-import type { LlmSelection } from "../../shared/types.ts";
+import type { Artifact, LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext, closeChat } from "../chat-context.ts";
@@ -16,6 +16,7 @@ import { Composer, useDraftText } from "../Composer.tsx";
 import { COMPOSER_HINT } from "../composer-key.ts";
 import { ErrorText, useAction } from "../action.tsx";
 import { ReplyActionsContext } from "../reply-actions.ts";
+import { interleave } from "../conversation-items.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & Record<string, unknown>, "chat">;
 
@@ -33,7 +34,7 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   );
 }
 
-export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Stop & steer beside Send: the text stops the running epoch and steers its rerun. */ canSteer?: boolean };
+export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Stop & steer beside Send: the text stops the running epoch and steers its rerun. */ canSteer?: boolean; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -57,10 +58,11 @@ export function Conversation(data: ConversationProps) {
   const busy = last?.status === "running" || last?.status === "pending";
   const failed = last?.status === "failed" ? last : undefined;
   const canSend = !busy && text.trim() !== "";
+  const entries = interleave(data.messages, data.items ?? []);
   return <>
       <div className="messages body nodrag nopan nowheel">
         {data.lead}
-        {data.messages.map((m) => (
+        {entries.map((entry) => { if ("item" in entry) return <Fragment key={entry.item.id}>{data.renderItem?.(entry.item)}</Fragment>; const m = entry.message; return (
           <div key={m.id} className={`msg ${m.data.role}`} data-anchor={m.id}>
             {m.data.role === "assistant"
               ? <AnswerMarkdown text={applyRevisions(m.data.text, data.revisions[m.id] ?? [])} hunks={data.hunks} diffId={data.diffId} />
@@ -72,7 +74,7 @@ export function Conversation(data: ConversationProps) {
             {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <IconButton label="Show diagram" key={diagramId} type="button" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</IconButton>)}
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>
-        ))}
+        ); })}
         {busy && <div className="msg pending">…</div>}
         {failed && <div className="msg failed">{failed.error}</div>}
       </div>
