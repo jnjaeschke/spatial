@@ -6,7 +6,7 @@
 
 # Class: TryWatcher
 
-Polls Treeherder for every try push whose last observed state is not complete, in all sessions, and stores a `TryRun` when the state changed. Reads everything it needs from the store, so a restarted server resumes.
+Polls Treeherder for every try push whose last observed state is not complete and that is younger than 24 hours, in all sessions, and stores a `TryRun` when the state changed. Reads everything it needs from the store, so a restarted server resumes.
 
 ## Constructors
 
@@ -25,6 +25,10 @@ Polls Treeherder for every try push whose last observed state is not complete, i
 ###### intervalMs?
 
 `number`
+
+###### now?
+
+() => `number`
 
 ###### status?
 

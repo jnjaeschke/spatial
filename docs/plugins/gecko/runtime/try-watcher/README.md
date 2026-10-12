@@ -10,6 +10,11 @@
 
 - [TryWatcher](classes/TryWatcher.md)
 
+## Variables
+
+- [STOPPED\_ERROR](variables/STOPPED_ERROR.md)
+- [WATCH\_LIMIT\_MS](variables/WATCH_LIMIT_MS.md)
+
 ## Functions
 
 - [isComplete](functions/isComplete.md)
