@@ -37,7 +37,7 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
 
 export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Steer and Stop & steer beside Send: Steer hands the text to the running agent, Stop & steer stops the running epoch and steers its rerun. */ canSteer?: boolean; /** An open decision, shown as the newest message with its options as buttons; an option's text is the reply box's text, its model the picker's. */ decision?: Artifact<DecisionData> | null; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
 
-/** Keeps the newest message in view: a new own message or decision scrolls to the end, a new answer scrolls to its start just below the pinned own message. Positions are measured in screen pixels, which the canvas zoom scales. */
+/** Keeps the newest message in view: a new own message or decision scrolls to the end, a new answer scrolls to its start just below the pinned own message. */
 function useFollowLatest(list: RefObject<HTMLDivElement | null>, latest: ChatNodeData["messages"][number] | undefined, busy: boolean, decisionId: string | undefined) {
   const followed = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -49,15 +49,19 @@ function useFollowLatest(list: RefObject<HTMLDivElement | null>, latest: ChatNod
     if (followed.current === latest.id) return;
     followed.current = latest.id;
     const node = el.querySelector<HTMLElement>(`[data-anchor="${CSS.escape(latest.id)}"]`);
-    if (!node) return;
-    const scale = el.getBoundingClientRect().height / el.offsetHeight || 1;
-    const pinned = el.querySelector<HTMLElement>(".msg.pinned");
-    const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
-    el.scrollTop += (node.getBoundingClientRect().top - el.getBoundingClientRect().top) / scale - (pinned ? pinned.offsetHeight + gap : 0);
+    if (node) scrollBelowPinned(el, node);
   }, [list, latest, busy, decisionId]);
 }
 
-/** Messages and reply form of one chat thread; `lead` renders before the messages; the last own message stays pinned at the top while its answer scrolls. */
+/** Scrolls `list` so that `node` starts just below the pinned own message. Positions are measured in screen pixels, which the canvas zoom scales. */
+function scrollBelowPinned(list: HTMLElement, node: HTMLElement) {
+  const scale = list.getBoundingClientRect().height / list.offsetHeight || 1;
+  const pinned = list.querySelector<HTMLElement>(".msg.pinned");
+  const gap = parseFloat(getComputedStyle(list).rowGap) || 0;
+  list.scrollTop += (node.getBoundingClientRect().top - list.getBoundingClientRect().top) / scale - (pinned ? pinned.offsetHeight + gap : 0);
+}
+
+/** Messages and reply form of one chat thread; `lead` renders before the messages; the last own message stays pinned at the top while its answer scrolls, and clicking it scrolls back to the answer's start. */
 export function Conversation(data: ConversationProps) {
   const actions = useContext(ChatActionsContext);
   const replyActions = useContext(ReplyActionsContext);
@@ -90,7 +94,10 @@ export function Conversation(data: ConversationProps) {
       <div ref={list} className="messages body nodrag nopan nowheel">
         {data.lead}
         {entries.map((entry) => { if ("item" in entry) return <Fragment key={entry.item.id}>{data.renderItem?.(entry.item)}</Fragment>; const m = entry.message; return (
-          <div key={m.id} className={`msg ${m.data.role}${m.id === pinnedId ? " pinned" : ""}`} data-anchor={m.id}>
+          <div key={m.id} className={`msg ${m.data.role}${m.id === pinnedId ? " pinned" : ""}`} data-anchor={m.id} title={m.id === pinnedId ? "Show the start of the answer" : undefined} onClick={m.id === pinnedId ? (e) => {
+            const next = e.currentTarget.nextElementSibling;
+            if (list.current && next instanceof HTMLElement && window.getSelection()?.isCollapsed !== false) scrollBelowPinned(list.current, next);
+          } : undefined}>
             {m.data.role === "assistant"
               ? <AnswerMarkdown text={applyRevisions(m.data.text, data.revisions[m.id] ?? [])} hunks={data.hunks} diffId={data.diffId} />
               : m.data.text}
