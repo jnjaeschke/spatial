@@ -233,7 +233,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
-      return await buildSessionState(rt.store, rt.searchfox, rt.plugins.linkRevs, params[0]);
+      return await buildSessionState(rt.store, rt.searchfox, rt.plugins, params[0]);
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/code-links$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

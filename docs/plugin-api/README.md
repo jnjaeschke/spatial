@@ -968,6 +968,12 @@ Re-exports [text](../server/http/functions/text.md)
 
 ***
 
+### TextLink
+
+Re-exports [TextLink](../shared/types/interfaces/TextLink.md)
+
+***
+
 ### UsageRun
 
 Re-exports [UsageRun](../shared/types/interfaces/UsageRun.md)

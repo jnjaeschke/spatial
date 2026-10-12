@@ -2,8 +2,9 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SessionState } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { SearchfoxContext, searchfoxLinks } from "./searchfox-url.ts";
+import { TextLinksContext } from "./text-links.ts";
 
-/** Provides Searchfox links for the session's code tokens; tokens a component asks for are resolved in one batched request per tick. A read-only view resolves nothing. */
+/** Provides Searchfox links for the session's code tokens and its text-link rules; tokens a component asks for are resolved in one batched request per tick. A read-only view resolves nothing. */
 export function SearchfoxProvider({ state, readOnly, children }: { state: SessionState; readOnly: boolean; children: ReactNode }) {
   const [resolved, setResolved] = useState<Record<string, string | null>>({});
   const requested = useRef(new Set<string>());
@@ -27,5 +28,5 @@ export function SearchfoxProvider({ state, readOnly, children }: { state: Sessio
     const links = searchfoxLinks(state, request);
     return links && { ...links, links: { ...links.links, ...resolved } };
   }, [state, request, resolved]);
-  return <SearchfoxContext.Provider value={value}>{children}</SearchfoxContext.Provider>;
+  return <TextLinksContext.Provider value={state.textLinks}><SearchfoxContext.Provider value={value}>{children}</SearchfoxContext.Provider></TextLinksContext.Provider>;
 }

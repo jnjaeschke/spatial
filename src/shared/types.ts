@@ -160,6 +160,9 @@ export interface DiagramData { kind: "sequence"; commit: string; commitIndex: nu
 
 
 
+/** Turns matches of `pattern` (a regex source, matched globally) in text into links to `url`, in which `$1`, `$2`, ... stand for the match's capture groups. */
+export interface TextLink { pattern: string; url: string }
+
 /** Full snapshot of one session; the web client's only data source besides events. */
 export interface SessionState {
   session: Session;
@@ -172,6 +175,8 @@ export interface SessionState {
   /** Searchfox repository base and indexed tip for Gecko repos, else null. */
   /** `linkRev` is the revision code links point at (null when unknown); `tipRev` is Searchfox's current tip. */
   searchfox: { repoBase: string; tipRev: string; linkRev: string | null } | null;
+  /** Rules that turn text such as bug references into links, from the repository's plugins. */
+  textLinks: TextLink[];
 }
 
 export interface Provenance {

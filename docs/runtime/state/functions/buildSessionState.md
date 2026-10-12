@@ -6,7 +6,7 @@
 
 # Function: buildSessionState()
 
-> **buildSessionState**(`store`, `searchfoxCapability`, `linkRevs`, `sessionId`): `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
+> **buildSessionState**(`store`, `searchfoxCapability`, `hooks`, `sessionId`): `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
 
 ## Parameters
 
@@ -18,9 +18,9 @@
 
 [`SearchfoxCapability`](../../tasks/interfaces/SearchfoxCapability.md)
 
-### linkRevs
+### hooks
 
-(`view`) => `string` \| `null`[]
+`Pick`\<[`PluginRegistry`](../../plugins/interfaces/PluginRegistry.md), `"linkRevs"` \| `"textLinks"`\>
 
 ### sessionId
 

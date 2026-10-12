@@ -55,7 +55,7 @@ const narrative = (id: string): Artifact<PatchNarrativeData> => ({
 const state = (artifacts: Artifact[], workflow: "review" | "chat" | null = "review"): SessionState => ({
   session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow }, artifacts,
   links: artifacts.filter((a) => a.type === "ReviewFinding").map((a) => ({ id: `derived-${a.id}`, sessionId: "S", from: a.id, to: artifacts.filter((item) => item.type === "PatchNarrative").at(-1)?.id ?? "", kind: "derivedFrom" as const })),
-  tasks: [], lastEventId: 0, searchfox: null,
+  tasks: [], lastEventId: 0, textLinks: [], searchfox: null,
  epochs: [],});
 
 test("review graph has no conversation node; asides on the latest request and the root thread stay off the canvas", () => {

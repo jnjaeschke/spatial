@@ -133,3 +133,21 @@ The upstream revision this plugin's session content is based on, for code links 
 #### Returns
 
 [`PluginServer`](PluginServer.md)
+
+***
+
+### textLinks()?
+
+> `optional` **textLinks**(`repo`): [`TextLink`](../../../shared/types/interfaces/TextLink.md)[]
+
+Rules linking text (such as bug references) to the tracker of the repository at `repo`; empty when this plugin has none for it.
+
+#### Parameters
+
+##### repo
+
+`string`
+
+#### Returns
+
+[`TextLink`](../../../shared/types/interfaces/TextLink.md)[]

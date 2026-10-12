@@ -661,6 +661,12 @@ Re-exports [TaskStatus](../../shared/types/type-aliases/TaskStatus.md)
 
 ***
 
+### TextLink
+
+Re-exports [TextLink](../../shared/types/interfaces/TextLink.md)
+
+***
+
 ### UsageRun
 
 Re-exports [UsageRun](../../shared/types/interfaces/UsageRun.md)

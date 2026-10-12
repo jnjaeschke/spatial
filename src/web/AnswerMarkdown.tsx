@@ -2,9 +2,11 @@ import { createContext, useContext } from "react";
 import { defaultUrlTransform, type Components } from "react-markdown";
 import type { DiffFile, Hunk } from "../shared/types.ts";
 import { CodeSpan, useSearchfoxUrl } from "./CodeSpan.tsx";
+import { linkMarkdown } from "../shared/text-links.ts";
 import { ConversationItemsContext } from "./conversation-items.ts";
 import { localLinkToken } from "./local-links.ts";
 import { ExternalLink, Markdown } from "./Markdown.tsx";
+import { TextLinksContext } from "./text-links.ts";
 
 const CodeLinkTarget = createContext<{ hunks: { file: DiffFile; hunk: Hunk }[]; diffId: string }>({ hunks: [], diffId: "" });
 
@@ -31,5 +33,6 @@ const LocalLink: NonNullable<Components["a"]> = function LocalLink(props) {
 const keepLocalLinks = (url: string) => localLinkToken(url, undefined) === null ? defaultUrlTransform(url) : url;
 
 export function AnswerMarkdown({ text, hunks, diffId }: { text: string; hunks: { file: DiffFile; hunk: Hunk }[]; diffId: string }) {
-  return <CodeLinkTarget.Provider value={{ hunks, diffId }}><Markdown text={text} code={InlineCode} link={LocalLink} urlTransform={keepLocalLinks} /></CodeLinkTarget.Provider>;
+  const rules = useContext(TextLinksContext);
+  return <CodeLinkTarget.Provider value={{ hunks, diffId }}><Markdown text={linkMarkdown(text, rules)} code={InlineCode} link={LocalLink} urlTransform={keepLocalLinks} /></CodeLinkTarget.Provider>;
 }

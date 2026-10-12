@@ -38,7 +38,7 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         <div className="inline-strip">{data.findings.map((finding) => <FindingItem key={finding.findingId} finding={finding} />)}</div>
         <div className="inline-strip">{(data.threads ?? []).map((thread) => <ChatItem key={thread.threadId ?? thread.draftId} thread={thread} />)}</div>
         <ul className="files">
-          {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
+          {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && <InlineText text={c.subject} />}</li>)}
         </ul>
       </div>
     </Box>

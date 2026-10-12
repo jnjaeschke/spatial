@@ -6,12 +6,12 @@ import { selectLinkRev } from "./link-rev.ts";
 import { sessionView } from "./render-ref.ts";
 import type { PluginRegistry } from "./plugins.ts";
 
-export async function buildSessionState(store: Store, searchfoxCapability: SearchfoxCapability, linkRevs: PluginRegistry["linkRevs"], sessionId: Id): Promise<SessionState> {
+export async function buildSessionState(store: Store, searchfoxCapability: SearchfoxCapability, hooks: Pick<PluginRegistry, "linkRevs" | "textLinks">, sessionId: Id): Promise<SessionState> {
   const session = store.getSession(sessionId);
   const view = sessionView(store, sessionId);
   let searchfox: SessionState["searchfox"] = null;
   if (isGeckoRepo(session.worktree)) {
-    try { const tip = await searchfoxCapability.tip(); searchfox = { repoBase: tip.repoBase, tipRev: tip.rev, linkRev: selectLinkRev(view, linkRevs) }; }
+    try { const tip = await searchfoxCapability.tip(); searchfox = { repoBase: tip.repoBase, tipRev: tip.rev, linkRev: selectLinkRev(view, hooks.linkRevs) }; }
     catch (e) { console.error(`Searchfox unavailable: ${(e as Error).message}`); }
   }
   return {
@@ -22,5 +22,6 @@ export async function buildSessionState(store: Store, searchfoxCapability: Searc
     epochs: store.listEpochs(sessionId),
     lastEventId: store.lastEventId(sessionId),
     searchfox,
+    textLinks: hooks.textLinks.flatMap((hook) => hook(session.worktree)),
   };
 }

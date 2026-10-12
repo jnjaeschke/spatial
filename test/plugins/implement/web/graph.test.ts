@@ -12,7 +12,7 @@ const data: InvestigationData = {
   locations: [{ path: "a.cpp", line: 3, quote: "x", why: "w", step: 1 }, { path: "b.cpp", line: 9, quote: "y", why: "v", step: null }],
 };
 const state = (artifacts: Artifact[], links: SessionState["links"] = [], searchfox: SessionState["searchfox"] = null): SessionState => ({
-  session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "Title", createdAt: "", workflow: "implement" }, artifacts, links, tasks: [], epochs: [], lastEventId: 0, searchfox,
+  session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "Title", createdAt: "", workflow: "implement" }, artifacts, links, tasks: [], epochs: [], lastEventId: 0, textLinks: [], searchfox,
 });
 const start = () => art("WorkflowStart", { via: "command", workflow: "implement", params: { request: "r" }, title: "Title", prompt: "do it" });
 

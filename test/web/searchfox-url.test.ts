@@ -4,7 +4,7 @@ import type { SessionState } from "../../src/shared/types.ts";
 import { fileUrl, linkTitle, searchfoxLinks } from "../../src/web/searchfox-url.ts";
 
 const state = (searchfox: SessionState["searchfox"]): SessionState => ({
-  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow: "review" }, artifacts: [], links: [], tasks: [], lastEventId: 0, searchfox,
+  session: { id: "S", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "0", workflow: "review" }, artifacts: [], links: [], tasks: [], lastEventId: 0, textLinks: [], searchfox,
  epochs: [],});
 test("searchfoxLinks selects the link revision or current tip", () => {
   const sf = { repoBase: "https://searchfox.org/firefox-main/", tipRev: "t".repeat(40), linkRev: null };

@@ -90,6 +90,22 @@ Contributions of a plugin list merged by `pluginRegistry`, which throws on dupli
 
 ***
 
+### textLinks
+
+> **textLinks**: (`repo`) => [`TextLink`](../../../shared/types/interfaces/TextLink.md)[][]
+
+#### Parameters
+
+##### repo
+
+`string`
+
+#### Returns
+
+[`TextLink`](../../../shared/types/interfaces/TextLink.md)[]
+
+***
+
 ### workflows
 
 > **workflows**: `Map`\<`string`, [`Workflow`](Workflow.md)\<`any`\>\>

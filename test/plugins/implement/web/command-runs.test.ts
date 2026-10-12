@@ -6,7 +6,7 @@ import { commandRunLog, commandSummary, commandSummaryLabel, implementSummary } 
 let k = 0;
 const art = (type: string, data: unknown, epoch: number | null): Artifact => ({ id: `${type}${++k}`, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch, createdAt: "" });
 const run = (command: string, exitCode: number, epoch: number | null, test = false) => art("CommandRun", { command, exitCode, durationMs: 5, output: `out of ${command}`, test }, epoch);
-const state = (artifacts: Artifact[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "implement" }, artifacts, links: [], tasks: [], epochs: [], lastEventId: 0, searchfox: null });
+const state = (artifacts: Artifact[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "implement" }, artifacts, links: [], tasks: [], epochs: [], lastEventId: 0, textLinks: [], searchfox: null });
 
 test("the command summary counts the runs of one epoch and names the task that ran them", () => {
   const s = state([run("a", 0, 2), run("b", 1, 2, true), run("c", 0, 4)]);

@@ -303,6 +303,7 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await checkResult.getByTestId("check-run").click();
   await expect(page.getByRole("dialog", { name: "implement activity" }).getByTestId("tool-output")).toContainText("tests-ran-ok");
   await page.getByTestId("epoch-chip-3").click();
+  await expect(page.getByTestId("summary").locator(".files").getByRole("link", { name: "Bug 4242" })).toHaveAttribute("href", "https://bugzilla.mozilla.org/show_bug.cgi?id=4242");
   await page.getByTestId("session-chip").click();
   await bar.getByRole("button", { name: "Accept" }).click();
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
