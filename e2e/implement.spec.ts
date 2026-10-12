@@ -287,3 +287,15 @@ test("gecko: chat proposes a try push and nothing is pushed until the click", as
   await page.getByTestId("epoch-chip-1").click();
   await expect(conversation.locator(".msg.assistant")).toContainText("I will start a try push.");
 });
+
+test("memories for the investigate phase are applied and listed in its view", async ({ page, request }) => {
+  const dir = makeRepo();
+  const { repoDir } = await (await request.get(`http://127.0.0.1:4178/api/repo?path=${encodeURIComponent(dir)}`)).json();
+  const memory = { situation: "the plan touches code with tests", observed: "The agent skipped the tests", wanted: "Read the tests before planning", why: null, phases: ["investigate"], kinds: [], source: { sessionId: "s1", epoch: 1, steer: "st1" } };
+  expect((await request.put("http://127.0.0.1:4178/api/memories", { data: { repo: repoDir, scope: "repo", key: "read-tests-first", memory } })).status()).toBe(201);
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-MEM make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  await expect(page.getByTestId("investigation")).toContainText("The c file is missing.", { timeout: 20_000 });
+  await expect(page.getByTestId("used-memories")).toContainText("repo/read-tests-first");
+});

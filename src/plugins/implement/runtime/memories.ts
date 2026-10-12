@@ -1,5 +1,5 @@
-import type { Id, Knowledge } from "../../../plugin-api.ts";
-import type { MemoryScope, MemoryView, SteerMemory } from "../shared/types.ts";
+import type { Id, Knowledge, TaskContext } from "../../../plugin-api.ts";
+import type { MemoryScope, MemoryView, SteerMemory, UsedMemoriesData } from "../shared/types.ts";
 
 export const MEMORY_NAMESPACE = "implement";
 /** The phases whose prompts carry memories. */
@@ -31,6 +31,14 @@ export function relevantMemories(knowledge: Pick<Knowledge, "list">, repoDir: st
 }
 
 export const memoryBullet = ({ memory }: MemoryView): string => `- When ${memory.situation}: ${memory.wanted}${memory.why ? ` (${memory.why})` : ""}`;
+
+/** Prompt sections for the memories relevant to `phase` and `kind`; when there are any it also records them as a `UsedMemories` artifact of the task's epoch. */
+export function memorySections(ctx: Pick<TaskContext, "knowledge" | "repoDir" | "artifacts">, phase: string, kind: string | null): string[] {
+  const used = relevantMemories(ctx.knowledge, ctx.repoDir, phase, kind);
+  if (used.length === 0) return [];
+  ctx.artifacts.put<UsedMemoriesData>("UsedMemories", "verified", { entries: used.map(({ scope, key, entryId }) => ({ scope, key, entryId })) });
+  return ["# How this user wants things done", used.map(memoryBullet).join("\n")];
+}
 
 const nonEmpty = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
 

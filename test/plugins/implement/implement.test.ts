@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
+import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
@@ -28,14 +29,14 @@ const testProfilePlugin = { id: "tp", repoProfiles: [
   { id: "checked-stack", description: "c", commitStyle: "stack" as const, testCommand: () => "true" },
 ] };
 
-function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation, providerSessionId: (call: number) => string | undefined = (call) => `p${call + 1}`) {
+function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation, providerSessionId: (call: number) => string | undefined = (call) => `p${call + 1}`, knowledge?: KnowledgeStore) {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "1\n" }, "base");
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: providerSessionId(prompts.length - 1) as string, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability, ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
   const branch = put("ImplementBranch", { branch: "spatial/x", baseSha: base, baseRef: "main", profile, checkout: "new-branch" });
@@ -56,6 +57,19 @@ test("the agent edits and commits; the result records the verified tip", async (
   assert.ok(prompts[0]!.system!.startsWith("You implement a planned code change"));
   for (const text of ["# Investigation", "looked at a.txt", "nothing there", "spatial/x"]) assert.ok(prompts[0]!.prompt.includes(text), text);
   assert.equal(results(store, session.id).length, 1);
+});
+
+test("memories relevant to the implement phase and the investigation kind are in the prompt and recorded for the epoch", async () => {
+  const knowledge = new KnowledgeStore(":memory:");
+  const { store, session, prompts, run } = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; }, "plain-git", investigation, undefined, knowledge);
+  const memory = (kinds: string[], wanted: string) => ({ situation: "the plan is a bug fix", observed: "o", wanted, why: "reviewers asked", phases: ["implement"], kinds, source: { sessionId: "S", epoch: 1, steer: "ST" } });
+  knowledge.put(session.repoDir, "implement", "memory/for-bugfixes", memory(["bugfix"], "add the test first"), { by: "user", sessionId: "S" });
+  knowledge.put(session.repoDir, "implement", "memory/for-features", memory(["feature"], "document the flag"), { by: "user", sessionId: "S" });
+  store.createEpoch(session.id, "implement", null);
+  await run({ llm: selection });
+  assert.ok(prompts[0]!.prompt.includes("# How this user wants things done\n\n- When the plan is a bug fix: add the test first (reviewers asked)"));
+  assert.ok(!prompts[0]!.prompt.includes("document the flag"));
+  assert.equal(store.listArtifacts(session.id, "UsedMemories").length, 1);
 });
 
 test("shell commands become CommandRun artifacts and progress lines", async () => {

@@ -25,5 +25,6 @@
 - [memoryBullet](functions/memoryBullet.md)
 - [memoryKey](functions/memoryKey.md)
 - [memoryProblems](functions/memoryProblems.md)
+- [memorySections](functions/memorySections.md)
 - [relevantMemories](functions/relevantMemories.md)
 - [scopeId](functions/scopeId.md)

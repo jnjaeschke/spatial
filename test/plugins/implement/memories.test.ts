@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { confirmedKey, currentMemories, distillProblems, memoryBullet, memoryKey, memoryProblems, relevantMemories, type DistillReply } from "../../../src/plugins/implement/runtime/memories.ts";
+import { confirmedKey, currentMemories, distillProblems, memoryBullet, memoryKey, memoryProblems, memorySections, relevantMemories, type DistillReply } from "../../../src/plugins/implement/runtime/memories.ts";
 import type { SteerMemory } from "../../../src/plugins/implement/shared/types.ts";
+import type { TaskContext } from "../../../src/plugin-api.ts";
 
 const memory = (over: Partial<SteerMemory> = {}): SteerMemory => ({ situation: "a test fails for an unrelated reason", observed: "The agent kept retrying", wanted: "Stop and report it", why: null, phases: ["implement"], kinds: [], source: { sessionId: "S", epoch: 1, steer: "ST" }, ...over });
 const user = { by: "user", sessionId: "S" } as const;
@@ -62,4 +63,15 @@ test("a distillation adds new keys and updates existing ones, with a slug", () =
   assert.deepEqual(distillProblems(reply({ key: "report-failure" }), existing), ["report-failure exists in repo scope; use update"]);
   assert.deepEqual(distillProblems(reply({ key: "report-failure", scope: "global" }), existing), []);
   assert.deepEqual(distillProblems(reply({ key: "No Spaces" }), existing), ["key must match ^[a-z0-9-]{3,60}$"]);
+});
+
+test("memory sections are the bullets of the relevant memories, recorded as UsedMemories; none without memories", () => {
+  const knowledge = store();
+  const put: { type: string; status: string; data: unknown }[] = [];
+  const ctx = { knowledge, repoDir: REPO, artifacts: { put: (type: string, status: string, data: unknown) => { put.push({ type, status, data }); return {}; } } } as unknown as Pick<TaskContext, "knowledge" | "repoDir" | "artifacts">;
+  assert.deepEqual(memorySections(ctx, "implement", "bugfix"), ["# How this user wants things done", "- When a test fails for an unrelated reason: Stop and report it (it wastes time)\n- When a test fails for an unrelated reason: Stop and report it\n- When a test fails for an unrelated reason: Stop and report it"]);
+  assert.deepEqual(put.map((p) => [p.type, p.status, (p.data as { entries: { scope: string; key: string }[] }).entries.map((e) => `${e.scope}/${e.key}`)]), [["UsedMemories", "verified", ["repo/only-bugfix", "repo/report-failure", "global/short-commits"]]]);
+  put.length = 0;
+  assert.deepEqual(memorySections(ctx, "reviewerComments", null), []);
+  assert.deepEqual(put, []);
 });
