@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type ChatThreadData, type Id, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, verifyDiagramAtBase } from "../../../../plugin-api.ts";
+import { type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, schemaErrors, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
 import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
@@ -8,10 +8,8 @@ import { steerSections, steersOf } from "../../runtime/steers.ts";
 import { memorySections } from "../../runtime/memories.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const BASE_SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as { required: string[]; properties: Record<string, unknown> };
+const BASE_SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema & { required: string[]; properties: Record<string, JsonSchema> };
 const SCHEMA = { ...BASE_SCHEMA, required: [...BASE_SCHEMA.required, "diagram"], properties: { ...BASE_SCHEMA.properties, diagram: { anyOf: [{ type: "null" }, diagramSchema] } } };
-const KINDS = ["bugfix", "feature", "spec", "refactor", "perf"];
-const CHECK_KINDS = ["new-test", "failing-test", "covering-test", "measure"];
 const MAX_RETRIES = 2;
 
 /** Input of the investigate phase and task. `previous` is set on a revision: the Investigation to improve and the user's text. */
@@ -32,20 +30,13 @@ interface Reply {
   architecture: string | null; steps: { title: string; message: string; intent: string; checks: RawCheck[] }[]; openQuestions: string[]; exploration: InvestigationData["exploration"];
   specUrls: string[]; diagram: unknown;
 }
-const isReply = (value: unknown): value is Reply => {
-  const r = value as Partial<Reply> | null | undefined;
-  return typeof r === "object" && r !== null && KINDS.includes(r.kind as string) && typeof r.summary === "string" && (r.bug === null || Number.isInteger(r.bug))
-    && Array.isArray(r.locations) && r.locations.every((l) => typeof l?.path === "string" && Number.isInteger(l.line) && typeof l.quote === "string" && typeof l.why === "string")
-    && Array.isArray(r.testCases) && r.testCases.every((t) => typeof t?.description === "string" && typeof t.expected === "string")
-    && Array.isArray(r.steps) && r.steps.every((s) => typeof s?.title === "string" && typeof s.message === "string" && typeof s.intent === "string" && Array.isArray(s.checks) && s.checks.every((c) => CHECK_KINDS.includes(c?.kind) && (c.path === null || typeof c.path === "string") && Array.isArray(c.subtests) && c.subtests.every((name: unknown) => typeof name === "string") && (c.command === null || typeof c.command === "string") && (c.goal === null || typeof c.goal === "string")))
-    && Array.isArray(r.openQuestions) && Array.isArray(r.exploration) && r.exploration.every((e) => typeof e?.tried === "string" && typeof e.outcome === "string")
-    && Array.isArray(r.specUrls) && r.specUrls.every((url) => typeof url === "string");
-};
 const problemsOf = (value: unknown, profile: { id: string; commitStyle: "stack" | "single" }): string[] => {
-  if (!isReply(value)) return [`The reply is not valid: ${String(JSON.stringify(value)).slice(0, 500)}`];
+  const shape = schemaErrors(BASE_SCHEMA, value);
+  if (shape.length) return shape;
+  const { steps } = value as Reply;
   return [
-    ...(value.steps.length === 0 ? ["The investigation has no steps"] : []),
-    ...(profile.commitStyle === "single" && value.steps.length > 1 ? [`The ${profile.id} profile takes one commit but the plan has ${value.steps.length} steps`] : []),
+    ...(steps.length === 0 ? ["The investigation has no steps"] : []),
+    ...(profile.commitStyle === "single" && steps.length > 1 ? [`The ${profile.id} profile takes one commit but the plan has ${steps.length} steps`] : []),
   ];
 };
 const listProblems = (problems: string[]) => problems.map((problem) => `- ${problem}`).join("\n");

@@ -101,7 +101,7 @@ test("the checkout must be on the recorded branch", async () => {
 test("a single-commit profile takes exactly one step, and a plan needs a step", async () => {
   await assert.rejects(setup(reply({ steps: [{ title: "a", message: "a", intent: "i", checks: [] }, { title: "b", message: "b", intent: "i", checks: [] }] })).run(), /one commit/);
   await assert.rejects(setup(reply({ steps: [] })).run(), /no steps/);
-  await assert.rejects(setup({ nonsense: true }).run(), /not valid/);
+  await assert.rejects(setup({ nonsense: true }).run(), /\$\.kind is missing/);
 });
 
 test("a stack profile may plan several steps", async () => {
@@ -153,7 +153,7 @@ test("an invalid reply is answered again in the resumed session with only the pr
   assert.equal(prompts[0]!.resumeProviderSession, undefined);
   assert.equal(prompts[1]!.tools, "read-only");
   assert.equal(prompts[1]!.resumeProviderSession, "p1");
-  assert.ok(prompts[1]!.prompt.startsWith("Your answer has problems:") && prompts[1]!.prompt.includes("not valid") && prompts[1]!.prompt.includes("Answer again with the full schema."));
+  assert.ok(prompts[1]!.prompt.startsWith("Your answer has problems:") && prompts[1]!.prompt.includes("is missing") && prompts[1]!.prompt.includes("Answer again with the full schema."));
   assert.ok(!prompts[1]!.prompt.includes("# Request"));
   assert.equal(store.getArtifact<InvestigationData>(out.investigationId).data.summary, "S");
 });
@@ -242,7 +242,7 @@ test("an investigation renders its checks and the dropped ones for chats", async
 });
 
 test("a check of an unknown kind makes the reply invalid", async () => {
-  await assert.rejects(setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("magic")] }] })).run(), /not valid/);
+  await assert.rejects(setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("magic")] }] })).run(), /must be one of "new-test"/);
 });
 
 test("the steers of the epoch come first in the prompt", async () => {

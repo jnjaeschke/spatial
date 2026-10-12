@@ -1,28 +1,22 @@
 import { readFileSync } from "node:fs";
-import { type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
+import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { describeCheck } from "../../shared/acceptance.ts";
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
 import { checkEvidence, type CommandEvidence } from "../../runtime/check-evidence.ts";
-import { runEditsOnly } from "../../runtime/edits-only.ts";
+import { runEditsOnly, type EditsOnlyAgentReply as AgentReply } from "../../runtime/edits-only.ts";
 import { steerPlan, steerSections } from "../../runtime/steers.ts";
 import { memorySections } from "../../runtime/memories.ts";
 import type { ReviewFindingData } from "../../../review/api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
+const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema;
 const MAX_RETRIES = 2;
 
 /** Input of the implement phase and task: the approved Investigation and what else the agent should address. `fix` lists the open high findings this round was asked to fix; the next review gives a verdict on each. */
 export interface ImplementInput { branchId: Id; investigationId: Id; bug: number | null; text: string | null; fix: Id[]; ignorePlanInvalid?: boolean; llm?: LlmSelection; writeMode: WriteMode }
-export interface AgentReply { summary: string; planChange: string | null; planInvalid: string | null; step: number | null }
-export const isAgentReply = (value: unknown): value is AgentReply => {
-  const r = value as Partial<AgentReply> | null | undefined;
-  return typeof r === "object" && r !== null && typeof r.summary === "string" && (r.planChange === null || typeof r.planChange === "string")
-    && (r.planInvalid === null || typeof r.planInvalid === "string") && (r.step === null || Number.isInteger(r.step));
-};
 /** The planned commit message with the real bug number in place of `Bug N`. */
 export const withBug = (message: string, bug: number | null) => bug === null ? message : message.replace(/^Bug N\b/, `Bug ${bug}`);
 
@@ -100,8 +94,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       firstCall = false;
       const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
       session = r.providerSessionId;
-      if (!isAgentReply(r.json)) throw new Error(`Implement reply is not valid: ${JSON.stringify(r.json)}`);
-      return r.json;
+      const errors = schemaErrors(SCHEMA, r.json);
+      if (errors.length) throw new Error(`Implement reply is not valid: ${errors.join("; ")}`);
+      return r.json as AgentReply;
     };
     const problemsSection = (list: string[]) => `# Problems to fix\n${list.map((problem) => `- ${problem}`).join("\n")}`;
     const done = async (head: string, reply: AgentReply, planChange: string | null, planInvalid: string | null) =>
