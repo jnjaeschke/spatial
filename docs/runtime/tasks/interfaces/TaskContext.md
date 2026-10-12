@@ -148,6 +148,40 @@ Read-only code search per engine.
 
 ***
 
+### epoch
+
+> **epoch**: `number` \| `null`
+
+The epoch the task started in; null outside a phase run.
+
+***
+
+### events
+
+> **events**: `object`
+
+#### recent()
+
+> **recent**(`taskId`, `limit`): `string`[]
+
+The last `limit` progress lines task `taskId` of this session reported, oldest first.
+
+##### Parameters
+
+###### taskId
+
+`string`
+
+###### limit
+
+`number`
+
+##### Returns
+
+`string`[]
+
+***
+
 ### git
 
 > **git**: [`GitCapability`](GitCapability.md)
@@ -221,6 +255,14 @@ The knowledge store, read-only: tasks return proposals, plugin runtime code writ
 ### repo
 
 > **repo**: `string`
+
+***
+
+### repoDir
+
+> **repoDir**: `string`
+
+Identity of the session's repository (`Session.repoDir`): the scope of per-repo knowledge.
 
 ***
 

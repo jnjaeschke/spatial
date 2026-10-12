@@ -25,3 +25,11 @@ The provider session of the implement agent, recorded (verified) when the sessio
 ### providerSessionId
 
 > **providerSessionId**: `string`
+
+***
+
+### resumed
+
+> **resumed**: `boolean`
+
+Whether the call that opened this session resumed a provider session.

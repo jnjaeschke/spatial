@@ -219,6 +219,8 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .minimap-mark.kind-spec { stroke: var(--kind-spec); }
 .session-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; }
 .session-body > .canvas { min-width: 0; }
+.phase-shell { grid-template-rows: auto minmax(0, 1fr); }
+.phase-shell-head { grid-column: 1 / -1; }
 .reviewer-comments-panel { position: relative; grid-column: 1 / -1; min-height: 0; overflow: auto; padding: 0 12px 12px; }
 .reviewer-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
 .reviewer-comment { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
@@ -862,3 +864,15 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .check-result.fail > span:first-child { color: var(--danger); }
 .check-message { color: var(--text-2); }
 .check-run { margin-left: 4px; font-size: 11px; }
+.steer-item .steer-label { color: var(--text-3); font-size: 0.8em; }
+.memory-notice { background: var(--surface-2); border: 1px dashed var(--border); }
+.memory-notice p { margin: 0 0 4px; }
+.memory-reactions { display: flex; gap: 6px; }
+.memories-panel { margin-top: 28px; }
+.memories { list-style: none; padding: 0; }
+.memory { padding: 10px 12px; margin: 8px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.memory p { margin: 0 0 4px; }
+.memory-detail { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+.memory-form { display: flex; flex-direction: column; gap: 6px; }
+.memory-field { display: flex; flex-direction: column; gap: 2px; }
+.memory-field textarea, .memory-field input[type="text"], .memory-field input:not([type]) { width: 100%; }

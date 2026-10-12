@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
+import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
@@ -26,14 +27,14 @@ const diagram = (over: object = {}) => ({ commit: 1, title: "Flow", summary: "S"
 const check = (kind: string, over: object = {}) => ({ kind, path: null, subtests: [], command: null, goal: null, ...over });
 const WPT = "testing/web-platform/tests/dom/x.html";
 const specResult = (url: string) => ({ found: true as const, spec: { spec: "HTML", anchor: "a", title: "T", type: "dfn", url, content: "c" } });
-function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = [], webspec: Partial<WebspecCapability> = {}, files: Record<string, string> = {}) {
+function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = [], webspec: Partial<WebspecCapability> = {}, files: Record<string, string> = {}, knowledge?: KnowledgeStore) {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "alpha\nbeta\ngamma\n", ...files }, "base");
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: typeof json === "function" ? json(prompts.length - 1) : json, providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, webspec: webspec as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, webspec: webspec as WebspecCapability, searchfox: {} as SearchfoxCapability, ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const run = (input: object = {}) => rt.run<{ investigationId: string; droppedLocations: string[] }>(session.id, "investigate", { request: "fix it", profile: "plain-git", baseSha: base, branch: "spatial/x", llm: selection, ...input });
   return { repo, base, store, session, prompts, rt, run };
@@ -56,6 +57,17 @@ test("locations are verified against the base, corrected and reported when dropp
   assert.equal(prompts[0]!.tools, "read-only");
   assert.ok(prompts[0]!.system!.startsWith("You investigate a bug report or feature request"));
   assert.ok(prompts[0]!.prompt.includes("fix it") && prompts[0]!.prompt.includes("spatial/x"));
+});
+
+test("memories relevant to the investigate phase are in the prompt and recorded for the epoch", async () => {
+  const knowledge = new KnowledgeStore(":memory:");
+  const { store, session, run, prompts } = setup(reply(), [], {}, {}, knowledge);
+  knowledge.put(session.repoDir, "implement", "memory/read-tests-first", { situation: "the plan touches code with tests", observed: "o", wanted: "read the tests before planning", why: null, phases: ["investigate"], kinds: [], source: { sessionId: "S", epoch: 1, steer: "ST" } }, { by: "user", sessionId: "S" });
+  store.createEpoch(session.id, "investigate", null);
+  await run();
+  assert.ok(prompts[0]!.prompt.includes("# How this user wants things done\n\n- When the plan touches code with tests: read the tests before planning"));
+  const used = store.listArtifacts(session.id, "UsedMemories");
+  assert.deepEqual([used.length, used[0]!.epoch, used[0]!.status], [1, 1, "verified"]);
 });
 
 test("bug number must occur in the request", async () => {
@@ -231,4 +243,12 @@ test("an investigation renders its checks and the dropped ones for chats", async
 
 test("a check of an unknown kind makes the reply invalid", async () => {
   await assert.rejects(setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("magic")] }] })).run(), /not valid/);
+});
+
+test("the steers of the epoch come first in the prompt", async () => {
+  const { store, session, run, prompts } = setup(reply());
+  store.createEpoch(session.id, "investigate", null);
+  store.putArtifact({ sessionId: session.id, type: "Steer", status: "verified", data: { text: "look at b.txt first", epoch: 1, phase: "investigate" }, provenance: { taskId: "user" } });
+  await run();
+  assert.ok(prompts[0]!.prompt.startsWith("# The user stopped you and said\n\nlook at b.txt first\n\n# Request"));
 });

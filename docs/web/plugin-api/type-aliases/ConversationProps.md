@@ -10,6 +10,28 @@
 
 ## Type Declaration
 
+### canSteer?
+
+> `optional` **canSteer?**: `boolean`
+
+### items?
+
+> `optional` **items?**: [`Artifact`](../../../shared/types/interfaces/Artifact.md)[]
+
 ### lead?
 
 > `optional` **lead?**: `ReactNode`
+
+### renderItem()?
+
+> `optional` **renderItem**(`artifact`): `ReactNode`
+
+#### Parameters
+
+##### artifact
+
+[`Artifact`](../../../shared/types/interfaces/Artifact.md)
+
+#### Returns
+
+`ReactNode`

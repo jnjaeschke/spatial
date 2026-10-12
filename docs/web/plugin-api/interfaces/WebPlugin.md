@@ -8,6 +8,12 @@
 
 ## Properties
 
+### conversationItems?
+
+> `optional` **conversationItems?**: `Record`\<`string`, `ComponentType`\<[`ConversationItemProps`](ConversationItemProps.md)\>\>
+
+***
+
 ### id
 
 > **id**: `string`
@@ -29,6 +35,12 @@
 ### replyActions?
 
 > `optional` **replyActions?**: `Record`\<`string`, `ComponentType`\<[`ReplyActionProps`](ReplyActionProps.md)\>\>
+
+***
+
+### repoPanels?
+
+> `optional` **repoPanels?**: `ComponentType`\<[`RepoPanelProps`](RepoPanelProps.md)\>[]
 
 ***
 

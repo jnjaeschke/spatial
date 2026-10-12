@@ -29,3 +29,24 @@ test("stub actions run in the working directory before the output; && needles ne
     for (const name of ["FAKE_LLM_ACTIONS", "FAKE_LLM_STDOUT", "FAKE_LLM_ROUTES"]) delete process.env[name];
   }
 });
+
+test("a !-prefixed needle part must be absent; a hang route prints its file and then waits until killed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "stub-"));
+  const out = join(dir, "out");
+  writeFileSync(out, "OUT");
+  const hanging = join(dir, "hanging");
+  writeFileSync(hanging, "HANGING\n");
+  Object.assign(process.env, { FAKE_LLM_HANG_ON: JSON.stringify({ "alpha&&!resume": hanging }), FAKE_LLM_STDOUT: out });
+  try {
+    const resumed = await runProcess(STUB, [], { stdin: "alpha resume", cwd: dir, signal: new AbortController().signal });
+    assert.equal(resumed.stdout, "OUT");
+    const controller = new AbortController();
+    const lines: string[] = [];
+    const hung = runProcess(STUB, [], { stdin: "alpha", cwd: dir, signal: controller.signal, onStdoutLine: (line) => lines.push(line) });
+    setTimeout(() => controller.abort(), 500);
+    await assert.rejects(hung, /aborted/);
+    assert.deepEqual(lines, ["HANGING"]);
+  } finally {
+    for (const name of ["FAKE_LLM_HANG_ON", "FAKE_LLM_STDOUT"]) delete process.env[name];
+  }
+});

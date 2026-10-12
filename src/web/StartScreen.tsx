@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import type { RecentRepo, RepoInfo } from "../shared/types.ts";
 import { api, useModels } from "./api.ts";
 import { SessionList } from "./SessionPicker.tsx";
@@ -7,7 +7,7 @@ import { StartBox } from "./StartBox.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
 import { routeUrl } from "./routes.ts";
 
-export function StartScreen({ path }: { path: string }) {
+export function StartScreen({ path, panels }: { path: string; panels: ComponentType<{ repoDir: string }>[] }) {
   const [repo, setRepo] = useState<RepoInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [repos, setRepos] = useState<RecentRepo[] | null>(null);
@@ -33,6 +33,7 @@ export function StartScreen({ path }: { path: string }) {
     {models ? <StartBox path={repo.worktree} repoDir={repo.repoDir} models={models} /> : <p className="failed">Models could not be loaded: {modelsError}</p>}
     {error && <p className="failed">{error}</p>}
     <SessionList sessions={repo.sessions} />
+    {panels.map((Panel, index) => <Panel key={index} repoDir={repo.repoDir} />)}
   </div>;
 }
 

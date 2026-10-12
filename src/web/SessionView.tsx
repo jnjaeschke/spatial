@@ -21,7 +21,8 @@ import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
 import { RouteContext, routeUrl, sessionViewOf, showSessionView } from "./routes.ts";
 import { Segmented } from "./Segmented.tsx";
 import { ReplyActionsContext, derivedArtifacts } from "./reply-actions.ts";
-import { webReplyActions } from "../plugins/web.ts";
+import { webConversationItems, webReplyActions } from "../plugins/web.ts";
+import { ConversationItemsContext } from "./conversation-items.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -69,6 +70,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const latestEpoch = state.epochs.at(-1) ?? null;
   const past = viewed !== null && viewed !== latestEpoch?.n ? state.epochs.find((e) => e.n === viewed) ?? null : null;
   const shown = past ? stateAtEpoch(state, past.n) : state;
+  const conversationItems = { components: webConversationItems, artifacts: shown.artifacts, sessionId, repoDir: state.session.repoDir, worktree: state.session.worktree };
   const { phase, view } = activePhaseView(webPlugins, shown);
   const extra = sessionViews(webPlugins, shown, viewId);
   const Body = extra.active?.Body ?? view?.Body;
@@ -85,7 +87,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
     {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
-    <ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}>{body}<AskOnSelect /></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider>
+    <ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}>{body}<AskOnSelect /></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider>
     <ActivityStrip tasks={state.tasks} progress={progress} />
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}

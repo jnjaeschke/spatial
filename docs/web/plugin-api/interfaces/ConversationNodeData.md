@@ -54,6 +54,14 @@ Current review diagrams created by each assistant message.
 
 ***
 
+### epochRunning?
+
+> `optional` **epochRunning?**: `boolean`
+
+Whether an epoch of the session is running: the conversation offers Stop & steer.
+
+***
+
 ### hunks
 
 > **hunks**: `object`[]

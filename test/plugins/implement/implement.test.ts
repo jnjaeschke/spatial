@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
+import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
@@ -28,14 +29,14 @@ const testProfilePlugin = { id: "tp", repoProfiles: [
   { id: "checked-stack", description: "c", commitStyle: "stack" as const, testCommand: () => "true" },
 ] };
 
-function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation, providerSessionId: (call: number) => string | undefined = (call) => `p${call + 1}`) {
+function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation, providerSessionId: (call: number) => string | undefined = (call) => `p${call + 1}`, knowledge?: KnowledgeStore) {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "1\n" }, "base");
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: providerSessionId(prompts.length - 1) as string, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability, ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
   const branch = put("ImplementBranch", { branch: "spatial/x", baseSha: base, baseRef: "main", profile, checkout: "new-branch" });
@@ -56,6 +57,19 @@ test("the agent edits and commits; the result records the verified tip", async (
   assert.ok(prompts[0]!.system!.startsWith("You implement a planned code change"));
   for (const text of ["# Investigation", "looked at a.txt", "nothing there", "spatial/x"]) assert.ok(prompts[0]!.prompt.includes(text), text);
   assert.equal(results(store, session.id).length, 1);
+});
+
+test("memories relevant to the implement phase and the investigation kind are in the prompt and recorded for the epoch", async () => {
+  const knowledge = new KnowledgeStore(":memory:");
+  const { store, session, prompts, run } = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; }, "plain-git", investigation, undefined, knowledge);
+  const memory = (kinds: string[], wanted: string) => ({ situation: "the plan is a bug fix", observed: "o", wanted, why: "reviewers asked", phases: ["implement"], kinds, source: { sessionId: "S", epoch: 1, steer: "ST" } });
+  knowledge.put(session.repoDir, "implement", "memory/for-bugfixes", memory(["bugfix"], "add the test first"), { by: "user", sessionId: "S" });
+  knowledge.put(session.repoDir, "implement", "memory/for-features", memory(["feature"], "document the flag"), { by: "user", sessionId: "S" });
+  store.createEpoch(session.id, "implement", null);
+  await run({ llm: selection });
+  assert.ok(prompts[0]!.prompt.includes("# How this user wants things done\n\n- When the plan is a bug fix: add the test first (reviewers asked)"));
+  assert.ok(!prompts[0]!.prompt.includes("document the flag"));
+  assert.equal(store.listArtifacts(session.id, "UsedMemories").length, 1);
 });
 
 test("shell commands become CommandRun artifacts and progress lines", async () => {
@@ -308,8 +322,8 @@ test("each provider session id is recorded once as a verified AgentSession", asy
   });
   await run({ llm: selection });
   assert.deepEqual(store.listArtifacts(session.id, "AgentSession").map((a) => [a.status, a.data]), [
-    ["verified", { providerSessionId: "s0", backend: "claude", model: "sonnet" }],
-    ["verified", { providerSessionId: "s1", backend: "claude", model: "sonnet" }],
+    ["verified", { providerSessionId: "s0", backend: "claude", model: "sonnet", resumed: false }],
+    ["verified", { providerSessionId: "s1", backend: "claude", model: "sonnet", resumed: true }],
   ]);
 });
 
@@ -337,4 +351,40 @@ test("edits-only stores CheckResults from the runs the runtime made", async () =
     { step: 0, check: 0, label: "covering-test t/c.js", ok: true, message: "passed", runs },
     { step: 0, check: 1, label: "measure `bench` - faster", ok: true, message: "not run in edits-only mode", runs: [] },
   ]);
+});
+
+test("after a steer the agent resumes its stopped session with only the steer", async () => {
+  const knowledge = new KnowledgeStore(":memory:");
+  const { store, session, put, prompts, run } = setup((_, prompt, r) => {
+    prompt.onEvent?.({ kind: "session", providerSessionId: "p-2" });
+    r.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  }, "plain-git", investigation, undefined, knowledge);
+  knowledge.put(session.repoDir, "implement", "memory/for-bugfixes", { situation: "the plan is a bug fix", observed: "o", wanted: "add a test first", why: null, phases: ["implement"], kinds: [], source: { sessionId: "S", epoch: 1, steer: "ST" } }, { by: "user", sessionId: "S" });
+  store.createEpoch(session.id, "implement", null);
+  put("AgentSession", { providerSessionId: "p-1", backend: "claude", model: "sonnet", resumed: false });
+  put("Steer", { text: "use a helper", epoch: 1, phase: "implement" });
+  await run({ llm: selection });
+  assert.equal(prompts.length, 1);
+  assert.equal(prompts[0]!.resumeProviderSession, "p-1");
+  assert.equal(prompts[0]!.prompt, "# The user stopped you and said\n\nuse a helper\n\nThe work tree may hold edits from the stopped run.");
+  assert.equal(store.listArtifacts(session.id, "UsedMemories").length, 0);
+  const latest = store.listArtifacts(session.id, "AgentSession").at(-1)!.data as { providerSessionId: string; resumed: boolean };
+  assert.deepEqual([latest.providerSessionId, latest.resumed], ["p-2", true]);
+});
+
+test("a steer without a stopped session restarts the agent with the steer in its full prompt", async () => {
+  const { store, session, put, prompts, run } = setup((_, prompt, r) => {
+    prompt.onEvent?.({ kind: "session", providerSessionId: "p-3" });
+    r.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  });
+  store.createEpoch(session.id, "implement", null);
+  put("Steer", { text: "use a helper", epoch: 1, phase: "implement" });
+  await run({ llm: selection });
+  assert.equal(prompts[0]!.resumeProviderSession, undefined);
+  assert.ok(prompts[0]!.prompt.startsWith("# The user stopped you and said\n\nuse a helper"));
+  assert.ok(prompts[0]!.prompt.includes("# Investigation"));
+  const latest = store.listArtifacts(session.id, "AgentSession").at(-1)!.data as { resumed: boolean };
+  assert.equal(latest.resumed, false);
 });

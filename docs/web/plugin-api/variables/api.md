@@ -586,6 +586,24 @@
 
 `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
 
+### steer
+
+> **steer**: (`sessionId`, `text`) => `Promise`\<\{ `steerId`: `string`; \}\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### text
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `steerId`: `string`; \}\>
+
 ### submitReview
 
 > **submitReview**: (`sessionId`, `body`) => `Promise`\<\{ `inlines`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>

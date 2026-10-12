@@ -7,6 +7,8 @@ import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
 import { checkEvidence, type CommandEvidence } from "../../runtime/check-evidence.ts";
 import { runEditsOnly } from "../../runtime/edits-only.ts";
+import { steerPlan, steerSections } from "../../runtime/steers.ts";
+import { memorySections } from "../../runtime/memories.ts";
 import type { ReviewFindingData } from "../../../review/api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
@@ -36,6 +38,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug), checks: step.checks }));
     const writer = makeGitWriter(ctx.repo);
     const view = ctx.artifacts.view();
+    const steer = steerPlan(view.artifacts, ctx.epoch);
     const previous = (view.artifacts.filter((a) => a.type === "ImplementResult") as Artifact<ImplementResultData>[]).at(-1);
 
     const current = await writer.currentBranch();
@@ -59,6 +62,8 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       findings: fix.map(describeFinding),
     });
     const prompt = [
+      ...steerSections(steer.all, true),
+      ...(steer.resume ? [] : memorySections(ctx, "implement", investigation.kind)),
       "# Investigation", ctx.artifacts.render(input.investigationId),
       "# Checkout", `Branch ${branch.branch}, base ${branch.baseSha}.${input.bug !== null ? ` Bug ${input.bug}.` : ""}\n${profile.description}`,
       ...(await ctx.git.isDirty() ? ["# Uncommitted changes", "The work tree has uncommitted changes from an earlier run; they are yours to keep, adjust or revert."] : []),
@@ -70,7 +75,8 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const evidence: CommandEvidence[] = [];
     let edited = false;
     let recorded: string | undefined;
-    let session: string | undefined;
+    let session = steer.resume?.providerSessionId;
+    let steerPrompt = steer.resume ? steerSections(steer.resume.steers, true).join("\n\n") : null;
     let firstCall = true;
     const onEvent = (event: LlmEvent) => {
       if (event.kind === "progress") {
@@ -80,7 +86,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       else if (event.kind === "session") {
         if (event.providerSessionId === recorded) return;
         recorded = event.providerSessionId;
-        ctx.artifacts.put<AgentSessionData>("AgentSession", "verified", { providerSessionId: event.providerSessionId, backend: selection.backend, model: selection.model });
+        ctx.artifacts.put<AgentSessionData>("AgentSession", "verified", { providerSessionId: event.providerSessionId, backend: selection.backend, model: selection.model, resumed: session !== undefined });
       }
       else if (event.kind === "command") {
         const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
@@ -89,7 +95,8 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     };
     /** The first call starts a session with `fresh`; every later call resumes the session of the call before it with only `followUp`. */
     const call = async (fresh: string, followUp: string): Promise<AgentReply> => {
-      const prompt = firstCall ? fresh : followUp;
+      const prompt = steerPrompt === null ? (firstCall ? fresh : followUp) : input.writeMode === "editsOnly" ? `${steerPrompt}\n\n${followUp}` : steerPrompt;
+      steerPrompt = null;
       firstCall = false;
       const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
       session = r.providerSessionId;

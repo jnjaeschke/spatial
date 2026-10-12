@@ -3,6 +3,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
+import { revealNode } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 test.afterEach(() => { for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -83,6 +84,61 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   expect(git(dir, "log", "--format=%s", `main..${branch}`)).toBe("Fix the c thing");
   expect(readFileSync(join(dir, "a.txt"), "utf8")).toContain("THIRTY-ONE");
   expect(git(dir, "status", "--porcelain")).toBe("");
+});
+
+test("steering a running implement epoch restarts it, resumed with the steer, and remembers the steer", async ({ page }) => {
+  test.setTimeout(120_000);
+  const dir = makeRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-STEER make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const bar = page.getByTestId("topbar-decision");
+  await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByTestId("implement-running")).toBeVisible({ timeout: 20_000 });
+  const sessionId = /\/sessions\/([^/?#]+)/.exec(page.url())![1];
+  await expect.poll(async () => ((await (await page.request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json()) as { artifacts: { type: string }[] }).artifacts.some((a) => a.type === "AgentSession"), { timeout: 20_000 }).toBe(true);
+  const conversation = page.getByTestId("conversation");
+  await conversation.getByLabel("message").fill("STEER-ME name the helper");
+  const steer = conversation.getByRole("button", { name: "Stop & steer" });
+  await revealNode(page, steer);
+  await steer.click();
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await page.getByTestId("epoch-chip-2").click();
+  await expect(page.getByTestId("steer-outcome")).toContainText(/resumed with your steer/i);
+  expect(git(dir, "log", "--format=%s", "main..spatial/impl-steer-make-c-txt-exist")).toBe("Fix the c thing");
+  await page.getByTestId("epoch-chip-3").click();
+  await expect(page.getByTestId("toasts")).toContainText("Remembered: Name helpers after what they return");
+  await expect(conversation.getByTestId("steer-item")).toContainText("STEER-ME name the helper");
+  const notice = conversation.getByTestId("memory-notice");
+  await expect(notice).toContainText("Remembered for this repo");
+  await expect(notice).toContainText("Name helpers after what they return");
+  await revealNode(page, notice);
+  await notice.getByRole("button", { name: "Forget this" }).click();
+  await expect(notice).toContainText("Forgotten");
+  await expect(notice.getByRole("button", { name: "Forget this" })).toHaveCount(0);
+  await notice.getByRole("button", { name: "Edit instead" }).click();
+  await expect(page).toHaveURL(/\/repo\?path=.*&memory=repo%2Fname-helpers/);
+});
+
+test("the repo page lists memories and edits, moves and deletes them", async ({ page, request }) => {
+  const dir = makeRepo();
+  const { repoDir } = await (await request.get(`http://127.0.0.1:4178/api/repo?path=${encodeURIComponent(dir)}`)).json();
+  const memory = { situation: "a test fails for an unrelated reason", observed: "The agent kept retrying", wanted: "Stop and report the unrelated failure", why: null, phases: ["implement"], kinds: [], source: { sessionId: "s1", epoch: 1, steer: "st1" } };
+  const put = await request.put("http://127.0.0.1:4178/api/memories", { data: { repo: repoDir, scope: "repo", key: "report-unrelated-failures", memory } });
+  expect(put.status()).toBe(201);
+  await page.goto(`${open(dir)}&memory=repo%2Freport-unrelated-failures`);
+  const item = page.getByTestId("memory-item");
+  await expect(item.getByLabel("wanted")).toHaveValue("Stop and report the unrelated failure");
+  await item.getByLabel("wanted").fill("Report the failure and continue");
+  await item.getByRole("button", { name: "Save" }).click();
+  await expect(item).toContainText("Report the failure and continue");
+  await expect(item).toContainText("this repo");
+  await item.getByRole("button", { name: "Move to everywhere" }).click();
+  await expect(item).toContainText("everywhere");
+  await item.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByTestId("memory-item")).toHaveCount(0);
+  await expect(page.getByTestId("memories-panel")).toContainText("None yet");
 });
 
 test("a dirty checkout asks before /implement starts and the changes move to the new branch", async ({ page }) => {
@@ -234,4 +290,16 @@ test("gecko: chat proposes a try push and nothing is pushed until the click", as
   expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
   await page.getByTestId("epoch-chip-1").click();
   await expect(conversation.locator(".msg.assistant")).toContainText("I will start a try push.");
+});
+
+test("memories for the investigate phase are applied and listed in its view", async ({ page, request }) => {
+  const dir = makeRepo();
+  const { repoDir } = await (await request.get(`http://127.0.0.1:4178/api/repo?path=${encodeURIComponent(dir)}`)).json();
+  const memory = { situation: "the plan touches code with tests", observed: "The agent skipped the tests", wanted: "Read the tests before planning", why: null, phases: ["investigate"], kinds: [], source: { sessionId: "s1", epoch: 1, steer: "st1" } };
+  expect((await request.put("http://127.0.0.1:4178/api/memories", { data: { repo: repoDir, scope: "repo", key: "read-tests-first", memory } })).status()).toBe(201);
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-MEM make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  await expect(page.getByTestId("investigation")).toContainText("The c file is missing.", { timeout: 20_000 });
+  await expect(page.getByTestId("used-memories")).toContainText("repo/read-tests-first");
 });

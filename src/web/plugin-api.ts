@@ -10,6 +10,7 @@ import type { Draft } from "./chat-context.ts";
 import type { GraphNodeData } from "./graph-api.ts";
 import type { NodeProps } from "@xyflow/react";
 import type { ReplyActionProps } from "./reply-actions.ts";
+import type { ConversationItemProps } from "./conversation-items.ts";
 
 export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; /** The epoch being shown; null before the first epoch. A past epoch comes with the session state as it was then and `readOnly`. */ epoch: Epoch | null; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
 /** What a static export embeds of the latest diff: its id, its commit shas, and the paths of files whose full text is included. */
@@ -35,7 +36,9 @@ export interface NodeKind {
   /** False: no width handle and the width always comes from `size` (diagram). Default true. */
   resizable?: boolean;
 }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+/** Props of a repo page panel: the repository identity (`RepoInfo.repoDir`). */
+export interface RepoPanelProps { repoDir: string }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -52,7 +55,7 @@ export { HoverCard, useHoverCard } from "./HoverCard.tsx";
 export { ChatBody, ChatItem, InlineItem } from "./InlineItem.tsx";
 export { InlineStatesContext, useDraftInlineStates, useInlineState, useInlineStates } from "./inline-state.ts";
 export type { InlineState, InlineStates } from "./inline-state.ts";
-export { showSessionView } from "./routes.ts";
+export { routeUrl, showSessionView } from "./routes.ts";
 export { useUrlParam } from "./url-param.ts";
 export { Box } from "./Box.tsx";
 export type { BoxProps } from "./Box.tsx";
@@ -73,6 +76,7 @@ export { ReopenClosed } from "./ReopenClosed.tsx";
 export { api, get as getJson, post as postJson, RequestError } from "./api.ts";
 export { Conversation } from "./nodes/ChatNode.tsx";
 export type { ReplyActionProps } from "./reply-actions.ts";
+export type { ConversationItemProps } from "./conversation-items.ts";
 export type { CanvasModel, GuideStep, FocusedRow, CanvasProviderProps } from "./Canvas.tsx";
 export type { SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";

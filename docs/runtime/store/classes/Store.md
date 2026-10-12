@@ -364,6 +364,32 @@ Pending and running tasks of `kind` in every session.
 
 ***
 
+### listTaskProgress()
+
+> **listTaskProgress**(`sessionId`, `taskId`, `limit`): [`Progress`](../../../shared/types/type-aliases/Progress.md)[]
+
+The last `limit` progress values `taskId` reported, oldest first.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### taskId
+
+`string`
+
+##### limit
+
+`number`
+
+#### Returns
+
+[`Progress`](../../../shared/types/type-aliases/Progress.md)[]
+
+***
+
 ### listTasks()
 
 > **listTasks**(`sessionId`): [`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md)[]

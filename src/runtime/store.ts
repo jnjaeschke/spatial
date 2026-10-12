@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type {
   Actor, Artifact, ArtifactStatus, Epoch, EpochStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
-  RuntimeEvent, Session, TaskRecord, TaskStatus,
+  Progress, RuntimeEvent, Session, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
 import type { SearchDoc } from "./render-ref.ts";
 
@@ -191,6 +191,12 @@ export class Store {
   lastEventId(sessionId: Id): number {
     const r = this.#db.prepare("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE session_id = ?").get(sessionId) as Row;
     return Number(r.id);
+  }
+
+  /** The last `limit` progress values `taskId` reported, oldest first. */
+  listTaskProgress(sessionId: Id, taskId: Id, limit: number): Progress[] {
+    const rows = this.#db.prepare("SELECT payload FROM events WHERE session_id = ? AND actor = ? AND type = 'task.progress' ORDER BY id DESC LIMIT ?").all(sessionId, `task:${taskId}`, limit) as Row[];
+    return rows.map((r) => (JSON.parse(r.payload as string) as { progress: Progress }).progress).reverse();
   }
 
   createTask(t: { sessionId: Id; kind: string; input: unknown; parentId?: Id }): TaskRecord {
