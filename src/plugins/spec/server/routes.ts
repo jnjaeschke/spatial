@@ -11,8 +11,32 @@ import { siteKey, usedSites } from "../shared/engine.ts";
 import { alignRunning, startAlign } from "../runtime/align.ts";
 import { compareRunning, flagDifference, startCompare } from "../runtime/compare.ts";
 import { implementationsData } from "../runtime/implementations.ts";
+import { randomUUID } from "node:crypto";
+import { isSpecRef } from "../shared/refs.ts";
+import { traceStatus } from "../shared/traces.ts";
+import { checkTrace, generateTrace, loadTraceFacts, openTraceBoxes, type TraceRequest } from "../runtime/traces.ts";
+import type { TraceQuestion } from "../shared/types.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
+const HOPS = new Set(["start", "call", "return", "next", "async"]);
+const isMode = (value: unknown): value is TraceQuestion["mode"] => value === "claim" || value === "scenario";
+const log = (what: string) => (error: unknown) => console.error(`${what} failed: ${(error as Error).message}`);
+
+function parseAsk(rt: Runtime, sessionId: string, body: Record<string, unknown>): Omit<TraceRequest, "traceId"> {
+  if (!isMode(body.mode)) throw new HttpError(400, 'mode must be "claim" or "scenario"');
+  const question = text(body, "question", "Question").trim();
+  const { anchors, contextTraceId } = body;
+  if (!Array.isArray(anchors) || !anchors.every((anchor) => typeof anchor === "string" && isSpecRef(anchor))) throw new HttpError(400, "anchors must be SPEC#anchor refs");
+  if (contextTraceId !== null && typeof contextTraceId !== "string") throw new HttpError(400, "contextTraceId must be a trace id or null");
+  if (typeof contextTraceId === "string" && !rt.store.listArtifacts(sessionId, "SpecTrace").some((a) => (a.data as SpecTraceData).traceId === contextTraceId)) throw new HttpError(404, `Unknown trace: ${contextTraceId}`);
+  return { mode: body.mode, question, anchors: anchors as string[], contextTraceId };
+}
+
+function requireTrace(rt: Runtime, sessionId: string, traceId: string) {
+  const status = traceStatus([...rt.store.listArtifacts(sessionId, "SpecTrace"), ...rt.store.listArtifacts(sessionId, "SpecTraceCheck")], traceId);
+  if (!status) throw new HttpError(404, `Unknown trace: ${traceId}`);
+  return status;
+}
 
 function parseFrom(value: unknown): SpecOpenedData["from"] {
   if (value === null) return null;
@@ -24,8 +48,12 @@ function parseFrom(value: unknown): SpecOpenedData["from"] {
 function parseTrace(value: unknown): SpecTraceData {
   const trace = value as Partial<SpecTraceData> | null | undefined;
   if (typeof trace !== "object" || trace === null || !isString(trace.traceId) || !trace.traceId || !isString(trace.title) || !Array.isArray(trace.entries)
-    || !trace.entries.every((entry) => typeof entry === "object" && entry !== null && isString(entry.anchor) && isString(entry.step) && isString(entry.note))) throw new HttpError(400, "trace must be { traceId, title, entries: { anchor, step, note }[] }");
-  return { traceId: trace.traceId, title: trace.title, entries: trace.entries.map(({ anchor, step, note }) => ({ anchor, step, note })) };
+    || !trace.entries.every((entry) => typeof entry === "object" && entry !== null && isString(entry.anchor) && isString(entry.step) && isString(entry.note) && (entry.hop === undefined || HOPS.has(entry.hop as string)))) throw new HttpError(400, "trace must be { traceId, title, entries: { anchor, step, note, hop? }[] }");
+  if (trace.question !== undefined) {
+    const q = trace.question as { mode?: unknown; text?: unknown } | null;
+    if (typeof q !== "object" || q === null || !isMode(q.mode) || !isString(q.text)) throw new HttpError(400, "trace.question must be { mode, text }");
+  }
+  return { traceId: trace.traceId, title: trace.title, entries: trace.entries.map(({ anchor, step, note, hop }) => ({ anchor, step, note, ...(hop ? { hop } : {}) })), ...(trace.question ? { question: { mode: trace.question.mode, text: trace.question.text } } : {}) };
 }
 
 const isOpen = (rt: Runtime, sessionId: string, anchor: string) => rt.store.listArtifacts(sessionId, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === anchor);
@@ -47,6 +75,23 @@ export function requireAlgorithm(rt: Runtime, sessionId: Id, ref: string): Artif
 /** HTTP routes of the spec explorer: user actions stored as user artifacts. */
 export function specRoutes(rt: Runtime): Route[] {
   return [
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/ask$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const request = { traceId: randomUUID(), ...parseAsk(rt, session.id, await readJson(req)) };
+      void generateTrace(rt, session.id, request).catch(log(`trace ${request.traceId}`));
+      send(res, 202, { traceId: request.traceId });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/check$/, async ({ res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const status = requireTrace(rt, session.id, decodeURIComponent(params[1]!));
+      void checkTrace(rt, session.id, status.trace.id, status.check?.data.verdict ?? null, false).catch(log(`check of trace ${status.trace.data.traceId}`));
+      send(res, 202, { traceArtifactId: status.trace.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/open$/, async ({ res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const { trace } = requireTrace(rt, session.id, decodeURIComponent(params[1]!));
+      send(res, 201, { opened: await openTraceBoxes(rt, session.id, trace.data, await loadTraceFacts(rt, session.id, trace.data.entries)) });
+    }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/open$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const body = await readJson(req);

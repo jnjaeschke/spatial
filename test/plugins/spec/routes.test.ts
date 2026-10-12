@@ -103,3 +103,32 @@ test("flag rejects an algorithm without a current summary", async () => {
   await openSpec(rt, session.id, "HTML#setup", null);
   assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/summaries/flag`, { ref: "HTML#setup" })).status, 409);
 });
+
+test("ask validates the question and context; trace check and open need a known trace", async () => {
+  const { session, routes } = setup();
+  const ask = (body: unknown) => routeCall(routes, "POST", `/api/sessions/${session.id}/spec/ask`, body);
+  const valid = { mode: "claim", question: "Is it?", anchors: ["HTML#navigate"], contextTraceId: null };
+  for (const bad of [{ ...valid, mode: "guess" }, { ...valid, question: " " }, { ...valid, anchors: ["navigate"] }, { ...valid, contextTraceId: 1 }]) assert.equal((await ask(bad)).status, 400);
+  assert.equal((await ask({ ...valid, contextTraceId: "nope" })).status, 404);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/nope/check`)).status, 404);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/nope/open`)).status, 404);
+});
+
+test("user trace versions keep entry hops and the question; a bad hop is rejected", async () => {
+  const { rt, session, routes } = setup();
+  await openSpec(rt, session.id, "HTML#navigate", null);
+  const trace = { traceId: "g1", title: "Generated", question: { mode: "scenario", text: "A click" }, entries: [{ anchor: "HTML#navigate", step: "2", note: "edited", hop: "start" }] };
+  const r = await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace });
+  assert.equal(r.status, 201);
+  assert.deepEqual(rt.store.getArtifact(r.body.artifactId).data, trace);
+  for (const bad of [{ ...trace, entries: [{ ...trace.entries[0], hop: "jump" }] }, { ...trace, question: { mode: "x", text: "y" } }]) assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces`, { trace: bad })).status, 400);
+});
+
+test("open stores the boxes of a trace along its call hops", async () => {
+  const { rt, session, routes } = setup();
+  await openSpec(rt, session.id, "HTML#navigate", null);
+  rt.store.putArtifact({ sessionId: session.id, type: "SpecTrace", status: "proposed", provenance: { taskId: "t" }, data: { traceId: "g2", title: "t", question: { mode: "scenario", text: "s" }, entries: [{ anchor: "HTML#navigate", step: "2", note: "", hop: "start" }, { anchor: "HTML#snapshotting-source-snapshot-params", step: "1", note: "", hop: "call" }] } });
+  assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g2/open`), { status: 201, body: { opened: 1 } });
+  assert.deepEqual(rt.store.listArtifacts(session.id, "SpecOpened").at(-1)!.data, { anchor: "HTML#snapshotting-source-snapshot-params", from: { anchor: "HTML#navigate", step: "2" } });
+  assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g2/open`), { status: 201, body: { opened: 0 } });
+});
