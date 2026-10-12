@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, utimesSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeGit, makeGitWriter, createSession, resolveRepo } from "../../src/runtime/git.ts";
-import { parseUnifiedDiff } from "../../src/plugins/review/runtime/diff-parse.ts";
+import { parseUnifiedDiff } from "../../src/runtime/diff-parse.ts";
 import { attribute } from "../../src/plugins/review/runtime/attribution.ts";
 import { findRewrites } from "../../src/plugins/review/runtime/rewrites.ts";
 import { Store } from "../../src/runtime/store.ts";

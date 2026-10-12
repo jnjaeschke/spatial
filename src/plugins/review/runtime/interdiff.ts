@@ -1,5 +1,4 @@
-import type { DiffData, DiffFile, GitCapability } from "../../../plugin-api.ts";
-import { parseUnifiedDiff } from "./diff-parse.ts";
+import { type DiffData, type DiffFile, type GitCapability, parseUnifiedDiff } from "../../../plugin-api.ts";
 
 /** What the author changed between two revisions of the same patch. */
 export async function computeInterdiff(git: GitCapability, from: DiffData, to: DiffData): Promise<{ files: DiffFile[]; conflicts: string[] }> {

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Commit } from "../../../../src/shared/types.ts";
 import type { GitCapability } from "../../../../src/runtime/tasks.ts";
-import { parseUnifiedDiff } from "../../../../src/plugins/review/runtime/diff-parse.ts";
+import { parseUnifiedDiff } from "../../../../src/runtime/diff-parse.ts";
 import { attribute, splitByCommit } from "../../../../src/plugins/review/runtime/attribution.ts";
 import { fileRows } from "../../../../src/plugin-api.ts";
 

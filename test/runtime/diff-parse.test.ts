@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseUnifiedDiff } from "../../../../src/plugins/review/runtime/diff-parse.ts";
+import { parseUnifiedDiff } from "../../src/runtime/diff-parse.ts";
 
 const DIFF = [
   "diff --git a/dom/A.cpp b/dom/A.cpp", "index 111..222 100644", "--- a/dom/A.cpp", "+++ b/dom/A.cpp",

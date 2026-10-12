@@ -485,6 +485,12 @@ Re-exports [ParseResult](../runtime/plugins/type-aliases/ParseResult.md)
 
 ***
 
+### parseUnifiedDiff
+
+Re-exports [parseUnifiedDiff](../runtime/diff-parse/functions/parseUnifiedDiff.md)
+
+***
+
 ### PatchNarrativeData
 
 Re-exports [PatchNarrativeData](../shared/types/interfaces/PatchNarrativeData.md)

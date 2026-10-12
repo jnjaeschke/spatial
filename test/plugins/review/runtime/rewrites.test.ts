@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Commit, DiffFile } from "../../../../src/shared/types.ts";
 import type { GitCapability } from "../../../../src/runtime/tasks.ts";
-import { parseUnifiedDiff } from "../../../../src/plugins/review/runtime/diff-parse.ts";
+import { parseUnifiedDiff } from "../../../../src/runtime/diff-parse.ts";
 import { findRewrites } from "../../../../src/plugins/review/runtime/rewrites.ts";
 
 const base = "0".repeat(40), a = "a".repeat(40), b = "b".repeat(40), c = "c".repeat(40);

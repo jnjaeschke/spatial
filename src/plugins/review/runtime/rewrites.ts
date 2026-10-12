@@ -1,5 +1,4 @@
-import type { Commit, DiffFile, GitCapability } from "../../../plugin-api.ts";
-import { parseUnifiedDiff } from "./diff-parse.ts";
+import { type Commit, type DiffFile, type GitCapability, parseUnifiedDiff } from "../../../plugin-api.ts";
 
 /** Marks squashed hunks where a later commit replaced lines from an earlier one. */
 export async function findRewrites(git: GitCapability, baseSha: string, commits: Commit[], files: DiffFile[]): Promise<void> {

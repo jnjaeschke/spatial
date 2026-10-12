@@ -95,6 +95,7 @@ export { isGeckoRepo } from "./runtime/searchfox.ts";
 export { revisedText } from "./shared/revisions.ts";
 export { plainText } from "./shared/plain-text.ts";
 export { numberLines, fileRows } from "./shared/diff-lines.ts";
+export { parseUnifiedDiff } from "./runtime/diff-parse.ts";
 export type { Row } from "./shared/diff-lines.ts";
 export type { GitWriter, PatchIdentity } from "./runtime/git.ts";
 export type { LlmPrompt, LlmEvent } from "./runtime/llm/types.ts";
