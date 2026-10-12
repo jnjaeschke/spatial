@@ -28,9 +28,10 @@ export const implementWorkflow: Workflow<Params> = {
     const question = changed
       ? `The checkout has uncommitted changes in ${plural(changed, "file")} (${where}).`
       : `The checkout is ${where}, not on main.`;
+    // `git switch -c` carries uncommitted changes over; the old branch's commits stay behind.
     return { question, options: [
-      { label: "Continue on this branch, keeping the changes", params: { checkout: "current-branch" } },
-      { label: "New branch from the default branch, taking the changes along", params: { checkout: "new-branch" } },
+      ...(branch ? [{ label: changed ? `Continue on ${branch} with the uncommitted changes` : `Continue on ${branch}`, params: { checkout: "current-branch" as const } }] : []),
+      { label: changed ? "New branch from the default branch, carrying the uncommitted changes over" : "Start fresh on a new branch from the default branch", params: { checkout: "new-branch" as const } },
       { label: "Cancel" },
     ] };
   },

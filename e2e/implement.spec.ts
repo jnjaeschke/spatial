@@ -150,7 +150,7 @@ test("a dirty checkout asks in the start box when the selector chooses implement
   await box.press("Enter");
   const question = page.getByTestId("start-question");
   await expect(question).toContainText("uncommitted changes in 1 file", { timeout: 10_000 });
-  await expect(question.getByRole("button", { name: /Continue on this branch/ })).toBeVisible();
+  await expect(question.getByRole("button", { name: /Continue on main with the uncommitted changes/ })).toBeVisible();
   await expect(question.getByLabel("answer")).toHaveCount(0);
   await expect(page).not.toHaveURL(/\/sessions\/[^/]+/);
   await question.getByRole("button", { name: "Cancel" }).click();

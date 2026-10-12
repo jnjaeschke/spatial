@@ -68,12 +68,16 @@ test("precheck asks only when the checkout is unclear and dirty or off main", as
   assert.match(dirty.question, /uncommitted changes in 1 file/);
   assert.match(dirty.question, /main/);
   assert.deepEqual(dirty.options.map((option) => [option.label, option.params]), [
-    ["Continue on this branch, keeping the changes", { checkout: "current-branch" }],
-    ["New branch from the default branch, taking the changes along", { checkout: "new-branch" }],
+    ["Continue on main with the uncommitted changes", { checkout: "current-branch" }],
+    ["New branch from the default branch, carrying the uncommitted changes over", { checkout: "new-branch" }],
     ["Cancel", undefined],
   ]);
   assert.equal(await precheck(repo.dir, { ...params, checkout: "new-branch" }), null, "clear checkout is never asked");
   repo.git("checkout", "--", "a.txt");
   repo.git("switch", "-c", "feature");
-  assert.match((await precheck(repo.dir, params))!.question, /feature/);
+  const offMain = (await precheck(repo.dir, params))!;
+  assert.match(offMain.question, /feature/);
+  assert.deepEqual(offMain.options.map((option) => option.label), ["Continue on feature", "Start fresh on a new branch from the default branch", "Cancel"]);
+  repo.git("checkout", "--detach");
+  assert.deepEqual((await precheck(repo.dir, params))!.options.map((option) => option.label), ["Start fresh on a new branch from the default branch", "Cancel"], "a detached HEAD cannot be continued on");
 });
