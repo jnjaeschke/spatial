@@ -20,6 +20,13 @@ const reasons = (entries: SpecTraceEntry[], f = facts()) => checkHops(entries, f
 
 test("stepLinks lists each step's own links, notes excluded", () => {
   assert.deepEqual(stepLinks(A.content), { 1: ["X#d"], 2: ["X#b"], 3: ["HTML#queue-a-task"], "3.1": ["X#c"], 4: [] });
+  assert.deepEqual(stepLinks("1. > Quoted [b](X#b).\n\n    1. Then:\n\n        1. Run [c](X#c)."), { 1: ["X#b"], "1.1": [], "1.1.1": ["X#c"] });
+});
+test("a call from a deeply nested step", () => {
+  const deep = algorithm("X#e", "1. Then:\n\n    1. If so:\n\n        1. Run [c](X#c).");
+  const f: TraceFacts = { ...facts(), algorithms: new Map([...facts().algorithms, [deep.ref, deep]]) };
+  assert.deepEqual(reasons([e("X#e", "1.1.1", "start"), e("X#c", "1", "call")], f), ["", ""]);
+  assert.deepEqual(reasons([e("X#e", "1.1", "start"), e("X#c", "1", "call")], f), ["", "X#e step 1.1 does not link X#c"]);
 });
 test("a valid trace passes every hop", () => {
   assert.deepEqual(reasons([e("X#a", "2", "start"), e("X#b", "1", "call"), e("X#b", "2", "next"), e("X#a", "3", "return"), e("X#c", "1", "async"), e("X#a", "4", "return")]), ["", "", "", "", "", ""]);
@@ -53,6 +60,7 @@ test("async needs a scheduling or event effect of the previous step that reaches
   assert.deepEqual(reasons([e("X#a", "2", "start"), e("X#c", "1", "async")]), ["", "X#a step 2 has no scheduling or event effect"]);
   assert.deepEqual(reasons([e("X#a", "4", "start"), e("X#c", "1", "async")]), ["", "X#a step 4 has no scheduling or event effect"]);
   assert.deepEqual(asyncEffectIds(A, "3"), ["q"]);
+  assert.throws(() => asyncEffectIds({ ...A, effects: [] }, "3"), /X#a step 3 names effect q, which it does not list/);
 });
 test("HTML#navigate: async hops on the captured effects", () => {
   const query = JSON.parse(readFileSync(new URL("../../fixtures/webspec/navigate-query.json", import.meta.url), "utf8"));

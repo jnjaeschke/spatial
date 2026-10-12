@@ -19,7 +19,11 @@ const fail = (reason: string): HopResult => ({ ok: false, reason });
 export function asyncEffectIds(algorithm: SpecAlgorithmData, step: string): string[] {
   const kinds = new Map(algorithm.effects.map((effect) => [effect.id, effect.kind]));
   const ids = new Set<string>();
-  for (const [path, list] of Object.entries(algorithm.stepEffects)) if (inSubtree(path, step)) for (const item of list) if (ASYNC_KIND.test(kinds.get(item.effectId) ?? "")) ids.add(item.effectId);
+  for (const [path, list] of Object.entries(algorithm.stepEffects)) if (inSubtree(path, step)) for (const item of list) {
+    const kind = kinds.get(item.effectId);
+    if (kind === undefined) throw new Error(`${algorithm.ref} step ${path} names effect ${item.effectId}, which it does not list`);
+    if (ASYNC_KIND.test(kind)) ids.add(item.effectId);
+  }
   return [...ids];
 }
 

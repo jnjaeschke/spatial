@@ -41,5 +41,5 @@ const LINK = /\]\(([A-Za-z0-9-]+#[^)\s]+)\)/g;
 
 /** The `SPEC#anchor` refs each step links in its own text, by dotted step path; notes (`>` lines) are not part of it. */
 export function stepLinks(markdown: string): Record<string, string[]> {
-  return Object.fromEntries(stepSources(markdown).map(({ number, lines }) => [number, [...new Set(lines.filter((line) => !line.startsWith(">")).flatMap((line) => [...line.matchAll(LINK)].map((match) => match[1]!)))]]));
+  return Object.fromEntries(stepSources(markdown).map(({ number, lines }) => [number, [...new Set(lines.filter((line, i) => i === 0 || !line.startsWith(">")).flatMap((line) => [...line.matchAll(LINK)].map((match) => match[1]!)))]]));
 }

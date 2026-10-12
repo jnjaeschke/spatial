@@ -1,8 +1,9 @@
 import type { LlmEvent } from "./types.ts";
+import { capOutput } from "../process.ts";
 
 /** Longest command output an event carries, in characters. */
 export const MAX_COMMAND_OUTPUT = 256 * 1024;
-const cap = (text: string) => text.length > MAX_COMMAND_OUTPUT ? `${text.slice(0, MAX_COMMAND_OUTPUT)}\n[output truncated]` : text;
+const cap = (text: string) => capOutput(text, MAX_COMMAND_OUTPUT);
 const parse = (line: string): Record<string, any> | null => { if (!line.startsWith("{")) return null; try { return JSON.parse(line); } catch { return null; } };
 const firstLine = (text: string) => text.split("\n", 1)[0]!.slice(0, 200);
 /** `/usr/bin/zsh -lc 'git status'` -> `git status`: Codex runs every command through a login shell. */

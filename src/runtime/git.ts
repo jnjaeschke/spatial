@@ -8,14 +8,14 @@ import type { Commit, Session, WorkflowId } from "../shared/types.ts";
 import type { Store } from "./store.ts";
 import type { GitCapability } from "./tasks.ts";
 import { parseBlame } from "./blame.ts";
+import { capOutput } from "./process.ts";
 
 const run = promisify(execFile);
 const MAX_BUFFER = 512 * 1024 * 1024;
-const MAX_SCM_OUTPUT = 64 * 1024;
+/** Most a session MCP tool answers with, so one answer cannot flood the LLM's context. */
+export const MAX_TOOL_OUTPUT = 64 * 1024;
 
-function capScmOutput(output: string): string {
-  return output.length > MAX_SCM_OUTPUT ? `${output.slice(0, MAX_SCM_OUTPUT)}\n[output truncated]` : output;
-}
+const capScmOutput = (output: string) => capOutput(output, MAX_TOOL_OUTPUT);
 
 function safeRepoPath(path: string): string {
   if (!path || path.startsWith("/") || path.startsWith("\\") || /^[A-Za-z]:[\\/]/.test(path) || path.split(/[\\/]/).includes("..")) throw new Error(`Invalid path: ${path}`);
@@ -27,7 +27,7 @@ function capWholeLines(lines: string[]): { text: string; kept: number } {
   let length = 0;
   for (let index = 0; index < lines.length; index++) {
     length += lines[index]!.length + 1;
-    if (length > MAX_SCM_OUTPUT - 100) return { text: lines.slice(0, index).join("\n"), kept: index };
+    if (length > MAX_TOOL_OUTPUT - 100) return { text: lines.slice(0, index).join("\n"), kept: index };
   }
   return { text: lines.join("\n"), kept: lines.length };
 }

@@ -8,7 +8,7 @@
 
 > **runProcess**(`cmd`, `args`, `opts`): `Promise`\<\{ `code`: `number`; `stderr`: `string`; `stdout`: `string`; \}\>
 
-Spawns `cmd`, writes `stdin`, collects output. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects.
+Runs a process, optionally streaming stdout lines.
 
 ## Parameters
 

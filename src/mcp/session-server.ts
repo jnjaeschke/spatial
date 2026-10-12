@@ -9,7 +9,8 @@ import { corePlugin } from "../runtime/create.ts";
 import { plugins } from "../plugins/index.ts";
 import { Store } from "../runtime/store.ts";
 import { readRepoSkill } from "../runtime/repo-context.ts";
-import { scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
+import { MAX_TOOL_OUTPUT, scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
+import { capOutput } from "../runtime/process.ts";
 import { makeWebspec } from "../runtime/webspec.ts";
 import type { WebspecCapability } from "../runtime/tasks.ts";
 
@@ -60,7 +61,7 @@ export function createSessionServer(registry: PluginRegistry, store: Store, sess
   server.registerTool("scm_diff", { description: "Show the patch for a commit", inputSchema: { rev: z.string(), path: z.string().optional() }, annotations }, async ({ rev, path }) => answerAsync(() => scmDiff(repoRoot, rev, path)));
   server.registerTool("scm_file", { description: "Read numbered lines from a file at a revision", inputSchema: { rev: z.string(), path: z.string(), start: z.number().int().min(1).optional(), end: z.number().int().min(1).optional() }, annotations }, async ({ rev, path, start, end }) => answerAsync(() => scmFile(repoRoot, rev, path, start, end)));
   for (const tool of registry.mcpTools) {
-    server.registerTool(tool.name, { description: tool.description, inputSchema: tool.input, annotations }, async (input, extra) => answerAsync(() => tool.run({ sessionId, repo: repoRoot, webspec: caps.webspec, signal: extra.signal }, input)));
+    server.registerTool(tool.name, { description: tool.description, inputSchema: tool.input, annotations }, async (input, extra) => answerAsync(async () => capOutput(await tool.run({ sessionId, repo: repoRoot, webspec: caps.webspec, signal: extra.signal }, input), MAX_TOOL_OUTPUT)));
   }
   return server;
 }
@@ -71,7 +72,7 @@ async function main(args: string[]): Promise<void> {
     if (index < 0 || !args[index + 1]) throw new Error(`Missing ${name}`);
     return args[index + 1]!;
   };
-  const optional = (name: string) => { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1]; };
+  const optional = (name: string) => args.includes(name) ? value(name) : undefined;
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
   const server = createSessionServer(pluginRegistry([corePlugin, ...plugins]), store, sessionId, store.getSession(sessionId).worktree, { webspec: makeWebspec({ bin: optional("--webspec-bin") }) });

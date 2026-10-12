@@ -102,7 +102,7 @@ export interface Plugin {
   chatContext?(view: SessionView): string | null;
   /** Extra fields of the structured chat reply. */
   chatReplyFields?: ChatReplyField[];
-  /** Read-only tools for the session MCP server; names are unique across plugins and core tools. */
+  /** Read-only tools for the session MCP server; names are unique across plugins and must not be a core tool's name. */
   mcpTools?: McpTool[];
   server?(rt: Runtime, opts: { intervalMs?: number }): PluginServer;
 }

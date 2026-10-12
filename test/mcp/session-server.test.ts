@@ -15,6 +15,7 @@ import { z } from "zod";
 import { defineMcpTool } from "../../src/runtime/plugins.ts";
 import { sessionServerSpec } from "../../src/runtime/create.ts";
 import { makeWebspec } from "../../src/runtime/webspec.ts";
+import { MAX_TOOL_OUTPUT } from "../../src/runtime/git.ts";
 import type { WebspecCapability } from "../../src/runtime/tasks.ts";
 
 const caps = { webspec: makeWebspec() };
@@ -156,11 +157,11 @@ const echo = (seen: unknown[], webspec: WebspecCapability) => defineMcpTool({
   async run(ctx, { ref }) {
     seen.push([ctx.sessionId, ctx.repo, ctx.webspec === webspec, ctx.signal instanceof AbortSignal]);
     if (ref === "bad") throw new Error("no such ref");
-    return `got ${ref}`;
+    return ref === "huge" ? "x".repeat(MAX_TOOL_OUTPUT + 1) : `got ${ref}`;
   },
 });
 
-test("plugin MCP tools are registered read-only and run with the session context", async () => {
+test("plugin MCP tools are registered read-only, run with the session context and answer at most MAX_TOOL_OUTPUT characters", async () => {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const seen: unknown[] = [];
@@ -175,7 +176,8 @@ test("plugin MCP tools are registered read-only and run with the session context
   const bad = await client.callTool({ name: "echo_ref", arguments: { ref: "bad" } });
   assert.equal(bad.isError, true);
   assert.equal(text(bad), "no such ref");
-  assert.deepEqual(seen, [[session.id, "/repo", true, true], [session.id, "/repo", true, true]]);
+  assert.equal(text(await client.callTool({ name: "echo_ref", arguments: { ref: "huge" } })), `${"x".repeat(MAX_TOOL_OUTPUT)}\n[output truncated]`);
+  assert.deepEqual(seen, [[session.id, "/repo", true, true], [session.id, "/repo", true, true], [session.id, "/repo", true, true]]);
   await client.close();
   await server.close();
   store.close();

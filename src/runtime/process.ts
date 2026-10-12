@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
 
 /** Spawns `cmd`, writes `stdin`, collects output. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
+/** `text` cut to `max` characters, marked when cut. */
+export const capOutput = (text: string, max: number) => text.length > max ? `${text.slice(0, max)}\n[output truncated]` : text;
+
 export function runProcess(
   cmd: string,
   args: string[],
