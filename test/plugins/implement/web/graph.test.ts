@@ -8,7 +8,7 @@ let k = 0;
 const art = (type: string, data: unknown): Artifact => ({ id: `${type}${++k}`, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch: null, createdAt: "" });
 const data: InvestigationData = {
   kind: "bugfix", summary: "S", bug: null, testCases: [], openQuestions: [], exploration: [],
-  steps: [{ title: "T", message: "M", intent: "I", tests: [] }],
+  steps: [{ title: "T", message: "M", intent: "I", checks: [] }],
   locations: [{ path: "a.cpp", line: 3, quote: "x", why: "w" }, { path: "b.cpp", line: 9, quote: "y", why: "v" }],
 };
 const state = (artifacts: Artifact[], links: SessionState["links"] = [], searchfox: SessionState["searchfox"] = null): SessionState => ({

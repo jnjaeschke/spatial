@@ -102,7 +102,7 @@ const implRevise = script("revise", `sed -i 's/^line 31$/THIRTY-ONE/' a.txt\ngit
 const investigationOut = stubOut("implement-investigation", { kind: "bugfix", summary: "The c file is missing.", bug: null, locations: [
   { path: "a.txt", line: 30, quote: "line 30", why: "The value to change." }, { path: "gone.txt", line: 1, quote: "x", why: "Does not exist." },
 ], testCases: [{ description: "c exists", expected: "c.txt exists", actual: null, path: null }], architecture: null,
-steps: [{ title: "Add c", message: "Fix the c thing", intent: "Add c.txt and set line 30.", tests: [] }], openQuestions: ["Should d exist too?"], exploration: [{ tried: "grep for c", outcome: "no c.txt exists" }], specUrls: [], diagram: null });
+steps: [{ title: "Add c", message: "Fix the c thing", intent: "Add c.txt and set line 30.", checks: [] }], openQuestions: ["Should d exist too?"], exploration: [{ tried: "grep for c", outcome: "no c.txt exists" }], specUrls: [], diagram: null });
 const agentEvents = [
   { type: "system", subtype: "init", session_id: "stub-implement" },
   { type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: "tu1", name: "Bash", input: { command: "echo hello-from-agent" } }] } },
@@ -113,7 +113,7 @@ const agentOut = join(implementDir, "agent.jsonl");
 writeFileSync(agentOut, agentEvents.map((event) => JSON.stringify(event)).join("\n") + "\n");
 const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
 const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The value is named." }] });
-const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here." }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", tests: [] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });
+const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here." }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", checks: [] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });
 const tryCleanReviewOut = stubOut("try-clean-review", { findings: [], verdicts: [] });
 const tryProposalOut = stubOut("try-proposal", { command: "./mach try fuzzy --query 'mochitest-plain'", reason: "Runs the plain mochitests." });
 const tryChatOut = stubOut("try-chat", { answer: "I will start a try push.", questions: [], revisions: [], requestMcpServers: [], diagram: null, tryPush: { command: "./mach try auto", reason: "You asked for try." } });

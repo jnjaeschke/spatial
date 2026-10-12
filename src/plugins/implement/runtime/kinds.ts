@@ -1,5 +1,6 @@
 import type { Artifact, ArtifactKind, CommandRunData } from "../../../plugin-api.ts";
 import type { CommentInterpretationData, CommentTriageData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
+import { describeCheck } from "../shared/acceptance.ts";
 
 const renderLocation = (location: InvestigationLocation) => `${location.path}:${location.line} - ${location.why}\n\n\`${location.quote}\``;
 
@@ -11,17 +12,18 @@ export function renderInvestigation(data: InvestigationData, subId?: string): st
     const step = /^step(\d+)$/.exec(subId);
     if (step) {
       const item = data.steps[Number(step[1])];
-      return item ? `${item.title}: ${item.message} - ${item.intent}${item.tests.length ? `\n\nTests: ${item.tests.join(", ")}` : ""}` : null;
+      return item ? `${item.title}: ${item.message} - ${item.intent}${item.checks.length ? `\n\nChecks: ${item.checks.map(describeCheck).join("; ")}` : ""}` : null;
     }
     return null;
   }
   return [
     `# Investigation (${data.kind})`, data.summary,
     ...(data.bug !== null ? [`Bug: ${data.bug}`] : []),
-    "## Plan", ...data.steps.map((step, i) => `${i + 1}. ${step.title}: ${step.message} - ${step.intent}${step.tests.length ? `\n   Tests: ${step.tests.join(", ")}` : ""}`),
+    "## Plan", ...data.steps.map((step, i) => `${i + 1}. ${step.title}: ${step.message} - ${step.intent}${step.checks.length ? `\n   Checks: ${step.checks.map(describeCheck).join("; ")}` : ""}`),
     "## Locations", ...data.locations.map(renderLocation),
     "## Test cases", ...data.testCases.map((item) => `- ${item.description}: expected ${item.expected}${item.actual ? `; actual ${item.actual}` : ""}${item.path ? ` (${item.path})` : ""}`),
     ...(data.architecture ? ["## Architecture", data.architecture] : []),
+    ...(data.droppedChecks?.length ? ["## Dropped checks", ...data.droppedChecks.map((reason) => `- ${reason}`)] : []),
     "## Open questions", ...data.openQuestions.map((question) => `- ${question}`),
     "## What was tried", ...data.exploration.map((item) => `- ${item.tried} → ${item.outcome}`),
     ...(data.specRefs?.length ? ["## Specs", ...data.specRefs.map((ref) => ref.resolved ? `- ${ref.resolved.title} (${ref.url})` : `- ${ref.url} (unresolved: ${ref.reason})`)] : []),

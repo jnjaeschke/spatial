@@ -1,22 +1,33 @@
 import { readFileSync } from "node:fs";
 import { type ChatThreadData, type Id, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
-import type { InvestigationData } from "../../shared/types.ts";
+import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
+import { verifyChecks } from "../../runtime/checks.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const BASE_SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as { required: string[]; properties: Record<string, unknown> };
 const SCHEMA = { ...BASE_SCHEMA, required: [...BASE_SCHEMA.required, "diagram"], properties: { ...BASE_SCHEMA.properties, diagram: { anyOf: [{ type: "null" }, diagramSchema] } } };
-const KINDS = ["bugfix", "feature", "spec", "perf"];
+const KINDS = ["bugfix", "feature", "spec", "refactor", "perf"];
+const CHECK_KINDS = ["new-test", "failing-test", "covering-test", "measure"];
 const MAX_RETRIES = 2;
 
 /** Input of the investigate phase and task. `previous` is set on a revision: the Investigation to improve and the user's text. */
 export interface InvestigateInput { request: string; profile: string; baseSha: string; branch: string; previous?: { id: Id; text: string | null }; llm?: LlmSelection }
 
+interface RawCheck { kind: AcceptanceCheck["kind"]; path: string | null; subtests: string[]; command: string | null; goal: string | null }
+/** The check a reply entry names, or why it is unusable. */
+function toCheck(raw: RawCheck): AcceptanceCheck | string {
+  const { kind } = raw;
+  if (kind === "measure") return raw.command && raw.goal ? { kind, command: raw.command, goal: raw.goal } : "measure: needs a command and a goal";
+  if (!raw.path) return `${kind}: needs a path`;
+  return kind === "failing-test" ? { kind, path: raw.path, subtests: raw.subtests } : { kind, path: raw.path };
+}
+
 interface Reply {
   kind: InvestigationData["kind"]; summary: string; bug: number | null; locations: InvestigationData["locations"];
   testCases: { description: string; expected: string; actual: string | null; path: string | null }[];
-  architecture: string | null; steps: InvestigationData["steps"]; openQuestions: string[]; exploration: InvestigationData["exploration"];
+  architecture: string | null; steps: { title: string; message: string; intent: string; checks: RawCheck[] }[]; openQuestions: string[]; exploration: InvestigationData["exploration"];
   specUrls: string[]; diagram: unknown;
 }
 const isReply = (value: unknown): value is Reply => {
@@ -24,7 +35,7 @@ const isReply = (value: unknown): value is Reply => {
   return typeof r === "object" && r !== null && KINDS.includes(r.kind as string) && typeof r.summary === "string" && (r.bug === null || Number.isInteger(r.bug))
     && Array.isArray(r.locations) && r.locations.every((l) => typeof l?.path === "string" && Number.isInteger(l.line) && typeof l.quote === "string" && typeof l.why === "string")
     && Array.isArray(r.testCases) && r.testCases.every((t) => typeof t?.description === "string" && typeof t.expected === "string")
-    && Array.isArray(r.steps) && r.steps.every((s) => typeof s?.title === "string" && typeof s.message === "string" && typeof s.intent === "string" && Array.isArray(s.tests))
+    && Array.isArray(r.steps) && r.steps.every((s) => typeof s?.title === "string" && typeof s.message === "string" && typeof s.intent === "string" && Array.isArray(s.checks) && s.checks.every((c) => CHECK_KINDS.includes(c?.kind) && (c.path === null || typeof c.path === "string") && Array.isArray(c.subtests) && c.subtests.every((name: unknown) => typeof name === "string") && (c.command === null || typeof c.command === "string") && (c.goal === null || typeof c.goal === "string")))
     && Array.isArray(r.openQuestions) && Array.isArray(r.exploration) && r.exploration.every((e) => typeof e?.tried === "string" && typeof e.outcome === "string")
     && Array.isArray(r.specUrls) && r.specUrls.every((url) => typeof url === "string");
 };
@@ -49,7 +60,7 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
     const prompt = [
       "# Request", request,
       "# Checkout", `Branch ${branch}, based on ${baseSha}.`,
-      "# Commit style", `${profile.description}\n${profile.commitStyle === "single" ? "The repository takes ONE commit: plan exactly one step." : "Plan a stack: one step per commit. For a bug fix the first step adds the failing test."}`,
+      "# Commit style", `${profile.description}\n${profile.commitStyle === "single" ? "The repository takes ONE commit: plan exactly one step." : "Plan a stack: one step per commit. A step that adds a `new-test` comes before the step that fixes the behaviour."}`,
       ...(previous ? [
         "# Previous investigation", ctx.artifacts.render(previous.id),
         ...(previous.text ? ["# Revision request", previous.text] : []),
@@ -81,6 +92,19 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
     })();
     const reply = r.json as Reply;
     const { verified, dropped } = await verifyLocations(reply.locations, (path) => ctx.git.show(baseSha, path));
+    const steps: InvestigationData["steps"] = [], droppedChecks: string[] = [], added = new Set<string>();
+    for (const step of reply.steps) {
+      const named: AcceptanceCheck[] = [];
+      for (const raw of step.checks) {
+        const check = toCheck(raw);
+        if (typeof check === "string") droppedChecks.push(`${step.title}: ${check}`);
+        else named.push(check);
+      }
+      const { verified: checks, dropped: reasons } = await verifyChecks(named, (path) => ctx.git.show(baseSha, path), added);
+      droppedChecks.push(...reasons.map((reason) => `${step.title}: ${reason}`));
+      for (const check of checks) if (check.kind === "new-test") added.add(check.path);
+      steps.push({ title: step.title, message: step.message, intent: step.intent, checks });
+    }
     const specRefs: NonNullable<InvestigationData["specRefs"]> = [];
     for (const url of reply.specUrls) specRefs.push(await resolveSpecReference(ctx, url, "llm"));
     const checked = reply.diagram === null || reply.diagram === undefined ? null : await verifyDiagramAtBase(reply.diagram, baseSha, (sha, path) => ctx.git.show(sha, path));
@@ -89,10 +113,11 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
       kind: reply.kind, summary: reply.summary, bug, locations: verified,
       testCases: reply.testCases.map((t) => ({ description: t.description, expected: t.expected, ...(t.actual !== null && t.actual !== undefined ? { actual: t.actual } : {}), ...(t.path !== null && t.path !== undefined ? { path: t.path } : {}) })),
       ...(reply.architecture ? { architecture: reply.architecture } : {}),
-      steps: reply.steps, openQuestions: reply.openQuestions, exploration: reply.exploration,
+      steps, openQuestions: reply.openQuestions, exploration: reply.exploration,
       ...(specRefs.length ? { specRefs } : {}),
       ...(checked?.ok ? { diagram: checked.data } : {}),
       ...(dropped.length ? { droppedLocations: dropped } : {}),
+      ...(droppedChecks.length ? { droppedChecks } : {}),
       ...(checked && !checked.ok ? { diagramError: checked.error } : {}),
     };
     return { investigationId: ctx.artifacts.put<InvestigationData>("Investigation", "proposed", data, r.selection).id, droppedLocations: dropped };

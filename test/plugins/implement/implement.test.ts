@@ -18,7 +18,7 @@ import { makeRepo } from "../../helpers/git-fixture.ts";
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const ok = { summary: "done", planChange: null, planInvalid: null, step: null };
 const investigation: InvestigationData = {
-  kind: "bugfix", summary: "Sum", bug: null, locations: [], testCases: [], steps: [{ title: "Add b", message: "Add b", intent: "Adds b.", tests: [] }], openQuestions: [],
+  kind: "bugfix", summary: "Sum", bug: null, locations: [], testCases: [], steps: [{ title: "Add b", message: "Add b", intent: "Adds b.", checks: [] }], openQuestions: [],
   exploration: [{ tried: "looked at a.txt", outcome: "nothing there" }],
 };
 const testProfilePlugin = { id: "tp", repoProfiles: [
@@ -128,29 +128,6 @@ test("notes and chat threads since the last implement run reach the agent", asyn
   assert.ok(prompts[0]!.prompt.includes("remember the edge case") && prompts[0]!.prompt.includes("what about empty input?"));
 });
 
-const withTests = { ...investigation, steps: [{ ...investigation.steps[0]!, tests: ["t/a.js"] }] };
-
-test("the first implement run needs a failing, then a passing run of the new test", async () => {
-  const { prompts, run } = setup((call, prompt, r) => {
-    if (call === 0) r.commit({ "b.txt": "b\n" }, "Add b");
-    else {
-      prompt.onEvent?.({ kind: "command", command: "t node t/a.js", exitCode: 1, durationMs: 1, output: "FAIL" });
-      prompt.onEvent?.({ kind: "command", command: "t node t/a.js", exitCode: 0, durationMs: 1, output: "ok" });
-    }
-    return ok;
-  }, "tp", withTests);
-  await run();
-  assert.equal(prompts.length, 2);
-  assert.ok(prompts[1]!.prompt.includes("no run of a test command naming the test"));
-});
-
-test("a later implement run does not need test evidence", async () => {
-  const { base, prompts, put, run } = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; }, "tp", withTests);
-  put("ImplementResult", { head: base, branch: "spatial/x", summary: "", planChange: null, planInvalid: null });
-  await run();
-  assert.equal(prompts.length, 1);
-});
-
 test("a profile that requires a bug needs one", async () => {
   const { run } = setup(() => ok, "needs-bug");
   await assert.rejects(run({ bug: null }), /needs a bug number/);
@@ -232,7 +209,7 @@ test("a later implement call uses the follow-up prompt even when the first call 
   assert.ok(!prompts[1]!.prompt.includes("# Investigation"));
 });
 
-const twoSteps: InvestigationData = { ...investigation, kind: "feature", steps: [{ title: "Add b", message: "Add b", intent: "i", tests: [] }, { title: "Add c", message: "Add c", intent: "i", tests: [] }] };
+const twoSteps: InvestigationData = { ...investigation, kind: "feature", steps: [{ title: "Add b", message: "Add b", intent: "i", checks: [] }, { title: "Add c", message: "Add c", intent: "i", checks: [] }] };
 
 test("edits-only resumes the previous call's session for the next plan step", async () => {
   const { prompts, run } = setup((call, _, r) => { writeFileSync(join(r.dir, call === 0 ? "b.txt" : "c.txt"), "x\n"); return ok; }, "checked-stack", twoSteps);

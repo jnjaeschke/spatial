@@ -10,6 +10,12 @@ One planned implementation step.
 
 ## Properties
 
+### checks
+
+> **checks**: [`AcceptanceCheck`](../type-aliases/AcceptanceCheck.md)[]
+
+***
+
 ### intent
 
 > **intent**: `string`
@@ -19,12 +25,6 @@ One planned implementation step.
 ### message
 
 > **message**: `string`
-
-***
-
-### tests
-
-> **tests**: `string`[]
 
 ***
 

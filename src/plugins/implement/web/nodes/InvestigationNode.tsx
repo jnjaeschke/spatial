@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { InvestigationNodeData } from "../graph.ts";
+import { describeCheck } from "../../shared/acceptance.ts";
 import { IconButton, AskContext, InlineText, Box } from "../../../../web/plugin-api.ts";
 
 export type InvestigationFlowNode = Node<InvestigationNodeData & Record<string, unknown>, "investigation">;
@@ -13,7 +14,7 @@ export function InvestigationNode({ data }: NodeProps<InvestigationFlowNode>) {
       <p><InlineText text={d.summary} /></p>
       {d.architecture && <p className="architecture"><InlineText text={d.architecture} /></p>}
       <h4>Plan</h4>
-      <ol className="plan">{d.steps.map((step, index) => <li key={index} data-testid={`investigation-step-${index}`} data-anchor={`${data.investigationId}#step${index}`}><b><InlineText text={step.title} /></b> <code>{step.message}</code><br /><InlineText text={step.intent} />{step.tests.length > 0 && <div className="plan-tests">Tests: {step.tests.join(", ")}</div>}</li>)}</ol>
+      <ol className="plan">{d.steps.map((step, index) => <li key={index} data-testid={`investigation-step-${index}`} data-anchor={`${data.investigationId}#step${index}`}><b><InlineText text={step.title} /></b> <code>{step.message}</code><br /><InlineText text={step.intent} />{step.checks.length > 0 && <div className="plan-tests">Checks: {step.checks.map(describeCheck).join("; ")}</div>}</li>)}</ol>
       {d.testCases.length > 0 && <><h4>Test cases</h4><ul>{d.testCases.map((t, index) => <li key={index}><InlineText text={t.description} /> — expected: {t.expected}{t.actual ? `, actual: ${t.actual}` : ""}{t.path ? ` (${t.path})` : ""}</li>)}</ul></>}
       {d.openQuestions.length > 0 && <><h4>Open questions</h4><ul>{d.openQuestions.map((q, index) => <li key={index}><InlineText text={q} /></li>)}</ul></>}
       {d.exploration.length > 0 && <details><summary>What was tried ({d.exploration.length})</summary><ul>{d.exploration.map((e, index) => <li key={index}><InlineText text={e.tried} /> → <InlineText text={e.outcome} /></li>)}</ul></details>}

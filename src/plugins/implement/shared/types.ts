@@ -21,10 +21,10 @@ export type AcceptanceCheck =
   | { kind: "covering-test"; path: string }
   | { kind: "measure"; command: string; goal: string };
 /** One planned implementation step. */
-export interface InvestigationStep { title: string; message: string; intent: string; tests: string[] }
-/** The contract any investigate phase must produce (artifact `Investigation`, status proposed). `exploration` is the handoff to the implement agent, which starts without the investigator's context. `diagram` and `specRefs` are optional; `droppedLocations` and `diagramError` are set by the runtime. */
+export interface InvestigationStep { title: string; message: string; intent: string; checks: AcceptanceCheck[] }
+/** The contract any investigate phase must produce (artifact `Investigation`, status proposed). `exploration` is the handoff to the implement agent, which starts without the investigator's context. `diagram` and `specRefs` are optional; `droppedLocations`, `droppedChecks` and `diagramError` are set by the runtime. */
 export interface InvestigationData {
-  kind: "bugfix" | "feature" | "spec" | "perf"; summary: string;
+  kind: "bugfix" | "feature" | "spec" | "refactor" | "perf"; summary: string;
   bug: number | null;
   locations: InvestigationLocation[];
   testCases: { description: string; expected: string; actual?: string; path?: string }[];
@@ -35,6 +35,7 @@ export interface InvestigationData {
   diagram?: DiagramData;
   specRefs?: SpecReferenceData[];
   droppedLocations?: string[];
+  droppedChecks?: string[];
   diagramError?: string;
 }
 /** The implement agent's structured result. */

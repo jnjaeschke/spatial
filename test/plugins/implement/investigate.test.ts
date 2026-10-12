@@ -19,14 +19,16 @@ const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "m
 const reply = (over: object = {}) => ({
   kind: "bugfix", summary: "S", bug: null, locations: [{ path: "a.txt", line: 3, quote: "beta", why: "w" }],
   testCases: [{ description: "d", expected: "e", actual: null, path: null }], architecture: null,
-  steps: [{ title: "T", message: "M", intent: "I", tests: [] }], openQuestions: ["Q?"], exploration: [{ tried: "grep alpha", outcome: "found it" }], specUrls: [], diagram: null, ...over,
+  steps: [{ title: "T", message: "M", intent: "I", checks: [] }], openQuestions: ["Q?"], exploration: [{ tried: "grep alpha", outcome: "found it" }], specUrls: [], diagram: null, ...over,
 });
 const step = (symbol: string, line: number) => ({ from: "a", to: "a", symbol, call: `${symbol}()`, what: "w", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.txt", line } });
 const diagram = (over: object = {}) => ({ commit: 1, title: "Flow", summary: "S", lanes: [{ id: "a", label: "A", note: null }], steps: [step("beta", 2), step("missing", 2)], before: null, ...over });
+const check = (kind: string, over: object = {}) => ({ kind, path: null, subtests: [], command: null, goal: null, ...over });
+const WPT = "testing/web-platform/tests/dom/x.html";
 const specResult = (url: string) => ({ found: true as const, spec: { spec: "HTML", anchor: "a", title: "T", type: "dfn", url, content: "c" } });
-function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = [], webspec: Partial<WebspecCapability> = {}) {
+function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = [], webspec: Partial<WebspecCapability> = {}, files: Record<string, string> = {}) {
   const repo = makeRepo();
-  const base = repo.commit({ "a.txt": "alpha\nbeta\ngamma\n" }, "base");
+  const base = repo.commit({ "a.txt": "alpha\nbeta\ngamma\n", ...files }, "base");
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
@@ -85,13 +87,13 @@ test("the checkout must be on the recorded branch", async () => {
 });
 
 test("a single-commit profile takes exactly one step, and a plan needs a step", async () => {
-  await assert.rejects(setup(reply({ steps: [{ title: "a", message: "a", intent: "i", tests: [] }, { title: "b", message: "b", intent: "i", tests: [] }] })).run(), /one commit/);
+  await assert.rejects(setup(reply({ steps: [{ title: "a", message: "a", intent: "i", checks: [] }, { title: "b", message: "b", intent: "i", checks: [] }] })).run(), /one commit/);
   await assert.rejects(setup(reply({ steps: [] })).run(), /no steps/);
   await assert.rejects(setup({ nonsense: true }).run(), /not valid/);
 });
 
 test("a stack profile may plan several steps", async () => {
-  const { store, run } = setup(reply({ steps: [{ title: "a", message: "a", intent: "i", tests: [] }, { title: "b", message: "b", intent: "i", tests: [] }] }));
+  const { store, run } = setup(reply({ steps: [{ title: "a", message: "a", intent: "i", checks: [] }, { title: "b", message: "b", intent: "i", checks: [] }] }));
   assert.equal(store.getArtifact<InvestigationData>((await run({ profile: "gecko" })).investigationId).data.steps.length, 2);
 });
 
@@ -130,7 +132,7 @@ test("an Investigation renders for chats on it, with sub-refs for locations and 
   assert.throws(() => renderRef(rt.plugins.artifactKinds, view, `${investigationId}#loc9`), /Unknown ref/);
 });
 
-const twoSteps = [{ title: "a", message: "a", intent: "i", tests: [] }, { title: "b", message: "b", intent: "i", tests: [] }];
+const twoSteps = [{ title: "a", message: "a", intent: "i", checks: [] }, { title: "b", message: "b", intent: "i", checks: [] }];
 
 test("an invalid reply is answered again in the resumed session with only the problems", async () => {
   const { store, run, prompts } = setup((call: number) => call === 0 ? { nonsense: true } : reply());
@@ -172,4 +174,61 @@ test("the investigation fails with every attempt's problems after two retries", 
   const { run, prompts } = setup(reply({ steps: [] }));
   await assert.rejects(run(), (error: Error) => /still has problems after 2 retries/.test(error.message) && /Attempt 1/.test(error.message) && /Attempt 3/.test(error.message) && /no steps/.test(error.message));
   assert.equal(prompts.length, 3);
+});
+
+
+test("checks are verified at the base; invalid ones are dropped with their step and reason", async () => {
+  const { store, run } = setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [
+    check("new-test", { path: "t/new.js" }), check("new-test", { path: "a.txt" }), check("covering-test", { path: "a.txt" }), check("covering-test", { path: "gone.js" }),
+    check("failing-test", { path: "a.txt", subtests: ["x"] }), check("measure", { command: "./mach talos-test", goal: "faster" }), check("measure", { command: "x" }), check("new-test"),
+  ] }] }));
+  const data = store.getArtifact<InvestigationData>((await run()).investigationId).data;
+  assert.deepEqual(data.steps[0]!.checks, [
+    { kind: "new-test", path: "t/new.js" }, { kind: "covering-test", path: "a.txt" }, { kind: "failing-test", path: "a.txt", subtests: ["x"] }, { kind: "measure", command: "./mach talos-test", goal: "faster" },
+  ]);
+  assert.deepEqual(data.droppedChecks, [
+    "T: measure: needs a command and a goal", "T: new-test: needs a path",
+    "T: new-test a.txt: the file already exists at the base", "T: covering-test gone.js: file not found at the base",
+  ]);
+});
+
+test("a WPT failing-test is verified against the metadata at the base and records its evidence", async () => {
+  const files = {
+    [WPT]: "<!doctype html>\n", "testing/web-platform/meta/dom/x.html.ini": "[x.html]\n  [first]\n    expected: FAIL\n",
+    "testing/web-platform/tests/dom/y.html": "<!doctype html>\n", "testing/web-platform/meta/dom/y.html.ini": "[y.html]\n  max-asserts: 2\n",
+  };
+  const { store, run } = setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("failing-test", { path: WPT, subtests: ["first"] }), check("failing-test", { path: "testing/web-platform/tests/dom/y.html" })] }] }), [], {}, files);
+  const data = store.getArtifact<InvestigationData>((await run()).investigationId).data;
+  assert.deepEqual(data.steps[0]!.checks, [{ kind: "failing-test", path: WPT, subtests: ["first"], baseEvidence: "FAIL at base: 1 of 1 named subtests" }]);
+  assert.deepEqual(data.droppedChecks, ["T: failing-test testing/web-platform/tests/dom/y.html: the metadata expects no failure"]);
+});
+
+test("a later step may name the test an earlier step adds as a covering-test", async () => {
+  const { store, run } = setup(reply({ steps: [
+    { title: "Test", message: "Add test", intent: "I", checks: [check("new-test", { path: "t/new.js" })] },
+    { title: "Fix", message: "Fix", intent: "I", checks: [check("covering-test", { path: "t/new.js" })] },
+  ] }));
+  const data = store.getArtifact<InvestigationData>((await run({ profile: "gecko" })).investigationId).data;
+  assert.deepEqual(data.steps.map((s) => s.checks.map((c) => c.kind)), [["new-test"], ["covering-test"]]);
+  assert.equal(data.droppedChecks, undefined);
+});
+
+test("a refactor investigation is accepted and the prompt describes the four check kinds", async () => {
+  const { store, run, prompts } = setup(reply({ kind: "refactor" }));
+  assert.equal(store.getArtifact<InvestigationData>((await run()).investigationId).data.kind, "refactor");
+  for (const text of ["new-test", "failing-test", "covering-test", "measure", "testing/web-platform/meta"]) assert.ok(prompts[0]!.system!.includes(text), text);
+});
+
+test("an investigation renders its checks and the dropped ones for chats", async () => {
+  const { rt, store, session, run } = setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("covering-test", { path: "a.txt" }), check("covering-test", { path: "gone.js" })] }] }));
+  const { investigationId } = await run();
+  const view = { artifacts: store.listArtifacts(session.id), links: [] };
+  const { renderRef } = await import("../../../src/runtime/render-ref.ts");
+  const full = renderRef(rt.plugins.artifactKinds, view, investigationId);
+  assert.ok(full.includes("Checks: covering-test a.txt") && full.includes("## Dropped checks") && full.includes("T: covering-test gone.js: file not found at the base"));
+  assert.ok(renderRef(rt.plugins.artifactKinds, view, `${investigationId}#step0`).includes("Checks: covering-test a.txt"));
+});
+
+test("a check of an unknown kind makes the reply invalid", async () => {
+  await assert.rejects(setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("magic")] }] })).run(), /not valid/);
 });

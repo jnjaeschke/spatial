@@ -4,7 +4,6 @@ import type { AgentSessionData, ImplementBranchData, ImplementResultData, Invest
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
-import { testFirstProblems, type CommandEvidence } from "../../runtime/test-first.ts";
 import { runEditsOnly } from "../../runtime/edits-only.ts";
 import type { ReviewFindingData } from "../../../review/api.ts";
 
@@ -65,7 +64,6 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       ...feedback,
     ].join("\n\n");
 
-    const evidence: CommandEvidence[] = [];
     const selection = input.llm ?? ctx.llm.defaultSelection;
     let recorded: string | undefined;
     let session: string | undefined;
@@ -78,7 +76,6 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
         ctx.artifacts.put<AgentSessionData>("AgentSession", "verified", { providerSessionId: event.providerSessionId, backend: selection.backend, model: selection.model });
       }
       else if (event.kind === "command") {
-        evidence.push({ command: event.command, exitCode: event.exitCode });
         ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
       }
     };
@@ -127,7 +124,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const reply = await call(attempt === 0 ? prompt : [prompt, problemsSection(problems)].join("\n\n"), problemsSection(problems));
       if (reply.planInvalid && !input.ignorePlanInvalid) return done(await ctx.git.resolve("HEAD"), reply, null, reply.planInvalid);
       const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan: branch.checkout === "new-branch" ? planned : null, planChange: reply.planChange, profile });
-      const found = [...checked.problems, ...(previous ? [] : testFirstProblems(investigation.steps, evidence, profile))];
+      const found = checked.problems;
       if (found.length === 0) return done(checked.head, reply, reply.planChange, null);
       problems = found;
     }

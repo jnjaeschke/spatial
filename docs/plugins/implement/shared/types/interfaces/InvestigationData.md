@@ -6,7 +6,7 @@
 
 # Interface: InvestigationData
 
-The contract any investigate phase must produce (artifact `Investigation`, status proposed). `exploration` is the handoff to the implement agent, which starts without the investigator's context. `diagram` and `specRefs` are optional; `droppedLocations` and `diagramError` are set by the runtime.
+The contract any investigate phase must produce (artifact `Investigation`, status proposed). `exploration` is the handoff to the implement agent, which starts without the investigator's context. `diagram` and `specRefs` are optional; `droppedLocations`, `droppedChecks` and `diagramError` are set by the runtime.
 
 ## Properties
 
@@ -34,6 +34,12 @@ The contract any investigate phase must produce (artifact `Investigation`, statu
 
 ***
 
+### droppedChecks?
+
+> `optional` **droppedChecks?**: `string`[]
+
+***
+
 ### droppedLocations?
 
 > `optional` **droppedLocations?**: `string`[]
@@ -56,7 +62,7 @@ The contract any investigate phase must produce (artifact `Investigation`, statu
 
 ### kind
 
-> **kind**: `"spec"` \| `"bugfix"` \| `"feature"` \| `"perf"`
+> **kind**: `"spec"` \| `"bugfix"` \| `"feature"` \| `"refactor"` \| `"perf"`
 
 ***
 
