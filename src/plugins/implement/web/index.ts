@@ -16,6 +16,7 @@ export const implementWeb: WebPlugin = {
   phaseViews: { investigate: { Body: InvestigateView }, implement: { Body: ImplementView }, reviewerComments: { Body: ReviewerCommentsView } },
   workflowPhase: { implement: "investigate" },
   conversationItems: { Steer: SteerItem, MemoryNotice: MemoryNoticeItem },
+  conversationTasks: ["distillSteer"],
   repoPanels: [MemoriesPanel],
   nodeKinds: {
     investigation: { component: InvestigationNode as NodeKind["component"], minimapColor: "var(--kind-summary)", size: investigationSize },

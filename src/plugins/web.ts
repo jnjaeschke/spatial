@@ -11,4 +11,5 @@ export const webPlugins: WebPlugin[] = [reviewWeb, chatWeb, implementWeb, geckoW
 export const webNodeKinds = Object.assign({}, coreNodeKinds, ...webPlugins.map((plugin) => plugin.nodeKinds ?? {}));
 export const webReplyActions: Record<string, ComponentType<ReplyActionProps>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.replyActions ?? {}));
 export const webConversationItems: Record<string, ComponentType<ConversationItemProps>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.conversationItems ?? {}));
+export const webConversationTasks: ReadonlySet<string> = new Set(webPlugins.flatMap((plugin) => plugin.conversationTasks ?? []));
 export const webRepoPanels: ComponentType<RepoPanelProps>[] = webPlugins.flatMap((plugin) => plugin.repoPanels ?? []);

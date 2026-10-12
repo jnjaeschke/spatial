@@ -141,6 +141,7 @@
 - [showSessionView](functions/showSessionView.md)
 - [SidePanel](functions/SidePanel.md)
 - [subgraph](functions/subgraph.md)
+- [TaskControls](functions/TaskControls.md)
 - [threadContent](functions/threadContent.md)
 - [TopbarExtras](functions/TopbarExtras.md)
 - [useAction](functions/useAction.md)

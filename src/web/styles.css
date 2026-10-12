@@ -584,7 +584,11 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 ::highlight(chat-quote-active) { background-color: var(--quote-chat-active); }
 ::highlight(finding-quote) { background-color: var(--quote-finding); }
 ::highlight(finding-quote-active) { background-color: var(--quote-finding-active); }
-.msg.pending { color: var(--text-3); align-self: flex-start; background: var(--surface-2); animation: pulse 1.2s ease-in-out infinite; }
+.msg.pending { color: var(--text-3); align-self: flex-start; background: var(--surface-2); display: flex; gap: 8px; align-items: center; }
+.msg.pending .pending-dots { animation: pulse 1.2s ease-in-out infinite; }
+.task-controls { display: inline-flex; gap: 6px; align-items: center; }
+.task-controls button { font-size: 11px; padding: 0 7px; }
+.msg.cancelled { color: var(--text-3); align-self: flex-start; background: var(--surface-2); }
 .msg.failed { background: color-mix(in oklab, var(--danger) 10%, transparent); border: 1px solid color-mix(in oklab, var(--danger) 30%, transparent); }
 @keyframes pulse { 50% { opacity: 0.45; } }
 .msg-llm { display: block; font-size: 0.7em; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }

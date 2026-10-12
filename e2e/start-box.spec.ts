@@ -88,13 +88,16 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   await expect(conversation.locator(".msg.assistant", { hasText: "Stub answer." })).toHaveCount(2, { timeout: 10_000 });
 });
 
-test("a task's name in the activity strip opens what its LLM run said and did", async ({ page, request }) => {
+test("a running chat turn shows its log and cancel inline, not in the activity strip", async ({ page, request }) => {
   await openStartBox(page, request);
   const box = page.getByLabel("start");
-  await box.fill("/chat ACTIVITY-PLEASE where is the caller?");
+  await box.fill("/chat ACTIVITY-HANG-PLEASE where is the caller?");
   await box.press("Enter");
-  await expect(page.getByTestId("conversation")).toContainText("Found it.", { timeout: 10_000 });
-  await page.getByTestId("task-chatTurn").getByRole("button", { name: "chatTurn" }).click();
+  const conversation = page.getByTestId("conversation");
+  const pending = conversation.locator(".msg.pending");
+  await expect(pending.getByRole("button", { name: "Cancel" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("task-chatTurn")).toHaveCount(0);
+  await pending.getByRole("button", { name: "Log" }).click();
   const log = page.getByRole("dialog", { name: "chatTurn activity" });
   await expect(log.locator("li")).toHaveText(["Find the caller first.", /^Grep CallerOfThings\s+\d+ ms$/, "The caller lives in c.txt."]);
   await expect(log.getByTestId("tool-output")).toHaveCount(0);
@@ -102,6 +105,10 @@ test("a task's name in the activity strip opens what its LLM run said and did", 
   await expect(log.getByTestId("tool-output")).toHaveText("c.txt:3: CallerOfThings()");
   await log.getByRole("button", { name: "Close activity" }).click();
   await expect(log).toHaveCount(0);
+  await pending.getByRole("button", { name: "Cancel" }).click();
+  await expect(conversation.locator(".msg.cancelled")).toHaveText("Cancelled");
+  await expect(pending).toHaveCount(0);
+  await expect(conversation.locator(".msg.failed")).toHaveCount(0);
 });
 
 test("the model last used starts out selected in the next model picker", async ({ page, request }) => {

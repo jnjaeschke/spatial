@@ -14,6 +14,12 @@
 
 ***
 
+### conversationTasks?
+
+> `optional` **conversationTasks?**: `string`[]
+
+***
+
 ### id
 
 > **id**: `string`

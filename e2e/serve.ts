@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -51,6 +51,8 @@ writeFileSync(activityChatOut, [
   { type: "assistant", message: { content: [{ type: "text", text: "The caller lives in c.txt." }] } },
   { type: "result", is_error: false, result: "Found it.", structured_output: { answer: "Found it.", questions: [], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-activity", usage: { input_tokens: 1, output_tokens: 1 } },
 ].map((line) => JSON.stringify(line)).join("\n"));
+const activityHangOut = join(dir, "activity-hang.jsonl");
+writeFileSync(activityHangOut, readFileSync(activityChatOut, "utf8").split("\n").slice(0, -1).join("\n") + "\n");
 const selectReviewOut = join(dir, "select-review.json");
 writeFileSync(selectReviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "review", params: { base: null, head: null, revision: null }, title: "Review via selector" }, session_id: "stub-select-review", usage: { input_tokens: 1, output_tokens: 1 } }));
 const selectChatOut = join(dir, "select-chat.json");
@@ -138,7 +140,8 @@ const steerHangOut = join(implementDir, "steer-hang.jsonl");
 writeFileSync(steerHangOut, JSON.stringify({ type: "system", subtype: "init", session_id: "stub-steer" }) + "\n");
 const steerMemoryOut = stubOut("steer-memory", { action: "add", key: "name-helpers", scope: "repo", memory: { situation: "the agent adds a helper", observed: "It named the helper after its caller", wanted: "Name helpers after what they return", why: null, phases: ["implement"], kinds: [] } });
 // The first implement call of the IMPL-STEER session reports its session and then hangs; the rerun resumes that session.
-process.env.FAKE_LLM_HANG_ON = JSON.stringify({ "You implement a planned code change&&impl-steer&&!stub-steer": steerHangOut });
+// The distillation of the steer "Keep the diff small" and the chat turn ACTIVITY-HANG-PLEASE hang until cancelled.
+process.env.FAKE_LLM_HANG_ON = JSON.stringify({ "You implement a planned code change&&impl-steer&&!stub-steer": steerHangOut, "You distill a steer into a memory&&Keep the diff small": steerHangOut, "ACTIVITY-HANG-PLEASE": activityHangOut });
 const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
 const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The value is named." }] });
 const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here.", step: 0 }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", checks: [rawCheck("covering-test", { path: "a.txt" })] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });

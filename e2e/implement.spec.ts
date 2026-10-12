@@ -190,6 +190,13 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   await conversation.getByRole("button", { name: "Steer", exact: true }).click();
   await expect(conversation.getByTestId("steer-item").first()).toHaveText(/^Steered Keep the diff small/);
   await expect(page.getByTestId("implement-running")).toBeVisible();
+  const remembering = conversation.getByTestId("steer-remembering");
+  await expect(remembering).toContainText("Remembering…");
+  await expect(remembering.getByRole("button", { name: "Log" })).toBeVisible();
+  await expect(page.getByTestId("task-distillSteer")).toHaveCount(0);
+  await remembering.getByRole("button", { name: "Cancel" }).click();
+  await expect(conversation.getByTestId("steer-remember-cancelled")).toHaveText("Cancelled");
+  await expect(remembering).toHaveCount(0);
   await conversation.getByLabel("message").fill("STEER-ME name the helper");
   await conversation.getByRole("button", { name: "Stop & steer" }).click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });

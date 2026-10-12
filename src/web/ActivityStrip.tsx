@@ -6,28 +6,28 @@ import { isSessionLog, type ActivityLogTarget, type OpenLog } from "./activity-l
 import { api, useTaskActivity } from "./api.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { PhaseView } from "./plugin-api.ts";
+import { describeProgress } from "./TaskControls.tsx";
+import { stripTasks } from "./strip-tasks.ts";
 import { SessionChip, SessionPopover, hasSessionChip } from "./SessionChip.tsx";
-
-const describe = (p: Progress | undefined) =>
-  !p ? "" : p.kind === "steps" ? p.step : p.kind === "determinate" ? `${p.done}/${p.total}` : (p.message ?? "");
 
 const label = (kind: string) => kind === "narrate" ? "analyze" : kind === "importDiff" ? "read patch" : kind === "importRevision" ? "fetch revision" : kind;
 
-/** The session chip, running tasks and the three most recent finished ones; failures show their error. A task's name opens its LLM activity log, the chip the session chat; one popover is open at a time, named by `log`, which `onLog` lets the session change from elsewhere. */
-export function ActivityStrip({ state, view, progress, log, onLog }: { state: SessionState; view: PhaseView | null; progress: Record<string, Progress>; log: OpenLog | null; onLog(log: OpenLog | null): void }) {
-  const { tasks, artifacts } = state;
+/** The session chip, running tasks and the three most recent finished ones, leaving out those shown in a conversation; failures show their error. A task's name opens its LLM activity log, the chip the session chat; one popover is open at a time, named by `log`, which `onLog` lets the session change from elsewhere. */
+export function ActivityStrip({ state, view, progress, conversationKinds, log, onLog }: { state: SessionState; view: PhaseView | null; progress: Record<string, Progress>; conversationKinds: ReadonlySet<string>; log: OpenLog | null; onLog(log: OpenLog | null): void }) {
+  const { artifacts } = state;
+  const tasks = stripTasks(state.tasks, conversationKinds);
   const sessionId = state.session.id;
   const openId = log !== null && !isSessionLog(log) ? log.taskId : null;
   const running = tasks.filter(isActive);
   const finished = tasks.filter((t) => !running.includes(t)).slice(-3).reverse();
-  const open = tasks.find((t) => t.id === openId);
+  const open = state.tasks.find((t) => t.id === openId);
   const chip = hasSessionChip(state, view);
   const sessionOpen = isSessionLog(log);
   return <div className="activity">
     {chip && <SessionChip state={state} open={sessionOpen} onOpen={(next) => onLog(next ? { kind: "session" } : null)} />}
     {[...running, ...finished].map((t) => <span key={t.id} className={`task ${t.status}`} data-testid={`task-${t.kind}`} data-status={t.status}>
       <button type="button" className="task-name" aria-expanded={t.id === openId} title="Show what the LLM is doing" onClick={() => onLog(t.id === openId ? null : { taskId: t.id })}>{label(t.kind)}</button> {t.status}
-      {t.status === "running" && <> {describe(progress[t.id])} <button onClick={() => api.cancel(t.id).catch(console.error)}>Cancel</button></>}
+      {t.status === "running" && <> {describeProgress(progress[t.id])} <button onClick={() => api.cancel(t.id).catch(console.error)}>Cancel</button></>}
       {t.status === "failed" && <> {t.error}</>}
       {t.kind === "review" && t.status === "succeeded" && (() => {
         const errors = (t.output as { findingErrors?: string[] } | null)?.findingErrors ?? [];

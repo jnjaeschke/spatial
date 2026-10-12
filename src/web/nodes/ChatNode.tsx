@@ -1,4 +1,5 @@
 import { IconButton } from "../IconButton.tsx";
+import { TaskControls } from "../TaskControls.tsx";
 import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { Artifact, DecisionData, LlmSelection } from "../../shared/types.ts";
@@ -85,6 +86,7 @@ export function Conversation(data: ConversationProps) {
   const last = turns.at(-1);
   const busy = !!last && isActive(last);
   const failed = last?.status === "failed" ? last : undefined;
+  const cancelled = last?.status === "cancelled";
   const canSend = !busy && text.trim() !== "";
   const entries = interleave(data.messages, data.items ?? []);
   const pinnedId = data.messages.findLast((m) => m.data.role === "user")?.id;
@@ -123,8 +125,9 @@ export function Conversation(data: ConversationProps) {
             }}>{option.label}</button>;
           })}</span>
         </div>}
-        {busy && <div className="msg pending">…</div>}
+        {last && busy && <div className="msg pending"><span className="pending-dots">…</span><TaskControls task={last} /></div>}
         {failed && <div className="msg failed">{failed.error}</div>}
+        {cancelled && <div className="msg cancelled">Cancelled</div>}
       </div>
       {actions && data.threadId !== null && data.mcpRequests.map((server) => (
         <div key={server} className="enable-mcp-request">

@@ -40,7 +40,7 @@ export interface NodeKind {
 }
 /** Props of a repo page panel: the repository identity (`RepoInfo.repoDir`). */
 export interface RepoPanelProps { repoDir: string }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -65,6 +65,7 @@ export { Box } from "./Box.tsx";
 export type { BoxProps } from "./Box.tsx";
 export { Dialog } from "./Dialog.tsx";
 export { IconButton } from "./IconButton.tsx";
+export { TaskControls } from "./TaskControls.tsx";
 export { Composer, useDraftText } from "./Composer.tsx";
 export type { ComposerProps } from "./Composer.tsx";
 export { composerKey, COMPOSER_HINT } from "./composer-key.ts";

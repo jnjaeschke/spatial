@@ -1,10 +1,17 @@
-import { ErrorText, IconButton, routeUrl, useAction, type ConversationItemProps } from "../../../web/plugin-api.ts";
+import { useContext } from "react";
+import { ChatActionsContext, ErrorText, IconButton, TaskControls, isActive, routeUrl, useAction, type ConversationItemProps } from "../../../web/plugin-api.ts";
 import type { MemoryNoticeData, MemoryReactionData, SteerData } from "../shared/types.ts";
 import { memoriesClient } from "./client.ts";
 
-/** What the user said when stopping the running phase. */
+/** What the user said when stopping the running phase; while its memory is being distilled, that task's controls, afterwards why it did not finish. */
 export function SteerItem({ artifact }: ConversationItemProps) {
-  return <div className="msg user steer-item" data-testid="steer-item"><span className="steer-label">{(artifact.data as SteerData).live ? "Steered" : "Stopped and steered"}</span> {(artifact.data as SteerData).text}</div>;
+  const distill = useContext(ChatActionsContext)?.tasks.findLast((t) => t.kind === "distillSteer" && (t.input as { steerId?: string }).steerId === artifact.id);
+  return <>
+    <div className="msg user steer-item" data-testid="steer-item"><span className="steer-label">{(artifact.data as SteerData).live ? "Steered" : "Stopped and steered"}</span> {(artifact.data as SteerData).text}</div>
+    {distill && isActive(distill) && <div className="msg pending" data-testid="steer-remembering"><span className="pending-dots">Remembering…</span><TaskControls task={distill} /></div>}
+    {distill?.status === "failed" && <div className="msg failed" data-testid="steer-remember-failed">{distill.error}</div>}
+    {distill?.status === "cancelled" && <div className="msg cancelled" data-testid="steer-remember-cancelled">Cancelled</div>}
+  </>;
 }
 
 /** A remembered steer with the user's reaction: confirm it, or forget it and optionally edit it instead. */
