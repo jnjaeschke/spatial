@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { ENGINES, enclosingFunction, type Artifact, type Engine, type Id, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES, type Artifact, type Engine, type Id, type Runtime } from "../../../plugin-api.ts";
 import type { ComparisonView, EngineComparison, EngineMapping, SpecAlgorithmData, StoredComparison } from "../shared/types.ts";
-import { numbered, siteName, usedSites } from "../shared/engine.ts";
+import { numbered, shiftSteps, siteName, usedSites } from "../shared/engine.ts";
 import { parseSteps } from "../shared/steps.ts";
 import { citedEvidence, comparisonErrors, type ComparedFiles } from "../shared/compare-check.ts";
 import type { CompareInput } from "../tasks/compare-engines/task.ts";
 import { storedMapping } from "./mappings.ts";
+import { siteAtTip } from "./engine-map.ts";
 
 /** Knowledge key of an algorithm's comparison. */
 export const compareKey = (ref: string) => `compare|${ref}`;
@@ -18,7 +19,7 @@ const comparing = new WeakMap<Runtime, Set<string>>();
 /** Whether a comparison of `ref` is running. */
 export function compareRunning(rt: Runtime, ref: string): boolean { return comparing.get(rt)?.has(compareKey(ref)) ?? false; }
 
-/** Prepares and starts a comparison of engines with sites; `merged` checks, verifies and stores the result. */
+/** Prepares and starts a comparison of engines with sites (throws when a site's code is gone at the current revision); `merged` checks, verifies and stores the result. */
 export async function startCompare(rt: Runtime, sessionId: Id, algorithm: Artifact<SpecAlgorithmData>): Promise<{ taskId: Id; merged: Promise<void> }> {
   const ref = algorithm.data.ref;
   const mappings = ENGINES.map((engine) => ({ engine, mapping: storedMapping(rt.knowledge, engine, ref) })).filter(({ mapping }) => usedSites(mapping).length);
@@ -36,12 +37,11 @@ async function prepareCompare(rt: Runtime, sessionId: Id, algorithm: Artifact<Sp
   for (const { engine, mapping } of mappings) {
     const known = files[engine] ??= {}, sites: CompareInput["engines"][number]["sites"] = [];
     for (const site of usedSites(mapping).slice(0, 3)) {
-      const text = known[site.path] ? null : await rt.codeSearch[engine].file(site.path, signal);
-      if (text !== null) known[site.path] = text.split("\n");
-      const lines = known[site.path];
-      if (!lines) continue;
-      const end = Math.min(enclosingFunction(lines, site.line)?.end ?? site.line, site.line + 199);
-      sites.push({ path: site.path, name: siteName(site), source: numbered(lines, site.line, end), steps: site.steps.map((step) => ({ step: step.step, line: step.line, end: step.end ?? step.line })) });
+      const found = await siteAtTip(rt.codeSearch[engine], site, signal);
+      if (!found) throw new Error(`${engine} ${site.path}:${site.line} no longer reads \`${site.quote}\`; refresh the mapping`);
+      const { lines, at, fn } = found;
+      known[site.path] = lines;
+      sites.push({ path: site.path, name: siteName(site), source: numbered(lines, at, Math.min(fn?.end ?? at, at + 199)), steps: shiftSteps(site.steps, at - site.line).map((step) => ({ step: step.step, line: step.line, end: step.end ?? step.line })) });
     }
     engines.push({ engine, sites });
   }
@@ -67,7 +67,8 @@ export function comparisonView(rt: Runtime, ref: string): ComparisonView {
   if (read.state !== "current") return { state: "absent" };
   const stored = read.entry.value as StoredComparison, prefix = flagPrefix(ref, read.entry.id);
   const flagged = new Set(rt.knowledge.list("global", "spec", prefix).map((entry) => Number(entry.key.slice(prefix.length))));
-  const outdated = Object.entries(stored.basedOn).some(([engine, digest]) => mappingDigest(storedMapping(rt.knowledge, engine as Engine, ref)) !== digest);
+  const comparable = ENGINES.filter((engine) => usedSites(storedMapping(rt.knowledge, engine, ref)).length);
+  const outdated = comparable.join() !== ENGINES.filter((engine) => engine in stored.basedOn).join() || comparable.some((engine) => mappingDigest(storedMapping(rt.knowledge, engine, ref)) !== stored.basedOn[engine]);
   return { state: "ready", entryId: read.entry.id, differences: stored.comparison.differences.map((difference, index) => ({ ...difference, index })).filter((difference) => !flagged.has(difference.index)), dropped: stored.dropped, flagged: flagged.size, outdated };
 }
 

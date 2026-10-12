@@ -9,6 +9,9 @@ const stepText = (markdown: string) => markdown
   .replace(/`([^`]*)`/g, "$1")
   .replace(/\\([\\`*_{}[\]()#+\-.!|<>~])/g, "$1");
 
+/** Steps as prompt lines: `[4.2] text`, indented by depth. */
+export const stepLines = (steps: SpecStep[]) => steps.map((step) => `${"    ".repeat(step.depth)}[${step.number}] ${step.text}`).join("\n");
+
 const ITEM = /^( *)(\d+)\.\s+(.*)$/;
 
 /** The steps of the first numbered algorithm in a section's markdown, numbered as webspec-index addresses them, so step numbers are unique (webspec-index indents nested lists by 4 spaces); empty when the section has none. Indented lines that are not items, such as notes, continue the previous step. */

@@ -12,6 +12,8 @@ const identifiers = (text: string) => [...text.matchAll(/`([^`]+)`/g)].map((matc
 export function comparisonErrors(difference: EngineDifference, steps: SpecStep[], files: ComparedFiles): string[] {
   const known = new Set(steps.map((step) => step.number));
   const errors = difference.steps.filter((step) => !known.has(step)).map((step) => `cites step ${step}, which the algorithm does not have`);
+  if (!difference.steps.length) errors.push("cites no step");
+  if (!difference.claims.length) errors.push("makes no claim");
   const stepText = difference.steps.filter((step) => known.has(step)).map((step) => citedText(steps, step)).join("\n");
   const allCode: string[] = [];
   for (const claim of difference.claims) {
@@ -30,7 +32,7 @@ export function comparisonErrors(difference: EngineDifference, steps: SpecStep[]
   return errors;
 }
 
-/** The cited steps, claims and code lines of a difference, for the verifier. */
+/** The summary, cited steps, claims and code lines of a difference, for the verifier. */
 export function citedEvidence(difference: EngineDifference, steps: SpecStep[], files: ComparedFiles): string {
-  return ["Cited steps:", ...difference.steps.map((step) => `[${step}] ${citedText(steps, step)}`), "Claims:", ...difference.claims.flatMap((claim) => [`- ${claim.engine}: ${claim.text}`, ...claim.code.map((ref) => `  ${claim.engine} ${ref.path}:${ref.line}: ${files[claim.engine]?.[ref.path]?.[ref.line - 1] ?? ""}`)])].join("\n");
+  return [`Summary: ${difference.summary}`, "Cited steps:", ...difference.steps.map((step) => `[${step}] ${citedText(steps, step)}`), "Claims:", ...difference.claims.flatMap((claim) => [`- ${claim.engine}: ${claim.text}`, ...claim.code.map((ref) => `  ${claim.engine} ${ref.path}:${ref.line}: ${files[claim.engine]?.[ref.path]?.[ref.line - 1] ?? ""}`)])].join("\n");
 }

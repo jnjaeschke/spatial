@@ -1,7 +1,14 @@
 import { basename } from "node:path";
-import type { CodeScope, CodeSearch, GeckoSpecRef, WebspecCapability } from "../../../plugin-api.ts";
+import { enclosingFunction, type CodeScope, type CodeSearch, type GeckoSpecRef, type WebspecCapability } from "../../../plugin-api.ts";
 import type { EngineSite, EngineStep, EngineTest } from "../shared/types.ts";
 import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodePath, linksAnchor, quoteProblem, shiftSteps, siteKey } from "../shared/engine.ts";
+
+/** A stored site in its file at the code search's current revision, which may be newer than its mapping's: the file's lines, the line its quote is at now (`at`), and the function there; null when the file or the quote is gone. */
+export async function siteAtTip(search: Pick<CodeSearch, "file">, site: Pick<EngineSite, "path" | "line" | "quote">, signal: AbortSignal): Promise<{ lines: string[]; at: number; fn: { line: number; end: number } | null } | null> {
+  const lines = (await search.file(site.path, signal))?.split("\n");
+  const at = lines ? followQuote(lines, site.line, site.quote) : null;
+  return at === null ? null : { lines: lines!, at, fn: enclosingFunction(lines!, at) };
+}
 
 /** A place the LLM search proposes, unverified: a line it read and that line's exact text. */
 export interface ImplementationCandidate { path: string; line: number; quote: string; why: string }

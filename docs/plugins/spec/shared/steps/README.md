@@ -13,3 +13,4 @@
 ## Functions
 
 - [parseSteps](functions/parseSteps.md)
+- [stepLines](functions/stepLines.md)

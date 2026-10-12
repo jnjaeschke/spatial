@@ -44,6 +44,17 @@ test("startAlign sends the numbered function and stores checked ranges as the si
   assert.equal((await routeCall(specRoutes(rt), "POST", `/api/sessions/${session.id}/spec/mappings/align`, { ref: "HTML#setup", engine: "blink", key: "a.cc|Nope" })).status, 404);
 });
 
+test("alignment reads the function where the site's quote is now and stores the ranges at the site's stored line", async () => {
+  const { code } = fakeCode({ "a.cc": ["#include \"a.h\"", "", ...LINES].join("\n") }, []);
+  const { rt, session, prompts } = specRuntime({ codeSearch: { blink: code }, reply: () => ({ steps: [{ step: "1", lines: [5, 5], why: "Calls `Edit`." }] }) });
+  const algorithm = putAlgorithm(rt, session.id);
+  const site = { path: "a.cc", line: 2, symbol: "Frame::Navigate()", signature: "void Frame::Navigate() {", quote: "void Frame::Navigate() {", method: "user" as const, refs: [], steps: [] };
+  updateMapping(rt, session.id, "blink", "HTML#setup", { by: "plugin", sessionId: session.id }, () => ({ engine: "blink", repoBase: "r/", rev: "main", sites: [site], rejected: [], tests: [], checkedAt: new Date().toISOString() }));
+  await startAlign(rt, session.id, "blink", algorithm, "a.cc|Frame::Navigate()").merged;
+  assert.match(prompts[0]!.prompt, /Frame::Navigate \(a\.cc lines 4-8\)\n4: void Frame::Navigate\(\) \{/);
+  assert.deepEqual(storedMapping(rt.knowledge, "blink", "HTML#setup")!.sites[0]!.steps.map((step) => [step.line, step.end, step.quote]), [[3, 3, "  Edit(line);"]]);
+});
+
 test("one alignment runs at a time per engine and ref: startAlign throws and the route answers 409 meanwhile", async () => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });

@@ -1,9 +1,9 @@
-import { defineTask, enclosingFunction, isGeckoRepo, plainText, readRepoSkill, runStructured, type Engine, type Id, type JsonSchema, type SpecIdlMember, type TaskContext } from "../../../../plugin-api.ts";
+import { defineTask, isGeckoRepo, plainText, readRepoSkill, runStructured, type Engine, type Id, type JsonSchema, type SpecIdlMember, type TaskContext } from "../../../../plugin-api.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../shared/types.ts";
-import { parseSteps } from "../../shared/steps.ts";
-import { fence, followQuote, numbered, siteKey, siteName, usedSites } from "../../shared/engine.ts";
+import { parseSteps, stepLines } from "../../shared/steps.ts";
+import { fence, numbered, siteKey, siteName, usedSites } from "../../shared/engine.ts";
 import { storedMapping } from "../../runtime/mappings.ts";
-import { verifyCandidate, type ImplementationCandidate } from "../../runtime/engine-map.ts";
+import { siteAtTip, verifyCandidate, type ImplementationCandidate } from "../../runtime/engine-map.ts";
 
 const NAME: Record<Engine, string> = { gecko: "Gecko (mozilla-central)", blink: "Blink (Chromium)", webkit: "WebKit" };
 const LABEL: Record<Engine, string> = { gecko: "Gecko", blink: NAME.blink, webkit: NAME.webkit };
@@ -49,7 +49,7 @@ export const findImplementation = defineTask<{ algorithmId: Id; engine: Engine; 
 
 async function findPrompt(ctx: TaskContext, engine: Engine, algorithm: SpecAlgorithmData, current: EngineMapping | null, stale: EngineSite | null): Promise<string> {
   const steps = parseSteps(algorithm.content);
-  const body = steps.length ? ["## Steps", fence(steps.map((step) => `${"    ".repeat(step.depth)}[${step.number}] ${step.text}`).join("\n"))] : ["## Definition", fence(plainText(algorithm.content).slice(0, 4000))];
+  const body = steps.length ? ["## Steps", fence(stepLines(steps))] : ["## Definition", fence(plainText(algorithm.content).slice(0, 4000))];
   const refs = await ctx.webspec.refs(algorithm.ref, ctx.signal);
   const seeds = await seedLines(ctx, engine, refs);
   const idl = await idlEntryPoints(ctx, algorithm.ref, refs.incoming);
@@ -88,11 +88,10 @@ async function idlEntryPoints(ctx: TaskContext, ref: string, incoming: string[])
 async function geckoCode(ctx: TaskContext, ref: string): Promise<string[]> {
   const out: string[] = [];
   for (const site of usedSites(storedMapping(ctx.knowledge, "gecko", ref)).slice(0, 3)) {
-    // The file is read at the tip, which may be newer than the mapping's revision.
-    const lines = (await ctx.codeSearch.gecko.file(site.path, ctx.signal))?.split("\n");
-    const at = lines ? followQuote(lines, site.line, site.quote) : null;
-    if (at === null) continue;
-    out.push(fence(`${siteName(site)} (${site.path}:${at})\n${numbered(lines!, at, Math.min(enclosingFunction(lines!, at)?.end ?? at, at + 59))}`));
+    const found = await siteAtTip(ctx.codeSearch.gecko, site, ctx.signal);
+    if (!found) continue;
+    const { lines, at, fn } = found;
+    out.push(fence(`${siteName(site)} (${site.path}:${at})\n${numbered(lines, at, Math.min(fn?.end ?? at, at + 59))}`));
   }
   return out;
 }
