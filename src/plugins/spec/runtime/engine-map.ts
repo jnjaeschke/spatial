@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import type { CodeScope, CodeSearch, GeckoSpecRef, WebspecCapability } from "../../../plugin-api.ts";
 import type { EngineSite, EngineStep, EngineTest } from "../shared/types.ts";
-import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodePath, linksAnchor, quoteProblem, siteKey } from "../shared/engine.ts";
+import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodePath, linksAnchor, quoteProblem, shiftSteps, siteKey } from "../shared/engine.ts";
 
 /** A place the LLM search proposes, unverified: a line it read and that line's exact text. */
 export interface ImplementationCandidate { path: string; line: number; quote: string; why: string }
@@ -94,7 +94,7 @@ export async function carryOver(file: (path: string) => Promise<string[] | null>
     const lines = await file(site.path);
     const line = lines ? followQuote(lines, site.line, site.quote) : null;
     const { stale: _stale, ...rest } = site;
-    out.push(line === null ? { ...rest, stale: true } : { ...rest, line });
+    out.push(line === null ? { ...rest, stale: true } : { ...rest, line, steps: shiftSteps(rest.steps, line - site.line) });
   }
   return out;
 }

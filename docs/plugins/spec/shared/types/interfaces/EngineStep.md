@@ -6,7 +6,7 @@
 
 # Interface: EngineStep
 
-A Step comment inside a mapped function: the comment's line and code, whether it matches the step's text, and why (`detail`, shown as its tooltip).
+A Step comment (`match`/`mismatch`, webspec-index's verdict) or a proposed range (`proposed`, lines `line`–`end`, `detail` its reason, `origin` `align` for `alignSteps` or `trace` for a spec trace's code reference). `alignSteps` replaces only `align` steps; every proposed step moves with its site and survives a re-derivation or a concurrent mapping run.
 
 ## Properties
 
@@ -16,9 +16,21 @@ A Step comment inside a mapped function: the comment's line and code, whether it
 
 ***
 
+### end?
+
+> `optional` **end?**: `number`
+
+***
+
 ### line
 
 > **line**: `number`
+
+***
+
+### origin?
+
+> `optional` **origin?**: `"align"` \| `"trace"`
 
 ***
 
@@ -36,4 +48,4 @@ A Step comment inside a mapped function: the comment's line and code, whether it
 
 ### verdict
 
-> **verdict**: `"match"` \| `"mismatch"`
+> **verdict**: `"proposed"` \| `"match"` \| `"mismatch"`

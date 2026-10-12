@@ -18,8 +18,8 @@ export interface SpecSearchData { phrase: string; results: SpecSearchResult[] }
 /** A verified summary, stored in the knowledge store under `spec` / `<ref>@<sha>`. */
 export interface SpecSummary { clauses: { text: string; steps: string[] }[] }
 
-/** A Step comment inside a mapped function: the comment's line and code, whether it matches the step's text, and why (`detail`, shown as its tooltip). */
-export interface EngineStep { step: string; line: number; verdict: "match" | "mismatch"; detail: string; quote?: string }
+/** A Step comment (`match`/`mismatch`, webspec-index's verdict) or a proposed range (`proposed`, lines `line`–`end`, `detail` its reason, `origin` `align` for `alignSteps` or `trace` for a spec trace's code reference). `alignSteps` replaces only `align` steps; every proposed step moves with its site and survives a re-derivation or a concurrent mapping run. */
+export interface EngineStep { step: string; line: number; end?: number; verdict: "match" | "mismatch" | "proposed"; detail: string; quote?: string; origin?: "align" | "trace" }
 /**
  * Where an engine implements an algorithm: a function (`symbol` its code-search symbol, `signature` its first line, `line` the first line of
  * its definition) or, for concepts, a declaration (`symbol` ""). `quote` is the code at `line` when stored. `method`: found through spec-link

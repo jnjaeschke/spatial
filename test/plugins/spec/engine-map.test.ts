@@ -170,3 +170,9 @@ test("carried sites follow their quote, go stale without it, and yield to sites 
   const carried = await carryOver(async (path) => files[path] ?? null, previous, [site("f.cpp", 9, "void F() {", "spec-link")]);
   assert.deepEqual(carried, [site("a.cpp", 2, "void A() {"), site("b.cpp", 4, "void B() {", "user"), { ...site("c.cpp", 1, "void C() {"), stale: true }, { ...site("gone.cpp", 1, "void G() {"), stale: true }]);
 });
+
+test("carryOver shifts a moved site's steps with it", async () => {
+  const moved: EngineSite = { path: "a.cpp", line: 1, symbol: "_ZA", signature: "void A() {", quote: "void A() {", method: "user", refs: [], steps: [{ step: "1", line: 2, end: 3, quote: "x", verdict: "proposed", detail: "w", origin: "align" }] };
+  const [out] = await carryOver(async () => ["", "", "void A() {", "x", "y"], [moved], []);
+  assert.deepEqual([out!.line, out!.steps[0]!.line, out!.steps[0]!.end], [3, 4, 5]);
+});

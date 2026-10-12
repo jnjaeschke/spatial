@@ -92,6 +92,35 @@ test("a mapping is recomputed only after a day and when the code search moved on
   assert.equal(storedMapping(rt.knowledge, "gecko", "HTML#setup")!.rev, "b".repeat(40));
 });
 
+test("an unpinned engine is re-mapped after a day at the same revision; a pinned one is not", async () => {
+  const file = "// https://html.spec.whatwg.org/#setup\nvoid Setup() {\n}";
+  const blink = fakeCode({ "a.cc": file }, [{ group: "Code", path: "a.cc", line: 1, url: "u" }]);
+  const webkit = fakeCode({ "a.cpp": file }, [{ group: "Code", path: "a.cpp", line: 1, url: "u" }], { engine: "webkit" });
+  const { rt, session } = specRuntime({ codeSearch: { blink: blink.code, webkit: webkit.code } });
+  const algorithm = putAlgorithm(rt, session.id);
+  for (const engine of ["blink", "webkit"] as const) await ensureMapping(rt, session.id, engine, algorithm);
+  for (const engine of ["blink", "webkit"] as const) await ensureMapping(rt, session.id, engine, algorithm, Date.now() + 2 * DAY);
+  assert.equal(blink.calls.filter((call) => call.startsWith("specRefs")).length, 2);
+  assert.equal(webkit.calls.filter((call) => call.startsWith("specRefs")).length, 1);
+});
+
+test("an alignment stored while a mapping runs survives the mapping's write", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const { code } = fakeCode({ "a.cc": "// https://html.spec.whatwg.org/#setup\nvoid Setup() {\n  Edit();\n}" }, [{ group: "Code", path: "a.cc", line: 1, url: "u" }]);
+  const slow = { ...code, async specRefs(url: string, signal: AbortSignal, limit?: number) { await gate; return code.specRefs(url, signal, limit); } };
+  const { rt, session } = specRuntime({ codeSearch: { blink: slow } });
+  const algorithm = putAlgorithm(rt, session.id);
+  const existing: EngineSite = { path: "a.cc", line: 2, symbol: "Setup", signature: "void Setup() {", quote: "void Setup() {", method: "spec-link-heuristic", refs: [1], steps: [] };
+  updateMapping(rt, session.id, "blink", "HTML#setup", { by: "plugin", sessionId: session.id }, () => ({ engine: "blink", repoBase: "r/", rev: "main", sites: [existing], tests: [], rejected: [], checkedAt: new Date(0).toISOString() }));
+  const running = ensureMapping(rt, session.id, "blink", algorithm);
+  await new Promise((resolve) => setImmediate(resolve));
+  updateMapping(rt, session.id, "blink", "HTML#setup", { by: "llm", taskId: "T", sessionId: session.id }, (current) => ({ ...current!, sites: current!.sites.map((site) => ({ ...site, steps: [{ step: "1", line: 3, end: 3, quote: "  Edit();", verdict: "proposed" as const, detail: "Calls `Edit`.", origin: "align" as const }] })) }));
+  release();
+  await running;
+  assert.deepEqual(storedMapping(rt.knowledge, "blink", "HTML#setup")!.sites.map((site) => [site.method, site.steps.map((step) => [step.step, step.line, step.verdict])]), [["spec-link-heuristic", [["1", 3, "proposed"]]]]);
+});
+
 test("concurrent opens start one mapping run; opening a box maps it in Gecko", async () => {
   const { rt, session } = setup();
   const a = await algorithm(rt, session.id);

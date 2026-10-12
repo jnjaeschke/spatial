@@ -68,14 +68,14 @@ export function decideProposal(rt: Runtime, sessionId: Id, engine: Engine, ref: 
   });
 }
 
-/** Maps an algorithm in `engine` unless its mapping is fresh (checked within a day, or older but still at the code search's revision) or a mapping of it is running; what was stored while it ran is merged into its result. */
+/** Maps an algorithm in `engine` unless its mapping is fresh (checked within a day, or older but still at the revision of a pinned code search) or a mapping of it is running; what was stored while it ran is merged into its result. */
 export async function ensureMapping(rt: Runtime, sessionId: Id, engine: Engine, algorithm: Artifact<SpecAlgorithmData>, now = Date.now()): Promise<void> {
   const ref = algorithm.data.ref;
   const read = rt.knowledge.get("global", "spec", mappingKey(engine, ref));
   if (read.state === "deleted") return;
   if (read.state === "current") {
     const mapping = engineMapping(read.entry.value);
-    if (now - Date.parse(mapping.checkedAt) < DAY || (await rt.codeSearch[engine].tip()).rev === mapping.rev) return;
+    if (now - Date.parse(mapping.checkedAt) < DAY || (rt.codeSearch[engine].pinned && (await rt.codeSearch[engine].tip()).rev === mapping.rev)) return;
   }
   const running = inFlight.get(rt) ?? new Set<string>();
   inFlight.set(rt, running);

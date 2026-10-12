@@ -1,5 +1,5 @@
 import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
-import type { EngineMapping, EngineSite } from "./types.ts";
+import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */
 export const mappingKey = (engine: Engine, ref: string) => `impl|${engine}|${ref}`;
@@ -13,12 +13,30 @@ export const byPlace = (a: Pick<EngineSite, "path" | "line">, b: Pick<EngineSite
 /** Whether tier 1 derives a site from spec-link comments: every mapping run recomputes such sites, so they are never carried over or merged back. */
 export const fromLinks = (site: Pick<EngineSite, "method">) => site.method === "spec-link" || site.method === "spec-link-heuristic";
 
-/** A mapping run's result with rejections, confirmations and proposals stored while it ran; tier 1 sites come from the result only. */
+/** `steps` moved by `offset` lines. */
+export const shiftSteps = (steps: EngineStep[], offset: number) => steps.map((step) => ({ ...step, line: step.line + offset, ...(step.end !== undefined ? { end: step.end + offset } : {}) }));
+
+/** Freshly derived spec-link sites, each with the proposed steps of the previous site of the same key, moved by as much as the site moved. */
+export function keepAlignedSteps(previous: EngineSite[], fresh: EngineSite[]): EngineSite[] {
+  return fresh.map((site) => {
+    const before = previous.find((old) => fromLinks(old) && siteKey(old) === siteKey(site));
+    const kept = before ? shiftSteps(before.steps.filter((step) => step.verdict === "proposed"), site.line - before.line) : [];
+    return kept.length ? { ...site, steps: [...site.steps, ...kept] } : site;
+  });
+}
+
+/** A mapping run's `result` with what was stored while it ran (`latest`): rejections, confirmations of the result's proposals, proposals the result lacks, and step alignments (moved with their site). Sites tier 1 derives come from `result` only. */
 export function mergeLatest(result: EngineMapping, latest: EngineMapping): EngineMapping {
   const rejected = [...result.rejected, ...latest.rejected.filter((site) => !result.rejected.some((known) => siteKey(known) === siteKey(site)))];
   const gone = new Set(rejected.map(siteKey));
   const byKey = new Map(latest.sites.map((site) => [siteKey(site), site]));
-  const sites = result.sites.filter((site) => !gone.has(siteKey(site))).map((site) => site.method === "llm" && byKey.get(siteKey(site))?.method === "user" ? { ...site, method: "user" as const } : site);
+  const sites = result.sites.filter((site) => !gone.has(siteKey(site))).map((site) => {
+    const now = byKey.get(siteKey(site));
+    if (!now) return site;
+    const method: EngineSite["method"] = site.method === "llm" && now.method === "user" ? "user" : site.method;
+    const aligned = site.steps.some((step) => step.verdict === "proposed") ? [] : shiftSteps(now.steps.filter((step) => step.verdict === "proposed"), site.line - now.line);
+    return { ...site, method, steps: [...site.steps, ...aligned] };
+  });
   const added = latest.sites.filter((site) => !fromLinks(site) && !gone.has(siteKey(site)) && !sites.some((known) => siteKey(known) === siteKey(site)));
   return { ...result, sites: [...sites, ...added].sort(byPlace), rejected };
 }
@@ -92,5 +110,6 @@ export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "inpu
 export function engineMapping(value: unknown): EngineMapping {
   const m = value as Partial<EngineMapping> | null;
   if (typeof m !== "object" || m === null || typeof m.engine !== "string" || typeof m.repoBase !== "string" || typeof m.rev !== "string" || typeof m.checkedAt !== "string" || !Array.isArray(m.sites) || !Array.isArray(m.tests) || !Array.isArray(m.rejected)) throw new Error("Stored engine mapping has an unexpected shape");
+  if (m.sites.some((site) => !site || typeof site !== "object" || !Array.isArray(site.steps) || site.steps.some((step) => !step || typeof step !== "object" || ("origin" in step && step.origin !== "align" && step.origin !== "trace")))) throw new Error("Stored engine mapping has an unexpected shape");
   return m as EngineMapping;
 }
