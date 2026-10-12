@@ -550,6 +550,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
   background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 14%, var(--surface)), color-mix(in oklab, var(--accent-2) 12%, var(--surface)));
   border: 1px solid color-mix(in oklab, var(--accent) 22%, transparent); border-bottom-right-radius: 4px;
 }
+@media (prefers-reduced-motion: no-preference) { .messages { scroll-behavior: smooth; } }
 .messages .msg.user.pinned { position: sticky; top: 0; z-index: 1; flex-shrink: 0; max-height: 7.5em; overflow-y: auto;; cursor: pointer; }
 .msg.assistant { background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
 .msg.assistant p:first-child { margin-top: 0; }

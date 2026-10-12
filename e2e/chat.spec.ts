@@ -68,20 +68,20 @@ test("a chat scrolls to each answer, with the last own message pinned above it",
     await expect(chat.locator(".msg.assistant")).toHaveCount(i + 1, { timeout: 10_000 });
   }
   const messages = chat.locator(".messages");
-  await expect.poll(() => messages.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-  const list = (await messages.boundingBox())!;
-  const own = (await chat.locator(".msg.user", { hasText: "Third question" }).boundingBox())!;
-  const answer = (await chat.locator(".msg.assistant").last().boundingBox())!;
-  expect(Math.abs(own.y - list.y)).toBeLessThan(12);
-  expect(answer.y).toBeGreaterThanOrEqual(own.y + own.height - 1);
-  expect(answer.y).toBeLessThan(own.y + own.height + 24);
-  await messages.evaluate((el) => { el.scrollTop = el.scrollHeight; });
-  const pinned = (await chat.locator(".msg.user", { hasText: "Third question" }).boundingBox())!;
-  expect(Math.abs(pinned.y - list.y)).toBeLessThan(12);
+  expect(await messages.evaluate((el) => getComputedStyle(el).scrollBehavior)).toBe("smooth");
   const pinnedMessage = chat.locator(".msg.user", { hasText: "Third question" });
+  const list = (await messages.boundingBox())!;
+  const answerBelowPinned = async () => {
+    const own = (await pinnedMessage.boundingBox())!, answer = (await chat.locator(".msg.assistant").last().boundingBox())!;
+    const gap = answer.y - (own.y + own.height);
+    return Math.abs(own.y - list.y) < 12 && gap >= -1 && gap < 24;
+  };
+  await expect.poll(answerBelowPinned).toBe(true);
+  await messages.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: "instant" }));
+  expect(Math.abs((await pinnedMessage.boundingBox())!.y - list.y)).toBeLessThan(12);
   expect(await pinnedMessage.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
   await pinnedMessage.click();
-  await expect.poll(async () => { const gap = (await chat.locator(".msg.assistant").last().boundingBox())!.y - ((await pinnedMessage.boundingBox())!.y + (await pinnedMessage.boundingBox())!.height); return gap >= -1 && gap < 24; }).toBe(true);
+  await expect.poll(answerBelowPinned).toBe(true);
 });
 
 test("the panel has one ×; an empty draft is discarded, a draft with text stays inline, Close chat closes it for reopening", async ({ page, request }) => {
