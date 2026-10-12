@@ -41,7 +41,7 @@ export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "dif
 }
 
 /** The open decision of the session, drawn beside the root node. */
-export interface DecisionNodeData { kind: "decision"; sessionId: string; repoDir: string; decision: Artifact<DecisionData> }
+export interface DecisionNodeData { kind: "decision"; sessionId: string; decision: Artifact<DecisionData> }
 
 export type DiagramNodeData = { kind: "diagram"; diagram: Artifact<DiagramData>; closable?: boolean };
 export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DecisionNodeData | DiagramNodeData;
@@ -162,7 +162,7 @@ export function addDecisions(g: Graph, state: SessionState): void {
   const decision = state.artifacts.findLast((artifact) => artifact.type === "Decision") as Artifact<DecisionData> | undefined;
   const root = g.nodes[0];
   if (!decision || decision.data.chosen !== null || !root) return;
-  g.nodes.push({ id: decision.id, anchors: [root.id], data: { kind: "decision", sessionId: state.session.id, repoDir: state.session.repoDir, decision } satisfies DecisionNodeData });
+  g.nodes.push({ id: decision.id, anchors: [root.id], data: { kind: "decision", sessionId: state.session.id, decision } satisfies DecisionNodeData });
   g.edges.push({ id: `${decision.id}->${root.id}`, source: decision.id, target: root.id });
 }
 

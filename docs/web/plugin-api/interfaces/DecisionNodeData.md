@@ -22,12 +22,6 @@ The open decision of the session, drawn beside the root node.
 
 ***
 
-### repoDir
-
-> **repoDir**: `string`
-
-***
-
 ### sessionId
 
 > **sessionId**: `string`

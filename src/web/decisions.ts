@@ -1,4 +1,4 @@
-import type { Artifact, DecisionData, DecisionOption, LlmSelection } from "../shared/types.ts";
+import type { Artifact, DecisionData, DecisionOption } from "../shared/types.ts";
 
 /** The latest Decision when it is still open. */
 export function openDecision(artifacts: Artifact[]): Artifact<DecisionData> | null {
@@ -13,13 +13,3 @@ export function optionProblem(option: DecisionOption, text: string): string | nu
   if (trimmed && option.textPattern && !new RegExp(option.textPattern).test(trimmed)) return `Must match ${option.textPattern}`;
   return null;
 }
-
-const key = (repoDir: string) => `spatial:decision-model:${repoDir}`;
-/** The model last chosen in a decision of this repository, or null. */
-export function readModelChoice(storage: Pick<Storage, "getItem">, repoDir: string): LlmSelection | null {
-  try {
-    const value = JSON.parse(storage.getItem(key(repoDir)) ?? "null") as Partial<LlmSelection> | null;
-    return value && typeof value.backend === "string" && typeof value.model === "string" && typeof value.effort === "string" ? value as LlmSelection : null;
-  } catch { return null; }
-}
-export function saveModelChoice(storage: Pick<Storage, "setItem">, repoDir: string, llm: LlmSelection): void { storage.setItem(key(repoDir), JSON.stringify(llm)); }

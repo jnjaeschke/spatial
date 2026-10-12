@@ -8,6 +8,7 @@ import { api } from "../api.ts";
 import { ChatActionsContext, closeChat } from "../chat-context.ts";
 import type { ChatNodeData } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
+import { rememberLlm } from "../llm-choice.ts";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { ClosedContext } from "../closed.ts";
@@ -94,6 +95,7 @@ export function Conversation(data: ConversationProps) {
           return;
         }
         const selection = llm ?? actions.models.default;
+        rememberLlm(selection);
         const body = data.threadId ? { threadId: data.threadId, text, llm: selection } : { anchor: data.anchor, text, llm: selection, ...(data.aside ? { aside: true } : {}), ...(data.quote ? { quote: data.quote, lines: data.lines } : {}) };
         void run(async () => {
           const { taskId } = await api.turn(actions.sessionId, body);

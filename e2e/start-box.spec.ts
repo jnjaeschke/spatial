@@ -88,6 +88,18 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   await expect(conversation.locator(".msg.assistant", { hasText: "Stub answer." })).toHaveCount(2, { timeout: 10_000 });
 });
 
+test("the model last used starts out selected in the next model picker", async ({ page, request }) => {
+  await openStartBox(page, request);
+  await page.getByLabel("backend").selectOption("codex");
+  const box = page.getByLabel("start");
+  await box.fill("/chat Remember my model");
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
+  await expect(page.getByTestId("conversation")).toContainText("Remember my model", { timeout: 10_000 });
+  await openStartBox(page, request);
+  await expect(page.getByLabel("backend")).toHaveValue("codex");
+});
+
 test("bad commands show an inline error and create nothing", async ({ page, request }) => {
   await openStartBox(page, request);
   const box = page.getByLabel("start");

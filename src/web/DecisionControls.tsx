@@ -2,22 +2,23 @@ import { createContext, useContext, useState } from "react";
 import type { Artifact, DecisionData, LlmSelection, ModelsResponse } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { LlmPicker } from "./LlmPicker.tsx";
-import { optionProblem, readModelChoice, saveModelChoice } from "./decisions.ts";
+import { optionProblem } from "./decisions.ts";
+import { rememberLlm } from "./llm-choice.ts";
 import { ErrorText, useAction } from "./action.tsx";
 
 /** The models the session shell loaded; decisions whose options take a model offer a picker when set. */
 export const ModelsContext = createContext<ModelsResponse | null>(null);
 
 /** The question of a decision and a button per option; a text box when an option takes text, a model picker when one takes a model. */
-export function DecisionControls({ sessionId, repoDir, decision, testId }: { sessionId: string; repoDir: string; decision: Artifact<DecisionData>; testId: string }) {
+export function DecisionControls({ sessionId, decision, testId }: { sessionId: string; decision: Artifact<DecisionData>; testId: string }) {
   const models = useContext(ModelsContext);
   const { question, options } = decision.data;
   const [text, setText] = useState(() => options.find((option) => option.defaultText)?.defaultText ?? "");
-  const [llm, setLlm] = useState<LlmSelection | null>(() => readModelChoice(localStorage, repoDir) ?? models?.default ?? null);
+  const [llm, setLlm] = useState<LlmSelection | null>(models?.default ?? null);
   const { busy, error, run } = useAction();
   const send = (optionId: string) => {
     const option = options.find((candidate) => candidate.id === optionId)!;
-    if (option.takesModel && llm) saveModelChoice(localStorage, repoDir, llm);
+    if (option.takesModel && llm) rememberLlm(llm);
     void run(() => api.decide(sessionId, decision.id, option.id, { ...(option.takesText && text.trim() ? { text: text.trim() } : {}), ...(option.takesModel && llm ? { llm } : {}) }));
   };
   return <div className="decision" data-testid={testId}>

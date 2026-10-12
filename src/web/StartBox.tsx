@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { LlmSelection, ModelsResponse, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { LlmPicker } from "./LlmPicker.tsx";
+import { rememberLlm } from "./llm-choice.ts";
 import { DescribedOptions } from "./custom-select.tsx";
 import { commandSuggestions, completeCommand } from "./slash.ts";
 import { readWriteMode, saveWriteMode, WRITE_MODES } from "./write-mode.ts";
@@ -32,7 +33,7 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
       navigation.navigate(routeUrl({ kind: "session", sessionId: result.id, place: null }));
     });
   };
-  const submit = () => { if (text.trim()) proceed(() => api.start(path, text, llm, writeMode)); };
+  const submit = () => { if (text.trim()) { rememberLlm(llm); proceed(() => api.start(path, text, llm, writeMode)); } };
   const answer = (value: number | string) => { if (question) proceed(() => api.answerStart(question.id, value)); };
   const selecting = busy && !(question?.options ?? text.trim().startsWith("/"));
   return <form className="start-box" onSubmit={(e) => { e.preventDefault(); submit(); }}>

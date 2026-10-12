@@ -7,6 +7,6 @@ export type DecisionFlowNode = Node<DecisionNodeData & Record<string, unknown>, 
 
 export function DecisionNode({ data }: NodeProps<DecisionFlowNode>) {
   return <Box kind="decision" testId="decision-node" title="Decision" handles={{ target: Position.Top, source: Position.Bottom }}>
-    <DecisionControls sessionId={data.sessionId} repoDir={data.repoDir} decision={data.decision} testId="decision-card" />
+    <DecisionControls sessionId={data.sessionId} decision={data.decision} testId="decision-card" />
   </Box>;
 }

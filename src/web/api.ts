@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ChatThreadData, DirectoryListing, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
+import { readLastUsed, subscribeLastUsed, withLastUsed } from "./llm-choice.ts";
 
 /** A failed request to the runtime: the server's error message and the HTTP status. */
 export class RequestError extends Error {
@@ -122,9 +123,11 @@ export function useSessionState(id: string) {
   return { state, error, progress, notices, dismissNotice };
 }
 
-/** The configured models; `error` when they could not be loaded, both null while loading. */
+/** The configured models with the last-used selection (`rememberLlm`) as `default`; `error` when they could not be loaded, both null while loading. */
 export function useModels(): { models: ModelsResponse | null; error: string | null } {
   const [state, setState] = useState<{ models: ModelsResponse | null; error: string | null }>({ models: null, error: null });
   useEffect(() => { api.models().then((models) => setState({ models, error: null }), (e: Error) => setState({ models: null, error: e.message })); }, []);
-  return state;
+  const lastUsed = useSyncExternalStore(subscribeLastUsed, readLastUsed);
+  const models = useMemo(() => state.models && withLastUsed(state.models, lastUsed), [state.models, lastUsed]);
+  return { models, error: state.error };
 }
