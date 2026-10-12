@@ -402,6 +402,12 @@ Re-exports [LlmSelection](../shared/types/interfaces/LlmSelection.md)
 
 ***
 
+### makeChromiumSearch
+
+Re-exports [makeChromiumSearch](../runtime/chromium-search/functions/makeChromiumSearch.md)
+
+***
+
 ### McpServerData
 
 Re-exports [McpServerData](../shared/types/interfaces/McpServerData.md)

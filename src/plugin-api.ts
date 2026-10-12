@@ -59,6 +59,7 @@ export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } fr
 /** Read-only code search per engine, and the brace scan used where no code index exists. */
 export { ENGINES, escapeRegex, specUrlParts } from "./runtime/code-search.ts";
 export type { CodeSearch } from "./runtime/code-search.ts";
+export { makeChromiumSearch } from "./runtime/chromium-search.ts";
 export { enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";
 export type { ScannedFunction } from "./runtime/brace-scan.ts";
 export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";

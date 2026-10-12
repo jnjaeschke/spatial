@@ -1,0 +1,86 @@
+[
+  {
+    "path": "third_party/blink/web_tests/external/wpt/navigation-api/precommit-handler/precommitHandler-javascript-url-before-commit.html",
+    "line": 4,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/#navigate\" />",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/navigation-api/precommit-handler/precommitHandler-javascript-url-before-commit.html;l=4"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/navigation-api/precommit-handler/precommitHandler-javascript-url-before-commit.html",
+    "line": 5,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/#navigate-to-a-javascript:-url\"/>",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/navigation-api/precommit-handler/precommitHandler-javascript-url-before-commit.html;l=5"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-window-open.sub.https.html",
+    "line": 16,
+    "snippet": "  // In https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate,",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-window-open.sub.https.html;l=16"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-a-element.sub.https.html",
+    "line": 16,
+    "snippet": "  // In https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate,",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-a-element.sub.https.html;l=16"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/javascript-url-abort/javascript-url-abort-return-value-string.tentative.html",
+    "line": 5,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/multipage/#navigate\">",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/javascript-url-abort/javascript-url-abort-return-value-string.tentative.html;l=5"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-iframe-location-href.sub.https.html",
+    "line": 16,
+    "snippet": "  // In https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate,",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-iframe-location-href.sub.https.html;l=16"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-iframe-location-href.sub.https.html",
+    "line": 33,
+    "snippet": "    // In https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate,",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/speculation-rules/prefetch/initiators-iframe-location-href.sub.https.html;l=33"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/javascript-url-abort/javascript-url-abort-return-value-undefined.tentative.html",
+    "line": 5,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/multipage/#navigate\">",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/javascript-url-abort/javascript-url-abort-return-value-undefined.tentative.html;l=5"
+  },
+  {
+    "path": "third_party/blink/web_tests/fast/events/javascript-uri-navigation-blocked-in-unload-handler.html",
+    "line": 20,
+    "snippet": "    // https://html.spec.whatwg.org/#navigate.",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/fast/events/javascript-uri-navigation-blocked-in-unload-handler.html;l=20"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/javascript-url-src-removes-container.html",
+    "line": 2,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/multipage/#navigate-to-a-javascript:-url\">",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/javascript-url-src-removes-container.html;l=2"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/refresh/same-document-refresh.html",
+    "line": 6,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid-step\">",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/html/browsers/browsing-the-web/navigating-across-documents/refresh/same-document-refresh.html;l=6"
+  },
+  {
+    "path": "third_party/blink/web_tests/external/wpt/html/semantics/embedded-content/the-frame-element/frame-javascript-url-load-event.html",
+    "line": 2,
+    "snippet": "<link rel=\"help\" href=\"https://html.spec.whatwg.org/multipage/#navigate-to-a-javascript:-url\">",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/web_tests/external/wpt/html/semantics/embedded-content/the-frame-element/frame-javascript-url-load-event.html;l=2"
+  },
+  {
+    "path": "third_party/blink/renderer/core/dom/document.h",
+    "line": 909,
+    "snippet": "  // https://html.spec.whatwg.org/C/#navigate",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/dom/document.h;l=909"
+  },
+  {
+    "path": "third_party/blink/renderer/core/loader/frame_loader.cc",
+    "line": 1816,
+    "snippet": "  // https://html.spec.whatwg.org/C/#navigate",
+    "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/loader/frame_loader.cc;l=1816"
+  }
+]
