@@ -50,6 +50,10 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(investigation).toContainText("1 location dropped");
   await expect(investigation).toContainText("Should d exist too?");
   await expect(investigation).toContainText("grep for c");
+  await expect(investigation.getByTestId("acceptance-check")).toHaveCount(1);
+  await expect(investigation.getByTestId("acceptance-check")).toContainText("new-test");
+  await expect(investigation.getByTestId("acceptance-check")).toContainText("c.test.txt");
+  await expect(investigation).toContainText("1 check dropped");
   await expect(page.getByTestId("investigation-location")).toHaveCount(1);
   await expect(page.getByTestId("decision-node")).toContainText("Approve the investigation plan?");
 
@@ -121,6 +125,14 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
   await bar.getByRole("button", { name: "Approve" }).click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await page.getByTestId("epoch-chip-2").click();
+  const checkResult = page.getByTestId("check-result");
+  await expect(checkResult).toHaveCount(1);
+  await expect(checkResult).toContainText("covering-test a.txt");
+  await expect(checkResult).toHaveAttribute("data-ok", "true");
+  await checkResult.getByTestId("check-run").click();
+  await expect(page.getByTestId("terminal-output")).toContainText("tests-ran-ok");
+  await page.getByTestId("epoch-chip-3").click();
   await bar.getByRole("button", { name: "Accept" }).click();
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
   await expect(page.getByTestId("try-proposal")).toContainText("Runs the plain mochitests.");
