@@ -10,12 +10,13 @@ const tryEpoch = epoch(4, "try", { base: "BASE", head: "HEAD1" });
 const proposal = art("TryProposal", { command: "./mach try auto", reason: "r" }, 4);
 const view = (artifacts: Artifact[], epochs: Epoch[] = [tryEpoch]): WorkflowView => ({ artifacts, links: [], epochs });
 const PUSH_QUESTION = pushQuestion("HEAD1");
-const answer = (chosen: DecisionData["chosen"]) => art("Decision", { question: PUSH_QUESTION, options: [], chosen } satisfies DecisionData, 4);
+const answer = (chosen: DecisionData["chosen"]) => art("Decision", { key: "push", question: PUSH_QUESTION, options: [], chosen } satisfies DecisionData, 4);
 
 test("the proposal asks Push with the command prefilled, or Skip", () => {
   const step = tryNext(view([proposal]), tryEpoch);
   assert.ok(step && "decide" in step);
   assert.equal(step.decide.question, "Push HEAD1 to try?");
+  assert.equal(step.decide.key, "push");
   assert.equal(step.chosen, undefined);
   assert.deepEqual(step.decide.options.map((o) => o.id), ["push", "skip"]);
   assert.equal(step.decide.options[0]!.defaultText, "./mach try auto");
@@ -33,7 +34,12 @@ test("Push runs tryPush with the edited command and the accepted tip; once pushe
 test("answers and proposals of other try epochs do not count", () => {
   const old = art("TryProposal", { command: "./mach try again", reason: "r" }, 2);
   assert.equal(tryNext(view([old]), tryEpoch), null);
-  const oldAnswer = art("Decision", { question: PUSH_QUESTION, options: [], chosen: { option: "skip", by: "user" } } satisfies DecisionData, 2);
+  const oldAnswer = art("Decision", { key: "push", question: PUSH_QUESTION, options: [], chosen: { option: "skip", by: "user" } } satisfies DecisionData, 2);
   const step = tryNext(view([proposal, oldAnswer]), tryEpoch);
   assert.ok(step && "decide" in step);
+});
+
+test("the answer is found by key even when the question text differs", () => {
+  const reworded = art("Decision", { key: "push", question: "Push the tip?", options: [], chosen: { option: "skip", by: "user" } } satisfies DecisionData, 4);
+  assert.equal(tryNext(view([proposal, reworded]), tryEpoch), null);
 });

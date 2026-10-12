@@ -19,9 +19,9 @@ export const explorePhase: Phase<ExploreInput> = {
     const search = view.artifacts.findLast((a) => a.type === "SpecSearch" && a.epoch === epoch.n) as Artifact<SpecSearchData> | undefined;
     if (!search) return null;
     const question = `Which section for "${search.data.phrase}"?`;
-    const decision = view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).question === question) as Artifact<DecisionData> | undefined;
+    const decision = view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).key === "section") as Artifact<DecisionData> | undefined;
     if (decision?.data.chosen) return { run: "explore", input: { query: decision.data.chosen.option } };
-    return { decide: { question, options: search.data.results.map((r) => ({ id: specRef(r.spec, r.anchor), label: `${r.title} (${specRef(r.spec, r.anchor)})` })) } };
+    return { decide: { key: "section", question, options: search.data.results.map((r) => ({ id: specRef(r.spec, r.anchor), label: `${r.title} (${specRef(r.spec, r.anchor)})` })) } };
   },
 };
 

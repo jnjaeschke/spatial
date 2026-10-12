@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Artifact, DecisionData } from "../../src/shared/types.ts";
 import { openDecision, optionProblem, readModelChoice, saveModelChoice } from "../../src/web/decisions.ts";
 
-const decision = (chosen: DecisionData["chosen"]): Artifact => ({ id: `d${Math.random()}`, sessionId: "s", type: "Decision", status: "proposed", data: { question: "Q", options: [], chosen } satisfies DecisionData, provenance: { taskId: "runtime" }, epoch: 1, createdAt: "" });
+const decision = (chosen: DecisionData["chosen"]): Artifact => ({ id: `d${Math.random()}`, sessionId: "s", type: "Decision", status: "proposed", data: { key: "q", question: "Q", options: [], chosen } satisfies DecisionData, provenance: { taskId: "runtime" }, epoch: 1, createdAt: "" });
 
 test("only the latest decision can be open", () => {
   const open = decision(null);

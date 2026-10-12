@@ -11,7 +11,7 @@ export const REVIEWED = "The self-review is done. What next?";
 export const workInQuestion = (count: number): string => `Work in ${count} reviewer comment${count === 1 ? "" : "s"}?`;
 const planInvalidQuestion = (reason: string) => `The implement agent reports that the plan does not hold: ${reason}`;
 const fixQuestion = (count: number) => `Fix ${count} high finding${count === 1 ? "" : "s"}`;
-const isReviewQuestion = (question: string) => question === REVIEWED || question.startsWith("Fix ");
+const REVIEW_KEYS = new Set(["review-fix", "reviewed"]);
 
 type Chosen = NonNullable<DecisionData["chosen"]>;
 const latest = <T>(view: WorkflowView, type: string) => view.artifacts.findLast((a) => a.type === type) as Artifact<T> | undefined;
@@ -27,19 +27,19 @@ function ruleRounds(decisions: Artifact<DecisionData>[]): number {
   return count;
 }
 
-function answered(decisions: Artifact<DecisionData>[], question: string, epoch: number): Chosen | null {
-  return decisions.findLast((a) => a.data.question === question && a.epoch === epoch && a.data.chosen)?.data.chosen ?? null;
+function answered(decisions: Artifact<DecisionData>[], key: string, epoch: number): Chosen | null {
+  return decisions.findLast((a) => a.data.key === key && a.epoch === epoch && a.data.chosen)?.data.chosen ?? null;
 }
 
 function bugOf(decisions: Artifact<DecisionData>[], investigation: Artifact<InvestigationData>): number | null {
   if (investigation.data.bug !== null) return investigation.data.bug;
-  const text = decisions.findLast((a) => a.data.question === APPROVE && a.data.chosen?.option === "approve")?.data.chosen?.text;
+  const text = decisions.findLast((a) => a.data.key === "approve" && a.data.chosen?.option === "approve")?.data.chosen?.text;
   const digits = text?.match(/\d+/)?.[0];
   return digits ? Number(digits) : null;
 }
 
 function chosenImplementLlm(decisions: Artifact<DecisionData>[]): LlmSelection | undefined {
-  return decisions.findLast((a) => a.data.question === APPROVE && a.data.chosen?.option === "approve")?.data.chosen?.llm;
+  return decisions.findLast((a) => a.data.key === "approve" && a.data.chosen?.option === "approve")?.data.chosen?.llm;
 }
 
 function investigateStep(start: Artifact<WorkflowStartData>, branch: Artifact<ImplementBranchData>, profile: RepoProfile, llm: LlmSelection | undefined, previous?: { id: Id; text: string }): Step {
@@ -73,14 +73,14 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (last.status !== "succeeded") return null;
 
   const decisions = decisionsOf(view), investigation = latest<InvestigationData>(view, "Investigation"), result = latest<ImplementResultData>(view, "ImplementResult");
-  const decisionStep = (question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
+  const decisionStep = (key: string, question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { key, question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
   const llm = (selection: LlmSelection | undefined) => selection ? { llm: selection } : {};
-  const approve = answered(decisions, APPROVE, last.n);
+  const approve = answered(decisions, "approve", last.n);
   if (last.phase === investigatePhase) {
     if (!investigation) return null;
     if (!approve) {
       const needsBug = Boolean(profile.requiresBug && investigation.data.bug === null);
-      return decisionStep(APPROVE, [
+      return decisionStep("approve", APPROVE, [
         { id: "approve", label: "Approve", takesModel: true, ...(needsBug ? { takesText: true, requiresText: true, textPattern: "\\d+" } : {}) },
         { id: "revise", label: "Revise", takesText: true, requiresText: true }, { id: "cancel", label: "Cancel" },
       ]);
@@ -93,8 +93,8 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (last.phase === "implement") {
     if (!result || !investigation) return null;
     if (result.data.planInvalid) {
-      const reason = result.data.planInvalid, question = planInvalidQuestion(reason), choice = answered(decisions, question, last.n);
-      if (!choice) return decisionStep(question, [
+      const reason = result.data.planInvalid, question = planInvalidQuestion(reason), choice = answered(decisions, "plan-invalid", last.n);
+      if (!choice) return decisionStep("plan-invalid", question, [
         { id: "reinvestigate", label: "Re-investigate", takesText: true, defaultText: reason },
         { id: "continue", label: "Continue anyway", takesText: true }, { id: "cancel", label: "Cancel" },
       ]);
@@ -107,7 +107,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   }
 
   if (last.phase === "review") {
-    const choice = decisions.findLast((a) => a.epoch === last.n && isReviewQuestion(a.data.question) && a.data.chosen)?.data.chosen;
+    const choice = decisions.findLast((a) => a.epoch === last.n && REVIEW_KEYS.has(a.data.key) && a.data.chosen)?.data.chosen;
     if (choice) {
       if (choice.option === "fix") return investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), null, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
       if (choice.option === "revise") return investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), choice.text ?? null, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
@@ -115,13 +115,13 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
       return null;
     }
     const open = openHighFindings(view), rounds = ruleRounds(decisions), max = profile.autoFixRounds ?? 2;
-    if (open.length > 0 && rounds < max) return decisionStep(fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${open.length} high finding${open.length === 1 ? "" : "s"} open; automatic fix round ${rounds + 1} of ${max}` });
-    return decisionStep(REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
+    if (open.length > 0 && rounds < max) return decisionStep("review-fix", fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${open.length} high finding${open.length === 1 ? "" : "s"} open; automatic fix round ${rounds + 1} of ${max}` });
+    return decisionStep("reviewed", REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
   }
 
   if (last.phase === "reviewerComments") {
-    const items = commentPlan(view, last), question = workInQuestion((last.input as ReviewerCommentsInput).comments.length), choice = answered(decisions, question, last.n);
-    if (!choice) return decisionStep(question, [{ id: "work", label: "Work in" }, { id: "later", label: "Not yet" }]);
+    const items = commentPlan(view, last), question = workInQuestion((last.input as ReviewerCommentsInput).comments.length), choice = answered(decisions, "work-in", last.n);
+    if (!choice) return decisionStep("work-in", question, [{ id: "work", label: "Work in" }, { id: "later", label: "Not yet" }]);
     const text = choice.option === "work" ? commentsFeedback(items) : null;
     return text && investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), text, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
   }
@@ -130,8 +130,9 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
 
 /** Refuses Work in when no reviewer comment is marked Address: the answer would start nothing and consume the decision. */
 export function implementCheckAnswer(view: WorkflowView, decision: Artifact<DecisionData>, option: string): string | null {
+  if (option !== "work" || decision.data.key !== "work-in") return null;
   const epoch = view.epochs.find((e) => e.n === decision.epoch);
-  if (option !== "work" || epoch?.phase !== "reviewerComments") return null;
+  if (epoch?.phase !== "reviewerComments") return null;
   return commentsFeedback(commentPlan(view, epoch)) === null ? "No reviewer comment is marked Address." : null;
 }
 

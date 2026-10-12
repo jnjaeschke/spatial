@@ -88,7 +88,7 @@ Why the user cannot take `option` of the open `decision` now, or null to accept 
 
 > `optional` **next**(`view`, `ctx`): [`Step`](../type-aliases/Step.md) \| `null`
 
-Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered.
+Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (key, epoch) once answered.
 
 #### Parameters
 

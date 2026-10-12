@@ -10,8 +10,8 @@ export function tryNext(view: WorkflowView, epoch: Epoch): Step | null {
   const proposal = view.artifacts.findLast((a) => a.type === "TryProposal" && a.epoch === epoch.n) as Artifact<TryProposalData> | undefined;
   if (!proposal) return null;
   const head = (epoch.input as TryInput).head, question = pushQuestion(head);
-  const chosen = (view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).question === question && (a.data as DecisionData).chosen) as Artifact<DecisionData> | undefined)?.data.chosen;
-  if (!chosen) return { decide: { question, options: [
+  const chosen = (view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).key === "push" && (a.data as DecisionData).chosen) as Artifact<DecisionData> | undefined)?.data.chosen;
+  if (!chosen) return { decide: { key: "push", question, options: [
     { id: "push", label: "Push", takesText: true, requiresText: true, defaultText: proposal.data.command, textPattern: TRY_TEXT_PATTERN },
     { id: "skip", label: "Skip" },
   ] } };

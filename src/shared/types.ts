@@ -33,8 +33,8 @@ export interface WorkflowStartData {
 /** One choice of a `Decision`. `takesText`: the user may add text; `requiresText`: the text is mandatory; `textPattern`: source of a regular expression the text must match; `defaultText`: text the UI prefills; `takesModel`: the answer carries the LLM selection to use for the work that follows (`chosen.llm`). */
 export interface DecisionOption { id: string; label: string; takesText?: boolean; requiresText?: boolean; textPattern?: string; defaultText?: string; takesModel?: boolean }
 
-/** Data of a `Decision` artifact: a question a workflow asked after the epoch the artifact is stamped with. `chosen` is null while it is open. The user's answer is a new verified version linked `revises →` the open one; a rule's answer is stored already chosen, with its reason. */
-export interface DecisionData { question: string; options: DecisionOption[]; chosen: { option: string; by: "user" | "rule"; text?: string; reason?: string; llm?: LlmSelection } | null }
+/** Data of a `Decision` artifact: a question a workflow asked after the epoch the artifact is stamped with. `key` identifies the decision within its epoch (the runtime and the workflows match on key and epoch); `question` is display text only. `chosen` is null while it is open. The user's answer is a new verified version linked `revises →` the open one; a rule's answer is stored already chosen, with its reason. */
+export interface DecisionData { key: string; question: string; options: DecisionOption[]; chosen: { option: string; by: "user" | "rule"; text?: string; reason?: string; llm?: LlmSelection } | null }
 
 /** Data of a `SelectorQuestion` artifact: the workflow selector could not choose and asks the user; `prompt` is the request it was given, `round` counts questions so far (1-based). */
 export interface SelectorQuestionData {

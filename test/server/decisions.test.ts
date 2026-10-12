@@ -25,11 +25,11 @@ const phase = (id: string): Phase<unknown> => ({ id, async run() { if (id === "f
 const workflow = (id: string, next: Workflow<Record<string, never>>["next"]): Workflow<Record<string, never>> => ({ id, description: id, argHint: "", params: z.strictObject({}), parseArgs: () => ({ ok: true, params: {} }), async start() {}, next });
 const asking = workflow("asking", (view) => {
   const decision = view.artifacts.findLast((a) => a.type === "Decision") as Artifact<DecisionData> | undefined;
-  if (view.epochs.length === 0) return decision?.data.chosen ? { run: "a", input: null } : { decide: { question: "Go?", options: OPTIONS } };
+  if (view.epochs.length === 0) return decision?.data.chosen ? { run: "a", input: null } : { decide: { key: "go", question: "Go?", options: OPTIONS } };
   return null;
 });
 const retrying = workflow("retrying", (view) => view.epochs.length === 0 ? { run: "flaky", input: null } : null);
-const guarded: Workflow<Record<string, never>> = { ...asking, id: "guarded", checkAnswer: (_view, decision, option) => option === "stop" && decision.data.question === "Go?" ? "Nothing to stop" : null };
+const guarded: Workflow<Record<string, never>> = { ...asking, id: "guarded", checkAnswer: (_view, decision, option) => option === "stop" && decision.data.key === "go" ? "Nothing to stop" : null };
 const store = new Store(":memory:");
 const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [asking, retrying, guarded], phases: [phase("a"), phase("flaky")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
 const server = createHttpServer(rt);
@@ -79,7 +79,7 @@ test("answering stores a verified version, links it and advances the workflow", 
 test("the answer keeps the epoch the decision was asked for, also after later epochs", async () => {
   const { id } = session("asking");
   for (const phase of ["a", "try"]) store.updateEpoch(id, store.createEpoch(id, phase, null).n, { status: "succeeded" });
-  const asked = store.putArtifact<DecisionData>({ sessionId: id, type: "Decision", status: "proposed", epoch: 1, data: { question: "Go?", options: OPTIONS, chosen: null }, provenance: { taskId: "runtime" } });
+  const asked = store.putArtifact<DecisionData>({ sessionId: id, type: "Decision", status: "proposed", epoch: 1, data: { key: "go", question: "Go?", options: OPTIONS, chosen: null }, provenance: { taskId: "runtime" } });
   const res = await post(`/api/sessions/${id}/decisions/${asked.id}`, { option: "stop" });
   assert.equal(store.getArtifact((await res.json()).artifactId).epoch, 1);
 });
@@ -88,7 +88,7 @@ test("an older decision and a running epoch are rejected", async () => {
   const { id } = session("asking");
   await rt.advance(id);
   const older = open(id);
-  store.putArtifact({ sessionId: id, type: "Decision", status: "proposed", data: { question: "Other?", options: OPTIONS, chosen: null }, provenance: { taskId: "runtime" } });
+  store.putArtifact({ sessionId: id, type: "Decision", status: "proposed", data: { key: "other", question: "Other?", options: OPTIONS, chosen: null }, provenance: { taskId: "runtime" } });
   assert.equal((await post(`/api/sessions/${id}/decisions/${older.id}`, { option: "go" })).status, 409, "not the latest");
   const running = store.createEpoch(id, "a", null);
   assert.equal((await post(`/api/sessions/${id}/decisions/${open(id).id}`, { option: "go" })).status, 409, "epoch running");

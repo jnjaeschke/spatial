@@ -39,7 +39,7 @@ test("a rule decision is stored already chosen and the loop continues", async ()
   const { store, rt, session, calls } = setup((view) => {
     const last = view.epochs.at(-1);
     if (!last) return { run: "a", input: null };
-    if (last.phase === "a") return chosenOf(view) ? { run: "b", input: null } : { decide: { question: "Go?", options: OPTIONS }, chosen: { option: "go", reason: "because" } };
+    if (last.phase === "a") return chosenOf(view) ? { run: "b", input: null } : { decide: { key: "go", question: "Go?", options: OPTIONS }, chosen: { option: "go", reason: "because" } };
     return null;
   });
   await rt.advance(session.id);
@@ -52,7 +52,7 @@ test("a rule decision is stored already chosen and the loop continues", async ()
 });
 
 test("advance stores an open decision once and waits", async () => {
-  const { store, rt, session, calls } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : { decide: { question: "Go?", options: OPTIONS } });
+  const { store, rt, session, calls } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : { decide: { key: "go", question: "Go?", options: OPTIONS } });
   await rt.advance(session.id);
   await rt.advance(session.id);
   assert.deepEqual(calls, ["a"]);
@@ -65,7 +65,7 @@ test("advance stores an open decision once and waits", async () => {
 test("advance continues after the decision is answered", async () => {
   const { store, rt, session, calls } = setup((view) => {
     if (view.epochs.length === 0) return { run: "a", input: null };
-    if (view.epochs.length === 1) return chosenOf(view) ? { run: "b", input: null } : { decide: { question: "Go?", options: OPTIONS } };
+    if (view.epochs.length === 1) return chosenOf(view) ? { run: "b", input: null } : { decide: { key: "go", question: "Go?", options: OPTIONS } };
     return null;
   });
   await rt.advance(session.id);
@@ -76,15 +76,15 @@ test("advance continues after the decision is answered", async () => {
 });
 
 test("advance throws when next asks an answered decision again", async () => {
-  const { store, rt, session } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : { decide: { question: "Go?", options: OPTIONS } });
+  const { store, rt, session } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : { decide: { key: "go", question: "Go?", options: OPTIONS } });
   await rt.advance(session.id);
   const [open] = decisionsOf(store, session.id);
   store.putArtifact({ sessionId: session.id, type: "Decision", status: "verified", data: { ...open!.data, chosen: { option: "go", by: "user" } }, provenance: { taskId: "user" } });
-  await assert.rejects(rt.advance(session.id), /asked "Go\?" again/);
+  await assert.rejects(rt.advance(session.id), /asked decision "go" again/);
 });
 
 test("a rule decision must choose one of its options", async () => {
-  const { rt, session } = setup(() => ({ decide: { question: "Go?", options: OPTIONS }, chosen: { option: "nope", reason: "x" } }));
+  const { rt, session } = setup(() => ({ decide: { key: "go", question: "Go?", options: OPTIONS }, chosen: { option: "nope", reason: "x" } }));
   await assert.rejects(rt.advance(session.id), /unknown option nope/);
 });
 
@@ -111,7 +111,7 @@ test("runWorkflow advances a workflow that has next", async () => {
 });
 
 test("a Decision renders its question and answer", async () => {
-  const { store, rt, session } = setup((view) => chosenOf(view) ? null : { decide: { question: "Go?", options: OPTIONS }, chosen: { option: "go", reason: "r" } });
+  const { store, rt, session } = setup((view) => chosenOf(view) ? null : { decide: { key: "go", question: "Go?", options: OPTIONS }, chosen: { option: "go", reason: "r" } });
   await rt.advance(session.id);
   const [decision] = decisionsOf(store, session.id);
   const text = renderRef(rt.plugins.artifactKinds, { artifacts: store.listArtifacts(session.id), links: [] }, decision!.id);
@@ -120,10 +120,10 @@ test("a Decision renders its question and answer", async () => {
 });
 
 test("the latest epoch's phase follows up before the workflow's next, also in a session whose workflow has no next", async () => {
-  const { store, rt, session, calls } = setup(undefined, (view, epoch) => view.epochs.some((e) => e.phase === "b") ? null : chosenOf(view) ? { run: "b", input: { after: epoch.n } } : { decide: { question: "Follow?", options: OPTIONS } });
+  const { store, rt, session, calls } = setup(undefined, (view, epoch) => view.epochs.some((e) => e.phase === "b") ? null : chosenOf(view) ? { run: "b", input: { after: epoch.n } } : { decide: { key: "follow", question: "Follow?", options: OPTIONS } });
   await rt.runPhase(session.id, "a", null);
   await rt.advance(session.id);
-  assert.equal(decisionsOf(store, session.id).at(-1)!.data.question, "Follow?");
+  assert.equal(decisionsOf(store, session.id).at(-1)!.data.key, "follow");
   assert.deepEqual(calls, ["a"]);
   const open = decisionsOf(store, session.id).at(-1)!;
   store.putArtifact<DecisionData>({ sessionId: session.id, type: "Decision", status: "verified", data: { ...open.data, chosen: { option: "go", by: "user" } }, provenance: { taskId: "user" } });
@@ -133,7 +133,7 @@ test("the latest epoch's phase follows up before the workflow's next, also in a 
 });
 
 test("a failed epoch gets no follow-up, and the workflow decides once the phase is done", async () => {
-  const follow = () => ({ decide: { question: "Follow?", options: OPTIONS } });
+  const follow = () => ({ decide: { key: "follow", question: "Follow?", options: OPTIONS } });
   const failed = setup(undefined, follow);
   await assert.rejects(failed.rt.runPhase(failed.session.id, "boom", null), /kaput/);
   assert.equal(failed.rt.nextStep(failed.session.id), null);
@@ -145,14 +145,35 @@ test("a failed epoch gets no follow-up, and the workflow decides once the phase 
 });
 
 test("a decision step for an earlier epoch is stored at that epoch and asked again after another decision", async () => {
-  const { store, rt, session } = setup((view) => view.epochs.length === 2 ? { decide: { question: "Go?", options: OPTIONS }, epoch: 1 } : null);
+  const { store, rt, session } = setup((view) => view.epochs.length === 2 ? { decide: { key: "go", question: "Go?", options: OPTIONS }, epoch: 1 } : null);
   await rt.runPhase(session.id, "a", null);
   await rt.runPhase(session.id, "b", null);
   await rt.advance(session.id);
   assert.equal(decisionsOf(store, session.id).at(-1)!.epoch, 1);
   await rt.advance(session.id);
   assert.equal(decisionsOf(store, session.id).length, 1);
-  store.putArtifact<DecisionData>({ sessionId: session.id, type: "Decision", status: "proposed", data: { question: "Other?", options: OPTIONS, chosen: null }, provenance: { taskId: "t" } });
+  store.putArtifact<DecisionData>({ sessionId: session.id, type: "Decision", status: "proposed", data: { key: "other", question: "Other?", options: OPTIONS, chosen: null }, provenance: { taskId: "t" } });
   await rt.advance(session.id);
-  assert.deepEqual(decisionsOf(store, session.id).map((d) => [d.data.question, d.epoch]), [["Go?", 1], ["Other?", 2], ["Go?", 1]]);
+  assert.deepEqual(decisionsOf(store, session.id).map((d) => [d.data.key, d.epoch]), [["go", 1], ["other", 2], ["go", 1]]);
+});
+
+test("a decision is identified by key and epoch, not by its question text", async () => {
+  let question = "Go?";
+  const { store, rt, session } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : { decide: { key: "go", question, options: OPTIONS } });
+  await rt.advance(session.id);
+  question = "Go now?";
+  await rt.advance(session.id);
+  assert.equal(decisionsOf(store, session.id).length, 1, "the reworded question is the same open decision");
+  const [open] = decisionsOf(store, session.id);
+  store.putArtifact<DecisionData>({ sessionId: session.id, type: "Decision", status: "verified", data: { ...open!.data, chosen: { option: "go", by: "user" } }, provenance: { taskId: "user" } });
+  await assert.rejects(rt.advance(session.id), /asked decision "go" again/);
+});
+
+test("two keys in one epoch are two decisions even with the same question text", async () => {
+  let key = "first";
+  const { store, rt, session } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : { decide: { key, question: "Go?", options: OPTIONS } });
+  await rt.advance(session.id);
+  key = "second";
+  await rt.advance(session.id);
+  assert.deepEqual(decisionsOf(store, session.id).map((d) => d.data.key), ["first", "second"]);
 });

@@ -104,7 +104,7 @@ Plugin data that outlives sessions.
 
 > **advance**(`sessionId`): `Promise`\<`void`\>
 
-Runs the steps `nextStep` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user.
+Runs the steps `nextStep` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (key, epoch): a chosen one continues the loop, an open one waits for the user.
 
 #### Parameters
 

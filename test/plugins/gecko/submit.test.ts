@@ -45,7 +45,7 @@ const art = (type: string, data: unknown, epoch: number): Artifact => ({ id: `${
 const epoch = (num: number, phase: string, input: unknown = null): Epoch => ({ sessionId: "s", n: num, phase, status: "succeeded", input, error: null, startedAt: "", endedAt: "" });
 const view = (artifacts: Artifact[], epochs: Epoch[] = [epoch(4, "submit", { base: "B", head: "H" })]): WorkflowView => ({ artifacts, links: [], epochs });
 const question = "Submit 2 commits (H) to Phabricator?";
-const answer = (chosen: DecisionData["chosen"]) => art("Decision", { question, options: [], chosen } satisfies DecisionData, 4);
+const answer = (chosen: DecisionData["chosen"]) => art("Decision", { key: "submit", question, options: [], chosen } satisfies DecisionData, 4);
 
 test("submit suggests reviewers for changed files and asks Submit, Submit as WIP or Not yet", async () => {
   const { repo, base, head, rt, store, session } = setup();
@@ -56,6 +56,7 @@ test("submit suggests reviewers for changed files and asks Submit, Submit as WIP
   const step = rt.nextStep(session.id);
   assert.ok(step && "decide" in step);
   assert.equal(step.decide.question, `Submit 2 commits (${head.slice(0, 12)}) to Phabricator?`);
+  assert.equal(step.decide.key, "submit");
   assert.deepEqual(step.decide.options.map((o) => [o.id, o.label, o.defaultText ?? null]), [["submit", "Submit", "#dom-core"], ["wip", "Submit as WIP", "#dom-core"], ["skip", "Not yet", null]]);
   assert.equal(step.decide.options[0]!.textPattern, REVIEWERS_PATTERN);
 });

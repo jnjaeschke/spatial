@@ -6,13 +6,13 @@ import { decisionLabel, epochChips, showEpochStrip, stateAtEpoch } from "../../s
 const epoch = (n: number, phase: string, status: Epoch["status"] = "succeeded"): Epoch => ({ sessionId: "s", n, phase, status, input: null, error: null, startedAt: "", endedAt: "" });
 let k = 0;
 const art = (type: string, data: unknown, at: number | null): Artifact => ({ id: `a${++k}`, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch: at, createdAt: "" });
-const decision = (chosen: DecisionData["chosen"], at: number) => art("Decision", { question: "Q", options: [{ id: "fix", label: "Fix" }, { id: "accept", label: "Accept" }], chosen } satisfies DecisionData, at);
+const decision = (chosen: DecisionData["chosen"], at: number) => art("Decision", { key: "q", question: "Q", options: [{ id: "fix", label: "Fix" }, { id: "accept", label: "Accept" }], chosen } satisfies DecisionData, at);
 const state = (artifacts: Artifact[], epochs: Epoch[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "w" }, artifacts, links: [], tasks: [], epochs, lastEventId: 0, searchfox: null });
 
 test("decision labels say who decided", () => {
-  assert.equal(decisionLabel({ question: "Q", options: [{ id: "fix", label: "Fix" }], chosen: null }), "?");
-  assert.equal(decisionLabel({ question: "Q", options: [{ id: "fix", label: "Fix" }], chosen: { option: "fix", by: "rule" } }), "Fix (rule)");
-  assert.equal(decisionLabel({ question: "Q", options: [], chosen: { option: "x", by: "user" } }), "x (you)");
+  assert.equal(decisionLabel({ key: "q", question: "Q", options: [{ id: "fix", label: "Fix" }], chosen: null }), "?");
+  assert.equal(decisionLabel({ key: "q", question: "Q", options: [{ id: "fix", label: "Fix" }], chosen: { option: "fix", by: "rule" } }), "Fix (rule)");
+  assert.equal(decisionLabel({ key: "q", question: "Q", options: [], chosen: { option: "x", by: "user" } }), "x (you)");
 });
 
 test("each epoch shows the latest decision that followed it", () => {

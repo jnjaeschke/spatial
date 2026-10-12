@@ -42,6 +42,6 @@ test("an implement session waiting on an open decision keeps its checkout; a fin
   put("Investigation", { kind: "bugfix", summary: "S", bug: null, locations: [], testCases: [], steps: [], openQuestions: [], exploration: [] });
   const { isActive } = await import("../../../src/plugins/implement/workflow/next.ts");
   assert.equal(isActive(rt, waiting.id), true);
-  put("Decision", { question: "Approve the investigation plan?", options: [], chosen: { option: "cancel", by: "user" } });
+  put("Decision", { key: "approve", question: "Approve the investigation plan?", options: [], chosen: { option: "cancel", by: "user" } });
   assert.equal(isActive(rt, waiting.id), false);
 });

@@ -10,10 +10,10 @@ import type { Knowledge } from "./knowledge.ts";
 import { coreArtifactKinds } from "./render-ref.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
-/** What a workflow does next: run a phase, or take a decision. A decision with `chosen` is made by a rule and stored already answered; without it the user is asked. `epoch` is the epoch the decision is about (default: the latest); a workflow sets it when phases it does not own may have run since. */
+/** What a workflow does next: run a phase, or take a decision. A decision is identified by its `key` and epoch; `question` is display text. A decision with `chosen` is made by a rule and stored already answered; without it the user is asked. `epoch` is the epoch the decision is about (default: the latest); a workflow sets it when phases it does not own may have run since. */
 export type Step =
   | { run: string; input: unknown }
-  | { decide: { question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string }; epoch?: number };
+  | { decide: { key: string; question: string; options: DecisionOption[] }; chosen?: { option: string; reason: string }; epoch?: number };
 export interface StartInput<P> { params: P; startId: Id; prompt: string; llm?: LlmSelection }
 /** A question asked before the session exists; the chosen option's `params` are merged into the workflow params, an option without `params` cancels the start. */
 export interface PrecheckQuestion<P> { question: string; options: { label: string; params?: Partial<P> }[] }
@@ -51,7 +51,7 @@ export interface Workflow<P> extends WorkflowInfo {
   /** Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box (slash commands) or stored as a selector question (selected workflows). */
   precheck?(repo: string, params: P): Promise<PrecheckQuestion<P> | null>;
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
-  /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered. */
+  /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (key, epoch) once answered. */
   next?(view: WorkflowView, ctx: WorkflowContext): Step | null;
   /** Why the user cannot take `option` of the open `decision` now, or null to accept it. A refused answer leaves the decision open. */
   checkAnswer?(view: WorkflowView, decision: Artifact<DecisionData>, option: string): string | null;

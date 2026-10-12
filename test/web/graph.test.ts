@@ -8,7 +8,7 @@ import type { FreePosition } from "../../src/web/free-positions.ts";
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(conversationGraph, st, drafts, freePositions);
 
 test("an open decision hangs beside the root node; an answered one is not drawn", () => {
-  const decision = (chosen: DecisionData["chosen"]) => ({ id: "d1", sessionId: "s", type: "Decision", status: "proposed", data: { question: "Q?", options: [{ id: "a", label: "A" }], chosen }, provenance: { taskId: "runtime" }, epoch: 1, createdAt: "" }) as Artifact;
+  const decision = (chosen: DecisionData["chosen"]) => ({ id: "d1", sessionId: "s", type: "Decision", status: "proposed", data: { key: "q", question: "Q?", options: [{ id: "a", label: "A" }], chosen }, provenance: { taskId: "runtime" }, epoch: 1, createdAt: "" }) as Artifact;
   const state = (artifacts: Artifact[]) => ({ session: { id: "s", repoDir: "/r/.git" }, artifacts }) as unknown as SessionState;
   const graph = (): Graph => ({ nodes: [{ id: "root", data: { kind: "note", body: "" } }], edges: [] });
   const open = graph();

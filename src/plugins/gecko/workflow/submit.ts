@@ -10,10 +10,10 @@ export function submitNext(view: WorkflowView, epoch: Epoch): Step | null {
   const suggestion = view.artifacts.findLast((a) => a.type === "ReviewerSuggestion" && a.epoch === epoch.n) as Artifact<ReviewerSuggestionData> | undefined;
   if (!suggestion) return null;
   const { base, head } = epoch.input as SubmitInput, question = submitQuestion(suggestion.data.commits, head);
-  const chosen = (view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).question === question && (a.data as DecisionData).chosen) as Artifact<DecisionData> | undefined)?.data.chosen;
+  const chosen = (view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).key === "submit" && (a.data as DecisionData).chosen) as Artifact<DecisionData> | undefined)?.data.chosen;
   const reviewers = suggestion.data.suggested.join(", ");
   const text = { takesText: true, textPattern: REVIEWERS_PATTERN, ...(reviewers ? { defaultText: reviewers } : {}) };
-  if (!chosen) return { decide: { question, options: [{ id: "submit", label: "Submit", ...text }, { id: "wip", label: "Submit as WIP", ...text }, { id: "skip", label: "Not yet" }] } };
+  if (!chosen) return { decide: { key: "submit", question, options: [{ id: "submit", label: "Submit", ...text }, { id: "wip", label: "Submit as WIP", ...text }, { id: "skip", label: "Not yet" }] } };
   if (chosen.option === "skip" || view.epochs.some((e) => e.phase === "phabSubmit" && e.n > epoch.n)) return null;
   const input: PhabSubmitInput = { base, head, reviewers: (chosen.text ?? "").trim(), wip: chosen.option === "wip" };
   return { run: "phabSubmit", input };

@@ -405,22 +405,22 @@ export class Runtime {
     return followUp ?? workflow?.next?.(view, { repoProfiles: this.plugins.repoProfiles }) ?? null;
   }
 
-  /** Runs the steps `nextStep` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (question, epoch): a chosen one continues the loop, an open one waits for the user. */
+  /** Runs the steps `nextStep` returns until it returns null. A run step is `runPhase` (a failing phase rejects and stops the loop; Retry reruns it and advances again). A decision step is stored as a `Decision` artifact once per (key, epoch): a chosen one continues the loop, an open one waits for the user. */
   async advance(sessionId: Id): Promise<void> {
     for (;;) {
       const step = this.nextStep(sessionId);
       if (step === null) return;
       if ("run" in step) { await this.runPhase(sessionId, step.run, step.input); continue; }
-      const { question, options } = step.decide;
+      const { key, question, options } = step.decide;
       const epoch = step.epoch ?? this.#store.listEpochs(sessionId).at(-1)?.n ?? null;
       const latest = this.#store.listArtifacts(sessionId, "Decision").at(-1) as Artifact<DecisionData> | undefined;
-      if (latest && latest.epoch === epoch && latest.data.question === question) {
-        if (latest.data.chosen) throw new Error(`Session ${sessionId} asked "${question}" again after it was answered`);
+      if (latest && latest.epoch === epoch && latest.data.key === key) {
+        if (latest.data.chosen) throw new Error(`Session ${sessionId} asked decision "${key}" again after it was answered`);
         return;
       }
       if (step.chosen && !options.some((option) => option.id === step.chosen!.option)) throw new Error(`Session ${sessionId} chose unknown option ${step.chosen.option}`);
       const chosen = step.chosen ? { option: step.chosen.option, by: "rule" as const, reason: step.chosen.reason } : null;
-      const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", epoch, data: { question, options, chosen }, provenance: { taskId: "runtime" } });
+      const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", epoch, data: { key, question, options, chosen }, provenance: { taskId: "runtime" } });
       this.emit(sessionId, "runtime", "artifact.created", { artifactId: decision.id, type: "Decision" });
       if (!chosen) return;
     }

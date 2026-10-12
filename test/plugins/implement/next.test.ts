@@ -18,7 +18,7 @@ const start = () => art("WorkflowStart", { via: "command", workflow: "implement"
 const branch = (profile = "plain") => art("ImplementBranch", { branch: "spatial/x", baseSha: "BASE", baseRef: "main", profile, checkout: "new-branch" }, null);
 const investigation = (bug: number | null, epochN = 1) => art("Investigation", { kind: "bugfix", summary: "S", bug, locations: [], testCases: [], steps: [], openQuestions: [], exploration: [] }, epochN);
 const result = (epochN: number, over: object = {}) => art("ImplementResult", { head: "HEAD1", branch: "spatial/x", summary: "s", planChange: null, planInvalid: null, ...over }, epochN);
-const decision = (question: string, chosen: DecisionData["chosen"], epochN: number, options: DecisionOption[] = []) => art("Decision", { question, options, chosen } satisfies DecisionData, epochN);
+const decision = (key: string, question: string, chosen: DecisionData["chosen"], epochN: number, options: DecisionOption[] = []) => art("Decision", { key, question, options, chosen } satisfies DecisionData, epochN);
 const finding = (epochN: number) => art("ReviewFinding", { anchor: "a", severity: "high", title: "T", body: "B" }, epochN);
 const view = (artifacts: Artifact[], epochs: Epoch[], links: WorkflowView["links"] = []): WorkflowView => ({ artifacts, links, epochs });
 const next = (v: WorkflowView) => implementNext(v, { repoProfiles: profiles });
@@ -57,23 +57,23 @@ test("profile that requires a bug asks for the number", () => {
 });
 
 test("approval starts implement with the chosen model, the bug from the text and the start's write mode", () => {
-  const v = (text?: string) => view([start(), branch("stack"), investigation(null), decision(APPROVE, { option: "approve", by: "user", ...(text ? { text } : {}), llm: IMPL }, 1)], [epoch(1, "investigate")]);
+  const v = (text?: string) => view([start(), branch("stack"), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", ...(text ? { text } : {}), llm: IMPL }, 1)], [epoch(1, "investigate")]);
   const step = run(next(v("bug 4711 please")));
   assert.equal(step.run, "implement");
   const { branchId, investigationId, ...rest } = step.input as { branchId: string; investigationId: string };
   assert.ok(branchId && investigationId);
   assert.deepEqual(rest, { bug: 4711, text: null, writeMode: "editsOnly", llm: IMPL });
-  const withKnownBug = run(next(view([start(), branch("stack"), investigation(77), decision(APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
+  const withKnownBug = run(next(view([start(), branch("stack"), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
   assert.equal((withKnownBug.input as { bug: number; llm: LlmSelection }).bug, 77);
   assert.deepEqual((withKnownBug.input as { llm: LlmSelection }).llm, START, "no chosen model falls back to the start selection");
 });
 
 test("revise reinvestigates with the previous investigation and the text; cancel stops", () => {
   const inv = investigation(null);
-  const revise = run(next(view([start(), branch(), inv, decision(APPROVE, { option: "revise", by: "user", text: "look at X" }, 1)], [epoch(1, "investigate")])));
+  const revise = run(next(view([start(), branch(), inv, decision("approve", APPROVE, { option: "revise", by: "user", text: "look at X" }, 1)], [epoch(1, "investigate")])));
   assert.equal(revise.run, "investigate");
   assert.deepEqual((revise.input as { previous: unknown }).previous, { id: inv.id, text: "look at X" });
-  assert.equal(next(view([start(), branch(), inv, decision(APPROVE, { option: "cancel", by: "user" }, 1)], [epoch(1, "investigate")])), null);
+  assert.equal(next(view([start(), branch(), inv, decision("approve", APPROVE, { option: "cancel", by: "user" }, 1)], [epoch(1, "investigate")])), null);
 });
 
 test("a replacement investigate phase is honoured through the profile", () => {
@@ -84,7 +84,7 @@ test("a replacement investigate phase is honoured through the profile", () => {
 
 const baseArtifacts = (profile = "plain", bug: number | null = null) => {
   const inv = investigation(bug);
-  return [start(), branch(profile), inv, decision(APPROVE, { option: "approve", by: "user", llm: IMPL, ...(profile === "stack" ? { text: "5" } : {}) }, 1)];
+  return [start(), branch(profile), inv, decision("approve", APPROVE, { option: "approve", by: "user", llm: IMPL, ...(profile === "stack" ? { text: "5" } : {}) }, 1)];
 };
 
 test("after implement the review runs on the recorded tip, as an update from the second round", () => {
@@ -106,7 +106,7 @@ test("open high findings below the round limit get an automatic fix decision", (
 
 test("a stored rule decision runs implement again without text", () => {
   const f = finding(3);
-  const step = run(next(afterReview([f, decision("Fix 1 high finding", { option: "fix", by: "rule", reason: "r" }, 3)])));
+  const step = run(next(afterReview([f, decision("review-fix", "Fix 1 high finding", { option: "fix", by: "rule", reason: "r" }, 3)])));
   assert.equal(step.run, "implement");
   assert.equal((step.input as { text: string | null }).text, null);
   assert.deepEqual((step.input as { llm: LlmSelection }).llm, IMPL);
@@ -120,11 +120,11 @@ test("autoFixRounds 0 always asks the user", () => {
 });
 
 test("automatic fix rounds restart after a user decision", () => {
-  const rule = (epochN: number) => decision("Fix 1 high finding", { option: "fix", by: "rule", reason: "r" }, epochN);
+  const rule = (epochN: number) => decision("review-fix", "Fix 1 high finding", { option: "fix", by: "rule", reason: "r" }, epochN);
   const epochs = [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "implement"), epoch(5, "review"), epoch(6, "implement"), epoch(7, "review")];
   const history = [...baseArtifacts(), result(2), finding(3), rule(3), result(4), rule(5), result(6)];
   assert.equal(decide(next(view(history, epochs))).decide.question, REVIEWED, "two rule rounds used up");
-  const revised = decision(REVIEWED, { option: "revise", by: "user", text: "more" }, 7);
+  const revised = decision("reviewed", REVIEWED, { option: "revise", by: "user", text: "more" }, 7);
   const epochs2 = [...epochs, epoch(8, "implement"), epoch(9, "review")];
   const again = decide(next(view([...history, revised, result(8)], epochs2)));
   assert.equal(again.decide.question, "Fix 1 high finding", "a user decision restarts the count");
@@ -143,14 +143,14 @@ test("dismissed and addressed findings do not count; without open findings the u
 });
 
 test("revise runs implement with the text; cancel and accept without after-accept phases end the loop", () => {
-  const revise = run(next(afterReview([decision(REVIEWED, { option: "revise", by: "user", text: "tweak" }, 3)])));
+  const revise = run(next(afterReview([decision("reviewed", REVIEWED, { option: "revise", by: "user", text: "tweak" }, 3)])));
   assert.equal((revise.input as { text: string }).text, "tweak");
-  assert.equal(next(afterReview([decision(REVIEWED, { option: "cancel", by: "user" }, 3)])), null);
-  assert.equal(next(afterReview([decision(REVIEWED, { option: "accept", by: "user" }, 3)])), null);
+  assert.equal(next(afterReview([decision("reviewed", REVIEWED, { option: "cancel", by: "user" }, 3)])), null);
+  assert.equal(next(afterReview([decision("reviewed", REVIEWED, { option: "accept", by: "user" }, 3)])), null);
 });
 
 test("after Accept the after-accept phases run in order without asking", () => {
-  const accept = decision(REVIEWED, { option: "accept", by: "user" }, 3);
+  const accept = decision("reviewed", REVIEWED, { option: "accept", by: "user" }, 3);
   assert.deepEqual(run(next(afterReview([accept], "stack"))), { run: "x", input: { base: "BASE", head: "HEAD1", llm: START } });
   const afterX = view([...baseArtifacts("stack"), result(2), accept], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "x")]);
   assert.equal(run(next(afterX)).run, "y");
@@ -162,12 +162,12 @@ test("after Accept the after-accept phases run in order without asking", () => {
 
 test("phases started outside the workflow (try from chat) leave the open decision of its own last epoch answerable", () => {
   const foreign = [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), epoch(4, "try"), epoch(5, "tryPush", "failed")];
-  const open = decide(next(view([...baseArtifacts("stack"), result(2), decision(REVIEWED, null, 3)], foreign)));
+  const open = decide(next(view([...baseArtifacts("stack"), result(2), decision("reviewed", REVIEWED, null, 3)], foreign)));
   assert.equal(open.decide.question, REVIEWED);
   assert.equal(open.epoch, 3);
-  const revised = view([...baseArtifacts("stack"), result(2), decision(REVIEWED, { option: "revise", by: "user", text: "t" }, 3)], foreign);
+  const revised = view([...baseArtifacts("stack"), result(2), decision("reviewed", REVIEWED, { option: "revise", by: "user", text: "t" }, 3)], foreign);
   assert.equal(run(next(revised)).run, "implement");
-  const accepted = view([...baseArtifacts("stack"), result(2), decision(REVIEWED, { option: "accept", by: "user" }, 3)], [...foreign.slice(0, 3), epoch(4, "x")]);
+  const accepted = view([...baseArtifacts("stack"), result(2), decision("reviewed", REVIEWED, { option: "accept", by: "user" }, 3)], [...foreign.slice(0, 3), epoch(4, "x")]);
   assert.equal(run(next(accepted)).run, "y", "an after-accept phase that already ran after the review is not run again");
 });
 
@@ -179,16 +179,16 @@ test("a plan that does not hold asks to re-investigate or continue", () => {
   assert.equal(ask.decide.question, question);
   assert.deepEqual(ask.decide.options.map((o) => o.id), ["reinvestigate", "continue", "cancel"]);
   assert.equal(ask.decide.options[0]!.defaultText, "no such API");
-  const reinvestigate = run(next(view([...baseArtifacts(), stuck, decision(question, { option: "reinvestigate", by: "user" }, 2)], epochs)));
+  const reinvestigate = run(next(view([...baseArtifacts(), stuck, decision("plan-invalid", question, { option: "reinvestigate", by: "user" }, 2)], epochs)));
   assert.equal(reinvestigate.run, "investigate");
   assert.equal((reinvestigate.input as { previous: { text: string } }).previous.text, "no such API", "the reason is the feedback when no text is typed");
-  const typed = run(next(view([...baseArtifacts(), stuck, decision(question, { option: "reinvestigate", by: "user", text: "try Y" }, 2)], epochs)));
+  const typed = run(next(view([...baseArtifacts(), stuck, decision("plan-invalid", question, { option: "reinvestigate", by: "user", text: "try Y" }, 2)], epochs)));
   assert.equal((typed.input as { previous: { text: string } }).previous.text, "try Y");
-  const go = run(next(view([...baseArtifacts(), stuck, decision(question, { option: "continue", by: "user", text: "use Z" }, 2)], epochs)));
+  const go = run(next(view([...baseArtifacts(), stuck, decision("plan-invalid", question, { option: "continue", by: "user", text: "use Z" }, 2)], epochs)));
   assert.equal(go.run, "implement");
   assert.equal((go.input as { ignorePlanInvalid: boolean; text: string }).ignorePlanInvalid, true);
   assert.equal((go.input as { text: string }).text, "use Z");
-  assert.equal(next(view([...baseArtifacts(), stuck, decision(question, { option: "cancel", by: "user" }, 2)], epochs)), null);
+  assert.equal(next(view([...baseArtifacts(), stuck, decision("plan-invalid", question, { option: "cancel", by: "user" }, 2)], epochs)), null);
 });
 
 test("an unknown profile is an error", () => {
@@ -208,20 +208,35 @@ test("reviewer comments ask to work in, feed addressed comments to implement, an
   assert.deepEqual(open.decide.options.map((o) => o.id), ["work", "later"]);
   assert.equal(open.epoch, 8);
 
-  const chosen = decision(workInQuestion(1), { option: "work", by: "user" }, 8);
+  const chosen = decision("work-in", workInQuestion(1), { option: "work", by: "user" }, 8);
   const started = run(next(view([...base, chosen], epochs)));
   assert.equal(started.run, "implement");
   assert.match((started.input as { text: string }).text, /^Address these reviewer comments/);
 
-  const asked = decision(workInQuestion(1), null, 8) as Artifact<DecisionData>;
+  const asked = decision("work-in", workInQuestion(1), null, 8) as Artifact<DecisionData>;
   assert.equal(implementCheckAnswer(view(base, epochs), asked, "work"), null);
   const replied = art("CommentTriage", { comment: comment.id, phid: "P1", action: "reply", text: "thanks" }, 8);
   assert.equal(implementCheckAnswer(view([...base, replied], epochs), asked, "work"), "No reviewer comment is marked Address.");
   assert.equal(implementCheckAnswer(view([...base, replied], epochs), asked, "later"), null);
-  assert.equal(next(view([...base, decision(workInQuestion(1), { option: "later", by: "user" }, 8)], epochs)), null);
+  assert.equal(next(view([...base, decision("work-in", workInQuestion(1), { option: "later", by: "user" }, 8)], epochs)), null);
 
   const afterImplement = view([...baseArtifacts(), result(2), comment, interpretation, chosen, result(9)], [...epochs, epoch(9, "implement")]);
   const review = run(next(afterImplement));
   assert.equal(review.run, "review");
   assert.equal((review.input as { update: boolean }).update, true);
+});
+
+test("each decision carries its stable key", () => {
+  assert.equal(decide(next(view([start(), branch(), investigation(null)], [epoch(1, "investigate")]))).decide.key, "approve");
+  assert.equal(decide(next(afterReview([finding(3)]))).decide.key, "review-fix");
+  assert.equal(decide(next(afterReview([]))).decide.key, "reviewed");
+  const stuck = result(2, { planInvalid: "no such API" });
+  assert.equal(decide(next(view([...baseArtifacts(), stuck], [epoch(1, "investigate"), epoch(2, "implement")]))).decide.key, "plan-invalid");
+});
+
+test("an answer is found by key and epoch, whatever its question text says", () => {
+  const reworded = art("Decision", { key: "reviewed", question: "Another wording", options: [], chosen: { option: "revise", by: "user", text: "t" } } satisfies DecisionData, 3);
+  assert.equal(run(next(afterReview([reworded]))).run, "implement");
+  const otherKey = art("Decision", { key: "something-else", question: REVIEWED, options: [], chosen: { option: "revise", by: "user", text: "t" } } satisfies DecisionData, 3);
+  assert.equal(decide(next(afterReview([otherKey]))).decide.key, "reviewed");
 });
