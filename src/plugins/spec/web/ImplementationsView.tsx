@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { ErrorText, IconButton, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import type { Engine } from "../../../plugin-api.ts";
 import type { EngineDifference, EngineMapping, EngineSite, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
-import { codeUrl, mappedSteps, siteKey, siteName } from "../shared/engine.ts";
+import { codeUrl, mappedSteps, nothingFound, siteKey, siteName } from "../shared/engine.ts";
 import { cellHighlighted, columnState, taskState, differenceTargets } from "./implementations.ts";
 import { siteTitle } from "./GeckoStrip.tsx";
 import { DifferencesList } from "./DifferencesList.tsx";
@@ -29,7 +29,7 @@ function SiteEntry({ sessionId, data, engine, mapping, site, readOnly }: { sessi
   </li>;
 }
 
-function EngineHeader({ sessionId, data, engine, state, readOnly }: { sessionId: string; data: ImplementationsData; engine: Engine; state: { busy: boolean; failed: string | null }; readOnly: boolean }) {
+function EngineHeader({ sessionId, data, engine, state, notFound, readOnly }: { sessionId: string; data: ImplementationsData; engine: Engine; state: { busy: boolean; failed: string | null }; notFound: { note: string; reasons: string[] } | null; readOnly: boolean }) {
   const action = useAction();
   const mapping = data.mappings[engine];
   const placed = mapping?.sites.some((site) => !site.stale) ?? false;
@@ -37,6 +37,7 @@ function EngineHeader({ sessionId, data, engine, state, readOnly }: { sessionId:
     <span className="impl-engine">{LABEL[engine]}</span>{mapping && mapping.tests.length > 0 && <span className="impl-note">{mapping.tests.length} {mapping.tests.length === 1 ? "test" : "tests"}</span>}
     {mapping ? <ul className="impl-sites">{mapping.sites.map((site) => <SiteEntry key={siteKey(site)} sessionId={sessionId} data={data} engine={engine} mapping={mapping} site={site} readOnly={readOnly} />)}</ul> : !state.busy && !state.failed && <span className="impl-note">not mapped</span>}
     {!readOnly && mapping && !placed && !state.busy && <button type="button" disabled={action.busy} onClick={() => void action.run(() => specClient.findImplementation(sessionId, data.ref, engine, null))}>Find in {LABEL[engine]}</button>}
+    {!state.busy && notFound && !placed && <span className="impl-note" data-testid={`impl-not-found-${engine}`} title={notFound.reasons.join("\n")}>{notFound.note}</span>}
     {state.busy && <span className="impl-note">working…</span>}
     <ErrorText error={action.error ?? state.failed} />
   </div>;
@@ -73,7 +74,7 @@ export function ImplementationsView({ state, readOnly = false }: PhaseViewProps)
     <ErrorText error={error ?? ensureError} />
     {shown && <DifferencesList sessionId={state.session.id} data={shown} readOnly={readOnly} running={comparison.busy} failed={comparison.failed} onHover={setHovered} />}
     {shown ? <table className="impl-grid">
-      <thead><tr><th>Spec</th>{ENGINES.map((engine) => <th key={engine} data-testid={`impl-col-${engine}`}><EngineHeader sessionId={state.session.id} data={shown} engine={engine} state={columnState(state.tasks, shown.algorithmId, engine)} readOnly={readOnly} /></th>)}</tr></thead>
+      <thead><tr><th>Spec</th>{ENGINES.map((engine) => <th key={engine} data-testid={`impl-col-${engine}`}><EngineHeader sessionId={state.session.id} data={shown} engine={engine} state={columnState(state.tasks, shown.algorithmId, engine)} notFound={nothingFound(state.tasks, shown.algorithmId, engine)} readOnly={readOnly} /></th>)}</tr></thead>
       <tbody>{shown.steps.map((step) => <tr key={step.number} data-step={step.number} className={targets?.steps.has(step.number) ? "highlight" : undefined}>
         <td className="impl-step" style={{ paddingLeft: 6 + step.depth * 14 }}><span className="impl-note">{step.number}</span> {step.text}</td>
         {ENGINES.map((engine) => { const mapping = shown.mappings[engine]; return <td key={engine}>{mapping && mappedSteps(mapping, step.number).map(({ site, step: entry }) => <span key={`${siteKey(site)}:${entry.line}`} className={`impl-cell ${entry.verdict}${cellHighlighted(targets, engine, site.path, entry.line, entry.end ?? entry.line) ? " highlight" : ""}`}><a href={codeUrl(mapping, site.path, entry.line)} target="_blank" rel="noreferrer" data-testid={`impl-cell-${engine}`} title={entry.detail}>L{entry.line}{entry.end !== undefined && entry.end !== entry.line ? `–${entry.end}` : ""}</a><code>{entry.quote?.trim()}</code></span>)}</td>; })}

@@ -56,7 +56,14 @@ export function explorerGraph(state: SessionState, drafts: Draft[], closed: Read
     if (!next || next.anchor === entry.anchor || !shownSet.has(entry.anchor) || !shownSet.has(next.anchor)) return;
     edges.set(`hop:${index}`, { id: `hop:${index}`, source: specNodeId(entry.anchor), target: specNodeId(next.anchor), label: `${index + 1}`, className: unverified.has(index + 1) ? "trace-hop unverified" : "trace-hop", ...(unverified.has(index + 1) ? { title: unverified.get(index + 1)! } : {}) });
   });
-  return rootGraph(state, drafts, { nodes, edges: [...edges.values()] });
+  // Chats asked from a box's text anchor on the algorithm artifact, of any sha; others on the message they reply to.
+  const refOf = new Map(state.artifacts.filter((a) => a.type === "SpecAlgorithm").map((a) => [a.id, (a.data as SpecAlgorithmData).ref]));
+  const resolveSub = (anchor: string, ids: ReadonlySet<string>) => {
+    const ref = refOf.get(anchor);
+    if (ref !== undefined) return ids.has(specNodeId(ref)) ? specNodeId(ref) : null;
+    return state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to ?? null;
+  };
+  return rootGraph(state, drafts, { nodes, edges: [...edges.values()], resolveSub });
 }
 
 const GAP_X = 120, GAP_Y = 48;

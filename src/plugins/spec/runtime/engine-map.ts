@@ -86,7 +86,7 @@ export async function addSteps(search: Pick<CodeSearch, "functionAt">, analyze: 
       if (!scope || !symbols.has(scope.symbol)) continue;
       const key = `${path}|${scope.symbol}`;
       if (!steps.has(key)) steps.set(key, []);
-      steps.get(key)!.push({ step: check.step, line: check.line, verdict: check.result === "exact" || check.result === "fuzzy" ? "match" : "mismatch", detail: `webspec-index: ${check.result}.${check.text ? ` The comment says: “${check.text}”` : ""}`, quote: files.get(path)![check.line - 1] ?? "" });
+      steps.get(key)!.push({ step: check.step, line: check.line, verdict: check.result === "exact" || check.result === "fuzzy" ? "match" : "mismatch", detail: `webspec-index: ${check.result}.${check.text ? ` The comment says: “${check.text}”` : ""}`, quote: files.get(path)![check.line - 1] ?? "", ...(check.text ? { comment: check.text } : {}) });
     }
   }
   return sites.map((site) => site.symbol ? { ...site, steps: steps.get(siteKey(site)) ?? [] } : site);

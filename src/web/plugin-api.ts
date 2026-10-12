@@ -48,6 +48,7 @@ export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal
 }
 
 export { Canvas } from "./Canvas.tsx";
+export { HoverCard } from "./HoverCard.tsx";
 export { showSessionView } from "./routes.ts";
 export { useUrlParam } from "./url-param.ts";
 export { Box } from "./Box.tsx";

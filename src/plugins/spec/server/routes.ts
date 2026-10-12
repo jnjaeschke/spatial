@@ -7,7 +7,7 @@ import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
 import { decideProposal, ensureMapping, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
-import { siteKey, usedSites } from "../shared/engine.ts";
+import { followQuote, siteKey, usedSites } from "../shared/engine.ts";
 import { alignRunning, startAlign } from "../runtime/align.ts";
 import { compareRunning, flagDifference, startCompare } from "../runtime/compare.ts";
 import { implementationsData } from "../runtime/implementations.ts";
@@ -62,6 +62,13 @@ function parseCodeRef(value: unknown): TraceCodeRef {
   const ref = value as { engine?: unknown; path?: unknown; line?: unknown; quote?: unknown } | null;
   if (!ref || typeof ref !== "object" || !(ENGINES as readonly string[]).includes(ref.engine as string) || !isString(ref.path) || !Number.isInteger(ref.line) || (ref.line as number) < 1 || !isString(ref.quote)) throw new HttpError(400, "code must be { engine, path, line, quote }");
   return ref as TraceCodeRef;
+}
+
+/** Lines around a stored line at the current revision: where `quote` is now (null when it is gone), from two lines above. */
+export function codeWindow(lines: string[], line: number, quote: string | null): { start: number; at: number | null; lines: string[] } {
+  const at = quote ? followQuote(lines, line, quote) : line <= lines.length ? line : null;
+  const start = Math.max(1, (at ?? Math.min(line, lines.length)) - 2);
+  return { start, at, lines: lines.slice(start - 1, start + 11) };
 }
 
 const isOpen = (rt: Runtime, sessionId: string, anchor: string) => rt.store.listArtifacts(sessionId, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === anchor);
@@ -165,6 +172,17 @@ export function specRoutes(rt: Runtime): Route[] {
       send(res, 202, {});
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/mappings$/, async ({ params, url }) => storedMappings(rt, requireSession(rt, params[0]!).id, parseEngine(url.searchParams.get("engine")))],
+    ["GET", /^\/api\/sessions\/([^/]+)\/spec\/code$/, async ({ params, url }) => {
+      requireSession(rt, params[0]!);
+      const engine = parseEngine(url.searchParams.get("engine"));
+      const path = url.searchParams.get("path") ?? "", line = Number(url.searchParams.get("line")), quote = url.searchParams.get("quote");
+      if (!path || !Number.isInteger(line) || line < 1) throw new HttpError(400, "path and a positive line are required");
+      let text;
+      try { text = await rt.codeSearch[engine].file(path, new AbortController().signal); }
+      catch (error) { throw new HttpError(502, (error as Error).message); }
+      if (text === null) throw new HttpError(404, `${engine} has no file ${path}`);
+      return codeWindow(text.split("\n"), line, quote);
+    }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/find$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const body = await readJson(req);

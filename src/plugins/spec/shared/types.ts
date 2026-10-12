@@ -37,7 +37,7 @@ export interface SpecSearchData { phrase: string; results: SpecSearchResult[] }
 export interface SpecSummary { clauses: { text: string; steps: string[] }[] }
 
 /** A Step comment (`match`/`mismatch`, webspec-index's verdict) or a proposed range (`proposed`, lines `line`–`end`, `detail` its reason, `origin` `align` for `alignSteps` or `trace` for a spec trace's code reference). `alignSteps` replaces only `align` steps; every proposed step moves with its site and survives a re-derivation or a concurrent mapping run. */
-export interface EngineStep { step: string; line: number; end?: number; verdict: "match" | "mismatch" | "proposed"; detail: string; quote?: string; origin?: "align" | "trace" }
+export interface EngineStep { step: string; line: number; end?: number; verdict: "match" | "mismatch" | "proposed"; detail: string; quote?: string; origin?: "align" | "trace"; /** The text of the Step comment this step comes from. */ comment?: string }
 /**
  * Where an engine implements an algorithm: a function (`symbol` its code-search symbol, `signature` its first line, `line` the first line of
  * its definition) or, for concepts, a declaration (`symbol` ""). `quote` is the code at `line` when stored. `method`: found through spec-link

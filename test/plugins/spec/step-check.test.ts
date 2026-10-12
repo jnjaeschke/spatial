@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { describedStep } from "../../../src/plugins/spec/shared/step-comments.ts";
 import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
 import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
 import type { StepLink } from "../../../src/plugins/spec/api.ts";
@@ -70,4 +71,12 @@ test("misplacedStepComment only flags blocks linked exclusively to unrelated ste
   assert.equal(misplacedStepComment(mappedCheck, "HTML#navigate", mappedSteps, [link("1.1")]), null);
   assert.equal(misplacedStepComment({ ...mappedCheck, step: "2.1" }, "HTML#navigate", mappedSteps, [link("2")]), null);
   assert.equal(misplacedStepComment(mappedCheck, "HTML#navigate", mappedSteps, [link("2")])?.title, "Step 1 comment sits on code mapped to step 2 of HTML#navigate");
+});
+
+test("describedStep: a comment whose number went stale when the spec inserted a step describes the step after it", () => {
+  const steps = [{ number: "21", depth: 0, text: "If url's scheme is \"javascript\":" }, { number: "21.1", depth: 1, text: "Let request be a new request, with URL url, client sourceSnapshotParams's fetch client." }, { number: "21.2", depth: 1, text: "Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId." }, { number: "21.3", depth: 1, text: "Return." }];
+  const comment = "Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.";
+  assert.equal(describedStep(comment, "21.1", steps)?.number, "21.2");
+  assert.equal(describedStep(comment, "21.2", steps), null);
+  assert.equal(describedStep("Return.", "21.2", steps), null);
 });

@@ -6,7 +6,7 @@ import { Runtime, type GitCapability, type SearchfoxCapability } from "../../../
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
+import { codeWindow, specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import { openSpec } from "../../../src/plugins/spec/runtime/open.ts";
 import { makeWebspec } from "../../../src/runtime/webspec.ts";
 import { routeCall } from "../../helpers/route-call.ts";
@@ -144,4 +144,11 @@ test("a trace check runs as one task per trace: a second while it runs is 409; o
   rt.store.updateTask(running.id, { status: "succeeded" });
   assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g3/check`)).status, 202);
   assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g3/open`)).status, 502);
+});
+
+test("codeWindow: the lines around where a stored line's quote is now, or null when it is gone", () => {
+  const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
+  assert.deepEqual(codeWindow(lines, 10, "line 12"), { start: 10, at: 12, lines: lines.slice(9, 21) });
+  assert.deepEqual(codeWindow(lines, 1, null), { start: 1, at: 1, lines: lines.slice(0, 12) });
+  assert.equal(codeWindow(lines, 10, "gone").at, null);
 });

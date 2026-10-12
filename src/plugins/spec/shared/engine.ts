@@ -118,6 +118,17 @@ export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "inpu
   return { mapping: running("mapEngine"), searching: running("findImplementation"), aligning: running("alignSteps"), error: mine.findLast((task) => task.status === "failed")?.error ?? null };
 }
 
+const ENGINE_NAME: Record<Engine, string> = { gecko: "Gecko", blink: "Blink", webkit: "WebKit" };
+
+/** What the latest LLM search for the algorithm in `engine` reports when it found nothing: the note, and the reasons its candidates were dropped. Null while one runs or when the latest found something or failed. */
+export function nothingFound(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "output">[], algorithmId: string, engine: Engine): { note: string; reasons: string[] } | null {
+  const last = tasks.findLast((task) => task.kind === "findImplementation" && (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
+  const output = last?.status === "succeeded" ? last.output as { sites: unknown[]; dropped: { reason: string }[] } : null;
+  if (!output || output.sites.length) return null;
+  const dropped = output.dropped.length;
+  return { note: `No ${ENGINE_NAME[engine]} match found${dropped ? `; ${dropped} ${dropped === 1 ? "candidate" : "candidates"} failed the check` : ""}`, reasons: output.dropped.map((item) => item.reason) };
+}
+
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */
 export function engineMapping(value: unknown): EngineMapping {
   const m = value as Partial<EngineMapping> | null;

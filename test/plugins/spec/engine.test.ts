@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, fragmentOf, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, nothingFound, fragmentOf, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");
@@ -136,4 +136,14 @@ test("engineTasks keeps running tasks and a failed task only while it is the lat
   const aligns = [task("alignSteps", "running", "A"), task("alignSteps", "failed", "B", "x")];
   assert.deepEqual(engineTasks(aligns), aligns);
   assert.deepEqual(engineActivity(aligns, "A", "gecko"), { mapping: false, searching: false, aligning: true, error: null });
+});
+
+test("nothingFound: the latest finished search of an engine found nothing, with its dropped candidates' reasons", () => {
+  const find = (status: "running" | "succeeded" | "failed", output: unknown = null, engine = "webkit") => ({ kind: "findImplementation", status, input: { algorithmId: "A", engine }, output });
+  const none = find("succeeded", { sites: [], dropped: [{ reason: "x.cc:3 does not read `y`" }] });
+  assert.deepEqual(nothingFound([none], "A", "webkit"), { note: "No WebKit match found; 1 candidate failed the check", reasons: ["x.cc:3 does not read `y`"] });
+  assert.deepEqual(nothingFound([find("succeeded", { sites: [], dropped: [] })], "A", "webkit"), { note: "No WebKit match found", reasons: [] });
+  assert.equal(nothingFound([none, find("running")], "A", "webkit"), null);
+  assert.equal(nothingFound([find("succeeded", { sites: [{}], dropped: [] })], "A", "webkit"), null);
+  assert.equal(nothingFound([none], "A", "blink"), null);
 });

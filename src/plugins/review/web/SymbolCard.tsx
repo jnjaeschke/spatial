@@ -1,5 +1,5 @@
 import { createContext, useEffect, useMemo, useRef, useState } from "react";
-import { numberLines, type Artifact, type DiffData, type SessionState } from "../../../web/plugin-api.ts";
+import { HoverCard, numberLines, type Artifact, type DiffData, type SessionState } from "../../../web/plugin-api.ts";
 import type { IntroducedSymbolsData } from "../shared/types.ts";
 import { latestSymbols } from "./symbols.ts";
 
@@ -14,11 +14,10 @@ export const SymbolMarkContext = createContext<SymbolMarkHandlers | null>(null);
 
 /** A fixed hover card listing the declaration and definition sites of a symbol. */
 export function SymbolCard({ name, sites, rect, stack, pinned, onEnter, onLeave, onSite }: { name: string; sites: SymbolCardSite[]; rect: DOMRect; stack: boolean; pinned: boolean; onEnter(): void; onLeave(): void; onSite(site: number): void }) {
-  const below = window.innerHeight - rect.bottom >= 326;
-  return <div role="dialog" aria-label={`Symbol ${name}`} data-testid="symbol-card" className="symbol-card" style={{ left: Math.min(rect.left, window.innerWidth - 360), ...(below ? { top: rect.bottom + 6 } : { bottom: window.innerHeight - rect.top + 6, maxHeight: rect.top - 12 }) }} onMouseEnter={onEnter} onMouseLeave={onLeave} data-pinned={pinned}>
+  return <HoverCard label={`Symbol ${name}`} rect={rect} testId="symbol-card" pinned={pinned} onEnter={onEnter} onLeave={onLeave}>
     <strong>{name}</strong>
     {sites.map((site, index) => <section key={`${site.label}-${index}`}><button type="button" data-testid={`symbol-site-${index}`} onClick={() => onSite(site.index)}>{site.label}{stack ? ` · C${site.commit + 1}` : ""}</button><pre>{site.code.join("\n")}</pre></section>)}
-  </div>;
+  </HoverCard>;
 }
 
 /** The sites of a symbol that resolve in `diff`, each with its row and the added rows directly after it (at most two). */

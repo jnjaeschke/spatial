@@ -2,18 +2,7 @@ import { basename } from "node:path";
 import type { SpecStep } from "../shared/steps.ts";
 import type { StepLink } from "../shared/types.ts";
 import type { StepCommentCheck, WebspecCapability } from "../../../plugin-api.ts";
-
-const STOP_WORDS = new Set(["the", "and", "then", "this", "that", "with", "for", "from", "its", "are", "was", "has", "have", "into", "than", "which", "otherwise"]);
-const words = (text: string) => new Set(text.toLowerCase().split(/[^a-z]+/).filter((word) => word.length >= 3 && !STOP_WORDS.has(word)));
-/** Share of the comment's words that occur in the step text. */
-const overlap = (comment: Set<string>, step: SpecStep) => {
-  const own = words(step.text);
-  return [...comment].filter((word) => own.has(word)).length / comment.size;
-};
-
-/** A comment sharing this much with another step, and `MARGIN` more than with its own, is that step's comment. */
-const CLEARLY_DESCRIBES = 0.8;
-const MARGIN = 0.3;
+import { describedStep } from "../shared/step-comments.ts";
 
 export type StepProblem = { severity: "high" | "medium" | "low"; title: string; body: string };
 
@@ -58,22 +47,12 @@ export function misplacedStepComment(check: StepCommentCheck, spec: string, step
 }
 
 /**
- * Turns webspec-index's verdict on a Step comment into a finding (`spec` is `SPEC#anchor`, `steps` its algorithm).
- * Its mismatches include ranges ("to step 1.3"), explanations and relative numbering, so a mismatch is reported only
- * when the comment text clearly describes another step (a stale number); a step the algorithm lacks is always reported.
+ * Turns webspec-index's verdict on a Step comment into a finding (`spec` is `SPEC#anchor`, `steps` its algorithm): a mismatch
+ * only when the comment text clearly describes another step (`describedStep`); a step the algorithm lacks is always reported.
  */
 export function checkStepComment(check: StepCommentCheck, spec: string, steps: SpecStep[]): StepProblem | null {
   if (check.result === "exact" || check.result === "fuzzy") return null;
-  const commentWords = words(check.text);
-  const step = steps.find((item) => item.number === check.step);
-  let other: SpecStep | null = null;
-  if (commentWords.size >= 2) {
-    let best = Math.max(CLEARLY_DESCRIBES, (step ? overlap(commentWords, step) : 0) + MARGIN);
-    for (const item of steps) {
-      const score = overlap(commentWords, item);
-      if (item !== step && score >= best) { other = item; best = score; }
-    }
-  }
+  const other = describedStep(check.text, check.step, steps);
   if (check.result === "mismatch" && !other) return null;
   const comment = said(check), described = own(check, steps), snapshotNote = snapshot(check);
   if (other) return { severity: "medium", title: `Step ${check.step} comment describes step ${other.number} of ${spec}`, body: `${comment}\n\nThat is step ${other.number}: “${other.text}” ${described}${snapshotNote}` };

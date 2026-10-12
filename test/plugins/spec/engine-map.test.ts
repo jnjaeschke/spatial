@@ -127,7 +127,7 @@ test("Step comment steps keep their comment line as quote", async () => {
   const site = { path: "a.cc", line: 1, symbol: "S", signature: "void S() {", quote: "void S() {", method: "spec-link-heuristic" as const, refs: [1], steps: [] };
   const analyze = async () => [{ line: 2, step: "1", text: "Edit.", result: "exact" as const, url: "https://html.spec.whatwg.org/C/#setup" }];
   const [out] = await addSteps(search, analyze, "setup", [site], new Map([["a.cc", ["void S() {", "  // Step 1. Edit.", "}"]]]), signal);
-  assert.deepEqual(out!.steps, [{ step: "1", line: 2, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit.”", quote: "  // Step 1. Edit." }]);
+  assert.deepEqual(out!.steps, [{ step: "1", line: 2, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit.”", quote: "  // Step 1. Edit.", comment: "Edit." }]);
 });
 
 test("a comment above template, macro and preprocessor lines belongs to the definition below them", async () => {

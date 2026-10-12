@@ -101,15 +101,34 @@ test("a review chat question about a spec algorithm is traced after Explore", as
   await expect(page.getByTestId("trace-panel").getByTestId("trace-verdict")).toHaveText("fails · 4 steps, 1 unverified hop, 0 unsupported notes", { timeout: 15_000 });
 });
 
+test("an algorithm box numbers its steps, and selected step text can be asked about", async ({ page }) => {
+  const navigate = await exploreNavigate(page);
+  const first = navigate.locator('li[data-step="1"]').first();
+  expect(await first.evaluate((li) => getComputedStyle(li, "::before").content)).toBe('"1" "."');
+  const text = (await first.locator("p").first().boundingBox())!;
+  await page.mouse.move(text.x + 2, text.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(text.x + 120, text.y + 8, { steps: 8 });
+  await page.mouse.up();
+  const ask = page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true });
+  await expect(ask).toBeVisible();
+  await ask.click();
+  await expect(page.locator(".chat-quote").last()).toBeVisible();
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", "message");
+});
+
 test("an algorithm box shows where Gecko implements it, with step links and tests", async ({ page }) => {
   const navigate = await exploreNavigate(page);
   const rev = "0f".repeat(20);
   const strip = navigate.getByTestId("spec-impl");
   await expect(strip.getByRole("link", { name: "Fake::Navigate" })).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/dom/fake/Fake.cpp#4`, { timeout: 15_000 });
   await expect(navigate.locator('li[data-step="1"]').getByTestId("spec-g-link").first()).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/dom/fake/Fake.cpp#5`);
-  const mismatch = navigate.locator('li[data-step="2"]').getByTestId("spec-g-link").first();
-  await expect(mismatch).toHaveClass(/mismatch/);
-  await expect(mismatch).toHaveAttribute("title", "webspec-index: mismatch. The comment says: “Add the files.”");
+  const reworded = navigate.locator('li[data-step="2"]').getByTestId("spec-g-link").first();
+  await expect(reworded).toHaveText("Gecko");
+  await reworded.hover();
+  const peek = page.getByTestId("code-peek");
+  await expect(peek).toContainText("The comment's wording differs from step 2.");
+  await expect(peek.locator(".peek-line.at")).toContainText("Add the files.");
   await strip.getByRole("button", { name: "1 test" }).click();
   await expect(navigate.getByRole("link", { name: "testing/web-platform/tests/fake/navigate.html:2" })).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${rev}/testing/web-platform/tests/fake/navigate.html#2`);
 });
@@ -144,14 +163,16 @@ test("Reject removes a proposal for good", async ({ page }) => {
   await expect(reloaded.getByRole("link", { name: "Fake::Snapshot" })).toHaveCount(0);
 });
 
-test("implementations: the Gecko site from searchfox, a Blink proposal confirmed, WebKit offers Find", async ({ page }) => {
+test("implementations: the Gecko site from searchfox, a Blink proposal confirmed, WebKit says it found nothing", async ({ page }) => {
   const navigate = await exploreNavigate(page);
   await navigate.getByTestId("impl-open").click();
   await expect(page).toHaveURL(/[?&]view=impl/);
   await expect(page).toHaveURL(/[?&]ref=HTML%23navigate/);
   const view = page.getByTestId("impl-view");
   await expect(view.getByTestId("impl-site-gecko").first()).toHaveText("Fake::Navigate", { timeout: 15_000 });
-  await expect(view.getByRole("button", { name: "Find in WebKit" })).toBeVisible({ timeout: 15_000 });
+  await view.getByRole("button", { name: "Find in WebKit" }).click({ timeout: 15_000 });
+  await expect(view.getByTestId("impl-not-found-webkit")).toHaveText("No WebKit match found", { timeout: 15_000 });
+  await expect(view.getByRole("button", { name: "Find in WebKit" })).toBeVisible();
   await view.getByRole("button", { name: "Find in Blink" }).click();
   await expect(view.getByTestId("impl-site-blink")).toHaveText("FrameLoader::CancelProvisionalLoaderForNewNavigation", { timeout: 15_000 });
   await expect(view.locator(".impl-site.method-llm")).toHaveCount(1);

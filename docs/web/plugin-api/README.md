@@ -102,6 +102,7 @@
 - [ErrorText](functions/ErrorText.md)
 - [FilePanel](functions/FilePanel.md)
 - [fileUrl](functions/fileUrl.md)
+- [HoverCard](functions/HoverCard.md)
 - [IconButton](functions/IconButton.md)
 - [InlineText](functions/InlineText.md)
 - [isCoreKind](functions/isCoreKind.md)

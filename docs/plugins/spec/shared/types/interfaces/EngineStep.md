@@ -10,6 +10,12 @@ A Step comment (`match`/`mismatch`, webspec-index's verdict) or a proposed range
 
 ## Properties
 
+### comment?
+
+> `optional` **comment?**: `string`
+
+***
+
 ### detail
 
 > **detail**: `string`

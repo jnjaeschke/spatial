@@ -57,8 +57,8 @@ test("tiers 1 and 2 map an algorithm to its function and Step comments, stored a
   assert.equal(read.entry.provenance.by, "plugin");
   assert.deepEqual({ ...(read.entry.value as EngineMapping), checkedAt: "" }, { engine: "gecko", repoBase: "https://searchfox.org/mozilla-central/", rev: "a".repeat(40), checkedAt: "", tests: [], rejected: [], sites: [
     { path: "dom/Setup.cpp", line: 2, symbol: "_Z5Setupv", signature: "void Setup() {", quote: "void Setup() {", method: "spec-link", refs: [1], steps: [
-      { step: "1", line: 3, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit the line.”", quote: "  // Step 1. Edit the line." },
-      { step: "2", line: 5, verdict: "mismatch", detail: "webspec-index: mismatch. The comment says: “Add the files.”", quote: "  // Step 2. Add the files." },
+      { step: "1", line: 3, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit the line.”", quote: "  // Step 1. Edit the line.", comment: "Edit the line." },
+      { step: "2", line: 5, verdict: "mismatch", detail: "webspec-index: mismatch. The comment says: “Add the files.”", quote: "  // Step 2. Add the files.", comment: "Add the files." },
     ] },
   ] });
 });
