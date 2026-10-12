@@ -30,7 +30,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [topbarSlot, setTopbarSlot] = useState<HTMLElement | null>(null);
   const [viewed, setViewed] = useState<number | null>(null);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
-  const models = useModels();
+  const { models, error: modelsError } = useModels();
   const [viewId, setViewId] = useState(() => sessionViewOf(new URL(location.href)));
   useEffect(() => {
     const update = () => setViewId(sessionViewOf(new URL(location.href)));
@@ -60,6 +60,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const askContext = useMemo(() => ({ ask, ...(commentsOnSelection ? { comment } : {}) }), [ask, comment, commentsOnSelection]);
   const replyActions = useMemo(() => state && { sessionId, components: webReplyActions, derived: (messageId: string) => derivedArtifacts(state, messageId) }, [sessionId, state]);
   if (error) return <p className="empty failed">{error}</p>;
+  if (modelsError) return <p className="empty failed">Models could not be loaded: {modelsError}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
   const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
   const question = state.artifacts.findLast((a) => a.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;

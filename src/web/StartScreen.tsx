@@ -10,11 +10,11 @@ import { routeUrl } from "./routes.ts";
 export function StartScreen({ path }: { path: string }) {
   const [repo, setRepo] = useState<RepoInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [repos, setRepos] = useState<RecentRepo[]>([]);
+  const [repos, setRepos] = useState<RecentRepo[] | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const models = useModels();
+  const { models, error: modelsError } = useModels();
   useEffect(() => { document.title = repo ? `${repo.name} · spatial` : "spatial"; }, [repo]);
-  useEffect(() => { api.repos().then(setRepos, (e: Error) => console.error(e)); }, []);
+  useEffect(() => { api.repos().then(setRepos, (e: Error) => { console.error(e); setRepos([]); }); }, []);
   useEffect(() => {
     let cancelled = false;
     setRepo(null);
@@ -23,13 +23,14 @@ export function StartScreen({ path }: { path: string }) {
     return () => { cancelled = true; };
   }, [path]);
   const header = <header><h2>{repo?.name ?? "Repository"}{repo && checkoutName(repo) !== repo.name && <span className="checkout-name"> · {checkoutName(repo)}</span>}</h2><button type="button" onClick={() => setPickerOpen(true)}>Open folder…</button><a href="/">All sessions</a><ThemeToggle /></header>;
-  if (!repo) return <div className="empty session-picker start-screen">{header}{error ? <p className="failed" data-testid="start-error">{error}</p> : <p className="empty">Loading…</p>}<RecentRepoSwitcher repos={repos} current={null} />{pickerOpen && <FolderPicker onClose={() => setPickerOpen(false)} />}</div>;
+  // The page is shown once everything above the session list has loaded, so the list does not move under a click.
+  if (!repo || !repos || (!models && !modelsError)) return <div className="empty session-picker start-screen">{header}{error ? <p className="failed" data-testid="start-error">{error}</p> : <p className="empty">Loading…</p>}{repos && <RecentRepoSwitcher repos={repos} current={null} />}{pickerOpen && <FolderPicker onClose={() => setPickerOpen(false)} />}</div>;
   return <div className="empty session-picker start-screen" data-testid="start-screen">
     {header}
     {pickerOpen && <FolderPicker onClose={() => setPickerOpen(false)} />}
     <RecentRepoSwitcher repos={repos} current={repo.worktree} />
     <p className="repo-paths"><code>{repo.repoDir}</code> · worktree <code>{repo.worktree}</code></p>
-    {models ? <StartBox path={repo.worktree} repoDir={repo.repoDir} models={models} /> : <p className="empty">Loading…</p>}
+    {models ? <StartBox path={repo.worktree} repoDir={repo.repoDir} models={models} /> : <p className="failed">Models could not be loaded: {modelsError}</p>}
     {error && <p className="failed">{error}</p>}
     <SessionList sessions={repo.sessions} />
   </div>;

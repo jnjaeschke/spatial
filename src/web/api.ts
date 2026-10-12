@@ -109,8 +109,9 @@ export function useSessionState(id: string) {
   return { state, error, progress, notices, dismissNotice };
 }
 
-export function useModels(): ModelsResponse | null {
-  const [models, setModels] = useState<ModelsResponse | null>(null);
-  useEffect(() => { api.models().then(setModels, (e: Error) => console.error(e)); }, []);
-  return models;
+/** The configured models; `error` when they could not be loaded, both null while loading. */
+export function useModels(): { models: ModelsResponse | null; error: string | null } {
+  const [state, setState] = useState<{ models: ModelsResponse | null; error: string | null }>({ models: null, error: null });
+  useEffect(() => { api.models().then((models) => setState({ models, error: null }), (e: Error) => setState({ models: null, error: e.message })); }, []);
+  return state;
 }

@@ -101,6 +101,21 @@ test("start screen switches between recent repositories", async ({ page }) => {
   await expect(page.getByTestId("start-screen").getByRole("link", { name: /Second session/ })).toBeVisible();
 });
 
+test("session links appear only once the content above them has loaded, so they do not move under a click", async ({ page }) => {
+  const dir = makeRepo();
+  await createSession(page, dir, "Stable session");
+  await page.route("**/api/repos", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.goto("http://127.0.0.1:4178/");
+  await page.getByRole("link", { name: "Stable session" }).waitFor();
+  expect(await page.getByTestId("recent-repo").count()).toBeGreaterThan(0);
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
+  await page.getByRole("link", { name: "Stable session" }).waitFor();
+  expect(await page.getByRole("navigation", { name: "Recent repositories" }).getByRole("link").count()).toBeGreaterThan(0);
+});
+
 test("start screen outside a git work tree shows the error", async ({ page }) => {
   const dir = mkdtempSync(join(tmpdir(), "spatial-not-repo-"));
   repoDirs.push(dir);

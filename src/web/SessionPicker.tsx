@@ -21,15 +21,15 @@ export function SessionPicker() {
   useEffect(() => { api.sessions().then(setSessions, (e: Error) => setError(e.message)); api.repos().then(setRepos, (e: Error) => setError(e.message)); }, []);
   return <div className="empty session-picker">
     <header><h2>Recent repositories</h2><button type="button" onClick={() => setPickerOpen(true)}>Open folder…</button><TextSizeControl /><ThemeToggle /></header>
-    {repos?.map((repo) => <section className="recent-repo" data-testid="recent-repo" key={repo.worktree}>
+    {sessions && repos && <>{repos.map((repo) => <section className="recent-repo" data-testid="recent-repo" key={repo.worktree}>
       <a href={routeUrl({ kind: "repo", path: repo.worktree })}>{repo.name}</a> <code>{repo.worktree}</code>
     </section>)}
     <h2 className="session-picker-heading">Sessions</h2>
-    {sessions && groupByRepo(sessions).map((group) => <section className="repo-group" data-testid="repo-group" key={group.repoDir}>
+    {groupByRepo(sessions).map((group) => <section className="repo-group" data-testid="repo-group" key={group.repoDir}>
       <h3><a href={routeUrl({ kind: "repo", path: group.sessions[0]!.worktree })}>{group.name}</a></h3>
       <code>{group.repoDir}</code>
       <SessionList sessions={group.sessions} />
-    </section>)}
+    </section>)}</>}
     {error && <p className="failed">{error}</p>}
     {pickerOpen && <FolderPicker onClose={() => setPickerOpen(false)} />}
   </div>;
