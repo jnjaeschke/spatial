@@ -764,6 +764,11 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .impl-cell.proposed { border: 1px dashed var(--text-2); padding: 0 3px; }
 .impl-cell.mismatch a { color: var(--danger); }
 .impl-cell code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: pre; font-family: var(--font-mono); }
+.impl-differences { margin: 0 0 12px; padding: 6px 8px; border-left: 3px solid var(--kind-spec); }
+.impl-differences-head { display: flex; align-items: baseline; gap: 10px; }
+.impl-differences ol { margin: 4px 0; padding-left: 18px; }
+.impl-grid tr.highlight td { background: color-mix(in oklab, var(--kind-spec) 18%, transparent); }
+.impl-cell.highlight { outline: 2px solid var(--kind-spec); }
 .spec-effect { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8em; padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); }
 .spec-effect.via-path { border-style: dashed; }
 .spec-effect-details { flex-basis: 100%; font-size: 0.85em; padding: 4px 8px; border-left: 2px solid var(--kind-spec); }

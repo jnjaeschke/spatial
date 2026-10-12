@@ -143,4 +143,11 @@ test("implementations: the Gecko site from searchfox, a Blink proposal confirmed
   await view.getByRole("button", { name: "Confirm FrameLoader::CancelProvisionalLoaderForNewNavigation" }).click();
   await expect(view.locator(".impl-site.method-llm")).toHaveCount(0);
   await expect(view.getByRole("button", { name: "Find in Blink" })).toHaveCount(0);
+  await view.getByRole("button", { name: "Compare" }).click();
+  const differences = view.getByTestId("impl-difference");
+  await expect(differences).toHaveCount(1, { timeout: 15_000 });
+  await expect(differences.first()).toContainText("Blink aborts the active document");
+  await expect(differences.first()).toContainText("AI-written");
+  await differences.first().hover();
+  await expect(view.locator('tr[data-step="9"].highlight')).toHaveCount(1);
 });
