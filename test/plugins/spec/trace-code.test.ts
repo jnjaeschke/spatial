@@ -14,4 +14,5 @@ test("checkCodeRefs checks each reference's quote against the engine's file, rea
     { ok: true, url: "https://sf/rev/r1/a.cc#3" }, { ok: false, reason: "a.cc:2 does not read `return`" }, { ok: false, reason: "b.cc does not exist" }, { ok: false, reason: "a.cc:3 does not read `if (!doc)`" },
   ]);
   assert.deepEqual(calls, ["file a.cc", "tip", "file b.cc"]);
+  assert.deepEqual(await checkCodeRefs(codeSearch, [{ ...ref(3, "if (!doc) return;"), engine: "blink" }], new AbortController().signal), [{ ok: false, reason: "No blink code search configured" }]);
 });

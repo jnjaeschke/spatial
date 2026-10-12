@@ -88,6 +88,14 @@ test("addMappingStep stores the step at the mapping's revision when the file mov
   assert.deepEqual((entry.value as EngineMapping).sites[0]!.steps.map((step) => [step.line, step.end]), [[3, 3]]);
 });
 
+test("addMappingStep refuses when a mapping write moves the site while its file is read", async () => {
+  let reads = 0, move = () => {};
+  const { rt, session } = setup([], fake, { ...CODE, file: async (path, signal) => { if (++reads === 2) move(); return CODE.file(path, signal); } });
+  rt.knowledge.put("global", "spec", mappingKey("gecko", "HTML#navigate"), MAPPING, { by: "plugin", sessionId: session.id });
+  move = () => updateMapping(rt, session.id, "gecko", "HTML#navigate", { by: "plugin", sessionId: session.id }, (mapping) => ({ ...mapping!, sites: mapping!.sites.map((site) => ({ ...site, line: site.line + 1 })) }));
+  await assert.rejects(addMappingStep(rt, session.id, navigate(3, "if (!doc) return;")), /The gecko mapping of HTML#navigate changed; try again/);
+});
+
 test("a trace step stored while a mapping runs survives the mapping's write", async () => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });

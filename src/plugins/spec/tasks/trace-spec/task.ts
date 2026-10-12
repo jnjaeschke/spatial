@@ -1,4 +1,4 @@
-import { defineTask, runStructured, type Id, type JsonSchema } from "../../../../plugin-api.ts";
+import { defineTask, ENGINES, runStructured, type Id, type JsonSchema } from "../../../../plugin-api.ts";
 import { TRACE_HOPS, type GeneratedTrace, type SpecAlgorithmData, type SpecTraceData, type TraceQuestion } from "../../shared/types.ts";
 import { latestTraces } from "../../shared/traces.ts";
 import { isSpecRef } from "../../shared/refs.ts";
@@ -15,7 +15,7 @@ When the spec text alone cannot answer (what an engine checks before a step, wha
 For a claim, give a verdict: "holds", "fails", or "unclear" when the steps do not decide it, with your reasoning. For a scenario, the verdict is null.`;
 const SCHEMA: JsonSchema = { type: "object", additionalProperties: false, required: ["title", "entries", "verdict"], properties: {
   title: { type: "string" },
-  entries: { type: "array", items: { type: "object", additionalProperties: false, required: ["anchor", "step", "note", "hop", "code"], properties: { anchor: { type: "string" }, step: { type: "string" }, note: { type: "string" }, hop: { type: "string", enum: [...TRACE_HOPS] }, code: { type: "array", items: { type: "object", additionalProperties: false, required: ["engine", "path", "line", "quote"], properties: { engine: { type: "string", enum: ["gecko", "blink", "webkit"] }, path: { type: "string" }, line: { type: "integer" }, quote: { type: "string" } } } } } } },
+  entries: { type: "array", items: { type: "object", additionalProperties: false, required: ["anchor", "step", "note", "hop", "code"], properties: { anchor: { type: "string" }, step: { type: "string" }, note: { type: "string" }, hop: { type: "string", enum: [...TRACE_HOPS] }, code: { type: "array", items: { type: "object", additionalProperties: false, required: ["engine", "path", "line", "quote"], properties: { engine: { type: "string", enum: [...ENGINES] }, path: { type: "string" }, line: { type: "integer" }, quote: { type: "string" } } } } } } },
   verdict: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["answer", "reasoning"], properties: { answer: { type: "string", enum: ["holds", "fails", "unclear"] }, reasoning: { type: "string" } } }] },
 } };
 

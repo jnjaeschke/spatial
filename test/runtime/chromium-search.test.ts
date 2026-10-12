@@ -37,7 +37,8 @@ test("search looks for the literal text line by line outside out/, with its limi
   assert.deepEqual(argv()[0], ["search", "pcre:yes FrameLoader::CancelProvisionalLoaderForNewNavigation\\( -file:^out/", "--json", "path,line,snippet", "-L", "20"]);
   assert.equal(hits.length, 14);
   assert.deepEqual(Object.keys(hits[0]!).sort(), ["line", "path", "snippet"]);
-  await assert.rejects(makeChromiumSearch({ bin: STUB }).search("--help", signal), /must not start with "-"/);
+  await makeChromiumSearch({ bin: STUB }).search("-webkit-appearance: none file:x", signal);
+  assert.deepEqual(argv()[1]![1], "pcre:yes \\-webkit-appearance:\\s+none\\s+file:x -file:^out/");
 });
 
 test("file parses cat -n output once per path; a failure other than a missing file throws", async () => {

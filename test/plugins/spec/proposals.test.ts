@@ -134,12 +134,13 @@ test("find and decide reject bad requests", async () => {
   release();
 });
 
-test("mappings/steps: 400 for a malformed proposal, 404 for an algorithm never opened, 409 without a mapping or when the quote is not at its line", async () => {
+test("mappings/steps: 400 for a malformed proposal, 404 for an algorithm never opened or a step it lacks, 409 without a mapping or when the quote is not at its line", async () => {
   const { rt, session, put, entry, addStep } = setup();
   const code = { engine: "gecko", path: "docshell/base/BrowsingContext.cpp", line: 2648, quote: NAVIGATE.signature };
   for (const bad of [{ ref: "setup", step: "1", code }, { ref: "HTML#setup", step: "one", code }, { ref: "HTML#setup", step: "1", code: { ...code, line: 0 } }, { ref: "HTML#setup", step: "1", code: { ...code, engine: "servo" } }]) assert.equal((await addStep(bad)).status, 400);
   assert.equal((await addStep({ ref: "HTML#setup", step: "1", code })).status, 404);
   await algorithm(rt, session.id);
+  assert.equal((await addStep({ ref: "HTML#setup", step: "9", code })).status, 404);
   assert.equal((await addStep({ ref: "HTML#setup", step: "1", code })).status, 409);
   put(mapping([{ ...NAVIGATE_SITE, method: "user" }]));
   const before = entry().id;

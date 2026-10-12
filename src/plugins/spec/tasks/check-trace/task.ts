@@ -17,8 +17,12 @@ export async function checkCodeRefs(codeSearch: Record<Engine, Pick<CodeSearch, 
   const tip = (engine: Engine) => { if (!tips.has(engine)) tips.set(engine, codeSearch[engine].tip()); return tips.get(engine)!; };
   const results: ({ ok: true; url: string } | { ok: false; reason: string })[] = [];
   for (const ref of refs) {
-    const problem = quoteProblem(await read(ref), ref);
-    results.push(problem ? { ok: false, reason: problem } : { ok: true, url: codeUrl({ engine: ref.engine, ...(await tip(ref.engine)) }, ref.path, ref.line) });
+    try {
+      const problem = quoteProblem(await read(ref), ref);
+      results.push(problem ? { ok: false, reason: problem } : { ok: true, url: codeUrl({ engine: ref.engine, ...(await tip(ref.engine)) }, ref.path, ref.line) });
+    } catch (error) {
+      results.push({ ok: false, reason: (error as Error).message });
+    }
   }
   return results;
 }

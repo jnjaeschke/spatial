@@ -42,12 +42,17 @@ test("spec tools pass their arguments to webspec lookups and answer with the out
   await call("spec_effects", { ref: "HTML#navigate", step: "8" });
   await call("spec_flow", { ref: "HTML#navigate" });
   assert.equal(await call("spec_state", { selector: "Document" }), "text of state");
-  assert.equal(await call("spec_impl", { ref: "HTML#navigate", engine: "gecko" }), "The gecko mapping of HTML#navigate at the current revision (lines as code_read numbers them):\n- nav.cc:2 void Navigate() {\n  step 3: lines 3-3 (match)\n- gone.cc void Gone() { (gone at the current revision)");
+  assert.equal(await call("spec_impl", { ref: "HTML#navigate", engine: "gecko" }), "The gecko mapping of HTML#navigate at the current revision (lines as code_read numbers them):\n- nav.cc:2 void Navigate() {\n  step 3: lines 3-3 (match)\n- gone.cc void Gone() { (not found at the current revision)");
   assert.equal(await call("spec_impl", { ref: "HTML#navigate", engine: "blink" }), "The blink mapping of HTML#navigate was rejected.");
   assert.equal(await call("spec_impl", { ref: "HTML#navigate", engine: "webkit" }), "No webkit mapping of HTML#navigate is stored.");
   assert.equal(await call("code_search", { engine: "gecko", query: "Navigate" }), "a.cc:3: Navigate();");
   assert.equal(await call("code_search", { engine: "gecko", query: "Nothing" }), "No matches.");
   assert.equal(await call("code_read", { engine: "gecko", path: "a.cc", start: 2, end: 3 }), "2: two\n3: three");
+  for (const [name, args, error] of [["code_read", { engine: "gecko", path: "a.cc", start: 3, end: 2 }, "a.cc has lines 1-4; asked for 3-2"], ["code_read", { engine: "gecko", path: "a.cc", start: 9, end: 9 }, "a.cc has lines 1-4; asked for 9-9"]] as const) {
+    const result = await client.callTool({ name, arguments: args });
+    assert.deepEqual([result.isError, (result.content as { text: string }[])[0]!.text], [true, error]);
+  }
+  assert.equal((await client.callTool({ name: "code_search", arguments: { engine: "gecko", query: " " } })).isError, true);
   const missing = await client.callTool({ name: "code_read", arguments: { engine: "blink", path: "b.cc", start: 1, end: 2 } });
   assert.equal(missing.isError, true);
   assert.equal((missing.content as { text: string }[])[0]!.text, "blink has no file b.cc");

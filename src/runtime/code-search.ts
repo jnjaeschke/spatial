@@ -27,8 +27,6 @@ export function missingCodeSearch(engine: Engine): CodeSearch {
   return { effect: "read-only", engine, pinned: true, heuristicScopes: false, specRefs: fail, search: fail, functionAt: fail, file: fail, tip: fail };
 }
 
-/** `text` with regular expression metacharacters escaped. */
-
 /** What every citation of a spec section starts with (host and directory of its URL, so specs sharing a host stay apart) and its decoded fragment. */
 export function specUrlParts(url: string): { prefix: string; anchor: string } {
   const parsed = new URL(url);

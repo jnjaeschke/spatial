@@ -49,8 +49,9 @@ export function makeChromiumSearch(opts: { bin?: string } = {}): CodeSearch {
       return (JSON.parse(stdout) as { path: string; line: number }[]).map(({ path, line }) => ({ group: TEST_PATH.test(path) ? "Test" : "Code", path, line, url: `${REPO_BASE}+/main:${path};l=${line}` }));
     },
     async search(query, signal, limit = 30) {
-      if (query.startsWith("-")) throw new Error(`chromium-search argument must not start with "-": ${query}`);
-      const stdout = await run(["search", `pcre:yes ${escapeRegex(query)} -file:^out/`, "--json", "path,line,snippet", "-L", String(limit)], signal);
+      // Code search splits terms at whitespace and negates a term that starts with "-"; one escaped term keeps the text literal.
+      const literal = escapeRegex(query.trim()).replace(/\s+/g, "\\s+").replace(/^-/, "\\-");
+      const stdout = await run(["search", `pcre:yes ${literal} -file:^out/`, "--json", "path,line,snippet", "-L", String(limit)], signal);
       return (JSON.parse(stdout) as { path: string; line: number; snippet: string }[]).map(({ path, line, snippet }) => ({ path, line, snippet }));
     },
     async functionAt(path, line, signal) {

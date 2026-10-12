@@ -86,7 +86,7 @@ export interface ChatReplyField {
   accept(ctx: TaskContext, value: unknown): Promise<{ ok: true; artifacts: { type: string; data: unknown }[]; run?: { phase: string; input: unknown } } | { ok: false; error: string }>;
 }
 /** What a plugin MCP tool may use: the session, its work tree, read-only capabilities and the call's abort signal. */
-export interface McpToolContext { sessionId: Id; repo: string; webspec: WebspecCapability; knowledge: Pick<Knowledge, "get" | "list">; codeSearch: Record<Engine, CodeSearch>; signal: AbortSignal }
+export interface McpToolContext { sessionId: Id; repo: string; webspec: WebspecCapability; knowledge: Pick<Knowledge, "get">; codeSearch: Record<Engine, CodeSearch>; signal: AbortSignal }
 /** A read-only tool a plugin adds to the session MCP server (`spatial`), which LLM tasks reach through `ctx.sessionMcp`. `input` is the zod shape of its arguments; `run` returns the text answer and throws for an error answer. */
 export interface McpTool<S extends z.ZodRawShape = z.ZodRawShape> { name: string; description: string; input: S; run(ctx: McpToolContext, input: z.infer<z.ZodObject<S>>): Promise<string> }
 /** An `McpTool` whose `run` input is typed from its `input` shape. */

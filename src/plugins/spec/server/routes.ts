@@ -13,8 +13,9 @@ import { compareRunning, flagDifference, startCompare } from "../runtime/compare
 import { implementationsData } from "../runtime/implementations.ts";
 import { randomUUID } from "node:crypto";
 import { isSpecRef } from "../shared/refs.ts";
+import { parseSteps } from "../shared/steps.ts";
 import { traceStatus } from "../shared/traces.ts";
-import { addMappingStep, generateTrace, openTraceBoxes, traceCheckRunning, type TraceRequest } from "../runtime/traces.ts";
+import { addMappingStep, MappingStepConflict, generateTrace, openTraceBoxes, traceCheckRunning, type TraceRequest } from "../runtime/traces.ts";
 import { loadTraceFacts } from "../tasks/check-trace/task.ts";
 import { TRACE_HOPS, type TraceQuestion } from "../shared/types.ts";
 
@@ -59,7 +60,7 @@ function parseTrace(value: unknown): SpecTraceData {
 
 function parseCodeRef(value: unknown): TraceCodeRef {
   const ref = value as { engine?: unknown; path?: unknown; line?: unknown; quote?: unknown } | null;
-  if (!ref || typeof ref !== "object" || !["gecko", "blink", "webkit"].includes(ref.engine as string) || !isString(ref.path) || !Number.isInteger(ref.line) || (ref.line as number) < 1 || !isString(ref.quote)) throw new HttpError(400, "code must be { engine, path, line, quote }");
+  if (!ref || typeof ref !== "object" || !(ENGINES as readonly string[]).includes(ref.engine as string) || !isString(ref.path) || !Number.isInteger(ref.line) || (ref.line as number) < 1 || !isString(ref.quote)) throw new HttpError(400, "code must be { engine, path, line, quote }");
   return ref as TraceCodeRef;
 }
 
@@ -196,9 +197,10 @@ export function specRoutes(rt: Runtime): Route[] {
       if (!/^\d+(\.\d+)*$/.test(step)) throw new HttpError(400, "step must be a dotted step path");
       const code = parseCodeRef(body.code);
       const algorithm = requireAlgorithm(rt, session.id, ref);
+      if (!parseSteps(algorithm.data.content).some((s) => s.number === step)) throw new HttpError(404, `${ref} has no step ${step}`);
       let entry;
       try { entry = await addMappingStep(rt, session.id, { ref: algorithm.data.ref, step, code }); }
-      catch (error) { throw new HttpError(409, (error as Error).message); }
+      catch (error) { throw new HttpError(error instanceof MappingStepConflict ? 409 : 502, (error as Error).message); }
       send(res, 201, { entryId: entry.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/align$/, async ({ req, res, params }) => {
