@@ -286,12 +286,22 @@ test("claude write mode: full bypasses permissions, editsOnly drops the shell", 
   assert.equal(edits![edits!.indexOf("--tools") + 1], "Read,Edit,Write");
 });
 
-test("claude write mode allows MCP tools and refuses to resume a provider session", async () => {
+test("claude write mode allows MCP tools", async () => {
   stdout(claudeResult);
   await new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", mcpServers: { spatial: { type: "http", url: "http://x" } } }));
   const a: string[] = calls()[0].argv;
   assert.equal(a[a.indexOf("--allowedTools") + 1], "mcp__spatial__*");
-  await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", resumeProviderSession: "s" })), /do not resume/);
+});
+
+test("claude write mode resumes a provider session with the write flags", async () => {
+  stdout(claudeResult);
+  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "write", writeMode: "editsOnly", resumeProviderSession: "sess-0" }));
+  const a: string[] = calls()[0].argv;
+  const flag = (f: string) => a[a.indexOf(f) + 1];
+  assert.deepEqual(a.slice(0, 4), ["-p", "--output-format", "stream-json", "--verbose"]);
+  assert.equal(flag("--resume"), "sess-0");
+  assert.equal(flag("--tools"), "Read,Edit,Write");
+  assert.equal(flag("--permission-mode"), "auto");
 });
 
 test("claude write mode: a stream without a result event is an error", async () => {
@@ -309,8 +319,23 @@ test("codex write mode flags per mode", async () => {
   assert.deepEqual(edits!.slice(edits!.indexOf("--sandbox"), edits!.indexOf("--sandbox") + 6), ["--sandbox", "workspace-write", "--disable", "shell_tool", "--disable", "unified_exec"]);
 });
 
-test("codex write mode refuses to resume a provider session", async () => {
-  await assert.rejects(new CodexBackend({ bin: STUB }).run(req({ tools: "write", resumeProviderSession: "t" })), /do not resume/);
+test("codex write mode resumes a provider session with the write policy as -c overrides", async () => {
+  stdout(codexOut("ok"));
+  for (const writeMode of ["auto", "full", "editsOnly"] as const) await new CodexBackend({ bin: STUB }).run(req({ tools: "write", writeMode, cwd: dir, resumeProviderSession: "th-0" }));
+  const all = calls();
+  const [auto, full, edits] = all.map((call) => call.argv as string[]);
+  for (const [i, a] of [auto!, full!, edits!].entries()) {
+    assert.deepEqual(a.slice(0, 2), ["exec", "resume"]);
+    for (const flag of ["--json", "--skip-git-repo-check", "--ignore-user-config"]) assert.ok(a.includes(flag), flag);
+    for (const flag of ["--sandbox", "--approve-for-me", "-C"]) assert.ok(!a.includes(flag), `exec resume has no ${flag}`);
+    assert.ok(!a.includes('sandbox_mode="read-only"'));
+    assert.deepEqual(a.slice(-2), ["th-0", "-"]);
+    assert.equal(all[i]!.cwd, dir);
+  }
+  assert.ok(auto!.includes('sandbox_mode="workspace-write"') && auto!.includes('approval_policy="on-request"') && auto!.includes('approvals_reviewer="auto_review"'));
+  assert.ok(full!.includes("--dangerously-bypass-approvals-and-sandbox") && !full!.some((arg) => arg.startsWith("sandbox_mode")));
+  assert.ok(edits!.includes('sandbox_mode="workspace-write"'));
+  assert.deepEqual(edits!.slice(edits!.indexOf("--disable")), ["--disable", "shell_tool", "--disable", "unified_exec", "th-0", "-"]);
 });
 
 test("codex error events do not fail a finished turn", async () => {

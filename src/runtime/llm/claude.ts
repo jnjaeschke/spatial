@@ -23,7 +23,6 @@ export class ClaudeBackend implements LlmBackend {
   async run(req: LlmRequest): Promise<LlmResult> {
     const write = req.tools === "write";
     const mode = req.writeMode ?? "auto";
-    if (write && req.resumeProviderSession) throw new Error("claude: write runs do not resume provider sessions");
     const args = [
       "-p", "--output-format", write ? "stream-json" : "json", ...(write ? ["--verbose"] : []),
       "--model", req.model,

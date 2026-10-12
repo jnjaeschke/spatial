@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ModelInfo } from "../../shared/types.ts";
+import type { ModelInfo, WriteMode } from "../../shared/types.ts";
 import { runProcess } from "../process.ts";
 import { codexEventReader } from "./events.ts";
 import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
@@ -33,18 +33,14 @@ export class CodexBackend implements LlmBackend {
   async run(req: LlmRequest): Promise<LlmResult> {
     const write = req.tools === "write";
     const mode = req.writeMode ?? "auto";
-    if (write && req.resumeProviderSession) throw new Error("codex: write runs do not resume provider sessions");
     const common = [
       "--json", "--skip-git-repo-check", "--ignore-user-config",
       "-m", req.model,
       "-c", `model_reasoning_effort=${req.effort}`,
     ];
-    const sandbox = !write ? ["--sandbox", "read-only"]
-      : mode === "full" ? ["--dangerously-bypass-approvals-and-sandbox"]
-        : mode === "editsOnly" ? ["--sandbox", "workspace-write", "--disable", "shell_tool", "--disable", "unified_exec"]
-          : ["--approve-for-me"];
+    const sandbox = sandboxArgs(write, mode, Boolean(req.resumeProviderSession));
     const args = req.resumeProviderSession
-      ? ["exec", "resume", ...common, "-c", 'sandbox_mode="read-only"']
+      ? ["exec", "resume", ...common, ...sandbox]
       : ["exec", ...common, ...sandbox, ...(req.cwd ? ["-C", req.cwd] : [])];
     for (const [name, server] of Object.entries(req.mcpServers ?? {})) {
       if (server.type === "http") {
@@ -77,6 +73,14 @@ export class CodexBackend implements LlmBackend {
   }
 }
 
+/** `exec resume` accepts neither `--sandbox`, `--approve-for-me` nor `-C`: a resumed run states the same policy as `-c` overrides and works in the process cwd. */
+function sandboxArgs(write: boolean, mode: WriteMode, resumed: boolean): string[] {
+  if (!write) return resumed ? ["-c", 'sandbox_mode="read-only"'] : ["--sandbox", "read-only"];
+  if (mode === "full") return ["--dangerously-bypass-approvals-and-sandbox"];
+  const workspace = resumed ? ["-c", 'sandbox_mode="workspace-write"'] : ["--sandbox", "workspace-write"];
+  if (mode === "editsOnly") return [...workspace, "--disable", "shell_tool", "--disable", "unified_exec"];
+  return resumed ? [...workspace, "-c", 'approval_policy="on-request"', "-c", 'approvals_reviewer="auto_review"'] : ["--approve-for-me"];
+}
 
 function parseCodexOutput(stdout: string, stderr: string, code: number, structured: boolean): LlmResult {
   let threadId: string | undefined;
