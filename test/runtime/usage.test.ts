@@ -10,12 +10,12 @@ const codex = (providerSessionId: string, inputTokens: number, cachedInputTokens
 
 test("a codex run costs its fresh input, cached input and output at the model's price", () => {
   const [run] = meteredRuns([codex("th", 1_100_000, 1_000_000, 100_000)]);
-  assert.deepEqual({ ...run, ts: undefined }, { ts: undefined, sessionId: "s", backend: "codex", model: "gpt-6.1-sol", inputTokens: 1_100_000, cachedInputTokens: 1_000_000, outputTokens: 100_000, costUsd: 1.3 });
+  assert.deepEqual({ ...run, ts: undefined }, { ts: undefined, sessionId: "s", backend: "codex", model: "gpt-6.1-sol", tokens: { input: 1_100_000, cachedInput: 1_000_000, output: 100_000 }, costUsd: 1.3 });
 });
 
 test("a resumed codex thread counts only what it added since the thread's previous run", () => {
   const runs = meteredRuns([codex("a", 100, 50, 10), codex("b", 7, 0, 1), codex("a", 300, 200, 30)]);
-  assert.deepEqual(runs.map((r) => [r.inputTokens, r.cachedInputTokens, r.outputTokens]), [[100, 50, 10], [7, 0, 1], [200, 150, 20]]);
+  assert.deepEqual(runs.map((r) => [r.tokens!.input, r.tokens!.cachedInput, r.tokens!.output]), [[100, 50, 10], [7, 0, 1], [200, 150, 20]]);
 });
 
 test("claude's reported cost is the run's cost; an unpriced model has none", () => {
@@ -32,5 +32,5 @@ test("a run recorded before tokens were metered keeps only its reported cost", (
     event({ selection: { backend: "codex", model: "gpt-6.1-sol", effort: "medium" }, usage: { inputTokens: 687631, outputTokens: 3770 } }),
     event({ selection: { backend: "codex", model: "gpt-6.1-sol", effort: "medium" }, usage: null }),
   ]);
-  assert.deepEqual(runs.map((r) => [r.inputTokens, r.outputTokens, r.costUsd]), [[0, 0, 0.49], [0, 0, null], [0, 0, null]]);
+  assert.deepEqual(runs.map((r) => [r.tokens, r.costUsd]), [[null, 0.49], [null, null], [null, null]]);
 });

@@ -31,6 +31,7 @@ function UsageDialog({ runs, onClose }: { runs: UsageRun[]; onClose(): void }) {
   const colors = new Map(models.map((model, i) => [model.key, color(i)]));
   const total = models.reduce((sum, model) => sum + model.costUsd, 0);
   const unpriced = models.reduce((sum, model) => sum + model.unpricedRuns, 0);
+  const unmetered = models.reduce((sum, model) => sum + model.unmeteredRuns, 0);
   return <Dialog title={<>LLM spend · {formatUsd(total)}</>} className="usage-dialog" testId="usage-dialog" onClose={onClose} footer={<button type="button" onClick={onClose}>Close</button>}>
     <div className="usage-models">
       <UsagePie models={models} colors={colors} />
@@ -38,14 +39,14 @@ function UsageDialog({ runs, onClose }: { runs: UsageRun[]; onClose(): void }) {
         <thead><tr><th>Model</th><th>Runs</th><th title="Input tokens, cached ones included">Input</th><th>Cached</th><th>Output</th><th>Cost</th></tr></thead>
         <tbody>{models.map((model) => <tr key={model.key}>
           <td><span className="usage-swatch" style={{ background: colors.get(model.key) }} />{model.key}</td>
-          <td>{model.runs}</td><td>{formatTokens(model.inputTokens)}</td><td>{formatTokens(model.cachedInputTokens)}</td><td>{formatTokens(model.outputTokens)}</td>
+          <td>{model.runs}</td>{(["input", "cachedInput", "output"] as const).map((field) => <td key={field} title={model.unmeteredRuns ? `${model.unmeteredRuns} runs recorded before tokens were metered are not included` : undefined}>{model.unmeteredRuns === model.runs ? "—" : <>{formatTokens(model.tokens[field])}{model.unmeteredRuns > 0 && "*"}</>}</td>)}
           <td title={model.unpricedRuns ? `${model.unpricedRuns} runs without a known cost are not included` : undefined}>{formatUsd(model.costUsd)}{model.unpricedRuns > 0 && "*"}</td>
         </tr>)}</tbody>
       </table>
     </div>
     <h3>Last {DAYS} days</h3>
     <UsageBars days={usageByDay(runs, DAYS, new Date())} colors={colors} />
-    <p className="usage-note">Claude costs are what the claude CLI reports; codex costs are its tokens at list prices.{unpriced > 0 && ` * ${unpriced} runs have no known cost: an unpriced model, or recorded before tokens were metered.`}</p>
+    <p className="usage-note">Claude costs are what the claude CLI reports; codex costs are its tokens at list prices.{unpriced > 0 && ` * ${unpriced} runs have no known cost: an unpriced model, or recorded before tokens were metered without a reported cost.`}{unmetered > 0 && ` ${unmetered} runs were recorded before tokens were metered: their tokens are missing (— or *).`}</p>
   </Dialog>;
 }
 

@@ -7,9 +7,9 @@ export interface ModelUsage {
   /** Runs whose cost is unknown and missing from `costUsd`. */
   unpricedRuns: number;
   costUsd: number;
-  inputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
+  /** Runs whose tokens are unknown and missing from `tokens`. */
+  unmeteredRuns: number;
+  tokens: { input: number; cachedInput: number; output: number };
 }
 
 /** Spend and tokens per model, most expensive first. */
@@ -18,13 +18,14 @@ export function usageByModel(runs: UsageRun[]): ModelUsage[] {
   for (const run of runs) {
     const key = `${run.backend}/${run.model}`;
     let model = models.get(key);
-    if (!model) models.set(key, model = { key, runs: 0, unpricedRuns: 0, costUsd: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 });
+    if (!model) models.set(key, model = { key, runs: 0, unpricedRuns: 0, costUsd: 0, unmeteredRuns: 0, tokens: { input: 0, cachedInput: 0, output: 0 } });
     model.runs++;
     if (run.costUsd === null) model.unpricedRuns++;
     else model.costUsd += run.costUsd;
-    model.inputTokens += run.inputTokens;
-    model.cachedInputTokens += run.cachedInputTokens;
-    model.outputTokens += run.outputTokens;
+    if (run.tokens === null) { model.unmeteredRuns++; continue; }
+    model.tokens.input += run.tokens.input;
+    model.tokens.cachedInput += run.tokens.cachedInput;
+    model.tokens.output += run.tokens.output;
   }
   return [...models.values()].sort((a, b) => b.costUsd - a.costUsd || a.key.localeCompare(b.key));
 }

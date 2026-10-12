@@ -74,15 +74,14 @@ export interface LlmSelection {
   effort: string;
 }
 
-/** One metered LLM run: its tokens and its cost in USD, `null` when unknown (an unpriced model, or a run recorded before tokens were metered). Item of `GET /api/usage`. */
+/** One LLM run: its tokens, `null` for a run recorded before tokens were metered, and its cost in USD, `null` when unknown (an unpriced model, or unmetered tokens without a reported cost). Item of `GET /api/usage`. */
 export interface UsageRun {
   ts: string;
   sessionId: string;
   backend: LlmBackendId;
   model: string;
-  inputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
+  /** Input tokens, cached ones included. */
+  tokens: { input: number; cachedInput: number; output: number } | null;
   costUsd: number | null;
 }
 

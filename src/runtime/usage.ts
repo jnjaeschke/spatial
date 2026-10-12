@@ -16,20 +16,20 @@ interface UsagePayload { selection: LlmSelection; providerSessionId?: string; us
 
 type Counts = Pick<LlmUsage, "inputTokens" | "cachedInputTokens" | "outputTokens">;
 
-/** Each `llm.usage` event as one run with its own tokens and cost. Cumulative counts become the difference to the provider session's previous run, which also bills runs in between that failed before reporting. Events from before tokens were metered keep only a reported cost. */
+/** Each `llm.usage` event as one run with its own tokens and cost. Cumulative counts become the difference to the provider session's previous run, which also bills runs in between that failed before reporting. Events from before tokens were metered have no tokens and keep only a reported cost. */
 export function meteredRuns(events: RuntimeEvent[]): UsageRun[] {
   const totals = new Map<string, Counts>();
   return events.map((event) => {
     const { selection, providerSessionId, usage } = event.payload as UsagePayload;
     const run = { ts: event.ts, sessionId: event.sessionId, backend: selection.backend, model: selection.model };
-    if (!usage || usage.cumulative === undefined || usage.cachedInputTokens === undefined) return { ...run, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, costUsd: usage?.costUsd ?? null };
+    if (!usage || usage.cumulative === undefined || usage.cachedInputTokens === undefined) return { ...run, tokens: null, costUsd: usage?.costUsd ?? null };
     let counts: Counts = { inputTokens: usage.inputTokens, cachedInputTokens: usage.cachedInputTokens, outputTokens: usage.outputTokens };
     if (usage.cumulative && providerSessionId !== undefined) {
       const before = totals.get(providerSessionId);
       totals.set(providerSessionId, counts);
       if (before) counts = { inputTokens: counts.inputTokens - before.inputTokens, cachedInputTokens: counts.cachedInputTokens - before.cachedInputTokens, outputTokens: counts.outputTokens - before.outputTokens };
     }
-    return { ...run, ...counts, costUsd: usage.costUsd ?? priced(selection, counts) };
+    return { ...run, tokens: { input: counts.inputTokens, cachedInput: counts.cachedInputTokens, output: counts.outputTokens }, costUsd: usage.costUsd ?? priced(selection, counts) };
   });
 }
 

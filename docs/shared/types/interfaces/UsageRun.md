@@ -6,7 +6,7 @@
 
 # Interface: UsageRun
 
-One metered LLM run: its tokens and its cost in USD, `null` when unknown (an unpriced model, or a run recorded before tokens were metered). Item of `GET /api/usage`.
+One LLM run: its tokens, `null` for a run recorded before tokens were metered, and its cost in USD, `null` when unknown (an unpriced model, or unmetered tokens without a reported cost). Item of `GET /api/usage`.
 
 ## Properties
 
@@ -16,21 +16,9 @@ One metered LLM run: its tokens and its cost in USD, `null` when unknown (an unp
 
 ***
 
-### cachedInputTokens
-
-> **cachedInputTokens**: `number`
-
-***
-
 ### costUsd
 
 > **costUsd**: `number` \| `null`
-
-***
-
-### inputTokens
-
-> **inputTokens**: `number`
 
 ***
 
@@ -40,15 +28,17 @@ One metered LLM run: its tokens and its cost in USD, `null` when unknown (an unp
 
 ***
 
-### outputTokens
-
-> **outputTokens**: `number`
-
-***
-
 ### sessionId
 
 > **sessionId**: `string`
+
+***
+
+### tokens
+
+> **tokens**: \{ `cachedInput`: `number`; `input`: `number`; `output`: `number`; \} \| `null`
+
+Input tokens, cached ones included.
 
 ***
 
