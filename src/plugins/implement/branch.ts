@@ -12,3 +12,8 @@ export async function freeBranchName(request: string, exists: (name: string) => 
     if (!(await exists(name))) return name;
   }
 }
+
+/** Throws unless the checkout is on `expected`; `current` is the checked-out branch, null on a detached HEAD. */
+export function requireCheckoutOn(current: string | null, expected: string): void {
+  if (current !== expected) throw new Error(`The checkout is on ${current ?? "a detached HEAD"}, not on ${expected}; spatial does not switch branches or move the checkout back`);
+}

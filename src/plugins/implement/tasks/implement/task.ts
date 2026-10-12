@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
+import { requireCheckoutOn } from "../../branch.ts";
 import { requireEditsOnlyReady, requireProfile } from "../../profiles.ts";
 import { describeCheck } from "../../shared/acceptance.ts";
 import { describeFinding } from "../../runtime/findings.ts";
@@ -36,7 +37,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const previous = (view.artifacts.filter((a) => a.type === "ImplementResult") as Artifact<ImplementResultData>[]).at(-1);
 
     const current = await writer.currentBranch();
-    if (current !== branch.branch) throw new Error(`The checkout is on ${current ?? "a detached HEAD"}, not on ${branch.branch}; spatial does not move the checkout back`);
+    requireCheckoutOn(current, branch.branch);
     const tip = await ctx.git.resolve("HEAD");
     const rewrite = view.artifacts.slice(previous ? view.artifacts.indexOf(previous) + 1 : 0).findLast((a) => a.type === "StackRewrite") as Artifact<StackRewriteData> | undefined;
     const expected = rewrite?.data.to ?? previous?.data.head;

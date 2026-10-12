@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, schemaErrors, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
 import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
+import { requireCheckoutOn } from "../../branch.ts";
 import { requireProfile } from "../../profiles.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
 import { verifyChecks } from "../../runtime/checks.ts";
@@ -47,7 +48,7 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
   async run(ctx, { request, profile: profileId, baseSha, branch, previous, llm }) {
     const profile = requireProfile(ctx.repoProfiles, profileId);
     const current = await makeGitWriter(ctx.repo).currentBranch();
-    if (current !== branch) throw new Error(`The checkout is on ${current ?? "a detached HEAD"}, not on ${branch}; spatial does not switch branches for you`);
+    requireCheckoutOn(current, branch);
     const view = ctx.artifacts.view();
     const threads = previous ? view.artifacts.filter((a) => a.type === "ChatThread" && (a.data as ChatThreadData).anchor.split("#")[0] === previous.id) : [];
     const prompt = [
