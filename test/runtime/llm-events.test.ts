@@ -129,6 +129,30 @@ test("codex stream: command and MCP results pair with their calls", () => {
   assert.ok(events.filter((e) => e.kind === "command").every((e) => e.kind === "command" && e.callId?.startsWith("item_")));
 });
 
+test("codex stream: with a schema the turn's last agent message is the answer, not activity", () => {
+  const lines = [
+    { type: "item.completed", item: { id: "a", type: "agent_message", text: "Looking at the frame code." } },
+    { type: "item.started", item: { id: "c", type: "command_execution", command: "ls" } },
+    { type: "item.completed", item: { id: "b", type: "agent_message", text: "{\"answer\":\"done\"}" } },
+    { type: "turn.completed", usage: {} },
+  ].map((line) => JSON.stringify(line));
+  const texts = (structured: boolean) => {
+    const events: LlmEvent[] = [];
+    const reader = codexEventReader((e) => events.push(e), clock(), structured);
+    for (const line of lines) reader(line);
+    return activities(events).flatMap((a) => a.kind === "text" ? [a.text] : []);
+  };
+  assert.deepEqual(texts(true), ["Looking at the frame code."]);
+  assert.deepEqual(texts(false), ["Looking at the frame code.", "{\"answer\":\"done\"}"]);
+});
+
+test("an MCP call's detail names what it works on, like a Claude tool", () => {
+  const events: LlmEvent[] = [];
+  codexEventReader((e) => events.push(e))(JSON.stringify({ type: "item.completed", item: { id: "m", type: "mcp_tool_call", server: "spatial", tool: "scm_file", arguments: { rev: "9143bdf", path: "layout/generic/nsIFrame.cpp", start: 2350, end: 2505 }, result: { content: [] } } }));
+  const call = activities(events).find((a) => a.kind === "tool")!;
+  assert.equal(call.kind === "tool" && call.detail, "layout/generic/nsIFrame.cpp");
+});
+
 test("codex result output is capped at 16 KB", () => {
   const events: LlmEvent[] = [];
   codexEventReader((e) => events.push(e))(JSON.stringify({ type: "item.completed", item: { id: "x", type: "command_execution", command: "yes", aggregated_output: "y".repeat(MAX_RESULT_OUTPUT + 10), exit_code: 0, status: "completed" } }));

@@ -14,7 +14,7 @@ const firstLine = (text: string) => text.split("\n", 1)[0]!.slice(0, 200);
 const said = (kind: "text" | "thinking", text: unknown): LlmEvent[] => typeof text === "string" && text.trim() ? [{ kind: "activity", activity: { kind, text: capOutput(text, MAX_ACTIVITY_TEXT) } }] : [];
 const tool = (name: string, detail: string, callId?: string): LlmEvent => ({ kind: "activity", activity: { kind: "tool", name, detail: firstLine(detail), ...(callId ? { callId } : {}) } satisfies LlmActivity });
 const toolResult = (callId: string, exitCode: number | null, durationMs: number, output: string): LlmEvent => ({ kind: "activity", activity: { kind: "tool-result", callId, exitCode, durationMs, output: capOutput(output, MAX_RESULT_OUTPUT) } });
-/** The input that names what a Claude tool call works on, else the whole input. */
+/** The input that names what a tool call works on, else the whole input. */
 const toolDetail = (input: Record<string, unknown>) => {
   const named = ["command", "file_path", "pattern", "path", "url", "query", "description"].map((key) => input[key]).find((value) => typeof value === "string");
   return typeof named === "string" ? named : JSON.stringify(input);
@@ -57,21 +57,26 @@ export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => nu
   };
 }
 
-/** Reads Codex `exec --json` lines: `thread.started` is the session event, `command_execution` items become command events, `file_change` items progress. Messages, reasoning, commands, file changes, MCP calls and web searches are activity. `error` items are warnings and ignored. */
-export function codexEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now): (line: string) => void {
+/** Reads Codex `exec --json` lines: `thread.started` is the session event, `command_execution` items become command events, `file_change` items progress. Messages, reasoning, commands, file changes, MCP calls and web searches are activity. `error` items are warnings and ignored. With `structured` (an `--output-schema` run) the turn's last agent message is the answer, so each message is held until another item shows it was not the last. */
+export function codexEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now, structured = false): (line: string) => void {
   const started = new Map<string, number>();
   const elapsed = (id: string) => now() - (started.get(id) ?? now());
+  let held: unknown = null;
+  const release = () => { for (const e of said("text", held)) emit(e); held = null; };
   return (line) => {
     const event = parse(line);
     if (event?.type === "thread.started" && typeof event.thread_id === "string") { emit({ kind: "session", providerSessionId: event.thread_id }); return; }
+    if (event?.type === "turn.completed") { held = null; return; }
+    if (event?.type === "turn.failed") { release(); return; }
     const item = event?.item;
     if (!item) return;
+    release();
     const completed = event!.type === "item.completed";
-    if (completed && item.type === "agent_message") for (const e of said("text", item.text)) emit(e);
+    if (completed && item.type === "agent_message") { if (structured) held = item.text; else for (const e of said("text", item.text)) emit(e); }
     else if (completed && item.type === "reasoning") for (const e of said("thinking", item.text)) emit(e);
     else if (event!.type === "item.started" && item.type === "mcp_tool_call") started.set(item.id, now());
     else if (completed && item.type === "mcp_tool_call") {
-      emit(tool(`${item.server}.${item.tool}`, JSON.stringify(item.arguments ?? {}), item.id));
+      emit(tool(`${item.server}.${item.tool}`, toolDetail(item.arguments ?? {}), item.id));
       const text = item.error?.message ?? (Array.isArray(item.result?.content) ? item.result.content.map((part: any) => part?.text ?? "").join("") : "");
       emit(toolResult(item.id, null, elapsed(item.id), text));
     }

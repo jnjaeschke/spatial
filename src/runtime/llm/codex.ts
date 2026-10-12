@@ -65,7 +65,7 @@ export class CodexBackend implements LlmBackend {
     if (req.resumeProviderSession) args.push(req.resumeProviderSession, "-");
     const stdin = req.system !== undefined && !req.resumeProviderSession ? `${req.system}\n\n${req.prompt}` : req.prompt;
     try {
-      const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin, cwd: req.cwd, signal: req.signal, onStdoutLine: req.onEvent ? codexEventReader(req.onEvent) : undefined });
+      const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin, cwd: req.cwd, signal: req.signal, onStdoutLine: req.onEvent ? codexEventReader(req.onEvent, Date.now, Boolean(req.schema)) : undefined });
       return parseCodexOutput(stdout, stderr, code, Boolean(req.schema));
     } finally {
       if (tmp) rmSync(tmp, { recursive: true, force: true });
