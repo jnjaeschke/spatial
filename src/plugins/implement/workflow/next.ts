@@ -6,13 +6,13 @@ import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 import { commentsFeedback } from "../runtime/comments-feedback.ts";
-import { chosenDecision, latestArtifact, workflowView } from "../../../plugin-api.ts";
+import { chosenDecision, latestArtifact, plural, workflowView } from "../../../plugin-api.ts";
 
 export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
-export const workInQuestion = (count: number): string => `Work in ${count} reviewer comment${count === 1 ? "" : "s"}?`;
+export const workInQuestion = (count: number): string => `Work in ${plural(count, "reviewer comment")}?`;
 const planInvalidQuestion = (reason: string) => `The implement agent reports that the plan does not hold: ${reason}`;
-const fixQuestion = (count: number) => `Fix ${count} high finding${count === 1 ? "" : "s"}`;
+const fixQuestion = (count: number) => `Fix ${plural(count, "high finding")}`;
 const REVIEW_KEYS = new Set(["review-fix", "reviewed"]);
 
 const decisionsOf = (view: WorkflowView) => view.artifacts.filter((a) => a.type === "Decision") as Artifact<DecisionData>[];
@@ -128,7 +128,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
       return null;
     }
     const rounds = ruleRounds(decisions), max = profile.autoFixRounds ?? 2;
-    if (open.length > 0 && rounds < max) return decisionStep("review-fix", fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${open.length} high finding${open.length === 1 ? "" : "s"} open; automatic fix round ${rounds + 1} of ${max}` });
+    if (open.length > 0 && rounds < max) return decisionStep("review-fix", fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${plural(open.length, "high finding")} open; automatic fix round ${rounds + 1} of ${max}` });
     return decisionStep("reviewed", REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
   }
 

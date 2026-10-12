@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type Workflow, type WorkflowStartData, makeGitWriter } from "../../../plugin-api.ts";
+import { type Workflow, type WorkflowStartData, makeGitWriter, plural } from "../../../plugin-api.ts";
 import { implementCheckAnswer, implementNext, isActive } from "./next.ts";
 
 const params = z.strictObject({
@@ -26,7 +26,7 @@ export const implementWorkflow: Workflow<Params> = {
     if (changed === 0 && isMainline(branch)) return null;
     const where = branch ? `on branch \`${branch}\`` : "on a detached HEAD";
     const question = changed
-      ? `The checkout has uncommitted changes in ${changed} file${changed === 1 ? "" : "s"} (${where}).`
+      ? `The checkout has uncommitted changes in ${plural(changed, "file")} (${where}).`
       : `The checkout is ${where}, not on main.`;
     return { question, options: [
       { label: "Continue on this branch, keeping the changes", params: { checkout: "current-branch" } },

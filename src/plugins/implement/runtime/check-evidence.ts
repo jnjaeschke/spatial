@@ -1,4 +1,4 @@
-import { escapeRegex, type Id, type RepoProfile } from "../../../plugin-api.ts";
+import { escapeRegex, plural, type Id, type RepoProfile } from "../../../plugin-api.ts";
 import type { AcceptanceCheck, CheckResult } from "../shared/types.ts";
 import { describeCheck, isWptTest } from "../shared/acceptance.ts";
 
@@ -15,7 +15,7 @@ const namesPath = (command: string, path: string) => {
 const runsOf = (check: AcceptanceCheck, runs: CommandEvidence[], profile: Pick<RepoProfile, "isTestCommand">) =>
   check.kind === "measure" ? runs.filter((run) => run.command.trim() === check.command.trim()) : runs.filter((run) => profile.isTestCommand!(run.command) && namesPath(run.command, check.path));
 
-const runCount = (mine: CommandEvidence[]) => `${mine.length} run${mine.length === 1 ? "" : "s"}`;
+const runCount = (mine: CommandEvidence[]) => plural(mine.length, "run");
 const measureMessage = (mine: CommandEvidence[]) => mine.length === 0 ? "not run" : mine.some((run) => !run.edited) && mine.some((run) => run.edited) ? `${runCount(mine)}: before and after the first edit` : runCount(mine);
 
 function problemOf(check: Exclude<AcceptanceCheck, { kind: "measure" }>, mine: CommandEvidence[], first: boolean): string | null {

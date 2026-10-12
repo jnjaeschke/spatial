@@ -1,3 +1,4 @@
+import { plural } from "../../../plugin-api.ts";
 import type { AcceptanceCheck } from "../shared/types.ts";
 import { WPT_TESTS_PREFIX, isWptTest } from "../shared/acceptance.ts";
 
@@ -74,7 +75,7 @@ export function wptBaseEvidence(meta: Map<string, WptSection>, subtests: string[
   }
   if (sections.some((section) => failing(section.expected))) return { evidence: `${label()}: the test as a whole` };
   const count = sections.reduce((total, section) => total + [...section.subtests.values()].filter(failing).length, 0);
-  return count > 0 ? { evidence: `${label()}: ${count} subtest${count === 1 ? "" : "s"}` } : { problem: "the metadata expects no failure" };
+  return count > 0 ? { evidence: `${label()}: ${plural(count, "subtest")}` } : { problem: "the metadata expects no failure" };
 }
 
 /** Checks each check against the base: a `new-test` path must not exist; a `covering-test` or `failing-test` path must (a `covering-test` may also name a path in `added`, the files earlier steps add); a web-platform `failing-test` needs metadata that expects its failure and gets `baseEvidence`; a `measure` needs a command and a goal. Invalid checks are dropped with a reason. `show` reads a file at the base and rejects when it is missing. */
