@@ -25,7 +25,6 @@
 - [ComposerProps](interfaces/ComposerProps.md)
 - [ConversationItemProps](interfaces/ConversationItemProps.md)
 - [ConversationNodeData](interfaces/ConversationNodeData.md)
-- [DecisionNodeData](interfaces/DecisionNodeData.md)
 - [Draft](interfaces/Draft.md)
 - [ExportDiff](interfaces/ExportDiff.md)
 - [FileViewRequest](interfaces/FileViewRequest.md)

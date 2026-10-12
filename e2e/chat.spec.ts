@@ -137,6 +137,8 @@ test("double-clicking empty canvas opens a persistent chat at that spot", async 
   expect(point.x).toBeLessThanOrEqual(persistedBox.x + persistedBox.width);
   expect(point.y).toBeGreaterThanOrEqual(persistedBox.y);
   expect(point.y).toBeLessThanOrEqual(persistedBox.y + persistedBox.height);
+  await persisted.getByRole("button", { name: "Close" }).click();
+  await expect(persisted).toHaveCount(0);
 
   await openChange(page);
   const before = await page.evaluate(() => document.querySelector(".react-flow__viewport")!.getAttribute("style"));
@@ -176,7 +178,7 @@ test("/note from an aside draft creates a positioned draft note without a chat t
   await expect(page.locator(".note-node")).toContainText("check the lifetime here");
   await note.getByRole("button", { name: "Close" }).click();
   await expect(note).toHaveCount(0);
-  const reopen = page.getByTestId("conversation").getByRole("button", { name: "Reopen 1 closed note" });
+  const reopen = page.getByTestId("summary").getByRole("button", { name: "Reopen 1 closed note" });
   await revealNode(page, reopen);
   await reopen.click();
   await expect(note).toContainText("check the lifetime here");

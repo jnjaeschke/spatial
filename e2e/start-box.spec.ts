@@ -168,7 +168,8 @@ test("plain text goes to the selector: review", async ({ page, request }) => {
   await expect(page).toHaveURL(/\/sessions\/[^/]+/);
   await expect(page.locator(".session-title")).toHaveText("Review via selector", { timeout: 10_000 });
   await expect(page.getByTestId("change-c1")).toBeVisible({ timeout: 15_000 });
-  const conversation = page.getByTestId("conversation");
+  await page.getByTestId("session-chip").click();
+  const conversation = page.getByRole("dialog", { name: "Session" });
   await expect(conversation).toContainText("please look at my last commit");
   await conversation.getByLabel("message").fill("Tell me about this review");
   await conversation.getByRole("button", { name: "Send" }).click();

@@ -6,7 +6,7 @@
 
 # Function: isCoreKind()
 
-> **isCoreKind**\<`K`\>(`data`, `kind`): data is Extract\<NoteNodeData, \{ kind: K \}\> \| Extract\<ChatNodeData, \{ kind: K \}\> \| Extract\<ConversationNodeData, \{ kind: K \}\> \| Extract\<DecisionNodeData, \{ kind: K \}\> \| Extract\<DiagramNodeData, \{ kind: K \}\>
+> **isCoreKind**\<`K`\>(`data`, `kind`): data is Extract\<NoteNodeData, \{ kind: K \}\> \| Extract\<ChatNodeData, \{ kind: K \}\> \| Extract\<ConversationNodeData, \{ kind: K \}\> \| Extract\<DiagramNodeData, \{ kind: K \}\>
 
 Core node kind check.
 
@@ -14,7 +14,7 @@ Core node kind check.
 
 ### K
 
-`K` *extends* `"note"` \| `"chat"` \| `"decision"` \| `"conversation"` \| `"diagram"`
+`K` *extends* `"note"` \| `"chat"` \| `"conversation"` \| `"diagram"`
 
 ## Parameters
 
@@ -28,4 +28,4 @@ Core node kind check.
 
 ## Returns
 
-data is Extract\<NoteNodeData, \{ kind: K \}\> \| Extract\<ChatNodeData, \{ kind: K \}\> \| Extract\<ConversationNodeData, \{ kind: K \}\> \| Extract\<DecisionNodeData, \{ kind: K \}\> \| Extract\<DiagramNodeData, \{ kind: K \}\>
+data is Extract\<NoteNodeData, \{ kind: K \}\> \| Extract\<ChatNodeData, \{ kind: K \}\> \| Extract\<ConversationNodeData, \{ kind: K \}\> \| Extract\<DiagramNodeData, \{ kind: K \}\>

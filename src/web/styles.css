@@ -18,6 +18,7 @@
   --accent-2: light-dark(#9a4fe0, #c08bff);
   --accent-fg: #ffffff;
   --accent-soft: light-dark(#efedff, #231f45);
+  --session-chip: light-dark(#dcefe6, #1d3b30);
   --link: light-dark(#3d4fd6, #9fb0ff);
   --danger: light-dark(#c62a2f, #ff7d76);
   --warning: light-dark(#a65300, #f2a650);
@@ -188,8 +189,6 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .decision { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .decision-question { font-weight: 600; }
 .decision-options { display: inline-flex; gap: 4px; }
-.node.decision-node { --pad-y: 10px; --pad-x: 12px; }
-.topbar .decision input { width: 14em; }
 .llm-picker { display: inline-flex; gap: 4px; }
 .segmented { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border); }
 .segmented button { display: inline-grid; place-items: center; border: 0; box-shadow: none; background: transparent; border-radius: 999px; padding: 2px 7px; color: var(--text-3); }
@@ -639,6 +638,12 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .task .task-name { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; }
 .activity .task .task-name[aria-expanded="true"] { text-decoration: underline; }
 .activity-log { position: fixed; z-index: 20; right: 12px; bottom: 36px; display: flex; flex-direction: column; width: min(640px, calc(100vw - 24px)); max-height: 55vh; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 8px 28px rgb(0 0 0 / 0.25); font-size: 12px; color: var(--text-2); }
+.activity .session-chip { padding: 1px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--session-chip); font: inherit; font-weight: 600; color: var(--text); cursor: pointer; white-space: nowrap; }
+.activity .session-chip[data-state="running"]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.activity .session-chip[data-state="pending"] { border-color: var(--warning); color: var(--warning); }
+.activity-log.session-log { left: 12px; right: auto; }
+.session-log-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; overflow-y: auto; }
+.session-log .messages { max-height: 40vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .activity-log header { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); }
 .activity-log header b { color: var(--text); }
 .activity-log header button { margin-left: auto; padding: 0 7px; }

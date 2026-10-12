@@ -562,7 +562,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
     findingsOf(host.data).push(item);
   }
   for (const card of g.nodes) if (isReviewKind(card.data, "commit")) card.data.findingCount = commitFindingCount(g.nodes, card.data.index);
-  return rootGraph(state, drafts, { nodes: g.nodes, edges: g.edges, anchorOn: latest.narrative.id, hosts: hostOf, resolveSub: (anchor, ids) => anchorNodeId(anchor, latest.narrative.id, narrativeData, latest.diff.id, ids, state.links), diffId: latest.diff.id, hunks: allHunks });
+  return rootGraph(state, drafts, { nodes: g.nodes, edges: g.edges, hosts: hostOf, resolveSub: (anchor, ids) => anchorNodeId(anchor, latest.narrative.id, narrativeData, latest.diff.id, ids, state.links), diffId: latest.diff.id, hunks: allHunks });
 }
 
 /** A review with nothing pending or submitted starts collapsed. */

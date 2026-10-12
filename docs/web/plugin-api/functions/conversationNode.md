@@ -6,7 +6,7 @@
 
 # Function: conversationNode()
 
-> **conversationNode**(`state`, `start`, `root`, `anchors?`): [`GraphNode`](../interfaces/GraphNode.md)
+> **conversationNode**(`state`, `start`, `root`): [`GraphNode`](../interfaces/GraphNode.md)
 
 Chat content of a thread; the conversation node of a session start; notes and chats added to a root graph.
 
@@ -23,10 +23,6 @@ Chat content of a thread; the conversation node of a session start; notes and ch
 ### root
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<[`ChatThreadData`](../../../shared/types/interfaces/ChatThreadData.md)\> \| `undefined`
-
-### anchors?
-
-`string`[]
 
 ## Returns
 

@@ -16,20 +16,18 @@ const state = (artifacts: Artifact[], links: SessionState["links"] = [], searchf
 });
 const start = () => art("WorkflowStart", { via: "command", workflow: "implement", params: { request: "r" }, title: "Title", prompt: "do it" });
 
-test("without a start there is no graph; before the investigation only the request shows", () => {
+test("there is no graph before the investigation", () => {
   assert.equal(investigationGraph(state([]), []), null);
-  const g = investigationGraph(state([start()]), [])!;
-  assert.deepEqual(g.nodes.map((n) => n.data.kind), ["conversation"]);
+  assert.equal(investigationGraph(state([start()]), []), null);
 });
 
 test("the investigation is split into a header, a chain of step nodes and satellites", () => {
   const s = start(), inv = art("Investigation", { ...data, testCases: [{ description: "d", expected: "e" }], openQuestions: ["Q?"] });
   const g = investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "abc" }), [])!;
   const node = (id: string) => g.nodes.find((n) => n.id === id)!;
-  assert.deepEqual(g.nodes.map((n) => n.data.kind), ["investigation", "conversation", "investigation-step", "investigation-step", "location", "location", "investigation-tests", "investigation-questions"]);
+  assert.deepEqual(g.nodes.map((n) => n.data.kind), ["investigation", "investigation-step", "investigation-step", "location", "location", "investigation-tests", "investigation-questions"]);
   assert.equal(g.nodes[0]!.id, inv.id);
   assert.equal(g.nodes[0]!.anchors, undefined);
-  assert.deepEqual(node(s.id).anchors, [inv.id]);
   assert.equal(node(`${inv.id}#step0`).anchors, undefined);
   assert.equal(node(`${inv.id}#step1`).anchors, undefined);
   assert.deepEqual(node(`${inv.id}#loc0`).anchors, [`${inv.id}#step1`]);
@@ -38,7 +36,7 @@ test("the investigation is split into a header, a chain of step nodes and satell
   assert.deepEqual(node(`${inv.id}#questions`).anchors, [inv.id]);
   assert.deepEqual((node(`${inv.id}#loc0`).data as unknown as { searchfox: unknown }).searchfox, { repoBase: "https://sf/", rev: "abc" });
   const edges = g.edges.map((e) => `${e.source}>${e.target}`);
-  for (const edge of [`${inv.id}>${inv.id}#step0`, `${inv.id}#step0>${inv.id}#step1`, `${inv.id}#loc0>${inv.id}#step1`, `${inv.id}#loc1>${inv.id}`, `${inv.id}#tests>${inv.id}`, `${inv.id}#questions>${inv.id}`, `${s.id}>${inv.id}`]) assert.ok(edges.includes(edge), edge);
+  for (const edge of [`${inv.id}>${inv.id}#step0`, `${inv.id}#step0>${inv.id}#step1`, `${inv.id}#loc0>${inv.id}#step1`, `${inv.id}#loc1>${inv.id}`, `${inv.id}#tests>${inv.id}`, `${inv.id}#questions>${inv.id}`]) assert.ok(edges.includes(edge), edge);
   assert.equal(latestInvestigation(state([s, inv]))?.id, inv.id);
 });
 

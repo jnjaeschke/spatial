@@ -56,12 +56,6 @@ Re-exports [CoreNodeData](../plugin-api/type-aliases/CoreNodeData.md)
 
 ***
 
-### DecisionNodeData
-
-Re-exports [DecisionNodeData](../plugin-api/interfaces/DecisionNodeData.md)
-
-***
-
 ### DiagramNodeData
 
 Re-exports [DiagramNodeData](../plugin-api/type-aliases/DiagramNodeData.md)

@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Artifact, ChatMessageData, ChatThreadData, DecisionData, DiagramData, DiffFile, Hunk, Id, McpServerData, NoteData, Ref, RevisionData, SessionState, WorkflowStartData } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, ChatThreadData, DiagramData, DiffFile, Hunk, Id, McpServerData, NoteData, Ref, RevisionData, SessionState, WorkflowStartData } from "../shared/types.ts";
 import { revisionsOf } from "../shared/revisions.ts";
 import type { Draft } from "./chat-context.ts";
 import type { FreePosition } from "./free-positions.ts";
@@ -40,11 +40,8 @@ export interface ConversationNodeData extends Pick<ChatNodeData, "anchor" | "dif
   epochRunning?: boolean;
 }
 
-/** The open decision of the session, drawn beside the root node. */
-export interface DecisionNodeData { kind: "decision"; sessionId: string; decision: Artifact<DecisionData> }
-
 export type DiagramNodeData = { kind: "diagram"; diagram: Artifact<DiagramData>; closable?: boolean };
-export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DecisionNodeData | DiagramNodeData;
+export type CoreNodeData = NoteNodeData | ChatNodeData | ConversationNodeData | DiagramNodeData;
 /**
  * Data of a node kind a plugin registers. Core reads only the optional fields it documents:
  * `threads` (a `HostedThread[]` hosted inside the node), `quote` with `foldsToQuote`, `closable`
@@ -120,8 +117,8 @@ export const isSatellite = (node: GraphNode) => !!node.anchors?.length && (!node
 export const latestStart = (state: SessionState) => state.artifacts.findLast((a) => a.type === "WorkflowStart") as Artifact<WorkflowStartData> | undefined;
 export const rootThread = (state: SessionState, startId: string) => (state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[]).find((t) => t.data.anchor === startId && !t.data.aside);
 
-export function conversationNode(state: SessionState, start: Artifact<WorkflowStartData>, root: Artifact<ChatThreadData> | undefined, anchors?: string[]): GraphNode {
-  return { id: start.id, ...(anchors ? { anchors } : {}), data: {
+export function conversationNode(state: SessionState, start: Artifact<WorkflowStartData>, root: Artifact<ChatThreadData> | undefined): GraphNode {
+  return { id: start.id, data: {
     kind: "conversation", title: state.session.title, prompt: start.data.prompt || `/${start.data.workflow}`, anchor: start.id, diffId: "", hunks: [], draftId: null, epochRunning: state.epochs.some((epoch) => epoch.status === "running"),
     ...(root ? threadContent(state, root) : { threadId: null, taskId: null, messages: [], revisions: {}, mcpRequests: [] }),
   } };
@@ -144,37 +141,30 @@ export function threadContent(state: SessionState, thread: Artifact<ChatThreadDa
   return { threadId: thread.id, taskId: thread.provenance.taskId ?? null, messages, revisions, mcpRequests: mcpRequestsFor(state, thread.id), ...(diagramsByMessage ? { diagramsByMessage } : {}) };
 }
 
-/** Adds the session's notes beside the workflow start; before the chats, so chats can anchor on notes. */
+/** Adds the session's notes beside the root node (the first node); before the chats, so chats can anchor on notes. */
 export function addNotes(g: Graph, state: SessionState, nodeIds: Set<string>): void {
-  const start = latestStart(state);
-  if (!start) return;
+  const root = g.nodes[0];
+  if (!root) return;
   for (const artifact of state.artifacts) {
     if (artifact.type !== "Note") continue;
     const note = artifact as Artifact<NoteData>;
-    g.nodes.push({ id: note.id, anchors: [start.id], data: { kind: "note", body: note.data.body } });
-    g.edges.push({ id: `${note.id}->${start.id}`, source: note.id, target: start.id });
+    g.nodes.push({ id: note.id, anchors: [root.id], data: { kind: "note", body: note.data.body } });
+    g.edges.push({ id: `${note.id}->${root.id}`, source: note.id, target: root.id });
     nodeIds.add(note.id);
   }
 }
 
-/** Adds the session's open decision as a satellite of the root node (the first node). */
-export function addDecisions(g: Graph, state: SessionState): void {
-  const decision = state.artifacts.findLast((artifact) => artifact.type === "Decision") as Artifact<DecisionData> | undefined;
-  const root = g.nodes[0];
-  if (!decision || decision.data.chosen !== null || !root) return;
-  g.nodes.push({ id: decision.id, anchors: [root.id], data: { kind: "decision", sessionId: state.session.id, decision } satisfies DecisionNodeData });
-  g.edges.push({ id: `${decision.id}->${root.id}`, source: decision.id, target: root.id });
-}
-
-/** Hosts threads anchored on a node with hosted threads inside that node and adds nodes for the remaining chats; unresolvable anchors are skipped. */
+/** Hosts threads anchored on a node with hosted threads inside that node and adds nodes for the remaining chats and all asides; unresolvable anchors are skipped. */
 export function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: Map<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"]): void {
   const byMessage = diagramsByMessage(g, state);
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
+  const start = latestStart(state);
+  const root = start && rootThread(state, start.id);
   for (const thread of threads) {
-    if (hostOf.has(thread.id)) continue;
+    if (hostOf.has(thread.id) || thread === root) continue;
     const node = resolve(thread.data.anchor);
     if (!node) continue;
-    const host = g.nodes.find((item) => item.id === node && hostedThreads(item.data));
+    const host = thread.data.aside ? undefined : g.nodes.find((item) => item.id === node && hostedThreads(item.data));
     if (host) {
       hostedThreads(host.data)!.push({ ...threadContent(state, thread, byMessage), anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, diffId, hunks, draftId: null });
       hostOf.set(thread.id, host.id);
@@ -190,7 +180,7 @@ export function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf:
     if (draft.taskId && threads.some((thread) => thread.provenance.taskId === draft.taskId)) continue;
     const node = resolve(draft.anchor);
     if (!node) continue;
-    const host = g.nodes.find((item) => item.id === node && hostedThreads(item.data));
+    const host = draft.aside ? undefined : g.nodes.find((item) => item.id === node && hostedThreads(item.data));
     if (host) {
       hostedThreads(host.data)!.push({ threadId: null, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [], anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId, hunks, draftId: draft.id });
       hostOf.set(draft.id, host.id);
@@ -223,10 +213,6 @@ export function subgraph(g: Graph, keep: Set<string>): Graph {
 export interface RootGraphParts {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  /** The node the session conversation hangs beside; without it the conversation is the first (root) node. */
-  anchorOn?: string;
-  /** Place the conversation and its edge right after the `anchorOn` node (first in `nodes`) instead of last. */
-  conversationAfterAnchor?: boolean;
   /** Threads hosted inside nodes: thread id → host node id. */
   hosts?: ReadonlyMap<string, string>;
   /** Resolves a chat anchor that is not a node id (e.g. `<id>#loc1`) to a node id, or null. When given it is authoritative; without it the anchor resolves through the message it replies to. */
@@ -236,23 +222,14 @@ export interface RootGraphParts {
   hunks?: ChatNodeData["hunks"];
 }
 
-/** A plugin's root graph: its nodes and edges, the session conversation (when the session has a start request), notes and chats. A chat anchor resolves to a node, through `resolveSub` (else the message it replies to); a hosted thread resolves to its host. */
+/** A plugin's root graph: its nodes and edges (the first node is the root), notes and chats. A chat anchor resolves to a node, through `resolveSub` (else the message it replies to); an anchor on the workflow start resolves to the root; a hosted thread resolves to its host. The session's root thread is never a chat node. */
 export function rootGraph(state: SessionState, drafts: Draft[], parts: RootGraphParts): Graph {
-  const start = latestStart(state);
-  const root = start ? rootThread(state, start.id) : undefined;
-  const conversation = start ? [conversationNode(state, start, root, parts.anchorOn ? [parts.anchorOn] : undefined)] : [];
-  const g: Graph = { nodes: parts.anchorOn ? [...parts.nodes, ...conversation] : [...conversation, ...parts.nodes], edges: [...parts.edges] };
-  if (parts.conversationAfterAnchor) g.nodes = [...parts.nodes.slice(0, 1), ...conversation, ...parts.nodes.slice(1)];
-  if (start && parts.anchorOn) {
-    const edge = { id: `${start.id}->${parts.anchorOn}`, source: start.id, target: parts.anchorOn };
-    if (parts.conversationAfterAnchor) g.edges.unshift(edge);
-    else g.edges.push(edge);
-  }
+  const g: Graph = { nodes: [...parts.nodes], edges: [...parts.edges] };
+  const startId = latestStart(state)?.id;
   const hostOf = new Map(parts.hosts);
-  if (start && root) hostOf.set(root.id, start.id);
   const nodeIds = new Set([...g.nodes.map((node) => node.id), ...hostOf.keys()]);
   const resolve = (anchor: Ref) => {
-    const direct = nodeIds.has(anchor) ? anchor : parts.resolveSub ? parts.resolveSub(anchor, nodeIds) : state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to;
+    const direct = nodeIds.has(anchor) ? anchor : anchor === startId ? g.nodes[0]?.id : parts.resolveSub ? parts.resolveSub(anchor, nodeIds) : state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to;
     const host = direct && (hostOf.get(direct) ?? direct);
     return host && nodeIds.has(host) ? host : null;
   };
@@ -261,15 +238,18 @@ export function rootGraph(state: SessionState, drafts: Draft[], parts: RootGraph
   return g;
 }
 
+/** The chat workflow's graph: the conversation, hosting the root thread, as the only node. Null before the start request. */
 export function conversationGraph(state: SessionState, drafts: Draft[]): Graph | null {
-  return latestStart(state) ? rootGraph(state, drafts, { nodes: [], edges: [] }) : null;
+  const start = latestStart(state);
+  if (!start) return null;
+  const root = rootThread(state, start.id);
+  return rootGraph(state, drafts, { nodes: [conversationNode(state, start, root)], edges: [], ...(root ? { hosts: new Map([[root.id, start.id]]) } : {}) });
 }
 
 /** The canvas graph; `root` builds it from the session (first node = root). Null when no workflow is chosen yet or the root has nothing to show yet. */
 export function sessionGraph(root: (state: SessionState, drafts: Draft[]) => Graph | null, state: SessionState, drafts: Draft[] = [], freePositions: Record<string, FreePosition> = {}): Graph | null {
   const graph = state.session.workflow ? root(state, drafts) : null;
   if (graph) {
-    addDecisions(graph, state);
     for (const node of graph.nodes) if (node.data.kind === "chat" || node.data.kind === "note" || ("movable" in node.data && node.data.movable === true)) node.position = freePositions[node.id];
   }
   return graph;
@@ -314,7 +294,6 @@ function baseSize(data: GraphNodeData): { width: number; height: number } {
   if (isCoreKind(data, "note")) return { width: SATELLITE_WIDTH, height: 100 + lines(data.body, 60) * 22 };
   if (isCoreKind(data, "conversation")) return { width: NODE_WIDTH, height: Math.min(700, 140 + Math.max(1, data.messages.length) * 120) };
   if (isCoreKind(data, "chat")) return { width: SATELLITE_WIDTH, height: 140 + data.messages.length * 80 };
-  if (isCoreKind(data, "decision")) return { width: SATELLITE_WIDTH, height: 150 + data.decision.data.options.length * 10 };
   throw new Error(`No core size for node kind: ${data.kind}`);
 }
 

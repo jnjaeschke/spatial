@@ -12,7 +12,7 @@ export { ENGINE_LABEL, ENGINES } from "../shared/engines.ts";
 export { fileUrl } from "../shared/searchfox-url.ts";
 /** Task busy state: whether a task is active; busy, else the latest failure, of a set of tasks. */
 export { isActive, taskState } from "../shared/task-state.ts";
-export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, DiagramNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
+export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DiagramNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
 /** Width of cards and of satellites. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";
 /** Diagram node size estimate. */

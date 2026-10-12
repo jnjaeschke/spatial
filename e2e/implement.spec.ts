@@ -3,7 +3,6 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { revealNode } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 test.afterEach(() => { for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -60,12 +59,13 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(page.getByTestId("investigation-location")).toHaveCount(1);
   await expect(page.getByTestId("investigation-tests")).toContainText("Test cases (1)");
   await expect(page.getByTestId("investigation-tests").getByText("c exists")).toHaveCount(0);
-  await expect(page.getByTestId("decision-node")).toContainText("Approve the investigation plan?");
+  await expect(page.getByTestId("session-decision")).toContainText("Approve the investigation plan?");
 
-  const bar = page.getByTestId("topbar-decision");
+  const bar = page.getByTestId("session-decision");
   await bar.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByTestId("epoch-chip-1")).toContainText("Approve (you)");
   await expect(page.getByTestId("epoch-chip-3")).toContainText("Fix (rule)", { timeout: 60_000 });
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
 
   await page.getByTestId("epoch-chip-2").click();
   await page.getByTestId("command-summary").click();
@@ -75,8 +75,7 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(log.getByTestId("tool-output")).toContainText("hello-from-agent");
   await log.getByRole("button", { name: "Close activity" }).click();
   await page.getByTestId("epoch-chip-5").click();
-
-  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await page.getByTestId("session-chip").click();
   await expect(bar.getByRole("button", { name: "Accept" })).toBeVisible();
   await bar.getByLabel("decision text").fill("REVISE-IMPL tweak line 31");
   await bar.getByRole("button", { name: "Revise" }).click();
@@ -121,29 +120,77 @@ test("implement: a plan step is its own node and a selection inside it asks a ch
   }, { timeout: 20_000 }).toBe(true);
 });
 
+test("session chip: a decision opens the popover once, closing leaves it pending, answering clears it, a task log replaces it", async ({ page }) => {
+  test.setTimeout(120_000);
+  const dir = makeRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-E2E make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const popover = page.getByRole("dialog", { name: "Session" });
+  const chip = page.getByTestId("session-chip");
+  await expect(popover.getByTestId("session-decision")).toContainText("Approve the investigation plan?", { timeout: 20_000 });
+  await expect(page.getByTestId("investigation")).toBeVisible();
+  await expect(chip).toHaveAttribute("data-state", "idle");
+
+  await popover.getByRole("button", { name: "Close session" }).click();
+  await expect(popover).toHaveCount(0);
+  await expect(chip).toHaveAttribute("data-state", "pending");
+  await page.reload();
+  await expect(chip).toHaveAttribute("data-state", "pending");
+  await expect(popover).toHaveCount(0);
+
+  await chip.click();
+  await popover.getByRole("button", { name: "Approve" }).click();
+  await expect(popover).not.toContainText("Approve the investigation plan?");
+  await expect(popover.getByTestId("session-decision")).toContainText("The self-review is done", { timeout: 60_000 });
+
+  await page.locator(".activity .task-name").first().click();
+  await expect(popover).toHaveCount(0);
+  const log = page.getByRole("dialog", { name: / activity$/ });
+  await expect(log).toBeVisible();
+  await chip.click();
+  await expect(popover).toBeVisible();
+  await expect(log).toHaveCount(0);
+  await page.keyboard.press("Escape");
+});
+
+test("session chip: a selection in the main chat does not offer to ask", async ({ page }) => {
+  test.setTimeout(60_000);
+  const dir = makeRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-E2E make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const popover = page.getByRole("dialog", { name: "Session" });
+  await expect(popover.getByTestId("session-decision")).toBeVisible({ timeout: 20_000 });
+  await popover.getByLabel("message").fill("Why this plan?");
+  await popover.getByRole("button", { name: "Send" }).click();
+  const answer = popover.locator(".msg.assistant").first();
+  await expect(answer).toContainText("Stub answer.", { timeout: 20_000 });
+  await answer.evaluate((element) => window.getSelection()!.selectAllChildren(element));
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toContain("Stub answer.");
+  await page.waitForTimeout(300);
+  await expect(page.locator(".ask-selection")).toHaveCount(0);
+});
+
 test("steering a running implement epoch restarts it, resumed with the steer, and remembers the steer", async ({ page }) => {
   test.setTimeout(120_000);
   const dir = makeRepo();
   await page.goto(open(dir));
   await page.getByLabel("start").fill("/implement IMPL-STEER make c.txt exist");
   await page.getByLabel("start").press("Enter");
-  const bar = page.getByTestId("topbar-decision");
+  const bar = page.getByTestId("session-decision");
   await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
   await bar.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByTestId("implement-running")).toBeVisible({ timeout: 20_000 });
   const sessionId = /\/sessions\/([^/?#]+)/.exec(page.url())![1];
   await expect.poll(async () => ((await (await page.request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json()) as { artifacts: { type: string }[] }).artifacts.some((a) => a.type === "AgentSession"), { timeout: 20_000 }).toBe(true);
-  const conversation = page.getByTestId("conversation");
+  const conversation = page.getByRole("dialog", { name: "Session" });
   await conversation.getByLabel("message").fill("Keep the diff small");
-  const liveSteer = conversation.getByRole("button", { name: "Steer", exact: true });
-  await revealNode(page, liveSteer);
-  await liveSteer.click();
+  await conversation.getByRole("button", { name: "Steer", exact: true }).click();
   await expect(conversation.getByTestId("steer-item").first()).toHaveText(/^Steered Keep the diff small/);
   await expect(page.getByTestId("implement-running")).toBeVisible();
   await conversation.getByLabel("message").fill("STEER-ME name the helper");
-  const steer = conversation.getByRole("button", { name: "Stop & steer" });
-  await revealNode(page, steer);
-  await steer.click();
+  await conversation.getByRole("button", { name: "Stop & steer" }).click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
   await page.getByTestId("epoch-chip-2").click();
   await expect(page.getByTestId("steer-outcome")).toContainText(/resumed with your steer/i);
@@ -156,7 +203,6 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   const notice = conversation.getByTestId("memory-notice");
   await expect(notice).toContainText("Remembered for this repo");
   await expect(notice).toContainText("Name helpers after what they return");
-  await revealNode(page, notice);
   await notice.getByRole("button", { name: "Forget this" }).click();
   await expect(notice).toContainText("Forgotten");
   await expect(notice.getByRole("button", { name: "Forget this" })).toHaveCount(0);
@@ -236,7 +282,7 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await page.goto(open(dir));
   await page.getByLabel("start").fill("/implement TRY-E2E Bug 4242 make c.txt exist");
   await page.getByLabel("start").press("Enter");
-  const bar = page.getByTestId("topbar-decision");
+  const bar = page.getByTestId("session-decision");
   await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
   await bar.getByRole("button", { name: "Approve" }).click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
@@ -249,6 +295,7 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await checkResult.getByTestId("check-run").click();
   await expect(page.getByRole("dialog", { name: "implement activity" }).getByTestId("tool-output")).toContainText("tests-ran-ok");
   await page.getByTestId("epoch-chip-3").click();
+  await page.getByTestId("session-chip").click();
   await bar.getByRole("button", { name: "Accept" }).click();
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
   await expect(page.getByTestId("try-proposal")).toContainText("Runs the plain mochitests.");
@@ -293,7 +340,7 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await page.goto(open(dir));
   await page.getByLabel("start").fill("/implement TRY-E2E Bug 4242 make c.txt exist");
   await page.getByLabel("start").press("Enter");
-  const bar = page.getByTestId("topbar-decision");
+  const bar = page.getByTestId("session-decision");
   await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
   await bar.getByRole("button", { name: "Approve" }).click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
@@ -307,6 +354,7 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await page.getByTestId("epoch-chip-6").waitFor({ timeout: 20_000 });
   await request.post("http://127.0.0.1:4179/control", { data: { revision: 4242, transactions: [inlineTx(4301, "c.txt", 1, "Magic value?"), inlineTx(4302, "c.txt", 1, "Why a new file?")] } });
   await expect(bar).toContainText("Work in 2 reviewer comments?", { timeout: 30_000 });
+  await page.getByRole("button", { name: "Close session" }).click();
   const comments = page.getByTestId("reviewer-comment");
   await expect(comments).toHaveCount(2);
   expect((await page.getByTestId("epoch-strip").boundingBox())!.height).toBeLessThan(100);
@@ -321,6 +369,7 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await expect(page.getByTestId("post-replies-result")).toContainText("Posted 1 draft reply");
   const inlines = await (await request.get("http://127.0.0.1:4179/control/inlines?revision=4242")).json();
   expect(inlines.map((i: { content: string; filePath: string }) => [i.filePath, i.content])).toEqual([["c.txt", "Smaller diff this way."]]);
+  await page.getByTestId("session-chip").click();
   await bar.getByRole("button", { name: "Work in" }).click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
   expect(readFileSync(join(dir, "c.txt"), "utf8")).toContain("kept");
@@ -336,11 +385,12 @@ test("gecko: chat proposes a try push and nothing is pushed until the click", as
   await page.getByLabel("start").fill("/review");
   await page.getByLabel("start").press("Enter");
   await expect(page).toHaveURL(/\/sessions\/[^/]+/);
-  const conversation = page.getByTestId("conversation");
+  await page.getByTestId("session-chip").click();
+  const conversation = page.getByRole("dialog", { name: "Session" });
   const input = conversation.getByLabel("message");
   await input.fill("PUSH-TRY-PLEASE");
   await conversation.getByRole("button", { name: "Send" }).click();
-  const bar = page.getByTestId("topbar-decision");
+  const bar = page.getByTestId("session-decision");
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
   await expect(bar.getByLabel("decision text")).toHaveValue("./mach try auto");
   await expect(page.getByTestId("try-proposal")).toContainText("You asked for try.");

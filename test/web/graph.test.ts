@@ -1,28 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DecisionData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
-import { addDecisions, closeGraph, conversationGraph, diagramSize, diagramsByMessage, estimateSize, fitMinZoom, isCoreKind, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type ConversationNodeData, type Graph, type GraphNode } from "../../src/web/graph.ts";
+import type { Artifact, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
+import { closeGraph, conversationGraph, diagramSize, diagramsByMessage, estimateSize, fitMinZoom, isCoreKind, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type ConversationNodeData, type Graph, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";
 
 const sessionGraph = (st: SessionState, drafts?: Draft[], freePositions?: Record<string, FreePosition>) => buildSessionGraph(conversationGraph, st, drafts, freePositions);
-
-test("an open decision hangs beside the root node; an answered one is not drawn", () => {
-  const decision = (chosen: DecisionData["chosen"]) => ({ id: "d1", sessionId: "s", type: "Decision", status: "proposed", data: { key: "q", question: "Q?", options: [{ id: "a", label: "A" }], chosen }, provenance: { taskId: "runtime" }, epoch: 1, createdAt: "" }) as Artifact;
-  const state = (artifacts: Artifact[]) => ({ session: { id: "s", repoDir: "/r/.git" }, artifacts }) as unknown as SessionState;
-  const graph = (): Graph => ({ nodes: [{ id: "root", data: { kind: "note", body: "" } }], edges: [] });
-  const open = graph();
-  addDecisions(open, state([decision(null)]));
-  assert.deepEqual(open.nodes.map((n) => n.id), ["root", "d1"]);
-  assert.deepEqual(open.nodes[1]!.anchors, ["root"]);
-  assert.deepEqual(open.edges, [{ id: "d1->root", source: "d1", target: "root" }]);
-  const answered = graph();
-  addDecisions(answered, state([decision({ option: "a", by: "user" })]));
-  assert.equal(answered.nodes.length, 1);
-  const empty: Graph = { nodes: [], edges: [] };
-  addDecisions(empty, state([decision(null)]));
-  assert.equal(empty.nodes.length, 0);
-});
 
 const hunk = (id: string, n = 3) => ({
   id, header: "@@ -1 +1 @@", oldStart: 1, oldLines: n, newStart: 1, newLines: n,
@@ -151,16 +134,29 @@ const rgState = (artifacts: ReturnType<typeof rgArtifact>[], links: { id: string
 }) as unknown as SessionState;
 const start = rgArtifact("START", "WorkflowStart", { via: "command", workflow: "chat", params: {}, title: "T", prompt: "hi" });
 
-test("rootGraph puts the conversation first, or beside anchorOn after the plugin nodes", () => {
-  const plain = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }], edges: [] });
-  assert.deepEqual(plain.nodes.map((n) => n.id), ["START", "A"]);
-  const anchored = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }], edges: [], anchorOn: "A" });
-  assert.deepEqual(anchored.nodes.map((n) => [n.id, n.anchors ?? []]), [["A", []], ["START", ["A"]]]);
-  assert.deepEqual(anchored.edges, [{ id: "START->A", source: "START", target: "A" }]);
-  const after = rootGraph(rgState([start]), [], { nodes: [{ id: "A", data: { kind: "x" } }, { id: "B", data: { kind: "x" } }], edges: [{ id: "A->B", source: "A", target: "B" }], anchorOn: "A", conversationAfterAnchor: true });
-  assert.deepEqual(after.nodes.map((n) => n.id), ["A", "START", "B"]);
-  assert.deepEqual(after.edges.map((e) => e.id), ["START->A", "A->B"]);
-  assert.deepEqual(rootGraph(rgState([]), [], { nodes: [], edges: [] }).nodes, []);
+test("rootGraph adds no conversation node: the plugin's first node is the root, and the root thread is no chat", () => {
+  const rootThread = rgArtifact("T0", "ChatThread", { anchor: "START" });
+  const g = rootGraph(rgState([start, rootThread]), [], { nodes: [{ id: "A", data: { kind: "x" } }, { id: "B", data: { kind: "x" } }], edges: [{ id: "A->B", source: "A", target: "B" }] });
+  assert.deepEqual(g.nodes.map((n) => n.id), ["A", "B"]);
+  assert.deepEqual(g.edges.map((e) => e.id), ["A->B"]);
+  assert.deepEqual(rootGraph(rgState([start]), [], { nodes: [], edges: [] }), { nodes: [], edges: [] });
+});
+
+test("notes and asides on the workflow start anchor on the root node; without nodes they are dropped", () => {
+  const note = rgArtifact("N1", "Note", { body: "b" });
+  const aside = rgArtifact("TA", "ChatThread", { anchor: "START", aside: true });
+  const g = rootGraph(rgState([start, note, aside]), [], { nodes: [{ id: "A", data: { kind: "x" } }], edges: [] });
+  assert.deepEqual(g.nodes.filter((n) => n.anchors).map((n) => [n.id, n.anchors]), [["N1", ["A"]], ["TA", ["A"]]]);
+  assert.deepEqual(g.edges.map((e) => e.id).sort(), ["N1->A", "TA->A"]);
+  assert.deepEqual(rootGraph(rgState([start, note, aside]), [], { nodes: [], edges: [] }).nodes, []);
+});
+
+test("conversationGraph is the conversation node hosting the root thread", () => {
+  const thread = rgArtifact("T0", "ChatThread", { anchor: "START" });
+  const g = conversationGraph(rgState([start, thread]), [])!;
+  assert.deepEqual(g.nodes.map((n) => [n.id, n.data.kind]), [["START", "conversation"]]);
+  assert.equal((g.nodes[0]!.data as ConversationNodeData).threadId, "T0");
+  assert.equal(conversationGraph(rgState([]), []), null);
 });
 
 test("rootGraph resolves chat anchors to nodes, sub-refs and hosts; the replied message only without resolveSub", () => {
@@ -203,7 +199,7 @@ test("a closed node with reopenOn is offered on its host; movable nodes take the
 
 test("the root conversation says whether an epoch of the session is running", () => {
   const running = { ...rgState([start]), epochs: [{ sessionId: "s", n: 1, phase: "implement", status: "running", input: null, error: null, startedAt: "", endedAt: null }] } as unknown as SessionState;
-  const data = (st: SessionState) => rootGraph(st, [], { nodes: [], edges: [] }).nodes[0]!.data as ConversationNodeData;
+  const data = (st: SessionState) => conversationGraph(st, [])!.nodes[0]!.data as ConversationNodeData;
   assert.equal(data(running).epochRunning, true);
   assert.equal(data(rgState([start])).epochRunning, false);
 });

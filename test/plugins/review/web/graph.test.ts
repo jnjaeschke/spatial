@@ -58,29 +58,15 @@ const state = (artifacts: Artifact[], workflow: "review" | "chat" | null = "revi
   tasks: [], lastEventId: 0, searchfox: null,
  epochs: [],});
 
-test("review graph hosts the session request and earliest root thread before the summary", () => {
+test("review graph has no conversation node; asides on the latest request and the root thread stay off the canvas", () => {
   const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "review", params: {}, title: "Review", prompt: "Check this patch" } , epoch: null} as Artifact<WorkflowStartData>;
   const laterStart = { ...start, id: "W2", data: { ...start.data, prompt: "Latest request" } };
   const aside = { id: "TA", sessionId: "S", type: "ChatThread", status: "proposed", createdAt: "2", provenance: { taskId: "t" }, data: { anchor: "W2", aside: true } , epoch: null} as Artifact;
   const root = { id: "T0", sessionId: "S", type: "ChatThread", status: "proposed", createdAt: "3", provenance: { taskId: "t" }, data: { anchor: "W2" } , epoch: null} as Artifact;
-  const laterRoot = { ...root, id: "T1", createdAt: "4" };
-  const st = state([diff, narrative("N"), start, laterStart, aside, root, laterRoot]);
-  const graph = sessionGraph(st)!;
+  const graph = sessionGraph(state([diff, narrative("N"), start, laterStart, aside, root]))!;
   assert.equal(graph.nodes[0]?.id, "N");
-  const conversation = graph.nodes.find((node) => node.data.kind === "conversation")!;
-  assert.equal(conversation.id, "W2");
-  assert.deepEqual(conversation.anchors, ["N"]);
-  assert.ok(graph.edges.some((edge) => edge.source === "W2" && edge.target === "N"));
-  if (conversation.data.kind === "conversation") {
-    assert.equal(conversation.data.prompt, "Latest request");
-    assert.equal(conversation.data.threadId, "T0");
-  }
-});
-
-test("conversation prompt falls back to the workflow command when empty", () => {
-  const start = { id: "W", sessionId: "S", type: "WorkflowStart", status: "proposed", createdAt: "0", provenance: { taskId: "t" }, data: { via: "selector", workflow: "review", params: {}, title: "Review", prompt: "" } , epoch: null} as Artifact<WorkflowStartData>;
-  const conversation = sessionGraph(state([diff, narrative("N"), start]))!.nodes.find((node) => node.data.kind === "conversation");
-  assert.equal(conversation?.data.kind === "conversation" ? conversation.data.prompt : null, "/review");
+  assert.ok(!graph.nodes.some((node) => node.data.kind === "conversation" || node.id === "W2" || node.id === "T0"));
+  assert.deepEqual(graph.nodes.find((node) => node.id === "TA")?.anchors, ["N"]);
 });
 
 test("latestNarrative picks the newest narrative and its diff", () => {

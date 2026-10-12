@@ -10,22 +10,6 @@ What a plugin contributes to its root graph.
 
 ## Properties
 
-### anchorOn?
-
-> `optional` **anchorOn?**: `string`
-
-The node the session conversation hangs beside; without it the conversation is the first (root) node.
-
-***
-
-### conversationAfterAnchor?
-
-> `optional` **conversationAfterAnchor?**: `boolean`
-
-Place the conversation and its edge right after the `anchorOn` node (first in `nodes`) instead of last.
-
-***
-
 ### diffId?
 
 > `optional` **diffId?**: `string`

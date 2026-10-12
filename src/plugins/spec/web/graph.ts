@@ -1,4 +1,4 @@
-import { isSatellite, latestStart, lines, placeSatellites, rootGraph, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
+import { conversationNode, isSatellite, latestStart, lines, placeSatellites, rootGraph, rootThread, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import type { Artifact, SessionState } from "../../../web/plugin-api.ts";
 import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 
@@ -64,7 +64,8 @@ export function explorerGraph(state: SessionState, drafts: Draft[], closed: Read
     if (ref !== undefined) return ids.has(specNodeId(ref)) ? specNodeId(ref) : null;
     return state.links.find((link) => link.kind === "reply" && link.from === anchor)?.to ?? null;
   };
-  return rootGraph(state, drafts, { nodes, edges: [...edges.values()], resolveSub });
+  const root = rootThread(state, start.id);
+  return rootGraph(state, drafts, { nodes: [conversationNode(state, start, root), ...nodes], edges: [...edges.values()], resolveSub, ...(root ? { hosts: new Map([[root.id, start.id]]) } : {}) });
 }
 
 const GAP_X = 120, GAP_Y = 48;

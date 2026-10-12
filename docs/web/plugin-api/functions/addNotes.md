@@ -8,7 +8,7 @@
 
 > **addNotes**(`g`, `state`, `nodeIds`): `void`
 
-Adds the session's notes beside the workflow start; before the chats, so chats can anchor on notes.
+Adds the session's notes beside the root node (the first node); before the chats, so chats can anchor on notes.
 
 ## Parameters
 

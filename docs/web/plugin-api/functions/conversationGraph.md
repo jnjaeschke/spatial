@@ -8,7 +8,7 @@
 
 > **conversationGraph**(`state`, `drafts`): [`Graph`](../type-aliases/Graph.md) \| `null`
 
-The root graph of a plain chat session.
+The chat workflow's graph: the conversation, hosting the root thread, as the only node. Null before the start request.
 
 ## Parameters
 

@@ -9,6 +9,7 @@ function element(node: Node | null): Element | null {
 
 export function anchorOfSelection(sel: Selection): SelectionResult | null {
   if (sel.isCollapsed) return null;
+  if ([sel.anchorNode, sel.focusNode].some((node) => element(node)?.closest("[data-no-ask]"))) return null;
   const quote = sel.toString().trim();
   if (!quote) return null;
   const start = element(sel.anchorNode)?.closest<HTMLElement>("[data-anchor]");

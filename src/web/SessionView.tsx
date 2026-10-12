@@ -13,8 +13,7 @@ import { ExportDialog } from "./ExportDialog.tsx";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
 import { activePhaseView, sessionViews } from "./phase-views.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
-import { openDecision } from "./decisions.ts";
-import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
+import { ModelsContext } from "./DecisionControls.tsx";
 import { EpochStrip } from "./EpochStrip.tsx";
 import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
 import { RouteContext, routeUrl, sessionViewOf, showSessionView } from "./routes.ts";
@@ -22,7 +21,7 @@ import { Segmented } from "./Segmented.tsx";
 import { ReplyActionsContext, derivedArtifacts } from "./reply-actions.ts";
 import { webConversationItems, webReplyActions } from "../plugins/web.ts";
 import { ConversationItemsContext } from "./conversation-items.ts";
-import { OpenActivityLogContext, type ActivityLogTarget } from "./activity-log-context.ts";
+import { OpenActivityLogContext, type OpenLog } from "./activity-log-context.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -30,7 +29,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [exporting, setExporting] = useState(false);
   const [topbarSlot, setTopbarSlot] = useState<HTMLElement | null>(null);
   const [viewed, setViewed] = useState<number | null>(null);
-  const [log, setLog] = useState<ActivityLogTarget | null>(null);
+  const [log, setLog] = useState<OpenLog | null>(null);
   const { state, error, progress, notices, dismissNotice } = useSessionState(sessionId);
   const { models, error: modelsError } = useModels();
   const [viewId, setViewId] = useState(() => sessionViewOf(new URL(location.href)));
@@ -64,7 +63,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   if (error) return <p className="empty failed">{error}</p>;
   if (modelsError) return <p className="empty failed">Models could not be loaded: {modelsError}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
-  const decision = openDecision(state.artifacts);
   const latestEpoch = state.epochs.at(-1) ?? null;
   const past = viewed !== null && viewed !== latestEpoch?.n ? state.epochs.find((e) => e.n === viewed) ?? null : null;
   const shown = past ? stateAtEpoch(state, past.n) : state;
@@ -76,13 +74,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     : <p className="empty failed">No view for phase {phase}</p>;
   const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
   return <RouteContext.Provider value={route}><div className="app">
-    <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{extra.available.length > 0 && <Segmented label="Session view" className="session-views" options={[{ value: "", label: phase ?? "phase", title: "Phase view" }, ...extra.available.map((candidate) => ({ value: candidate.id, label: candidate.label, title: candidate.label }))]} value={extra.active?.id ?? ""} onChange={(id) => showSessionView(id || null)} />}{decision && <DecisionControls key={decision.id} sessionId={sessionId} decision={decision} testId="topbar-decision" />}<span className="spacer" />{!extra.active && view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
+    <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{extra.available.length > 0 && <Segmented label="Session view" className="session-views" options={[{ value: "", label: phase ?? "phase", title: "Phase view" }, ...extra.available.map((candidate) => ({ value: candidate.id, label: candidate.label, title: candidate.label }))]} value={extra.active?.id ?? ""} onChange={(id) => showSessionView(id || null)} />}<span className="spacer" />{!extra.active && view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
     {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
-    <OpenActivityLogContext.Provider value={setLog}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}>{body}<AskOnSelect /></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></OpenActivityLogContext.Provider>
-    <ActivityStrip sessionId={sessionId} tasks={state.tasks} artifacts={state.artifacts} progress={progress} log={log} onLog={setLog} />
+    <OpenActivityLogContext.Provider value={setLog}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}>{body}<AskOnSelect /><ActivityStrip state={state} progress={progress} log={log} onLog={setLog} /></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></OpenActivityLogContext.Provider>
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}
   </div></RouteContext.Provider>;
