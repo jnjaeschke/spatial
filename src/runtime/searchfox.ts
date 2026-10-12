@@ -4,6 +4,13 @@ import type { CodeScope, GeckoSpecRef } from "../shared/types.ts";
 import { runChecked } from "./process.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
 import type { CodeSearch } from "./code-search.ts";
+import { escapeRegex } from "./code-search.ts";
+
+/** A searchfox repository the runtime searches: Gecko's or WebKit's. */
+export type SearchfoxRepo = "mozilla-central" | "wubkat";
+
+// A file at the top of each tree, read once for the tip permalink.
+const TIP_FILE: Record<SearchfoxRepo, string> = { "mozilla-central": "moz.build", wubkat: "CMakeLists.txt" };
 
 export function isGeckoRepo(repo: string): boolean {
   return existsSync(join(repo, "mach")) && existsSync(join(repo, "moz.build"));
@@ -30,8 +37,10 @@ export function parseFunctionAt(output: string): CodeScope[] {
   });
 }
 
-export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () => number } = {}): SearchfoxCapability {
+export function makeSearchfox(opts: { bin?: string; repo?: SearchfoxRepo; tipTtlMs?: number; now?: () => number } = {}): SearchfoxCapability {
   const bin = opts.bin ?? "searchfox-cli";
+  const repo = opts.repo ?? "mozilla-central";
+  const repoArgs = repo === "mozilla-central" ? [] : ["-R", repo];
   const tipTtlMs = opts.tipTtlMs ?? 60 * 60 * 1000;
   const now = opts.now ?? Date.now;
   let tipResult: Promise<{ repoBase: string; rev: string }> | undefined;
@@ -39,7 +48,7 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
   /** A value for a searchfox-cli flag; its parser would take a leading `-` for another flag. */
   const value = (text: string) => { if (text.startsWith("-")) throw new Error(`searchfox-cli argument must not start with "-": ${text}`); return text; };
   const run = async (args: string[], signal: AbortSignal) => {
-    return (await runChecked(bin, args, { stdin: "", signal, label: "searchfox-cli" })).stdout;
+    return (await runChecked(bin, [...repoArgs, ...args], { stdin: "", signal, label: "searchfox-cli" })).stdout;
   };
   return {
     effect: "read-only",
@@ -65,8 +74,8 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
       if (tipResult && now() - tipAt >= tipTtlMs) tipResult = undefined;
       if (!tipResult) {
         tipAt = now();
-        const result = run(["--get-file", "moz.build", "--lines", "1", "--permalink"], new AbortController().signal).then((out) => {
-          const m = /^(https:\/\/\S+\/)rev\/([0-9a-f]{40})\/moz\.build#1$/.exec(out.trim());
+        const result = run(["--get-file", TIP_FILE[repo], "--lines", "1", "--permalink"], new AbortController().signal).then((out) => {
+          const m = new RegExp(`^(https://\\S+/)rev/([0-9a-f]{40})/${escapeRegex(TIP_FILE[repo])}#1$`).exec(out.trim());
           if (!m) throw new Error(`Unexpected searchfox-cli permalink output: ${out.trim().slice(0, 200)}`);
           return { repoBase: m[1]!, rev: m[2]! };
         });

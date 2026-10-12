@@ -1,0 +1,5 @@
+Source/WebCore/loader/FrameLoader.cpp:3356
+in _ZN7WebCore11FrameLoader14detachChildrenEv
+  void FrameLoader::detachChildren()
+  in NS_WebCore
+    namespace WebCore {

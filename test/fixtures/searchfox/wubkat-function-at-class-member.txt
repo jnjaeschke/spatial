@@ -1,0 +1,7 @@
+Source/WebCore/loader/NavigationScheduler.cpp:226
+in _ZN7WebCore17ScheduledRedirect4fireERNS_5FrameE
+  void fire(Frame& frame) override
+  in T_WebCore::ScheduledRedirect
+    class ScheduledRedirect : public ScheduledURLNavigation {
+    in NS_WebCore
+      namespace WebCore {

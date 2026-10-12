@@ -1,0 +1,5 @@
+Source/WebCore/loader/FrameLoader.h:475
+in T_WebCore::FrameLoader
+  class FrameLoader final : public CanMakeWeakPtr<FrameLoader> {
+  in NS_WebCore
+    namespace WebCore {

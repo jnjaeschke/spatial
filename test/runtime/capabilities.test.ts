@@ -74,6 +74,29 @@ test("searchfox: tip expires after its time to live", async () => {
   assert.equal(argv().length, 2);
 });
 
+test("searchfox -R wubkat: every call carries the repo; spec refs and scopes parse as on mozilla-central", async () => {
+  const url = "https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate";
+  const sf = makeSearchfox({ bin: STUB, repo: "wubkat" });
+  stdout(SEARCHFOX_FIXTURE("wubkat-spec-refs-navigate.md"));
+  const refs = await sf.specRefs(url, signal, 500);
+  assert.deepEqual(argv()[0], ["-R", "wubkat", "--spec-refs", url, "-l", "500"]);
+  assert.deepEqual(refs.filter((r) => r.group === "Code").map((r) => `${r.path}:${r.line}`), ["Source/WebCore/loader/FrameLoader.cpp:1721", "Source/WebCore/loader/FrameLoader.cpp:3356", "Source/WebCore/loader/NavigationScheduler.cpp:226"]);
+  assert.equal(refs.filter((r) => r.group === "Test").length, 7);
+  stdout(SEARCHFOX_FIXTURE("wubkat-spec-refs-none.txt"));
+  assert.deepEqual(await sf.specRefs(url, signal), []);
+  stdout(SEARCHFOX_FIXTURE("wubkat-function-at-class-member.txt"));
+  assert.deepEqual((await sf.functionAt("Source/WebCore/loader/NavigationScheduler.cpp", 226, signal)).map((s) => s.symbol), ["_ZN7WebCore17ScheduledRedirect4fireERNS_5FrameE", "T_WebCore::ScheduledRedirect", "NS_WebCore"]);
+  assert.deepEqual(argv()[2], ["-R", "wubkat", "--function-at", "Source/WebCore/loader/NavigationScheduler.cpp:226"]);
+  stdout(SEARCHFOX_FIXTURE("wubkat-function-at-class-scope.txt"));
+  assert.deepEqual((await sf.functionAt("Source/WebCore/loader/FrameLoader.h", 475, signal)).map((s) => s.symbol), ["T_WebCore::FrameLoader", "NS_WebCore"]);
+});
+
+test("searchfox -R wubkat: the tip comes from CMakeLists.txt", async () => {
+  stdout(SEARCHFOX_FIXTURE("wubkat-permalink.txt"));
+  assert.deepEqual(await makeSearchfox({ bin: STUB, repo: "wubkat" }).tip(), { repoBase: "https://searchfox.org/wubkat/", rev: "6bae8554f35d8bae4df1929726f60f9adbc40eca" });
+  assert.deepEqual(argv()[0], ["-R", "wubkat", "--get-file", "CMakeLists.txt", "--lines", "1", "--permalink"]);
+});
+
 test("fake searchfox serves the Fake::Navigate fixture", async () => {
   const sf = makeSearchfox({ bin: FAKE_SEARCHFOX });
   assert.deepEqual((await sf.specRefs("https://html.spec.whatwg.org/#navigate", signal, 500)).map((r) => `${r.group} ${r.path}:${r.line}`), ["Code dom/fake/Fake.cpp:3", "Code dom/fake/Fake.cpp:9", "Web-Platform Test testing/web-platform/tests/fake/navigate.html:2"]);
