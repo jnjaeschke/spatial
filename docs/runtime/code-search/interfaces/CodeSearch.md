@@ -6,7 +6,7 @@
 
 # Interface: CodeSearch
 
-Read-only code search over one engine's source tree at its current revision: the calls an engine mapping makes.
+Read-only code search over one engine's source tree at its current revision: the calls an engine mapping makes. `pinned`: `tip().rev` fixes the files' contents (false for a branch name). `heuristicScopes`: `functionAt` is a brace scan, not a code index.
 
 ## Properties
 
@@ -19,6 +19,18 @@ Read-only code search over one engine's source tree at its current revision: the
 ### engine
 
 > `readonly` **engine**: [`Engine`](../../../shared/types/type-aliases/Engine.md)
+
+***
+
+### heuristicScopes
+
+> `readonly` **heuristicScopes**: `boolean`
+
+***
+
+### pinned
+
+> `readonly` **pinned**: `boolean`
 
 ## Methods
 

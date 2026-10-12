@@ -78,10 +78,10 @@ export function makeSearchfox(opts: { bin?: string; tipTtlMs?: number; now?: () 
   };
 }
 
-/** `CodeSearch` over a searchfox repository (searchfox indexes Gecko and WebKit); a missing file (`404 Not Found`) reads as null. */
+/** `CodeSearch` over a searchfox repository (searchfox indexes Gecko and WebKit), which pins every revision and indexes functions; a missing file (`404 Not Found`) reads as null. */
 export function searchfoxCodeSearch(engine: "gecko" | "webkit", searchfox: SearchfoxCapability): CodeSearch {
   return {
-    effect: "read-only", engine,
+    effect: "read-only", engine, pinned: true, heuristicScopes: false,
     specRefs: (url, signal, limit) => searchfox.specRefs(url, signal, limit),
     functionAt: (path, line, signal) => searchfox.functionAt(path, line, signal),
     async file(path, signal) {

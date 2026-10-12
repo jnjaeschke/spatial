@@ -234,6 +234,12 @@ Re-exports [DirectoryListing](../shared/types/interfaces/DirectoryListing.md)
 
 ***
 
+### enclosingFunction
+
+Re-exports [enclosingFunction](../runtime/brace-scan/functions/enclosingFunction.md)
+
+***
+
 ### Engine
 
 Re-exports [Engine](../shared/types/type-aliases/Engine.md)
@@ -258,9 +264,21 @@ Re-exports [EpochStatus](../shared/types/type-aliases/EpochStatus.md)
 
 ***
 
+### escapeRegex
+
+Re-exports [escapeRegex](../runtime/code-search/functions/escapeRegex.md)
+
+***
+
 ### FileStatus
 
 Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
+
+***
+
+### functionsIn
+
+Re-exports [functionsIn](../runtime/brace-scan/functions/functionsIn.md)
 
 ***
 
@@ -588,6 +606,12 @@ Re-exports [runWorkflow](../workflows/start/functions/runWorkflow.md)
 
 ***
 
+### ScannedFunction
+
+Re-exports [ScannedFunction](../runtime/brace-scan/interfaces/ScannedFunction.md)
+
+***
+
 ### schemaErrors
 
 Re-exports [schemaErrors](../runtime/structured/functions/schemaErrors.md)
@@ -729,6 +753,12 @@ Re-exports [SpecSection](../shared/types/interfaces/SpecSection.md)
 ### SpecSite
 
 Re-exports [SpecSite](../shared/types/interfaces/SpecSite.md)
+
+***
+
+### specUrlParts
+
+Re-exports [specUrlParts](../runtime/code-search/functions/specUrlParts.md)
 
 ***
 

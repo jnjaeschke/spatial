@@ -49,6 +49,7 @@
 - [plugins/spec/shared/types](plugins/spec/shared/types/README.md)
 - [plugins/spec/web/api](plugins/spec/web/api/README.md)
 - [runtime/blame](runtime/blame/README.md)
+- [runtime/brace-scan](runtime/brace-scan/README.md)
 - [runtime/code-search](runtime/code-search/README.md)
 - [runtime/create](runtime/create/README.md)
 - [runtime/diagram](runtime/diagram/README.md)
