@@ -63,6 +63,7 @@
 - [StartQuestion](interfaces/StartQuestion.md)
 - [TaskActivityResponse](interfaces/TaskActivityResponse.md)
 - [TaskRecord](interfaces/TaskRecord.md)
+- [UsageRun](interfaces/UsageRun.md)
 - [WorkflowInfo](interfaces/WorkflowInfo.md)
 - [WorkflowStartData](interfaces/WorkflowStartData.md)
 

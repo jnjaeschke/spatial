@@ -928,3 +928,18 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .memory-form { display: flex; flex-direction: column; gap: 6px; }
 .memory-field { display: flex; flex-direction: column; gap: 2px; }
 .memory-field textarea, .memory-field input[type="text"], .memory-field input:not([type]) { width: 100%; }
+
+.usage-widget { font-variant-numeric: tabular-nums; }
+.usage-dialog { width: min(720px, calc(100vw - 32px)); }
+.usage-dialog h3 { margin: 16px 0 8px; font-size: 1em; }
+.usage-models { display: flex; gap: 20px; align-items: center; }
+.usage-pie { flex: 0 0 140px; width: 140px; height: 140px; }
+.usage-table { flex: 1; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.usage-table th, .usage-table td { padding: 3px 8px; text-align: right; white-space: nowrap; }
+.usage-table th:first-child, .usage-table td:first-child { text-align: left; }
+.usage-table th { color: var(--text-3); font-weight: 500; border-bottom: 1px solid var(--border); }
+.usage-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: baseline; }
+.usage-bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; height: 120px; align-items: end; padding-bottom: 18px; position: relative; border-bottom: 1px solid var(--border); }
+.usage-bar { height: 100%; display: flex; flex-direction: column-reverse; background: color-mix(in oklab, var(--surface-2) 60%, transparent); border-radius: 2px 2px 0 0; }
+.usage-axis { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; font-size: 0.85em; color: var(--text-3); }
+.usage-note { color: var(--text-3); font-size: 0.9em; }

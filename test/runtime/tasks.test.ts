@@ -12,7 +12,7 @@ const searchfox = {} as SearchfoxCapability;
 const fakeLlm: LlmService = {
   defaultSelection: { backend: "claude", model: "m", effort: "low" },
   async run(selection, prompt) {
-    return { text: prompt.prompt.toUpperCase(), providerSessionId: "p1", selection: selection ?? { backend: "claude", model: "m", effort: "low" }, usage: { inputTokens: 1, outputTokens: 2 } };
+    return { text: prompt.prompt.toUpperCase(), providerSessionId: "p1", selection: selection ?? { backend: "claude", model: "m", effort: "low" }, usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 2, cumulative: false } };
   },
   async listModels() {
     return { claude: { models: [] }, codex: { models: [] } };

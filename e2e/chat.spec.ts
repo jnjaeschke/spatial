@@ -49,6 +49,27 @@ test("ask about a change: the chat starts inline, send, stub answer appears and 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
+test("the topbar shows the overall LLM spend and opens it per model and per day", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await openPatch(page, 0);
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const chat = changeChats(page);
+  await chat.getByLabel("message").fill("What does this cost?");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(chat.locator(".msg.assistant", { hasText: "Stub answer." })).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId("usage-widget").click();
+  const dialog = page.getByTestId("usage-dialog");
+  const claude = dialog.locator(".usage-table tbody tr", { hasText: "claude/" });
+  await expect(claude.locator("td").last()).not.toHaveText("$0.00");
+  await expect(dialog.locator(".usage-pie path, .usage-pie circle").first()).toBeVisible();
+  await expect(dialog.locator(".usage-bar")).toHaveCount(30);
+  await expect(dialog.locator(".usage-bar").last().locator("span").first()).toBeVisible();
+  await dialog.getByRole("button", { name: "Close" }).last().click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId("usage-widget")).toHaveText(/^\$\d/);
+  await expect(page.getByTestId("usage-widget")).not.toHaveText("$0.00");
+});
+
 test("a chat scrolls to each answer, with the last own message pinned above it", async ({ page, request }) => {
   await openNarrated(page, request);
   const paneBox = (await page.locator(".react-flow__pane").boundingBox())!;

@@ -728,6 +728,14 @@
 
 `Promise`\<\{ `taskId`: `string`; \}\>
 
+### usage
+
+> **usage**: () => `Promise`\<[`UsageRun`](../../../shared/types/interfaces/UsageRun.md)[]\>
+
+#### Returns
+
+`Promise`\<[`UsageRun`](../../../shared/types/interfaces/UsageRun.md)[]\>
+
 ### workflows
 
 > **workflows**: () => `Promise`\<[`WorkflowInfo`](../../../shared/types/interfaces/WorkflowInfo.md)[]\>

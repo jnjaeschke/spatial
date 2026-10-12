@@ -340,7 +340,7 @@ export class Runtime {
           let r: LlmRunResult;
           try { r = await this.#llm.run(selection, { ...prompt, onEvent, ...(prompt.liveInput ? { onLiveInput } : {}) }, controller.signal); }
           finally { this.#live.delete(task.id); }
-          emit("llm.usage", { selection: r.selection, usage: r.usage ?? null });
+          emit("llm.usage", { selection: r.selection, providerSessionId: r.providerSessionId, usage: r.usage ?? null });
           return r;
         },
         defaultSelection: this.#llm.defaultSelection,

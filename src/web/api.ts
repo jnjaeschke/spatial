@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { ChatThreadData, DirectoryListing, LlmActivity, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, TaskActivityResponse, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { ChatThreadData, DirectoryListing, LlmActivity, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 import { readLastUsed, subscribeLastUsed, withLastUsed } from "./llm-choice.ts";
 
@@ -32,6 +32,7 @@ export const del = <T>(path: string, body: unknown) =>
 export const api = {
   sessions: () => get<Session[]>("/api/sessions"),
   repos: () => get<RecentRepo[]>("/api/repos"),
+  usage: () => get<UsageRun[]>("/api/usage"),
   dirs: (path?: string) => get<DirectoryListing>(`/api/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
   workflows: () => get<WorkflowInfo[]>("/api/workflows"),

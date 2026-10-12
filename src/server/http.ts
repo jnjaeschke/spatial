@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, TaskActivityResponse, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo, runGit } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
@@ -15,6 +15,7 @@ import { startSession, type PendingStart, type StartRequest } from "../workflows
 import { isGeckoRepo } from "../runtime/searchfox.ts";
 import { resolveCodeLinks } from "../runtime/code-links.ts";
 import { selectLinkRev } from "../runtime/link-rev.ts";
+import { meteredRuns } from "../runtime/usage.ts";
 
 export class HttpError extends Error {
   status: number;
@@ -206,6 +207,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       return { path, parent: dirname(path) === path ? null : dirname(path), entries: entries.slice(0, 2000), ...(truncated ? { truncated: true as const } : {}) };
     }],
     ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
+    ["GET", /^\/api\/usage$/, async (): Promise<UsageRun[]> => meteredRuns(rt.store.listEventsOfType("llm.usage"))],
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
       const result: RecentRepo[] = [];
       const live = new Map<string, Promise<boolean>>();

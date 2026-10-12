@@ -39,7 +39,7 @@ writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "St
 process.env.FAKE_LLM_STDOUT = out;
 const chatOut = join(dir, "chat.json");
 const chatAnswer = "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```";
-writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-chat", total_cost_usd: 0.25, usage: { input_tokens: 1, output_tokens: 1 } }));
 const longChatOut = join(dir, "long-chat.json");
 const longAnswer = Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1} of a long answer.`).join("\n\n");
 writeFileSync(longChatOut, JSON.stringify({ type: "result", is_error: false, result: longAnswer, structured_output: { answer: longAnswer, questions: [], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));

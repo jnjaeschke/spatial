@@ -63,7 +63,8 @@ export class ClaudeBackend implements LlmBackend {
     const result: LlmResult = { text: out.result ?? "", providerSessionId: out.session_id };
     if (req.schema) result.json = out.structured_output;
     if (out.usage) {
-      result.usage = { inputTokens: out.usage.input_tokens ?? 0, outputTokens: out.usage.output_tokens ?? 0 };
+      const cached = out.usage.cache_read_input_tokens ?? 0;
+      result.usage = { inputTokens: (out.usage.input_tokens ?? 0) + (out.usage.cache_creation_input_tokens ?? 0) + cached, cachedInputTokens: cached, outputTokens: out.usage.output_tokens ?? 0, cumulative: false };
       if (typeof out.total_cost_usd === "number") result.usage.costUsd = out.total_cost_usd;
     }
     return result;

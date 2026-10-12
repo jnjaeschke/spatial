@@ -338,6 +338,24 @@ Pending and running tasks of `kind` in every session.
 
 ***
 
+### listEventsOfType()
+
+> **listEventsOfType**(`type`): [`RuntimeEvent`](../../../shared/types/interfaces/RuntimeEvent.md)[]
+
+Every session's events of `type`, oldest first.
+
+#### Parameters
+
+##### type
+
+`string`
+
+#### Returns
+
+[`RuntimeEvent`](../../../shared/types/interfaces/RuntimeEvent.md)[]
+
+***
+
 ### listLinks()
 
 > **listLinks**(`sessionId`): [`Link`](../../../shared/types/interfaces/Link.md)[]

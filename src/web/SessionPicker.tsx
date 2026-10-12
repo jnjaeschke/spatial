@@ -3,6 +3,7 @@ import type { RecentRepo, Session } from "../shared/types.ts";
 import { groupByRepo } from "../shared/repos.ts";
 import { api } from "./api.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
+import { UsageWidget } from "./UsageWidget.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
 import { routeUrl } from "./routes.ts";
@@ -20,7 +21,7 @@ export function SessionPicker() {
   useEffect(() => { document.title = "spatial"; }, []);
   useEffect(() => { api.sessions().then(setSessions, (e: Error) => setError(e.message)); api.repos().then(setRepos, (e: Error) => setError(e.message)); }, []);
   return <div className="empty session-picker">
-    <header><h2>Recent repositories</h2><button type="button" onClick={() => setPickerOpen(true)}>Open folder…</button><TextSizeControl /><ThemeToggle /></header>
+    <header><h2>Recent repositories</h2><button type="button" onClick={() => setPickerOpen(true)}>Open folder…</button><UsageWidget /><TextSizeControl /><ThemeToggle /></header>
     {sessions && repos && <>{repos.map((repo) => <section className="recent-repo" data-testid="recent-repo" key={repo.worktree}>
       <a href={routeUrl({ kind: "repo", path: repo.worktree })}>{repo.name}</a> <code>{repo.worktree}</code>
     </section>)}

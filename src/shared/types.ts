@@ -71,6 +71,18 @@ export interface LlmSelection {
   effort: string;
 }
 
+/** One metered LLM run: its tokens and its cost in USD, `null` when unknown (an unpriced model, or a run recorded before tokens were metered). Item of `GET /api/usage`. */
+export interface UsageRun {
+  ts: string;
+  sessionId: string;
+  backend: LlmBackendId;
+  model: string;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  costUsd: number | null;
+}
+
 /** One step of an LLM run as its output streams: text it wrote, its reasoning, or a tool call with the argument that names what it works on. Payload of `task.activity` events. */
 export type LlmActivity = { kind: "text"; text: string } | { kind: "thinking"; text: string } | { kind: "tool"; name: string; detail: string; callId?: string }
   | { kind: "tool-result"; callId: string; exitCode: number | null; durationMs: number; output: string };

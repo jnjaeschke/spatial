@@ -8,6 +8,7 @@ import { Toasts } from "./Toasts.tsx";
 import { AskContext, type Draft, type SelectionData } from "./chat-context.ts";
 import { AskOnSelect } from "./AskOnSelect.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
+import { UsageWidget } from "./UsageWidget.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
@@ -79,7 +80,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{extra.available.length > 0 && <Segmented label="Session view" className="session-views" options={[{ value: "", label: phase ?? "phase", title: "Phase view" }, ...extra.available.map((candidate) => ({ value: candidate.id, label: candidate.label, title: candidate.label }))]} value={extra.active?.id ?? ""} onChange={(id) => showSessionView(id || null)} />}<span className="spacer" />{!extra.active && view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
-    }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
+    }} /> Desktop notifications</label><UsageWidget /><TextSizeControl /><ThemeToggle /></div>
     {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
     <OpenActivityLogContext.Provider value={setLog}><TaskProgressContext.Provider value={progress}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}><SearchfoxProvider state={shown} readOnly={past !== null}>{body}<AskOnSelect /><ActivityStrip state={state} view={view ?? null} progress={progress} conversationKinds={webConversationTasks} log={log} onLog={setLog} /></SearchfoxProvider></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></TaskProgressContext.Provider></OpenActivityLogContext.Provider>
     <Toasts items={visible} onDismiss={dismissNotice} />

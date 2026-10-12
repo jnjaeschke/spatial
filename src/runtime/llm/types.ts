@@ -48,9 +48,15 @@ export interface LlmRequest extends LlmPrompt {
 }
 
 export interface LlmUsage {
+  /** All input tokens, cached ones included. */
   inputTokens: number;
+  /** The share of `inputTokens` read from the provider's prompt cache. */
+  cachedInputTokens: number;
   outputTokens: number;
+  /** The run's cost as the provider reports it; codex reports none. */
   costUsd?: number;
+  /** The counts cover the provider session so far (codex), not this run alone (claude). */
+  cumulative: boolean;
 }
 
 export interface LlmResult {

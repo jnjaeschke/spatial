@@ -962,6 +962,12 @@ Re-exports [text](../server/http/functions/text.md)
 
 ***
 
+### UsageRun
+
+Re-exports [UsageRun](../shared/types/interfaces/UsageRun.md)
+
+***
+
 ### verifyDiagramAtBase
 
 Re-exports [verifyDiagramAtBase](../runtime/diagram/functions/verifyDiagramAtBase.md)

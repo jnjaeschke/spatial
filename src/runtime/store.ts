@@ -40,6 +40,11 @@ type Row = Record<string, unknown>;
 const SESSION_COLUMNS = "id,worktree,repo_dir,title,created_at,workflow";
 const now = () => new Date().toISOString();
 
+const eventFromRow = (r: Row): RuntimeEvent => ({
+  id: r.id as number, sessionId: r.session_id as string, actor: r.actor as Actor, type: r.type as string,
+  payload: JSON.parse(r.payload as string), ts: r.ts as string,
+});
+
 /** Dumb persistence. Emits no events; the Runtime does that. */
 export class Store {
   #db: DatabaseSync;
@@ -182,10 +187,12 @@ export class Store {
   }
 
   listEvents(sessionId: Id, afterId = 0): RuntimeEvent[] {
-    return (this.#db.prepare("SELECT * FROM events WHERE session_id = ? AND id > ? ORDER BY id").all(sessionId, afterId) as Row[]).map((r) => ({
-      id: r.id as number, sessionId: r.session_id as string, actor: r.actor as Actor, type: r.type as string,
-      payload: JSON.parse(r.payload as string), ts: r.ts as string,
-    }));
+    return (this.#db.prepare("SELECT * FROM events WHERE session_id = ? AND id > ? ORDER BY id").all(sessionId, afterId) as Row[]).map(eventFromRow);
+  }
+
+  /** Every session's events of `type`, oldest first. */
+  listEventsOfType(type: string): RuntimeEvent[] {
+    return (this.#db.prepare("SELECT * FROM events WHERE type = ? ORDER BY id").all(type) as Row[]).map(eventFromRow);
   }
 
   lastEventId(sessionId: Id): number {

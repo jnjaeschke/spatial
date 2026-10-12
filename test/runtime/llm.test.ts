@@ -49,9 +49,9 @@ test("runProcess: missing binary gives a clear error", async () => {
 });
 
 test("claude: args, stdin prompt, structured output, usage", async () => {
-  stdout(JSON.stringify({ type: "result", is_error: false, result: '{"n":7}', structured_output: { n: 7 }, session_id: "sess-1", total_cost_usd: 0.5, usage: { input_tokens: 10, output_tokens: 3 } }));
+  stdout(JSON.stringify({ type: "result", is_error: false, result: '{"n":7}', structured_output: { n: 7 }, session_id: "sess-1", total_cost_usd: 0.5, usage: { input_tokens: 10, cache_creation_input_tokens: 5, cache_read_input_tokens: 20, output_tokens: 3 } }));
   const r = await new ClaudeBackend({ bin: STUB }).run(req({ system: "SYS", schema: SCHEMA, cwd: dir }));
-  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "sess-1", usage: { inputTokens: 10, outputTokens: 3, costUsd: 0.5 } });
+  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "sess-1", usage: { inputTokens: 35, cachedInputTokens: 20, outputTokens: 3, costUsd: 0.5, cumulative: false } });
   const [call] = calls();
   assert.equal(call.stdin, "PROMPT");
   assert.equal(call.cwd, dir);
@@ -133,13 +133,13 @@ const codexOut = (text: string) =>
     { type: "turn.started" },
     { type: "item.completed", item: { id: "i0", type: "reasoning", text: "thinking" } },
     { type: "item.completed", item: { id: "i1", type: "agent_message", text } },
-    { type: "turn.completed", usage: { input_tokens: 20, output_tokens: 4 } },
+    { type: "turn.completed", usage: { input_tokens: 20, cached_input_tokens: 15, output_tokens: 4 } },
   ].map((e) => JSON.stringify(e)).join("\n") + "\n";
 
 test("codex: args, system prepended, schema file, parsed JSON", async () => {
   stdout(codexOut('{"n":7}'));
   const r = await new CodexBackend({ bin: STUB }).run(req({ system: "SYS", schema: SCHEMA, cwd: dir }));
-  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "th-1", usage: { inputTokens: 20, outputTokens: 4 } });
+  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "th-1", usage: { inputTokens: 20, cachedInputTokens: 15, outputTokens: 4, cumulative: true } });
   const [call] = calls();
   assert.equal(call.stdin, "SYS\n\nPROMPT");
   const a: string[] = call.argv;

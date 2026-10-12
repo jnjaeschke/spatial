@@ -93,7 +93,7 @@ function parseCodexOutput(stdout: string, stderr: string, code: number, structur
     const e = JSON.parse(line);
     if (e.type === "thread.started") threadId = e.thread_id;
     else if (e.type === "item.completed" && e.item?.type === "agent_message") text = e.item.text;
-    else if (e.type === "turn.completed") usage = { inputTokens: e.usage?.input_tokens ?? 0, outputTokens: e.usage?.output_tokens ?? 0 };
+    else if (e.type === "turn.completed") usage = { inputTokens: e.usage?.input_tokens ?? 0, cachedInputTokens: e.usage?.cached_input_tokens ?? 0, outputTokens: e.usage?.output_tokens ?? 0, cumulative: true };
     else if (e.type === "turn.failed") error = e.error?.message ?? "turn failed";
     else if (e.type === "error") warning = e.message ?? "error";
   }
