@@ -38,8 +38,10 @@ export const implementWorkflow: Workflow<Params> = {
     const worktree = rt.store.getSession(sessionId).worktree;
     const busy = rt.store.listSessions().find((s) => s.id !== sessionId && s.worktree === worktree && s.workflow === "implement" && isActive(rt, s.id));
     if (busy) {
-      const message = `Checkout ${worktree} is in use by the implement session ${busy.id}`;
-      rt.emit(sessionId, "runtime", "notify", { id: "implement-busy", title: "Checkout in use", body: message });
+      const last = rt.store.listEpochs(busy.id).at(-1);
+      const state = last ? `${last.phase} ${last.status}` : "waiting for a decision";
+      const message = `Checkout ${worktree} is in use by the implement session ${busy.id} (${state})`;
+      rt.emit(sessionId, "runtime", "notify", { id: "implement-busy", title: "Checkout in use", body: message, action: { label: "Abandon that session", path: `/api/sessions/${busy.id}/abandon` } });
       throw new Error(message);
     }
     const writeMode = rt.store.getArtifact<WorkflowStartData>(startId).data.writeMode;

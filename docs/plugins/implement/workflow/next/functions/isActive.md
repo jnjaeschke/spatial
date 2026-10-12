@@ -8,7 +8,7 @@
 
 > **isActive**(`rt`, `sessionId`): `boolean`
 
-Whether an implement session still has work: an epoch is running, or the session has a next step (an open decision included). Used to refuse a second session on the same checkout.
+Whether an implement session still holds its checkout: an epoch is running, the session has a next step (an open decision included), or the latest epoch of a phase the workflow owns failed or was cancelled and can be retried. An abandoned session holds nothing. Used to refuse a second session on the same checkout.
 
 ## Parameters
 

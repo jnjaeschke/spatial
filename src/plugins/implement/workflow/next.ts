@@ -6,6 +6,7 @@ import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 import { commentsFeedback } from "../runtime/comments-feedback.ts";
+import { workflowView } from "../../../plugin-api.ts";
 
 export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
@@ -71,6 +72,8 @@ function afterAcceptStep(view: WorkflowView, profile: RepoProfile, branch: Artif
   return null;
 }
 
+const ownPhases = (profile: RepoProfile) => new Set([profile.investigatePhase ?? "investigate", "implement", "review", "reviewerComments"]);
+
 /** Chooses the next implement workflow phase or decision from stored session state. */
 export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | null {
   const start = latest<WorkflowStartData>(view, "WorkflowStart"), branch = latest<ImplementBranchData>(view, "ImplementBranch");
@@ -78,7 +81,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   const profile = ctx.repoProfiles.get(branch.data.profile);
   if (!profile) throw new Error(`Unknown repo profile: ${branch.data.profile}`);
   // Phases started outside the workflow (a try push from chat) leave its own last epoch and that epoch's decision in charge.
-  const investigatePhase = profile.investigatePhase ?? "investigate", own = new Set([investigatePhase, "implement", "review", "reviewerComments"]);
+  const investigatePhase = profile.investigatePhase ?? "investigate", own = ownPhases(profile);
   const last = view.epochs.findLast((epoch) => own.has(epoch.phase));
   if (!last) return investigateStep(start, branch, profile, start.data.llm);
   if (last.status !== "succeeded") return null;
@@ -152,7 +155,15 @@ export function implementCheckAnswer(view: WorkflowView, decision: Artifact<Deci
   return commentsFeedback(commentPlan(view, epoch)) === null ? "No reviewer comment is marked Address." : null;
 }
 
-/** Whether an implement session still has work: an epoch is running, or the session has a next step (an open decision included). Used to refuse a second session on the same checkout. */
+/** Whether an implement session still holds its checkout: an epoch is running, the session has a next step (an open decision included), or the latest epoch of a phase the workflow owns failed or was cancelled and can be retried. An abandoned session holds nothing. Used to refuse a second session on the same checkout. */
 export function isActive(rt: Runtime, sessionId: Id): boolean {
-  return rt.runningEpoch(sessionId) !== null || rt.nextStep(sessionId) !== null;
+  if (rt.store.listArtifacts(sessionId, "Abandoned").length > 0) return false;
+  if (rt.runningEpoch(sessionId) !== null || rt.nextStep(sessionId) !== null) return true;
+  const view = workflowView(rt.store, sessionId);
+  const branch = latest<ImplementBranchData>(view, "ImplementBranch");
+  const profile = branch && rt.plugins.repoProfiles.get(branch.data.profile);
+  if (!profile) return false;
+  const own = ownPhases(profile);
+  const status = view.epochs.findLast((epoch) => own.has(epoch.phase))?.status;
+  return status === "failed" || status === "cancelled";
 }

@@ -6,6 +6,15 @@ import { postInlineReplies } from "../../review/api.ts";
 
 export function implementRoutes(rt: Runtime): Route[] {
   return [
+    ["POST", /^\/api\/sessions\/([^/]+)\/abandon$/, async ({ res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      if (session.workflow !== "implement") throw new HttpError(409, "Not an implement session");
+      const running = rt.runningEpoch(session.id);
+      if (running) throw new HttpError(409, `Epoch ${running.n} (${running.phase}) is running`);
+      const start = rt.store.listArtifacts(session.id, "WorkflowStart").at(0);
+      if (!start) throw new HttpError(409, "The session has not started");
+      send(res, 201, { artifactId: putUserArtifact(rt, session.id, "Abandoned", {}, start.id).id });
+    }],
     ["POST", /^\/api\/sessions\/([^/]+)\/reviewer-comments\/([^/]+)\/triage$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const commentId = params[1]!;

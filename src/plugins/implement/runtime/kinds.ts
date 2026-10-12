@@ -30,6 +30,7 @@ export function renderInvestigation(data: InvestigationData, subId?: string): st
 }
 
 export const artifactKinds: Record<string, ArtifactKind> = {
+  Abandoned: { render: () => "# Abandoned\n\nThe user gave this implement session up; its checkout is free." },
   Investigation: { render: (_view, artifact, subId) => renderInvestigation(artifact.data as InvestigationData, subId) },
   CommandRun: { render: (_view, artifact: Artifact, subId) => {
     if (subId !== undefined) return null;
