@@ -30,7 +30,7 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
     if (!actions || !item.artifact || busy) return;
     void run(() => api.deleteComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id));
   };
-  return <div className="user-comment-node nodrag nopan nowheel" data-testid="user-comment" aria-label={title} onMouseDown={stop} onClick={stop}>
+  return <div className="user-comment-node nodrag nopan" data-testid="user-comment" aria-label={title} onMouseDown={stop} onClick={stop}>
     {item.draft && <IconButton label="Discard comment" className="link-button user-comment-discard" onClick={() => { clearDraft(); actions?.onDiscard(item.draft!.id); }}>×</IconButton>}
     {item.draft ? <>
       <Composer label="Comment for Phabricator" value={body} onChange={setBody} canSubmit={!!body.trim() && !busy} onSubmit={() => void saveDraft()} onKeyDown={(event) => { if (event.key === "Escape" && body.trim()) event.preventDefault(); }} />

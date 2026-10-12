@@ -36,7 +36,7 @@ function PhabReply({ data }: { data: PhabThreadData }) {
     if (!actions || !chat || busy) return;
     void run(async () => { setText((await api.draftPhabReply(actions.sessionId, data.anchorId, chat.threadId, actions.models.default)).body); setOpen(true); });
   };
-  return <div className="phab-reply nodrag nopan nowheel" data-testid="phab-reply" onMouseDown={stop} onClick={stop}>
+  return <div className="phab-reply nodrag nopan" data-testid="phab-reply" onMouseDown={stop} onClick={stop}>
     {open ? <>
       <Composer label="Reply to Phabricator thread" placeholder={data.replyLines ? "Posted on this line when you submit" : "Added to your review comment when you submit"} value={text} onChange={setText} canSubmit={!!text.trim() && !busy} onSubmit={save} onKeyDown={(event) => { if (event.key === "Escape" && text.trim()) event.preventDefault(); }} />
       <div><button disabled={!text.trim() || busy} onClick={save}>Save reply</button><button disabled={busy} onClick={() => { clearDraft(); setOpen(false); }}>Cancel</button></div>

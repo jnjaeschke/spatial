@@ -88,7 +88,7 @@ export function Conversation(data: ConversationProps) {
   const list = useRef<HTMLDivElement>(null);
   useFollowLatest(list, data.messages.at(-1), busy, decision?.id);
   return <>
-      <div ref={list} className="messages body nodrag nopan nowheel">
+      <div ref={list} className="messages body nodrag nopan">
         {data.lead}
         {entries.map((entry) => { if ("item" in entry) return <Fragment key={entry.item.id}>{data.renderItem?.(entry.item)}</Fragment>; const m = entry.message; return (
           <div key={m.id} className={`msg ${m.data.role}${m.id === pinnedId ? " pinned" : ""}`} data-anchor={m.id} title={m.id === pinnedId ? "Show the start of the answer" : undefined} onClick={m.id === pinnedId ? (e) => {

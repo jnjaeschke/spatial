@@ -84,6 +84,42 @@ test("a chat scrolls to each answer, with the last own message pinned above it",
   await expect.poll(answerBelowPinned).toBe(true);
 });
 
+test("the wheel scrolls a box while it can scroll that way, and the canvas otherwise", async ({ page, request }) => {
+  await openNarrated(page, request);
+  const viewport = page.locator(".react-flow__viewport");
+  const transform = () => viewport.evaluate((el) => el.style.transform);
+  const wheelOver = async (target: import("@playwright/test").Locator, deltaY: number) => {
+    const box = (await target.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, 40));
+    await page.mouse.wheel(0, deltaY);
+  };
+  const before = await transform();
+  await wheelOver(page.getByTestId("summary"), 120);
+  await expect.poll(transform).not.toBe(before);
+  const paneBox = (await page.locator(".react-flow__pane").boundingBox())!;
+  const point = await page.evaluate(({ x, y, width, height }) => {
+    for (let fy = 0.2; fy < 0.8; fy += 0.05) for (let fx = 0.2; fx < 0.8; fx += 0.05) {
+      const p = { x: x + width * fx, y: y + height * fy };
+      if (document.elementFromPoint(p.x, p.y)?.classList.contains("react-flow__pane")) return p;
+    }
+    throw new Error("no empty canvas point");
+  }, paneBox);
+  await page.mouse.dblclick(point.x, point.y);
+  const chat = page.locator(".chat-node:has(textarea:focus), .chat-node:has(.msg.user)").first();
+  await chat.getByLabel("message").fill("Scroll me LONG-ANSWER-PLEASE");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(chat.locator(".msg.assistant")).toHaveCount(1, { timeout: 10_000 });
+  const messages = chat.locator(".messages");
+  await messages.evaluate((el) => el.scrollTo({ top: 0, behavior: "instant" }));
+  const still = await transform();
+  await wheelOver(messages, 120);
+  await expect.poll(() => messages.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await transform()).toBe(still);
+  await messages.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: "instant" }));
+  await wheelOver(messages, 120);
+  await expect.poll(transform).not.toBe(still);
+});
+
 test("the panel has one ×; an empty draft is discarded, a draft with text stays inline, Close chat closes it for reopening", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);

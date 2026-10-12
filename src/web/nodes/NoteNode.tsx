@@ -13,6 +13,6 @@ export function NoteNode({ data, id }: NodeProps<NoteFlowNode>) {
   const closer = useContext(ClosedContext);
   const ask = useContext(AskContext);
   return <Box kind="note" testId={`note-${id}`} handles={{ source: Position.Left }} title={<>Note <span className="note-draft">Draft</span></>} actions={ask && <IconButton label="Ask about note" className="ask nodrag" onClick={() => ask.ask(id)}>Ask</IconButton>} onClose={closer ? () => closer.close(id) : undefined}>
-    <div className="body nodrag nopan nowheel"><AnswerMarkdown text={data.body} hunks={[]} diffId="" /></div>
+    <div className="body nodrag nopan"><AnswerMarkdown text={data.body} hunks={[]} diffId="" /></div>
   </Box>;
 }

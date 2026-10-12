@@ -349,8 +349,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
   const basePos = useRef(new Map<string, { x: number; y: number }>());
 
   const sizeOf = (kind: string, id: string): NodeSize => nodeKinds[kind]?.resizable === false ? {} : sizes[id] ?? {};
-  // A node with a height of its own scrolls its content, and the wheel scrolls it instead of the canvas.
-  const nodeClass = (id: string, kind: string) => [id === currentRef.current && "guide-current", sizeOf(kind, id).height !== undefined && "fixed-height nowheel"].filter(Boolean).join(" ") || undefined;
+  const nodeClass = (id: string, kind: string) => [id === currentRef.current && "guide-current", sizeOf(kind, id).height !== undefined && "fixed-height"].filter(Boolean).join(" ") || undefined;
   const nodeStyle = (n: PlacedNode | GraphNode) => {
     const kind = nodeKinds[n.data.kind]!;
     const size = sizeOf(n.data.kind, n.id);
@@ -378,6 +377,20 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     return o ? { x: p.x + o.dx, y: p.y + o.dy } : p;
   };
 
+  // The wheel scrolls what it is over inside a node while that can still scroll in the wheel's direction, and pans the canvas otherwise; stopping the event before React Flow sees it leaves the native scroll.
+  const wheelScope = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const scope = wheelScope.current;
+    if (!scope) return;
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || !(event.target instanceof Element)) return;
+      for (let el: Element | null = event.target; el && el !== scope && !el.classList.contains("react-flow__node"); el = el.parentElement) {
+        if (canScroll(el, event)) { event.stopPropagation(); return; }
+      }
+    };
+    scope.addEventListener("wheel", onWheel, { capture: true, passive: true });
+    return () => scope.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
   useEffect(() => offsets.current.clear(), [graph]);
 
   const arrange = (all: { id: string; width: number; height: number }[]) => {
@@ -835,7 +848,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>
       <OpenPlaceContext.Provider value={openPlace}>
       <ResizeContext.Provider value={{ textScale, resized }}>
-      <div className="canvas-layout">
+      <div className="canvas-layout" ref={wheelScope}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -885,4 +898,15 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     </div></Provider>
     </ChatActionsContext.Provider>
   );
+}
+
+/** Whether `el` scrolls and can still move in the direction of `event`'s main axis. */
+function canScroll(el: Element, event: WheelEvent): boolean {
+  const style = getComputedStyle(el);
+  const vertical = Math.abs(event.deltaY) >= Math.abs(event.deltaX);
+  const overflow = vertical ? style.overflowY : style.overflowX;
+  if (overflow !== "auto" && overflow !== "scroll") return false;
+  const delta = vertical ? event.deltaY : event.deltaX;
+  const [position, size, view] = vertical ? [el.scrollTop, el.scrollHeight, el.clientHeight] : [el.scrollLeft, el.scrollWidth, el.clientWidth];
+  return delta < 0 ? position > 0 : delta > 0 && position + view < size - 1;
 }
