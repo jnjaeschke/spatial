@@ -1,11 +1,11 @@
-import { IconButton, ErrorText, api, useAction, type Artifact, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { IconButton, ErrorText, api, latestArtifact, useAction, type Artifact, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import { PhaseShell } from "../../implement/web/api.ts";
 import type { TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
 import { tryHeadline } from "./try-status.ts";
 
 /** A `try` epoch: the proposed command and why; the Push/Skip decision is in the top bar. */
 export function TryProposalView({ state, epoch, readOnly = false }: PhaseViewProps) {
-  const proposal = state.artifacts.findLast((a) => a.type === "TryProposal" && a.epoch === epoch?.n) as Artifact<TryProposalData> | undefined;
+  const proposal = latestArtifact<TryProposalData>(state.artifacts, "TryProposal", epoch?.n);
   return <PhaseShell state={state} epoch={epoch} readOnly={readOnly} running={epoch?.status === "running" ? "Choosing try jobs…" : null}>
     {proposal && <div className="try-proposal" data-testid="try-proposal"><code>{proposal.data.command}</code><p>{proposal.data.reason}</p></div>}
   </PhaseShell>;
@@ -14,7 +14,7 @@ export function TryProposalView({ state, epoch, readOnly = false }: PhaseViewPro
 /** A `tryPush` epoch: the mach output and the push as Treeherder reports it, failures expanded. */
 export function TryView({ state, epoch, readOnly = false }: PhaseViewProps) {
   const action = useAction();
-  const push = state.artifacts.findLast((a) => a.type === "TryPush" && a.epoch === epoch?.n) as Artifact<TryPushData> | undefined;
+  const push = latestArtifact<TryPushData>(state.artifacts, "TryPush", epoch?.n);
   const run = push ? (state.artifacts.findLast((a) => a.type === "TryRun" && (a.data as TryRunData).push === push.id) as Artifact<TryRunData> | undefined)?.data ?? null : null;
   return <PhaseShell state={state} epoch={epoch} readOnly={readOnly} running={epoch?.status === "running" ? "Pushing to try… (mach output in the activity strip)" : null}>
     {push && <div className="try-run" data-testid="try-run" data-complete={run?.complete ?? false}>

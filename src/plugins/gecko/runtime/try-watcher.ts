@@ -21,6 +21,8 @@ export const STOPPED_ERROR = "Stopped watching after 24 hours; refresh to check 
 const REFRESH = "try-refresh";
 
 const same = (a: TryRunData, b: TryRunData) => JSON.stringify([a.counts, a.failures, a.error, a.complete]) === JSON.stringify([b.counts, b.failures, b.error, b.complete]);
+const latestRun = (runs: Artifact<TryRunData>[], push: Artifact<TryPushData>) => runs.findLast((run) => run.data.push === push.id);
+
 const carried = (push: Artifact<TryPushData>, last: TryRunData | null, error: string): TryRunData =>
   ({ push: push.id, url: push.data.url, revision: last?.revision ?? null, pushId: last?.pushId ?? null, counts: last?.counts ?? {}, complete: false, failures: last?.failures ?? [], error });
 
@@ -54,7 +56,7 @@ export class TryWatcher {
       for (const session of this.#rt.store.listSessions()) {
         const runs = this.#rt.store.listArtifacts(session.id, "TryRun") as Artifact<TryRunData>[];
         for (const push of this.#rt.store.listArtifacts(session.id, "TryPush") as Artifact<TryPushData>[]) {
-          const last = runs.findLast((run) => run.data.push === push.id)?.data ?? null;
+          const last = latestRun(runs, push)?.data ?? null;
           if (last?.complete) continue;
           if (this.#now() - Date.parse(push.createdAt) < WATCH_LIMIT_MS) await this.#poll(session.id, push, last);
           else if (!runs.some((run) => run.data.push === push.id && run.data.error === STOPPED_ERROR)) this.#store(session.id, push, carried(push, last, STOPPED_ERROR), "try-watcher");
@@ -78,7 +80,7 @@ export class TryWatcher {
 
   /** Polls one push now, whatever its age or state, and returns its latest `TryRun`. */
   async refresh(sessionId: Id, push: Artifact<TryPushData>): Promise<Artifact<TryRunData>> {
-    const latest = () => (this.#rt.store.listArtifacts(sessionId, "TryRun") as Artifact<TryRunData>[]).findLast((run) => run.data.push === push.id);
+    const latest = () => latestRun(this.#rt.store.listArtifacts(sessionId, "TryRun") as Artifact<TryRunData>[], push);
     await this.#poll(sessionId, push, latest()?.data ?? null, REFRESH);
     return latest()!;
   }
