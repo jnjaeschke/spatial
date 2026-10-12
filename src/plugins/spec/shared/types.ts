@@ -1,4 +1,5 @@
 import type { Engine, GeckoSpecRef, Id, ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSearchResult } from "../../../plugin-api.ts";
+import type { SpecStep } from "./steps.ts";
 
 /** The effects attributed to one step: `direct` at the effect's own site, `path` where a witness path leaves the algorithm. */
 export interface StepEffect { effectId: string; via: "direct" | "path" }
@@ -40,6 +41,9 @@ export interface EngineComparison { differences: EngineDifference[] }
 export interface StoredComparison { comparison: EngineComparison; dropped: number; basedOn: Partial<Record<Engine, string>> }
 /** What the overview shows of a comparison. */
 export type ComparisonView = { state: "absent" } | { state: "ready"; entryId: string; differences: (EngineDifference & { index: number })[]; dropped: number; flagged: number; outdated: boolean };
+
+/** The implementations overview: spec steps, each engine's stored mapping and its comparison. */
+export interface ImplementationsData { ref: string; title: string; algorithmId: Id; steps: SpecStep[]; mappings: Record<Engine, EngineMapping | null>; comparison: ComparisonView }
 
 /** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
 export interface SpecReferenceData {

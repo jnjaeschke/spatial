@@ -130,6 +130,7 @@
 - [useAction](functions/useAction.md)
 - [useClosed](functions/useClosed.md)
 - [useDraftText](functions/useDraftText.md)
+- [useUrlParam](functions/useUrlParam.md)
 
 ## References
 

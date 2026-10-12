@@ -6,10 +6,11 @@ import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
-import { decideProposal, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
+import { decideProposal, ensureMapping, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
 import { siteKey, usedSites } from "../shared/engine.ts";
 import { alignRunning, startAlign } from "../runtime/align.ts";
 import { compareRunning, flagDifference, startCompare } from "../runtime/compare.ts";
+import { implementationsData } from "../runtime/implementations.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -92,6 +93,18 @@ export function specRoutes(rt: Runtime): Route[] {
       send(res, 201, { opened: opens.length });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/summaries$/, async ({ params }) => summaryViews(rt, requireSession(rt, params[0]!).id)],
+    ["GET", /^\/api\/sessions\/([^/]+)\/spec\/implementations$/, async ({ params, url }) => {
+      const session = requireSession(rt, params[0]!);
+      const ref = url.searchParams.get("ref");
+      if (!ref) throw new HttpError(400, "Missing query parameter: ref");
+      return implementationsData(rt, requireAlgorithm(rt, session.id, ref));
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/ensure$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const algorithm = requireAlgorithm(rt, session.id, text(await readJson(req), "ref"));
+      for (const engine of ENGINES) void ensureMapping(rt, session.id, engine, algorithm).catch((error) => console.error(`${engine} mapping of ${algorithm.data.ref} failed: ${(error as Error).message}`));
+      send(res, 202, {});
+    }],
     ["GET", /^\/api\/sessions\/([^/]+)\/spec\/mappings$/, async ({ params, url }) => storedMappings(rt, requireSession(rt, params[0]!).id, parseEngine(url.searchParams.get("engine")))],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/find$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

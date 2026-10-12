@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ErrorText, IconButton, useAction } from "../../../web/plugin-api.ts";
+import { ErrorText, IconButton, showSessionView, useAction } from "../../../web/plugin-api.ts";
 import type { EngineMapping, EngineSite } from "../shared/types.ts";
 import { codeUrl, mappedSteps, siteKey, siteName } from "../shared/engine.ts";
 
@@ -22,7 +22,7 @@ function GeckoSite({ mapping, site, actions, busy, run }: { mapping: EngineMappi
 }
 
 /** The Implementations strip under an algorithm box's title: where Gecko implements it and the tests that link it, on one line. */
-export function GeckoStrip({ mapping, activity, actions }: { mapping: EngineMapping | null | undefined; activity: { mapping: boolean; searching: boolean; error: string | null }; actions: GeckoActions | null }) {
+export function GeckoStrip({ mapping, activity, actions, algorithmRef }: { mapping: EngineMapping | null | undefined; activity: { mapping: boolean; searching: boolean; error: string | null }; actions: GeckoActions | null; algorithmRef: string }) {
   const [testsOpen, setTestsOpen] = useState(false);
   const action = useAction();
   const note = mapping === undefined || (mapping === null && activity.mapping) ? "checking…" : mapping === null ? "not mapped" : !mapping.sites.some((site) => !site.stale) ? "no spec-link comments" : null;
@@ -34,6 +34,7 @@ export function GeckoStrip({ mapping, activity, actions }: { mapping: EngineMapp
       {note && <span className="spec-impl-note">{note}</span>}
       {tests.length > 0 && <button type="button" className="link-button spec-impl-tests" aria-expanded={testsOpen} onClick={() => setTestsOpen(!testsOpen)}>{tests.length} {tests.length === 1 ? "test" : "tests"}</button>}
       {activity.searching ? <span className="spec-impl-note">searching…</span> : actions && mapping && !mapping.sites.some((site) => !site.stale) && <button type="button" className="link-button" data-testid="spec-find-gecko" disabled={action.busy} onClick={() => void action.run(() => actions.find(null))}>Find in Gecko</button>}
+      <button type="button" className="link-button" data-testid="impl-open" onClick={() => showSessionView("impl", { ref: algorithmRef })}>Implementations</button>
     </div>
     <ErrorText error={action.error ?? activity.error} />
     {mapping && testsOpen && <ul className="spec-impl-test-list">{tests.map((t) => <li key={`${t.group}|${t.path}:${t.line}`}><span className="spec-impl-group">{t.group}</span> <a href={codeUrl(mapping, t.path, t.line)} target="_blank" rel="noreferrer">{t.path}:{t.line}</a></li>)}</ul>}

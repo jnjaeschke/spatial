@@ -1,0 +1,32 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
+import { storedMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
+import type { ImplementationsData } from "../../../src/plugins/spec/shared/types.ts";
+import { fakeCode } from "../../helpers/fake-code.ts";
+import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { routeCall } from "../../helpers/route-call.ts";
+
+test("ensure maps every engine it can, a missing tool fails only its own task, and the GET projects what is stored", async () => {
+  const source = "// https://html.spec.whatwg.org/#setup\nvoid Frame::Setup() {\n  Edit();\n}";
+  const { code: gecko } = fakeCode({ "a.cpp": source }, [{ group: "Code", path: "a.cpp", line: 1, url: "u" }], { engine: "gecko" });
+  const { code: blink } = fakeCode({}, []);
+  const { rt, session } = specRuntime({ codeSearch: { gecko, blink } });
+  putAlgorithm(rt, session.id);
+  const routes = specRoutes(rt);
+  const ref = encodeURIComponent("HTML#setup");
+  assert.equal((await routeCall(routes, "GET", `/api/sessions/${session.id}/spec/implementations?ref=${ref}`)).body.mappings.gecko, null);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/mappings/ensure`, { ref: "HTML#setup" })).status, 202);
+  while (rt.store.listTasks(session.id).some((task) => task.kind === "mapEngine" && (task.status === "pending" || task.status === "running"))) await new Promise((resolve) => setTimeout(resolve, 5));
+  await new Promise((resolve) => setImmediate(resolve));
+  const data = (await routeCall(routes, "GET", `/api/sessions/${session.id}/spec/implementations?ref=${ref}`)).body as ImplementationsData;
+  assert.deepEqual([data.ref, data.title, data.steps.map((s) => s.number)], ["HTML#setup", "setup", ["1", "2"]]);
+  assert.deepEqual(data.mappings.gecko, storedMapping(rt.knowledge, "gecko", "HTML#setup"));
+  assert.deepEqual(data.mappings.gecko!.sites.map((s) => s.line), [2]);
+  assert.deepEqual(data.mappings.blink!.sites, []);
+  assert.equal(data.mappings.webkit, null);
+  assert.deepEqual(rt.store.listTasks(session.id).filter((t) => t.kind === "mapEngine" && t.status === "failed").map((t) => [(t.input as { engine: string }).engine, t.error]), [["webkit", "No webkit code search configured"]]);
+  assert.deepEqual(data.comparison, { state: "absent" });
+  assert.equal((await routeCall(routes, "GET", `/api/sessions/${session.id}/spec/implementations?ref=${encodeURIComponent("HTML#nope")}`)).status, 404);
+  assert.equal((await routeCall(routes, "GET", `/api/sessions/${session.id}/spec/implementations`)).status, 400);
+});

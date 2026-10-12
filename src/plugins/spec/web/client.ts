@@ -2,6 +2,14 @@ import type { SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
 import type { EngineMapping } from "../shared/types.ts";
 import type { Engine } from "../../../plugin-api.ts";
+import type { ImplementationsData } from "../shared/types.ts";
+
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(path);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as { error?: string }).error ?? `${res.status} ${res.statusText}`);
+  return json as T;
+}
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -12,6 +20,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 /** HTTP calls of the spec explorer. */
 export const specClient = {
+  implementations: (sessionId: string, ref: string) => get<ImplementationsData>(`/api/sessions/${sessionId}/spec/implementations?ref=${encodeURIComponent(ref)}`),
+  ensureMappings: (sessionId: string, ref: string) => post<Record<string, never>>(`/api/sessions/${sessionId}/spec/mappings/ensure`, { ref }),
   summaries: (sessionId: string) => fetch(`/api/sessions/${sessionId}/spec/summaries`).then(async (res) => { if (!res.ok) throw new Error(`${res.status} ${res.statusText}`); return await res.json() as Record<string, SummaryView>; }),
   mappings: (sessionId: string, engine: Engine) => fetch(`/api/sessions/${sessionId}/spec/mappings?engine=${engine}`).then(async (res) => { if (!res.ok) throw new Error(`${res.status} ${res.statusText}`); return await res.json() as Record<string, EngineMapping | null>; }),
   findImplementation: (sessionId: string, ref: string, engine: Engine, stale: string | null) => post<{ taskId: string }>(`/api/sessions/${sessionId}/spec/mappings/find`, { ref, engine, stale }),

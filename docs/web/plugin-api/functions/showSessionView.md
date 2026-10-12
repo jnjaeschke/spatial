@@ -6,7 +6,7 @@
 
 # Function: showSessionView()
 
-> **showSessionView**(`view`): `void`
+> **showSessionView**(`view`, `params?`): `void`
 
 Shows a session view (null: the phase view) as a new history entry.
 
@@ -15,6 +15,10 @@ Shows a session view (null: the phase view) as a new history entry.
 ### view
 
 `string` \| `null`
+
+### params?
+
+`Record`\<`string`, `string`\> = `{}`
 
 ## Returns
 

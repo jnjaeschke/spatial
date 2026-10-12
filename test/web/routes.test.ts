@@ -35,3 +35,7 @@ test("session views live in the view query parameter", () => {
   assert.equal(withSessionView(new URL("http://x/sessions/s1?view=spec&a=1"), null), "/sessions/s1?a=1");
   assert.deepEqual(parseRoute(new URL("http://x/sessions/s1/patch/0?view=spec")), { kind: "session", sessionId: "s1", place: "patch:0" });
 });
+
+test("session views can carry parameters", () => {
+  assert.equal(withSessionView(new URL("http://x/sessions/s1?view=spec"), "impl", { ref: "HTML#navigate" }), "/sessions/s1?view=impl&ref=HTML%23navigate");
+});

@@ -128,3 +128,19 @@ test("Reject removes a proposal for good", async ({ page }) => {
   await expect(reloaded.getByRole("button", { name: "Find in Gecko" })).toBeVisible({ timeout: 15_000 });
   await expect(reloaded.getByRole("link", { name: "Fake::Snapshot" })).toHaveCount(0);
 });
+
+test("implementations: the Gecko site from searchfox, a Blink proposal confirmed, WebKit offers Find", async ({ page }) => {
+  const navigate = await exploreNavigate(page);
+  await navigate.getByTestId("impl-open").click();
+  await expect(page).toHaveURL(/[?&]view=impl/);
+  await expect(page).toHaveURL(/[?&]ref=HTML%23navigate/);
+  const view = page.getByTestId("impl-view");
+  await expect(view.getByTestId("impl-site-gecko").first()).toHaveText("Fake::Navigate", { timeout: 15_000 });
+  await expect(view.getByRole("button", { name: "Find in WebKit" })).toBeVisible({ timeout: 15_000 });
+  await view.getByRole("button", { name: "Find in Blink" }).click();
+  await expect(view.getByTestId("impl-site-blink")).toHaveText("FrameLoader::CancelProvisionalLoaderForNewNavigation", { timeout: 15_000 });
+  await expect(view.locator(".impl-site.method-llm")).toHaveCount(1);
+  await view.getByRole("button", { name: "Confirm FrameLoader::CancelProvisionalLoaderForNewNavigation" }).click();
+  await expect(view.locator(".impl-site.method-llm")).toHaveCount(0);
+  await expect(view.getByRole("button", { name: "Find in Blink" })).toHaveCount(0);
+});

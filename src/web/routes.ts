@@ -38,14 +38,15 @@ export function sessionViewOf(url: URL): string | null {
 }
 
 /** `url` as path, query and hash with the session view set, or removed for null. */
-export function withSessionView(url: URL, view: string | null): string {
+export function withSessionView(url: URL, view: string | null, params: Record<string, string> = {}): string {
   const next = new URL(url);
   if (view === null) next.searchParams.delete("view");
   else next.searchParams.set("view", view);
+  for (const [name, value] of Object.entries(params)) next.searchParams.set(name, value);
   return next.pathname + next.search + next.hash;
 }
 
 /** Shows a session view (null: the phase view) as a new history entry. */
-export function showSessionView(view: string | null): void {
-  navigation.navigate(withSessionView(new URL(location.href), view));
+export function showSessionView(view: string | null, params: Record<string, string> = {}): void {
+  navigation.navigate(withSessionView(new URL(location.href), view, params));
 }
