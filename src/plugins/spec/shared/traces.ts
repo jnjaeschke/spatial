@@ -58,6 +58,9 @@ export function traceStatus(artifacts: Artifact[], traceId: string): TraceStatus
   return { trace, check, outdated: check !== null && check.data.traceArtifactId !== trace.id };
 }
 
+/** The check that marks a trace's entries, edges and notes: the one of its latest version, else none. */
+export const currentCheck = (status: TraceStatus | null): SpecTraceCheckData | null => status && !status.outdated ? status.check?.data ?? null : null;
+
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** `fails · 9 steps, 1 unverified hop, 0 unsupported notes`; without the answer for a scenario. Counts are of the checked version. */

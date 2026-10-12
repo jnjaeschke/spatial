@@ -6,6 +6,4 @@
 
 # Type Alias: TraceHop
 
-> **TraceHop** = `"start"` \| `"call"` \| `"return"` \| `"next"` \| `"async"`
-
-How a trace walk reached an entry from the previous one.
+> **TraceHop** = *typeof* [`TRACE_HOPS`](../variables/TRACE_HOPS.md)\[`number`\]

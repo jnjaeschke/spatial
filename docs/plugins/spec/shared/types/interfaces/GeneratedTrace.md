@@ -20,7 +20,7 @@ The structured reply of task `traceSpec`.
 
 #### hop
 
-> **hop**: [`TraceHop`](../type-aliases/TraceHop.md)
+> **hop**: `"start"` \| `"return"` \| `"call"` \| `"next"` \| `"async"`
 
 #### note
 

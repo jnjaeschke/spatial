@@ -6,15 +6,18 @@ import { stepEffects } from "../../shared/effects.ts";
 /** The session's `SpecAlgorithm` for `ref` at `sha`, if stored. */
 const stored = (view: SessionView, ref: string, sha: string) => view.artifacts.find((a): a is Artifact<SpecAlgorithmData> => a.type === "SpecAlgorithm" && (a.data as SpecAlgorithmData).ref === ref && (a.data as SpecAlgorithmData).sha === sha);
 
-/** Thrown when webspec-index has no section for the ref. */
-export class SpecNotFoundError extends Error {}
+/** Thrown when webspec-index has no section for the ref; `reason` is webspec-index's. */
+export class SpecNotFoundError extends Error {
+  readonly reason: string;
+  constructor(reason: string) { super(`Spec section not found: ${reason}`); this.reason = reason; }
+}
 
 /** Looks up a section and stores it as a `SpecAlgorithm`, unless the session already has it at the same sha. */
 export const loadSpecAlgorithm = defineTask<{ ref: string }, { algorithmId: Id }>({
   kind: "loadSpecAlgorithm",
   async run(ctx, { ref }) {
     const result = await ctx.webspec.query(ref, ctx.signal);
-    if (!result.found) throw new SpecNotFoundError(`Spec section not found: ${result.reason}`);
+    if (!result.found) throw new SpecNotFoundError(result.reason);
     const { section } = result;
     const key = specRef(section.spec, section.anchor);
     const existing = stored(ctx.artifacts.view(), key, section.sha);

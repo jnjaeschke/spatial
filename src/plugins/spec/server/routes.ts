@@ -14,11 +14,12 @@ import { implementationsData } from "../runtime/implementations.ts";
 import { randomUUID } from "node:crypto";
 import { isSpecRef } from "../shared/refs.ts";
 import { traceStatus } from "../shared/traces.ts";
-import { checkTrace, generateTrace, loadTraceFacts, openTraceBoxes, type TraceRequest } from "../runtime/traces.ts";
-import type { TraceQuestion } from "../shared/types.ts";
+import { generateTrace, openTraceBoxes, traceCheckRunning, type TraceRequest } from "../runtime/traces.ts";
+import { loadTraceFacts } from "../tasks/check-trace/task.ts";
+import { TRACE_HOPS, type TraceQuestion } from "../shared/types.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
-const HOPS = new Set(["start", "call", "return", "next", "async"]);
+const HOPS = new Set<string>(TRACE_HOPS);
 const isMode = (value: unknown): value is TraceQuestion["mode"] => value === "claim" || value === "scenario";
 const log = (what: string) => (error: unknown) => console.error(`${what} failed: ${(error as Error).message}`);
 
@@ -83,14 +84,18 @@ export function specRoutes(rt: Runtime): Route[] {
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/check$/, async ({ res, params }) => {
       const session = requireSession(rt, params[0]!);
-      const status = requireTrace(rt, session.id, decodeURIComponent(params[1]!));
-      void checkTrace(rt, session.id, status.trace.id, status.check?.data.verdict ?? null, false).catch(log(`check of trace ${status.trace.data.traceId}`));
-      send(res, 202, { traceArtifactId: status.trace.id });
+      const { trace } = requireTrace(rt, session.id, params[1]!);
+      if (traceCheckRunning(rt, session.id, trace.data.traceId)) throw new HttpError(409, `A check of trace ${trace.data.traceId} is running`);
+      void rt.run(session.id, "checkTrace", { traceId: trace.data.traceId, traceArtifactId: trace.id }).catch(log(`check of trace ${trace.data.traceId}`));
+      send(res, 202, { traceArtifactId: trace.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/open$/, async ({ res, params }) => {
       const session = requireSession(rt, params[0]!);
-      const { trace } = requireTrace(rt, session.id, decodeURIComponent(params[1]!));
-      send(res, 201, { opened: await openTraceBoxes(rt, session.id, trace.data, await loadTraceFacts(rt, session.id, trace.data.entries)) });
+      const { trace } = requireTrace(rt, session.id, params[1]!);
+      let facts;
+      try { facts = await loadTraceFacts({ run: (kind, input) => rt.run(session.id, kind, input), artifacts: { get: (id) => rt.store.getArtifact(id) } }, trace.data.entries); }
+      catch (error) { throw new HttpError(lookupStatus(error), (error as Error).message); }
+      send(res, 201, { opened: await openTraceBoxes(rt, session.id, trace.data, facts.algorithms) });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/open$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

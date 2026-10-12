@@ -3,7 +3,7 @@ import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type Canva
 import type { Engine, TaskRecord } from "../../../plugin-api.ts";
 import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../shared/types.ts";
 import { engineTasks } from "../shared/engine.ts";
-import { latestTraces, traceSequence, traceStatus, type TraceRow } from "../shared/traces.ts";
+import { currentCheck, latestTraces, traceSequence, traceStatus, type TraceRow } from "../shared/traces.ts";
 import { explorerGraph, explorerLayout, openBoxes, specNodeId } from "./graph.ts";
 import { ExplorerContext, ExplorerViewContext, type SpecFocus } from "./context.ts";
 import { specClient } from "./client.ts";
@@ -51,7 +51,7 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const [activeId, setActive] = useActiveTrace(state.session.id);
   const active = traces.find((trace) => trace.traceId === activeId) ?? null;
   const status = useMemo(() => activeId ? traceStatus(state.artifacts, activeId) : null, [state.artifacts, activeId]);
-  const current = status && !status.outdated ? status.check?.data ?? null : null;
+  const current = currentCheck(status);
   const unverified = useMemo(() => new Map(current ? current.hops.flatMap((hop, index) => hop.ok ? [] : [[index, hop.reason] as const]) : []), [current]);
   const [mode, setMode] = useState<"map" | "sequence">("map");
   const [panel, setPanel] = useTracePanel(state.session.id);

@@ -16,7 +16,7 @@
 
 ### hop?
 
-> `optional` **hop?**: [`TraceHop`](../type-aliases/TraceHop.md)
+> `optional` **hop?**: `"start"` \| `"return"` \| `"call"` \| `"next"` \| `"async"`
 
 ***
 

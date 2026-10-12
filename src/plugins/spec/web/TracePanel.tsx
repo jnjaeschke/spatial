@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, ErrorText, IconButton, SidePanel, useAction, type TaskRecord } from "../../../web/plugin-api.ts";
 import type { SpecTraceData } from "../shared/types.ts";
-import { hopOf, traceMarkdown, type TraceStatus } from "../shared/traces.ts";
+import { currentCheck, hopOf, traceMarkdown, type TraceStatus } from "../shared/traces.ts";
 import type { TraceWriter } from "./trace-writer.ts";
 import { AskComposer } from "./AskComposer.tsx";
 import { PendingTrace, TraceCheckHeader } from "./TraceCheck.tsx";
@@ -12,6 +12,7 @@ export function TracePanel({ writer, traces, active, algorithms, readOnly, onSel
   const action = useAction();
   const [exported, setExported] = useState<string | null>(null);
   const edit = (traceId: string, update: (trace: SpecTraceData) => SpecTraceData) => action.run(() => writer.editTrace(traceId, update));
+  const current = currentCheck(status);
   return <SidePanel title="Traces" closeLabel="Close traces" onClose={onClose} testId="trace-panel" className="trace-panel">
     <div className="trace-list">
       {traces.map((trace) => <label key={trace.traceId}><input type="radio" name="active-trace" checked={trace.traceId === active?.traceId} onChange={() => onSelect(trace.traceId)} />{trace.title}</label>)}
@@ -22,7 +23,7 @@ export function TracePanel({ writer, traces, active, algorithms, readOnly, onSel
     {active && <>
       {active.question && status && <TraceCheckHeader question={active.question} status={status} tasks={tasks} readOnly={readOnly} onRecheck={async () => { await specClient.recheckTrace(sessionId, active.traceId); }} />}
       <input aria-label="Trace title" key={active.traceId} defaultValue={active.title} readOnly={readOnly} onBlur={(event) => { const title = event.currentTarget.value.trim(); if (title && title !== active.title) void edit(active.traceId, (trace) => ({ ...trace, title })); }} />
-      <ol className="trace-entries">{active.entries.map((entry, index) => { const current = status && !status.outdated ? status.check?.data : undefined; const hopResult = current?.hops[index], noteResult = current?.notes[index]; return <li key={`${active.traceId}:${index}:${entry.anchor}:${entry.step}`} data-testid={`trace-entry-${index}`} className={hopResult && !hopResult.ok ? "unverified" : undefined}>
+      <ol className="trace-entries">{active.entries.map((entry, index) => { const hopResult = current?.hops[index], noteResult = current?.notes[index]; return <li key={`${active.traceId}:${index}:${entry.anchor}:${entry.step}`} data-testid={`trace-entry-${index}`} className={hopResult && !hopResult.ok ? "unverified" : undefined}>
         {active.question && <span className={`trace-hop-kind hop-${hopOf(active.entries, index)}`}>{hopOf(active.entries, index)}</span>}
         <span className="trace-step">{algorithms.get(entry.anchor)?.title ?? entry.anchor} step {entry.step}</span>
         {hopResult && !hopResult.ok && <span className="trace-unverified" title={hopResult.reason}>unverified hop</span>}

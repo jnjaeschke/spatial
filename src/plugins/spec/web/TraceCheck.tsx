@@ -5,19 +5,19 @@ import { taskState } from "./implementations.ts";
 
 const ofTrace = (traceId: string) => (input: unknown) => (input as { traceId?: string }).traceId === traceId;
 
-/** A generated trace still being traced: "Tracing…", or the tracer's error. */
+/** A trace not stored yet: "Tracing…" while its tracer runs, else the tracer's error. */
 export function PendingTrace({ traceId, tasks }: { traceId: string; tasks: TaskRecord[] }) {
-  const { failed } = taskState(tasks, ["traceSpec"], ofTrace(traceId));
+  const { busy, failed } = taskState(tasks, ["traceSpec"], ofTrace(traceId));
   if (failed) return <ErrorText error={failed} testId="trace-failed" />;
-  return <p className="trace-pending" data-testid="trace-pending">Tracing…</p>;
+  return busy ? <p className="trace-pending" data-testid="trace-pending">Tracing…</p> : null;
 }
 
 /** The question, verdict line and check state of a generated trace. */
 export function TraceCheckHeader({ question, status, tasks, readOnly, onRecheck }: { question: TraceQuestion; status: TraceStatus; tasks: TaskRecord[]; readOnly: boolean; onRecheck(): Promise<void> }) {
   const action = useAction();
   const check = status.check?.data;
-  const run = taskState(tasks, check ? ["verifyTraceNotes"] : ["traceSpec", "verifyTraceNotes"], ofTrace(status.trace.data.traceId));
-  const checking = check ? status.outdated && run.busy : !run.failed;
+  const run = taskState(tasks, check ? ["checkTrace"] : ["traceSpec", "checkTrace"], ofTrace(status.trace.data.traceId));
+  const checking = run.busy;
   return <div className="trace-check" data-testid="trace-check">
     <p className="trace-question"><span className="badge">{question.mode === "claim" ? "Claim" : "Scenario"}</span> {question.text}</p>
     {check && <p className={status.outdated ? "trace-verdict outdated" : "trace-verdict"} data-testid="trace-verdict">{verdictLine(check)}</p>}

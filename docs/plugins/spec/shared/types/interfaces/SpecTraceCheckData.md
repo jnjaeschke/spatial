@@ -22,12 +22,6 @@ Data of a `SpecTraceCheck` artifact: the checks of one `SpecTrace` version (`tra
 
 ***
 
-### notesTaskId
-
-> **notesTaskId**: `string` \| `null`
-
-***
-
 ### traceArtifactId
 
 > **traceArtifactId**: `string`

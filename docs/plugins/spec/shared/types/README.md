@@ -45,3 +45,7 @@
 - [StepLinkKind](type-aliases/StepLinkKind.md)
 - [TraceHop](type-aliases/TraceHop.md)
 - [UnmappedReason](type-aliases/UnmappedReason.md)
+
+## Variables
+
+- [TRACE\_HOPS](variables/TRACE_HOPS.md)

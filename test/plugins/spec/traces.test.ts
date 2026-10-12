@@ -47,7 +47,7 @@ test("traceSequence draws generated hops: async rows, next as self", () => {
 
 let n = 0;
 const artifact = <T>(type: string, data: T, taskId = "user") => ({ id: `a${++n}`, sessionId: "s", type, status: "verified", data, provenance: { taskId }, epoch: 1, createdAt: "" }) as Artifact<T>;
-const check = (traceArtifactId: string, extra: Partial<SpecTraceCheckData> = {}): SpecTraceCheckData => ({ traceId: "t", traceArtifactId, verdict: null, hops: [], notes: [], notesTaskId: null, ...extra });
+const check = (traceArtifactId: string, extra: Partial<SpecTraceCheckData> = {}): SpecTraceCheckData => ({ traceId: "t", traceArtifactId, verdict: null, hops: [], notes: [], ...extra });
 
 test("traceStatus: a check of the latest version is current, a user edit after it makes it outdated", () => {
   const generated = artifact<SpecTraceData>("SpecTrace", { traceId: "t", title: "T", question: { mode: "claim", text: "q" }, entries: [hopEntry("A#a", "1", "start")] }, "task-1");

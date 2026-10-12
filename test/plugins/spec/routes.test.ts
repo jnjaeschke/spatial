@@ -132,3 +132,13 @@ test("open stores the boxes of a trace along its call hops", async () => {
   assert.deepEqual(rt.store.listArtifacts(session.id, "SpecOpened").at(-1)!.data, { anchor: "HTML#snapshotting-source-snapshot-params", from: { anchor: "HTML#navigate", step: "2" } });
   assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g2/open`), { status: 201, body: { opened: 0 } });
 });
+
+test("a trace check runs as one task per trace: a second while it runs is 409; open reports a failed lookup", async () => {
+  const { rt, session, routes } = setup();
+  rt.store.putArtifact({ sessionId: session.id, type: "SpecTrace", status: "verified", provenance: { taskId: "user" }, data: { traceId: "g3", title: "t", entries: [{ anchor: "HTML#broken", step: "1", note: "", hop: "start" }] } });
+  const running = rt.store.createTask({ sessionId: session.id, kind: "checkTrace", input: { traceId: "g3" } });
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g3/check`)).status, 409);
+  rt.store.updateTask(running.id, { status: "succeeded" });
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g3/check`)).status, 202);
+  assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/traces/g3/open`)).status, 502);
+});

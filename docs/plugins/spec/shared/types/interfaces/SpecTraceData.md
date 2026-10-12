@@ -31,3 +31,9 @@ Data of a `SpecTrace` artifact (user); the latest artifact per `traceId` is the 
 ### traceId
 
 > **traceId**: `string`
+
+***
+
+### verdict?
+
+> `optional` **verdict?**: [`TraceVerdict`](TraceVerdict.md) \| `null`
