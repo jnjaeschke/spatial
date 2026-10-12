@@ -43,8 +43,6 @@
 - [RevisionData](interfaces/RevisionData.md)
 - [Rewrite](interfaces/Rewrite.md)
 - [RuntimeEvent](interfaces/RuntimeEvent.md)
-- [SelectorAnswerData](interfaces/SelectorAnswerData.md)
-- [SelectorQuestionData](interfaces/SelectorQuestionData.md)
 - [SemanticChange](interfaces/SemanticChange.md)
 - [SequenceLane](interfaces/SequenceLane.md)
 - [SequenceStep](interfaces/SequenceStep.md)

@@ -6,13 +6,19 @@
 
 # Interface: StartQuestion
 
-A question the start box shows before a session exists; send the start request again with `answer` set to the index of the chosen option. An option with `cancel` abandons the start.
+A question the start box shows before a session exists: the workflow selector's (answered in text) or the chosen workflow's precheck (`options`; an option with `cancel` abandons the start). Answer with `POST /api/start` `{ question: id, answer }`, the answer being the text or the option's index.
 
 ## Properties
 
-### options
+### id
 
-> **options**: `object`[]
+> **id**: `string`
+
+***
+
+### options?
+
+> `optional` **options?**: `object`[]
 
 #### cancel?
 

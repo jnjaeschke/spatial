@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Store } from "../../src/runtime/store.ts";
-import { createSessionServer } from "../../src/mcp/session-server.ts";
+import { createRepoServer, createSessionServer } from "../../src/mcp/session-server.ts";
 import { pluginRegistry } from "../../src/runtime/plugins.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
@@ -62,6 +62,25 @@ test("session MCP exposes live read-only overview, get, and search", async () =>
   await client.close();
   await server.close();
   store.close();
+});
+
+// REQUIRES_REAL_GIT
+test("the repo MCP server exposes the repo tools only and answers for its repository", async () => {
+  const repo = makeRepo();
+  try {
+    repo.commit({ "a.txt": "one\n" }, "only commit");
+    const server = createRepoServer(repo.dir);
+    const client = new Client({ name: "test", version: "1" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status"]);
+    assert.match(text(await client.callTool({ name: "scm_log", arguments: { range: "HEAD", limit: 1 } })), /only commit/);
+    await client.close();
+    await server.close();
+  } finally {
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
 });
 
 // REQUIRES_REAL_GIT

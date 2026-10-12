@@ -70,6 +70,24 @@ Called once at task start to load repo MCP servers, skills, and instructions. De
 
 ***
 
+### repoMcp?
+
+> `optional` **repoMcp?**: (`repo`) => `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+MCP servers for LLM work in a repository before any session exists.
+
+#### Parameters
+
+##### repo
+
+`string`
+
+#### Returns
+
+`Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+***
+
 ### searchfox
 
 > **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)

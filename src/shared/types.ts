@@ -12,8 +12,8 @@ export type WriteMode = "auto" | "full" | "editsOnly";
 /** A shell command an agent ran (source fact; artifact `CommandRun`, verified). `test` is true when the profile's `isTestCommand` matches. `output` is capped at 256 KB. */
 export interface CommandRunData { command: string; exitCode: number; durationMs: number; output: string; test: boolean }
 
-/** A question the start box shows before a session exists; send the start request again with `answer` set to the index of the chosen option. An option with `cancel` abandons the start. */
-export interface StartQuestion { question: string; options: { label: string; cancel?: true }[] }
+/** A question the start box shows before a session exists: the workflow selector's (answered in text) or the chosen workflow's precheck (`options`; an option with `cancel` abandons the start). Answer with `POST /api/start` `{ question: id, answer }`, the answer being the text or the option's index. */
+export interface StartQuestion { id: string; question: string; options?: { label: string; cancel?: true }[] }
 
 /** A registry entry as the start box shows it: `/<id> <argHint>`, `description`. */
 export interface WorkflowInfo { id: string; description: string; argHint: string }
@@ -36,20 +36,6 @@ export interface DecisionOption { id: string; label: string; takesText?: boolean
 /** Data of a `Decision` artifact: a question a workflow asked after the epoch the artifact is stamped with. `key` identifies the decision within its epoch (the runtime and the workflows match on key and epoch); `question` is display text only. `chosen` is null while it is open. The user's answer is a new verified version linked `revises →` the open one; a rule's answer is stored already chosen, with its reason. */
 export interface DecisionData { key: string; question: string; options: DecisionOption[]; chosen: { option: string; by: "user" | "rule"; text?: string; reason?: string; llm?: LlmSelection } | null }
 
-/** Data of a `SelectorQuestion` artifact: the workflow selector could not choose and asks the user; `prompt` is the request it was given, `round` counts questions so far (1-based). */
-export interface SelectorQuestionData {
-  prompt: string;
-  question: string;
-  round: number;
-  writeMode?: WriteMode;
-}
-
-/** Data of a `SelectorAnswer` artifact: the user's answer to a `SelectorQuestion`. */
-export interface SelectorAnswerData {
-  question: Id;
-  text: string;
-}
-
 /** The user's durable unit of work. Grouped by repo (`repoDir`); runs in one worktree of it. */
 export interface Session {
   id: Id;
@@ -59,7 +45,7 @@ export interface Session {
   repoDir: string;
   title: string;
   createdAt: string;
-  /** The workflow the session runs; null until the start request is interpreted. */
+  /** The workflow the session runs; the start box creates sessions with it set, null only for sessions made without one. */
   workflow: WorkflowId | null;
 }
 

@@ -254,6 +254,32 @@ The step `advance` would take now: the follow-up of the latest epoch's phase whe
 
 ***
 
+### repoLlmContext()
+
+> **repoLlmContext**(`repo`): `object`
+
+What LLM work in `repo` gets before any session exists: the repo context and MCP servers that need no session.
+
+#### Parameters
+
+##### repo
+
+`string`
+
+#### Returns
+
+`object`
+
+##### context
+
+> **context**: [`RepoContext`](../../repo-context/interfaces/RepoContext.md)
+
+##### mcpServers
+
+> **mcpServers**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+***
+
 ### retryPhase()
 
 > **retryPhase**(`sessionId`): `Promise`\<[`Epoch`](../../../shared/types/interfaces/Epoch.md)\>

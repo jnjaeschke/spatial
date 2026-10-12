@@ -40,22 +40,9 @@ async function answerAsync(produce: () => Promise<string>) {
   catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }], isError: true }; }
 }
 
-export function createSessionServer(registry: PluginRegistry, store: Store, sessionId: Id, repoRoot: string, caps: SessionServerCapabilities): McpServer {
-  const server = new McpServer({ name: "spatial", version: "1.0.0" });
-  server.registerTool("session_overview", { description: "Summarize this session", inputSchema: {}, annotations }, async () => answer(() => sessionOverview(registry, sessionView(store, sessionId)).join("\n\n")));
-  server.registerTool("get", { description: "Render a session artifact or subref", inputSchema: { ref: z.string() }, annotations }, async ({ ref }) => answer(() => renderRef(registry.artifactKinds, sessionView(store, sessionId), ref)));
+/** Tools that need only a repository: repo skills and read-only SCM queries. */
+function registerRepoTools(server: McpServer, repoRoot: string): void {
   server.registerTool("read_skill", { description: "Return the full content of a repo skill by name", inputSchema: { name: z.string() }, annotations }, async ({ name }) => answer(() => readRepoSkill(repoRoot, name)));
-  server.registerTool("search", {
-    description: "Search this session's artifacts",
-    inputSchema: {
-      query: z.string(),
-      kinds: z.array(z.enum(registry.searchKinds as [string, ...string[]])).optional(),
-      limit: z.number().int().min(1).max(50).optional(),
-    }, annotations,
-  }, async ({ query, kinds, limit }) => answer(() => {
-    const hits = store.search(sessionId, query, { kinds, limit });
-    return hits.length ? hits.map((hit) => `${hit.ref} [${hit.kind}] ${hit.snippet}`).join("\n") : "No matches.";
-  }));
   server.registerTool("scm_status", { description: "Show branch and working tree status", inputSchema: {}, annotations }, async () => answerAsync(() => scmStatus(repoRoot)));
   server.registerTool("scm_branches", { description: "List local branches", inputSchema: {}, annotations }, async () => answerAsync(() => scmBranches(repoRoot)));
   server.registerTool("scm_log", {
@@ -67,6 +54,31 @@ export function createSessionServer(registry: PluginRegistry, store: Store, sess
   server.registerTool("scm_show", { description: "Show commit metadata and changed-file summary", inputSchema: { rev: z.string() }, annotations }, async ({ rev }) => answerAsync(() => scmShow(repoRoot, rev)));
   server.registerTool("scm_diff", { description: "Show the patch for a commit", inputSchema: { rev: z.string(), path: z.string().optional() }, annotations }, async ({ rev, path }) => answerAsync(() => scmDiff(repoRoot, rev, path)));
   server.registerTool("scm_file", { description: "Read numbered lines from a file at a revision", inputSchema: { rev: z.string(), path: z.string(), start: z.number().int().min(1).optional(), end: z.number().int().min(1).optional() }, annotations }, async ({ rev, path, start, end }) => answerAsync(() => scmFile(repoRoot, rev, path, start, end)));
+}
+
+/** The `spatial` server for work before a session exists (choosing the workflow): the repo tools only. */
+export function createRepoServer(repoRoot: string): McpServer {
+  const server = new McpServer({ name: "spatial", version: "1.0.0" });
+  registerRepoTools(server, repoRoot);
+  return server;
+}
+
+export function createSessionServer(registry: PluginRegistry, store: Store, sessionId: Id, repoRoot: string, caps: SessionServerCapabilities): McpServer {
+  const server = new McpServer({ name: "spatial", version: "1.0.0" });
+  server.registerTool("session_overview", { description: "Summarize this session", inputSchema: {}, annotations }, async () => answer(() => sessionOverview(registry, sessionView(store, sessionId)).join("\n\n")));
+  server.registerTool("get", { description: "Render a session artifact or subref", inputSchema: { ref: z.string() }, annotations }, async ({ ref }) => answer(() => renderRef(registry.artifactKinds, sessionView(store, sessionId), ref)));
+  server.registerTool("search", {
+    description: "Search this session's artifacts",
+    inputSchema: {
+      query: z.string(),
+      kinds: z.array(z.enum(registry.searchKinds as [string, ...string[]])).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    }, annotations,
+  }, async ({ query, kinds, limit }) => answer(() => {
+    const hits = store.search(sessionId, query, { kinds, limit });
+    return hits.length ? hits.map((hit) => `${hit.ref} [${hit.kind}] ${hit.snippet}`).join("\n") : "No matches.";
+  }));
+  registerRepoTools(server, repoRoot);
   for (const tool of registry.mcpTools) {
     server.registerTool(tool.name, { description: tool.description, inputSchema: tool.input, annotations }, async (input, extra) => answerAsync(async () => capOutput(await tool.run({ sessionId, repo: repoRoot, webspec: caps.webspec, knowledge: caps.knowledge, codeSearch: caps.codeSearch, signal: extra.signal }, input), MAX_TOOL_OUTPUT)));
   }
@@ -80,6 +92,11 @@ async function main(args: string[]): Promise<void> {
     return args[index + 1]!;
   };
   const optional = (name: string) => args.includes(name) ? value(name) : undefined;
+  const repo = optional("--repo");
+  if (repo !== undefined) {
+    await createRepoServer(repo).connect(new StdioServerTransport());
+    return;
+  }
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
   const knowledge = new KnowledgeStore(join(dirname(value("--db")), "knowledge.db"), { readOnly: true });

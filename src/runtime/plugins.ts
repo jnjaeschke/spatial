@@ -50,7 +50,7 @@ export interface Workflow<P> extends WorkflowInfo {
   params: z.ZodType<P>;
   /** Deterministic parser for slash-command arguments. */
   parseArgs(args: string): ParseResult<P>;
-  /** Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box (slash commands) or stored as a selector question (selected workflows). */
+  /** Deterministic check of the work tree `repo` before the session exists; a question is shown in the start box with its options as buttons, and the chosen option's `params` complete the start. */
   precheck?(repo: string, params: P): Promise<PrecheckQuestion<P> | null>;
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
   /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (key, epoch) once answered. */

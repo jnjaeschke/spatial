@@ -40,7 +40,7 @@ Repo identity: absolute, symlink-resolved `git rev-parse --git-common-dir`, shar
 
 > **workflow**: `string` \| `null`
 
-The workflow the session runs; null until the start request is interpreted.
+The workflow the session runs; the start box creates sessions with it set, null only for sessions made without one.
 
 ***
 

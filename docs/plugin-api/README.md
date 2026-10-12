@@ -677,18 +677,6 @@ Re-exports [SearchfoxCapability](../runtime/tasks/interfaces/SearchfoxCapability
 
 ***
 
-### SelectorAnswerData
-
-Re-exports [SelectorAnswerData](../shared/types/interfaces/SelectorAnswerData.md)
-
-***
-
-### SelectorQuestionData
-
-Re-exports [SelectorQuestionData](../shared/types/interfaces/SelectorQuestionData.md)
-
-***
-
 ### SemanticChange
 
 Re-exports [SemanticChange](../shared/types/interfaces/SemanticChange.md)

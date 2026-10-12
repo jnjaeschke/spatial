@@ -12,4 +12,5 @@
 
 ## Functions
 
+- [createRepoServer](functions/createRepoServer.md)
 - [createSessionServer](functions/createSessionServer.md)

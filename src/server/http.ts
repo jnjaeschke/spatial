@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
@@ -13,7 +13,7 @@ import { loadRepoContext } from "../runtime/repo-context.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { isActive } from "../shared/task-state.ts";
 import { workflowInfo } from "../workflows/registry.ts";
-import { continueSelection, startSession } from "../workflows/start.ts";
+import { startSession, type PendingStart, type StartRequest } from "../workflows/start.ts";
 import { isGeckoRepo } from "../runtime/searchfox.ts";
 import { resolveCodeLinks } from "../runtime/code-links.ts";
 
@@ -144,6 +144,7 @@ function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionD
 export function createHttpServer(rt: Runtime, opts: { staticDir?: string; background?: { intervalMs?: number }; pid?: number; commit?: string | null; homeDir?: string } = {}): Server {
   const pluginServers = rt.plugins.plugins.flatMap((plugin) => plugin.server ? [plugin.server(rt, { intervalMs: opts.background?.intervalMs })] : []);
   if (opts.background) for (const plugin of pluginServers) plugin.start?.();
+  const pendingStarts = new Map<string, PendingStart>();
   const routes: Route[] = [
     ["GET", /^\/api\/health$/, async (): Promise<HealthResponse> => ({
       app: "spatial", ui: opts.staticDir !== undefined, pid: opts.pid ?? process.pid, commit: opts.commit ?? null,
@@ -152,15 +153,24 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     ["GET", /^\/api\/workflows$/, async (): Promise<WorkflowInfo[]> => workflowInfo(rt.workflows.values())],
     ["POST", /^\/api\/start$/, async ({ req, res }) => {
       const body = await readJson(req);
-      const path = str(body.path, "path");
-      if (!isAbsolute(path)) throw new HttpError(400, "path must be absolute");
-      const text = str(body.text, "text");
-      const writeMode = body.writeMode;
-      if (writeMode !== undefined && writeMode !== "auto" && writeMode !== "full" && writeMode !== "editsOnly") throw new HttpError(400, "Invalid writeMode");
-      const answer = body.answer;
-      if (answer !== undefined && (!Number.isInteger(answer))) throw new HttpError(400, "Invalid answer");
+      let request: StartRequest;
+      if (body.question !== undefined) {
+        const answer = body.answer;
+        if (!Number.isInteger(answer) && typeof answer !== "string") throw new HttpError(400, "Invalid answer");
+        request = { question: str(body.question, "question"), answer: answer as number | string };
+      } else {
+        const path = str(body.path, "path");
+        if (!isAbsolute(path)) throw new HttpError(400, "path must be absolute");
+        const writeMode = body.writeMode;
+        if (writeMode !== undefined && writeMode !== "auto" && writeMode !== "full" && writeMode !== "editsOnly") throw new HttpError(400, "Invalid writeMode");
+        const llm = llmField(body);
+        request = { path, text: str(body.text, "text"), ...(llm ? { llm } : {}), ...(writeMode ? { writeMode: writeMode as WriteMode } : {}) };
+      }
+      // The selector may run for a while; a start box that goes away cancels it.
+      const abort = new AbortController();
+      res.on("close", () => { if (!res.writableFinished) abort.abort(); });
       let result: Session | StartQuestion;
-      try { result = await startSession(rt, path, text, llmField(body), { writeMode: writeMode as WriteMode | undefined, answer: answer as number | undefined }); }
+      try { result = await startSession(rt, pendingStarts, request, abort.signal); }
       catch (e) { throw new HttpError(400, (e as Error).message); }
       send(res, "question" in result ? 200 : 201, result);
     }],
@@ -273,20 +283,6 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const off = rt.onEvent((e) => { if (e.sessionId === id) write(e); });
       const ping = setInterval(() => res.write(": ping\n\n"), 15_000);
       res.on("close", () => { off(); clearInterval(ping); for (const stop of unwatch) stop(); });
-    }],
-    ["POST", /^\/api\/sessions\/([^/]+)\/selector-answer$/, async ({ req, res, params }) => {
-      const session = requireSession(rt, params[0]);
-      const body = await readJson(req);
-      const text = str(body.text, "text").trim();
-      if (!text) throw new HttpError(400, "Answer must not be empty");
-      if (session.workflow) throw new HttpError(409, "Session already has a workflow");
-      const artifacts = rt.store.listArtifacts(session.id);
-      const question = artifacts.findLast((artifact) => artifact.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
-      if (!question) throw new HttpError(409, "No open selector question");
-      if (artifacts.some((artifact) => artifact.type === "SelectorAnswer" && (artifact.data as SelectorAnswerData).question === question.id)) throw new HttpError(409, "Question already answered");
-      const answer = putUserArtifact(rt, session.id, "SelectorAnswer", { question: question.id, text } satisfies SelectorAnswerData, question.id);
-      continueSelection(rt, session.id, question, text, llmField(body));
-      send(res, 201, { artifactId: answer.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/notes$/, async ({ req, res, params }) => {
       const id = requireSession(rt, params[0]).id;

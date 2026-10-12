@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import type { LlmSelection, SelectorQuestionData, WorkflowStartData } from "../../src/shared/types.ts";
+import type { LlmSelection } from "../../src/shared/types.ts";
 import type { Plugin } from "../../src/runtime/plugins.ts";
-import { MAX_SELECTOR_QUESTIONS, selectorSchema } from "../../src/tasks/select-workflow/task.ts";
+import { MAX_SELECTOR_QUESTIONS, selectWorkflow, selectorSchema } from "../../src/workflows/select.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { plugins } from "../../src/plugins/index.ts";
 
@@ -25,10 +25,10 @@ function setup(json: unknown, extra: Plugin[] = []) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins, ...extra], llm, sessionMcp: () => ({ spatial: { type: "stdio", command: "spatial", args: [] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
+  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins, ...extra], llm, repoMcp: (repo) => ({ spatial: { type: "stdio", command: "spatial", args: ["--repo", repo] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
     webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
-  return { store, rt, session, get call() { return call; } };
+  const select = (prompt: string, round = 0) => selectWorkflow(rt, "/repo", prompt, round, undefined, new AbortController().signal);
+  return { store, select, get call() { return call; } };
 }
 
 test("selector prompt lists repo profiles and marks the detected ones", async () => {
@@ -36,25 +36,20 @@ test("selector prompt lists repo profiles and marks the detected ones", async ()
     { id: "yes", description: "Detected profile.", commitStyle: "single", detect: async () => true },
     { id: "no", description: "Other profile.", commitStyle: "stack", detect: async () => false },
   ] }]);
-  await s.rt.run(s.session.id, "selectWorkflow", { prompt: "do it" });
+  await s.select("do it");
   const prompt = s.call!.prompt;
   assert.ok(prompt.includes("# Repo profiles"));
   assert.ok(prompt.includes("- yes (detected in this repository): Detected profile."));
   assert.ok(prompt.includes("- no: Other profile."));
 });
 
-test("selector stores a validated workflow start and sends workflow schemas", async () => {
+test("selector returns a validated choice and sends workflow schemas and the repo MCP server", async () => {
   const input = "  Explain X\nwith detail  ";
   const setupResult = setup({ workflow: "chat", params: {}, title: "  Explain X  " });
-  const { store, rt, session } = setupResult;
-  const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: input });
-  const start = store.getArtifact<WorkflowStartData>(startId);
-  assert.equal(start.type, "WorkflowStart");
-  assert.equal(start.status, "proposed");
-  assert.ok(start.provenance.llm);
-  assert.deepEqual(start.data, { via: "selector", workflow: "chat", params: {}, title: "Explain X", prompt: input });
+  assert.deepEqual(await setupResult.select(input), { workflow: "chat", params: {}, title: "Explain X", selection });
   assert.equal(setupResult.call?.tools, "read-only");
-  assert.deepEqual(setupResult.call?.mcpServers, { spatial: { type: "stdio", command: "spatial", args: [] } });
+  assert.equal(setupResult.call?.cwd, "/repo");
+  assert.deepEqual(setupResult.call?.mcpServers, { spatial: { type: "stdio", command: "spatial", args: ["--repo", "/repo"] } });
   assert.deepEqual(setupResult.call?.schema, selectorSchema(workflows));
   const schema = selectorSchema(workflows) as { properties: { workflow: { enum: string[] }; params: { anyOf: unknown[] } } };
   assert.deepEqual(schema.properties.workflow.enum, ["review", "chat", "implement", "explore"]);
@@ -66,39 +61,31 @@ test("selector stores a validated workflow start and sends workflow schemas", as
   assert.ok(setupResult.call?.system?.includes("scm_log"));
 });
 
-test("selector stores a question instead of a start when it asks", async () => {
+test("selector returns a question instead of a choice when it asks", async () => {
   const setupResult = setup({ question: "  Which branch: feature or fix?  ", workflow: "review", params: { base: null, head: null, revision: null }, title: "Review" });
-  const { store, rt, session } = setupResult;
-  const out = await rt.run<{ questionId: string }>(session.id, "selectWorkflow", { prompt: "review my branch" });
-  assert.deepEqual(store.getArtifact<SelectorQuestionData>(out.questionId).data, { prompt: "review my branch", question: "Which branch: feature or fix?", round: 1 });
-  assert.ok(!store.listArtifacts(session.id).some((a) => a.type === "WorkflowStart"));
+  assert.deepEqual(await setupResult.select("review my branch"), { question: "Which branch: feature or fix?" });
   assert.ok(!setupResult.call?.prompt.includes("choose now"));
 });
 
 test("selector must choose after the last allowed question", async () => {
   const setupResult = setup({ question: "Still unsure?", workflow: "chat", params: {}, title: "x" });
-  const { store, rt, session } = setupResult;
-  await assert.rejects(rt.run(session.id, "selectWorkflow", { prompt: "x", round: MAX_SELECTOR_QUESTIONS }), /still asks after 2 answers/);
+  await assert.rejects(setupResult.select("x", MAX_SELECTOR_QUESTIONS), /still asks after 2 answers/);
   assert.ok(setupResult.call?.prompt.includes("choose now"));
-  assert.equal(store.listArtifacts(session.id).length, 0);
 });
 
 test("selector validates review params", async () => {
-  const { store, rt, session } = setup({ workflow: "review", params: { base: "main", head: "f", revision: null }, title: "Review" });
-  const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "Review f" });
-  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: "main", head: "f", revision: null });
+  const { select } = setup({ workflow: "review", params: { base: "main", head: "f", revision: null }, title: "Review" });
+  assert.deepEqual(((await select("Review f")) as { params: unknown }).params, { base: "main", head: "f", revision: null });
 });
 
 test("selector accepts a default review range", async () => {
-  const { store, rt, session } = setup({ workflow: "review", params: { base: null, head: null, revision: null }, title: "Review" });
-  const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "Review this" });
-  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: null, head: null, revision: null });
+  const { select } = setup({ workflow: "review", params: { base: null, head: null, revision: null }, title: "Review" });
+  assert.deepEqual(((await select("Review this")) as { params: unknown }).params, { base: null, head: null, revision: null });
 });
 
 test("selector accepts a revision", async () => {
-  const { store, rt, session } = setup({ workflow: "review", params: { base: null, head: null, revision: "D123" }, title: "Review" });
-  const { startId } = await rt.run<{ startId: string }>(session.id, "selectWorkflow", { prompt: "review D123" });
-  assert.deepEqual(store.getArtifact<WorkflowStartData>(startId).data.params, { base: null, head: null, revision: "D123" });
+  const { select } = setup({ workflow: "review", params: { base: null, head: null, revision: "D123" }, title: "Review" });
+  assert.deepEqual(((await select("review D123")) as { params: unknown }).params, { base: null, head: null, revision: "D123" });
 });
 
 for (const [label, json, prompt, error] of [
@@ -109,15 +96,13 @@ for (const [label, json, prompt, error] of [
   ["blank title", { workflow: "chat", params: {}, title: "  " }, "x", /no title/],
   ["empty prompt", { workflow: "chat", params: {}, title: "x" }, "  ", /Request is empty/],
 ] as const) {
-  test(`selector rejects ${label} without an artifact`, async () => {
-    const { store, rt, session } = setup(json);
-    await assert.rejects(rt.run(session.id, "selectWorkflow", { prompt }), error);
-    assert.equal(store.listArtifacts(session.id, "WorkflowStart").length, 0);
+  test(`selector rejects ${label}`, async () => {
+    await assert.rejects(setup(json).select(prompt), error);
   });
 }
 
 test("selector prompt, schema, and workflow descriptions avoid e2e stub needles", () => {
   const needles = ["# Previous narrative", "# Hunks", "# Prior findings", "ROUTE-UPDATE-REVIEW", '"findings"', "THAT IS WRONG", "ENABLE-DEVTOOLS-PLEASE", '"revisions"'];
-  const sources = [readFileSync(new URL("../../src/tasks/select-workflow/prompt.md", import.meta.url), "utf8"), JSON.stringify(selectorSchema(workflows)), ...[...workflows.values()].map((workflow) => workflow.description)];
+  const sources = [readFileSync(new URL("../../src/workflows/select-prompt.md", import.meta.url), "utf8"), JSON.stringify(selectorSchema(workflows)), ...[...workflows.values()].map((workflow) => workflow.description)];
   for (const needle of needles) assert.ok(sources.every((source) => !source.includes(needle)), needle);
 });

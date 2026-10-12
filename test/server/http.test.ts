@@ -208,22 +208,20 @@ test("workflow start routes support slash commands, selection, and validation", 
 
   const selectorResponse = await post("/api/start", { path: repo.dir, text: "what is this repo about?" });
   assert.equal(selectorResponse.status, 201);
-  const pending: Session = await selectorResponse.json();
-  assert.equal(pending.workflow, null);
-  assert.equal(pending.title, "what is this repo about?");
+  const selectedSession: Session = await selectorResponse.json();
+  assert.equal(selectedSession.workflow, "chat");
+  assert.equal(selectedSession.title, "Picked");
   const selected = await waitFor(async () => {
-    const state: SessionState = await (await fetch(`${base}/api/sessions/${pending.id}/state`)).json();
-    const session = rt.store.getSession(pending.id);
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${selectedSession.id}/state`)).json();
     const start = state.artifacts.find((item) => item.type === "WorkflowStart");
     const thread = state.artifacts.find((item) => item.type === "ChatThread");
-    return session.workflow === "chat" && start && thread ? { state, session, start, thread } : undefined;
+    return start && thread ? { state, start, thread } : undefined;
   });
-  assert.equal(selected.session.title, "Picked");
   assert.equal((selected.start!.data as { via: string }).via, "selector");
   assert.equal((selected.thread!.data as { anchor: string }).anchor, selected.start!.id);
-  assert.ok(selected.state.tasks.some((task) => task.kind === "selectWorkflow" && task.status === "succeeded"));
   assert.ok(selected.state.artifacts.some((item) => item.type === "ChatMessage" && (item.data as { role: string; text: string }).role === "user" && (item.data as { text: string }).text === "what is this repo about?"));
-  assert.ok(rt.store.listEvents(pending.id).some((event) => event.type === "session.updated"));
+
+  for (const body of [{ question: "nope", answer: 0 }, { question: "nope", answer: true }]) assert.equal((await post("/api/start", body)).status, 400);
 });
 
 test("notes require a nonempty body and a session start request", async () => {

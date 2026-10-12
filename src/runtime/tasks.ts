@@ -189,6 +189,8 @@ export interface RuntimeOptions {
   codeSearch?: Partial<Record<Engine, CodeSearch>>;
   /** Plugin data that outlives sessions; defaults to an in-memory store. */ knowledge?: Knowledge;
   sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
+  /** MCP servers for LLM work in a repository before any session exists. */
+  repoMcp?: (repo: string) => Record<string, McpServerSpec>;
   /** Called once at task start to load repo MCP servers, skills, and instructions. Defaults to an empty context. */
   repoContext?: (repo: string) => RepoContext;
 }
@@ -213,6 +215,7 @@ export class Runtime {
   #codeSearch: Record<Engine, CodeSearch>;
   #knowledge: Knowledge;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
+  #repoMcp: (repo: string) => Record<string, McpServerSpec>;
   #repoContext: (repo: string) => RepoContext;
   #running = new Map<Id, AbortController>();
   #epochRuns = new Map<Id, EpochRun>();
@@ -235,6 +238,7 @@ export class Runtime {
     this.#codeSearch = { gecko: searchfoxCodeSearch("gecko", opts.searchfox), blink: missingCodeSearch("blink"), webkit: missingCodeSearch("webkit"), ...opts.codeSearch };
     this.#knowledge = opts.knowledge ?? new KnowledgeStore(":memory:");
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
+    this.#repoMcp = opts.repoMcp ?? (() => ({}));
     this.#repoContext = opts.repoContext ?? (() => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: null }));
   }
 
@@ -258,6 +262,12 @@ export class Runtime {
   /** Plugin data that outlives sessions. */
   get knowledge(): Knowledge {
     return this.#knowledge;
+  }
+
+  /** What LLM work in `repo` gets before any session exists: the repo context and MCP servers that need no session. */
+  repoLlmContext(repo: string): { context: RepoContext; mcpServers: Record<string, McpServerSpec> } {
+    const context = this.#repoContext(repo);
+    return { context, mcpServers: { ...this.#repoMcp(repo), ...context.mcpServers } };
   }
 
   /** Read-only git for server queries outside tasks. */

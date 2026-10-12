@@ -10,27 +10,23 @@
 
 ## Type Declaration
 
-### answerSelector
+### answerStart
 
-> **answerSelector**: (`sessionId`, `text`, `llm`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+> **answerStart**: (`question`, `answer`) => `Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
 
 #### Parameters
 
-##### sessionId
+##### question
 
 `string`
 
-##### text
+##### answer
 
-`string`
-
-##### llm
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
+`string` \| `number`
 
 #### Returns
 
-`Promise`\<\{ `artifactId`: `string`; \}\>
+`Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
 
 ### cancel
 
@@ -542,7 +538,7 @@
 
 ### start
 
-> **start**: (`path`, `text`, `llm`, `opts`) => `Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
+> **start**: (`path`, `text`, `llm`, `writeMode`) => `Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
 
 #### Parameters
 
@@ -558,13 +554,7 @@
 
 [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
 
-##### opts?
-
-###### answer?
-
-`number`
-
-###### writeMode?
+##### writeMode
 
 [`WriteMode`](../../../shared/types/type-aliases/WriteMode.md)
 

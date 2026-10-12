@@ -6,10 +6,10 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { Workflow } from "../../src/runtime/plugins.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { LlmSelection, SelectorQuestionData, Session, StartQuestion, WorkflowStartData } from "../../src/shared/types.ts";
+import type { LlmSelection, Session, StartQuestion, WorkflowStartData } from "../../src/shared/types.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { chatPlugin } from "../../src/plugins/chat/index.ts";
-import { startSession } from "../../src/workflows/start.ts";
+import { startSession, type PendingStart, type StartRequest } from "../../src/workflows/start.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
@@ -21,9 +21,12 @@ const gated: Workflow<Params> = {
   async precheck(_repo, params) { return params.mode === null ? { question: "Which mode?", options: [{ label: "Mode A", params: { mode: "a" } }, { label: "Cancel" }] } : null; },
   async start(_rt, _id, input) { started.push(input.params); },
 };
+/** Selector replies, consumed in order; the last one repeats. */
+let replies: unknown[] = [];
+const prompts: string[] = [];
 const llm: LlmService = {
   defaultSelection: selection,
-  async run(chosen) { return { text: "", json: { question: null, workflow: "gated", title: "T", params: { mode: null } }, providerSessionId: "p", selection: chosen ?? selection }; },
+  async run(chosen, prompt) { prompts.push(prompt.prompt); return { text: "", json: replies.length > 1 ? replies.shift() : replies[0], providerSessionId: "p", selection: chosen ?? selection }; },
   async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
 };
 const repo = makeRepo();
@@ -36,47 +39,73 @@ async function waitFor<T>(fn: () => T | undefined, ms = 5000): Promise<T> {
   throw new Error("timeout");
 }
 
-test("precheck question comes back without creating a session", async () => {
+const pending = new Map<string, PendingStart>();
+const start = (request: StartRequest) => startSession(rt, pending, request, new AbortController().signal);
+const choose = { question: null, workflow: "gated", title: "T", params: { mode: null } };
+
+test("a precheck question comes back without creating a session; an invalid answer keeps it open", async () => {
   const before = store.listSessions().length;
-  const result = await startSession(rt, repo.dir, "/gated do it") as StartQuestion;
-  assert.deepEqual(result, { question: "Which mode?", options: [{ label: "Mode A" }, { label: "Cancel", cancel: true }] });
+  const result = await start({ path: repo.dir, text: "/gated do it" }) as StartQuestion;
+  assert.deepEqual(result, { id: result.id, question: "Which mode?", options: [{ label: "Mode A" }, { label: "Cancel", cancel: true }] });
   assert.equal(store.listSessions().length, before);
-  const outOfRange = await startSession(rt, repo.dir, "/gated do it", undefined, { answer: 7 });
-  assert.ok("question" in outOfRange);
+  await assert.rejects(start({ question: result.id, answer: 7 }), /Invalid answer/);
+  await assert.rejects(start({ question: result.id, answer: "Mode A" }), /Invalid answer/);
+  assert.ok(pending.has(result.id));
 });
 
-test("an answer completes the params; llm and write mode are stored on the start", async () => {
+test("an answer completes the params and creates the session with its workflow; llm and write mode are stored on the start", async () => {
   started.length = 0;
-  const session = await startSession(rt, repo.dir, "/gated do it", selection, { answer: 0, writeMode: "editsOnly" }) as Session;
-  const start = store.listArtifacts(session.id, "WorkflowStart")[0]!;
-  assert.deepEqual((start.data as WorkflowStartData).params, { mode: "a" });
-  assert.deepEqual((start.data as WorkflowStartData).llm, selection);
-  assert.equal((start.data as WorkflowStartData).writeMode, "editsOnly");
+  const question = await start({ path: repo.dir, text: "/gated do it", llm: selection, writeMode: "editsOnly" }) as StartQuestion;
+  const session = await start({ question: question.id, answer: 0 }) as Session;
+  assert.equal(session.workflow, "gated");
+  assert.equal(session.title, "/gated do it");
+  const data = store.listArtifacts(session.id, "WorkflowStart")[0]!.data as WorkflowStartData;
+  assert.deepEqual(data.params, { mode: "a" });
+  assert.deepEqual(data.llm, selection);
+  assert.equal(data.writeMode, "editsOnly");
   await waitFor(() => started.length ? true : undefined);
   assert.deepEqual(started, [{ mode: "a" }]);
+  await assert.rejects(start({ question: question.id, answer: 0 }), /no longer open/);
 });
 
 test("cancelling the question starts nothing", async () => {
   const before = store.listSessions().length;
-  await assert.rejects(startSession(rt, repo.dir, "/gated do it", undefined, { answer: 1 }), /cancelled/);
+  const question = await start({ path: repo.dir, text: "/gated do it" }) as StartQuestion;
+  await assert.rejects(start({ question: question.id, answer: 1 }), /cancelled/);
   assert.equal(store.listSessions().length, before);
 });
 
 test("a command without a precheck question starts at once", async () => {
-  const session = await startSession(rt, repo.dir, "/chat hello") as Session;
+  const session = await start({ path: repo.dir, text: "/chat hello" }) as Session;
   assert.equal(store.listArtifacts(session.id, "WorkflowStart").length, 1);
 });
 
-test("selector path stores the precheck question as a SelectorQuestion", async () => {
+test("the selector's choice gets the precheck question as options; the answer starts it without asking the selector again", async () => {
   started.length = 0;
-  const session = await startSession(rt, repo.dir, "do the thing", undefined, { writeMode: "full" }) as Session;
-  const question = await waitFor(() => store.listArtifacts(session.id, "SelectorQuestion")[0]);
-  const data = question.data as SelectorQuestionData;
-  assert.match(data.question, /Which mode\?/);
-  assert.match(data.question, /"Mode A"/);
-  assert.doesNotMatch(data.question, /Cancel/);
-  assert.equal(data.round, 1);
-  assert.equal(data.writeMode, "full");
-  assert.equal(store.getSession(session.id).workflow, null);
-  assert.deepEqual(started, []);
+  replies = [choose];
+  prompts.length = 0;
+  const before = store.listSessions().length;
+  const question = await start({ path: repo.dir, text: "do the thing", writeMode: "full" }) as StartQuestion;
+  assert.equal(question.question, "Which mode?");
+  assert.deepEqual(question.options, [{ label: "Mode A" }, { label: "Cancel", cancel: true }]);
+  assert.equal(store.listSessions().length, before);
+  const session = await start({ question: question.id, answer: 0 }) as Session;
+  assert.equal(prompts.length, 1);
+  assert.equal(session.title, "T");
+  const startArtifact = store.listArtifacts(session.id, "WorkflowStart")[0]!;
+  assert.deepEqual(startArtifact.data, { via: "selector", workflow: "gated", params: { mode: "a" }, title: "T", prompt: "do the thing", writeMode: "full" });
+  assert.deepEqual(startArtifact.provenance.llm, selection);
+});
+
+test("the selector's question is answered in text and selection continues with the answer", async () => {
+  replies = [{ ...choose, question: "Which thing?" }, { ...choose, params: { mode: "b" } }];
+  prompts.length = 0;
+  const before = store.listSessions().length;
+  const question = await start({ path: repo.dir, text: "do it" }) as StartQuestion;
+  assert.deepEqual(question, { id: question.id, question: "Which thing?" });
+  assert.equal(store.listSessions().length, before);
+  await assert.rejects(start({ question: question.id, answer: "  " }), /must not be empty/);
+  const session = await start({ question: question.id, answer: "the blue one" }) as Session;
+  assert.match(prompts.at(-1)!, /# Clarification\n\nQuestion: Which thing\?\nAnswer: the blue one/);
+  assert.equal((store.listArtifacts(session.id, "WorkflowStart")[0]!.data as WorkflowStartData).prompt, "do it\n\n# Clarification\n\nQuestion: Which thing?\nAnswer: the blue one");
 });

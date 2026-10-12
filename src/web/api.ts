@@ -34,7 +34,8 @@ export const api = {
   dirs: (path?: string) => get<DirectoryListing>(`/api/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
   workflows: () => get<WorkflowInfo[]>("/api/workflows"),
-  start: (path: string, text: string, llm: LlmSelection, opts: { writeMode?: WriteMode; answer?: number } = {}) => post<Session | StartQuestion>("/api/start", { path, text, llm, ...opts }),
+  start: (path: string, text: string, llm: LlmSelection, writeMode: WriteMode) => post<Session | StartQuestion>("/api/start", { path, text, llm, writeMode }),
+  answerStart: (question: string, answer: number | string) => post<Session | StartQuestion>("/api/start", { question, answer }),
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
   narrate: (id: string, body: { llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
   runAction: (path: string) => {
@@ -44,7 +45,6 @@ export const api = {
   models: () => get<ModelsResponse>("/api/llm/models"),
   turn: (sessionId: string, body: { threadId?: string; anchor?: string; text: string; llm: LlmSelection; quote?: string; lines?: ChatThreadData["lines"] }) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/turns`, body),
-  answerSelector: (sessionId: string, text: string, llm: LlmSelection) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/selector-answer`, { text, llm }),
   note: (sessionId: string, body: string) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/notes`, { body }),
   enableMcpServer: (sessionId: string, threadId: string, server: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),

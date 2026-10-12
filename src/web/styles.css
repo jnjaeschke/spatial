@@ -342,6 +342,8 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .start-controls .llm-picker { gap: 8px 16px; }
 .start-question { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex-basis: 100%; }
 .start-question p { margin: 0; flex-basis: 100%; }
+.start-question .composer { flex-basis: 100%; }
+.start-status { margin: 0; color: var(--text-2); }
 .command-popup { position: absolute; z-index: 5; top: calc(100% - 3px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-3); }
 .command-popup li { display: flex; gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; }
 .command-popup li[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
@@ -696,9 +698,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .export-badge { color: var(--text-2); font-size: 12.5px; }
 .file-panel tr.jumps { cursor: pointer; }
 .file-panel tr.jumps:hover td.ln, .file-panel tr.jumps:hover td.sign { text-decoration: underline; }
-.selector-question { max-width: 640px; margin: 48px auto; display: flex; flex-direction: column; gap: 8px; }
-.selector-question .composer { min-height: 4em; }
-.selector-question button { align-self: flex-end; }
 .commit-node .flow-hint { color: var(--text-2); font-size: 0.85em; }
 .revision-file > summary { cursor: pointer; padding: 4px 0; }
 .revision-file .counts { color: var(--text-2); font-size: 0.85em; }

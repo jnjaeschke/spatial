@@ -115,16 +115,16 @@ test("plain text goes to the selector: chat", async ({ page, request }) => {
   const conversation = page.getByTestId("conversation");
   await expect(conversation).toContainText(prompt, { timeout: 10_000 });
   await expect(conversation).toContainText("Stub answer.", { timeout: 10_000 });
-  await expect(page.getByTestId("task-selectWorkflow")).toHaveAttribute("data-status", "succeeded");
 });
 
-test("the selector asks a question and continues with the answer", async ({ page, request }) => {
+test("the selector asks its question in the start box and continues with the answer", async ({ page, request }) => {
   await openStartBox(page, request);
   const box = page.getByLabel("start");
   await box.fill("SELECT-ROUTE-ASK look at my branch");
   await box.press("Enter");
-  const question = page.getByTestId("selector-question");
+  const question = page.getByTestId("start-question");
   await expect(question).toContainText("Review your branch or chat about it?", { timeout: 10_000 });
+  await expect(page).toHaveURL(/\/repo\?path=/);
   await question.getByLabel("answer").fill("just chat");
   await question.getByLabel("answer").press("Enter");
   await expect(page.locator(".session-title")).toHaveText("Chat via selector", { timeout: 10_000 });

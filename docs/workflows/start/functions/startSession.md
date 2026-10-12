@@ -6,9 +6,9 @@
 
 # Function: startSession()
 
-> **startSession**(`rt`, `path`, `text`, `llm?`, `opts?`): `Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
+> **startSession**(`rt`, `pending`, `request`, `signal`): `Promise`\<[`StartQuestion`](../../../shared/types/interfaces/StartQuestion.md) \| [`Session`](../../../shared/types/interfaces/Session.md)\>
 
-Starts a session in the worktree of `path` from start box text. A slash command may return a `StartQuestion` instead of a session.
+Handles the start box until a workflow is chosen: runs the selector or parses the command, asks the selector's and the workflow's questions, then creates the session and starts its workflow in the background. No session exists before that. `pending` holds the open questions.
 
 ## Parameters
 
@@ -16,27 +16,17 @@ Starts a session in the worktree of `path` from start box text. A slash command 
 
 [`Runtime`](../../../runtime/tasks/classes/Runtime.md)
 
-### path
+### pending
 
-`string`
+`Map`\<`string`, [`PendingStart`](../type-aliases/PendingStart.md)\>
 
-### text
+### request
 
-`string`
+[`StartRequest`](../type-aliases/StartRequest.md)
 
-### llm?
+### signal
 
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-### opts?
-
-#### answer?
-
-`number`
-
-#### writeMode?
-
-[`WriteMode`](../../../shared/types/type-aliases/WriteMode.md)
+`AbortSignal`
 
 ## Returns
 

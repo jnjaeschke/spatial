@@ -141,6 +141,22 @@ test("the repo page lists memories and edits, moves and deletes them", async ({ 
   await expect(page.getByTestId("memories-panel")).toContainText("None yet");
 });
 
+test("a dirty checkout asks in the start box when the selector chooses implement", async ({ page }) => {
+  const dir = makeRepo();
+  writeFileSync(join(dir, "a.txt"), "dirty\n");
+  await page.goto(open(dir));
+  const box = page.getByLabel("start");
+  await box.fill("SELECT-ROUTE-IMPLEMENT fix it");
+  await box.press("Enter");
+  const question = page.getByTestId("start-question");
+  await expect(question).toContainText("uncommitted changes in 1 file", { timeout: 10_000 });
+  await expect(question.getByRole("button", { name: /Continue on this branch/ })).toBeVisible();
+  await expect(question.getByLabel("answer")).toHaveCount(0);
+  await expect(page).not.toHaveURL(/\/sessions\/[^/]+/);
+  await question.getByRole("button", { name: "Cancel" }).click();
+  await expect(question).toHaveCount(0);
+});
+
 test("a dirty checkout asks before /implement starts and the changes move to the new branch", async ({ page }) => {
   const dir = makeRepo();
   writeFileSync(join(dir, "a.txt"), "dirty\n");

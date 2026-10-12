@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { LlmSelection, ModelsResponse, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { LlmSelection, ModelsResponse, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { api } from "./api.ts";
 import { LlmPicker } from "./LlmPicker.tsx";
 import { DescribedOptions } from "./custom-select.tsx";
@@ -16,6 +16,7 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
   const [llm, setLlm] = useState<LlmSelection>(models.default);
   const [writeMode, setWriteMode] = useState(() => readWriteMode(localStorage, repoDir));
   const [question, setQuestion] = useState<StartQuestion | null>(null);
+  const [reply, setReply] = useState("");
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const { busy, error, run, fail, clear } = useAction();
@@ -23,14 +24,17 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
   const suggestions = dismissed ? [] : commandSuggestions(text, commands);
   const selected = Math.min(active, suggestions.length - 1);
   const complete = (command: WorkflowInfo) => { setText(completeCommand(command)); setActive(0); };
-  const submit = (answer?: number) => {
-    if (busy || !text.trim()) return;
+  const proceed = (request: () => Promise<Session | StartQuestion>) => {
+    if (busy) return;
     void run(async () => {
-      const result = await api.start(path, text, llm, { writeMode, ...(answer === undefined ? {} : { answer }) });
-      if ("question" in result) { setQuestion(result); return; }
+      const result = await request();
+      if ("question" in result) { setQuestion(result); setReply(""); return; }
       navigation.navigate(routeUrl({ kind: "session", sessionId: result.id, place: null }));
     });
   };
+  const submit = () => { if (text.trim()) proceed(() => api.start(path, text, llm, writeMode)); };
+  const answer = (value: number | string) => { if (question) proceed(() => api.answerStart(question.id, value)); };
+  const selecting = busy && !(question?.options ?? text.trim().startsWith("/"));
   return <form className="start-box" onSubmit={(e) => { e.preventDefault(); submit(); }}>
     <div className="start-input">
     <Composer label="start" rows={3} value={text} placeholder={`What do you want to do? Type / for commands — ${COMPOSER_HINT}`} canSubmit={!busy && !!text.trim()} onSubmit={() => submit()}
@@ -61,9 +65,15 @@ export function StartBox({ path, repoDir, models }: { path: string; repoDir: str
       </label>
       <button type="submit" className="start-submit" disabled={busy || !text.trim()}>Start</button>
     </div>
+    {selecting && <p className="start-status" data-testid="selecting">Choosing a workflow…</p>}
     {question && <div className="start-question" data-testid="start-question">
       <p>{question.question}</p>
-      {question.options.map((option, index) => <button key={option.label} type="button" onClick={() => option.cancel ? setQuestion(null) : submit(index)}>{option.label}</button>)}
+      {question.options
+        ? question.options.map((option, index) => <button key={option.label} type="button" disabled={busy} onClick={() => option.cancel ? setQuestion(null) : answer(index)}>{option.label}</button>)
+        : <>
+          <Composer label="answer" autoFocus value={reply} onChange={setReply} canSubmit={!busy && !!reply.trim()} onSubmit={() => answer(reply)} />
+          <button type="button" disabled={busy || !reply.trim()} onClick={() => answer(reply)}>Answer</button>
+        </>}
     </div>}
     <ErrorText error={error} testId="start-error" />
   </form>;

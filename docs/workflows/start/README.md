@@ -6,8 +6,12 @@
 
 # workflows/start
 
+## Type Aliases
+
+- [PendingStart](type-aliases/PendingStart.md)
+- [StartRequest](type-aliases/StartRequest.md)
+
 ## Functions
 
-- [continueSelection](functions/continueSelection.md)
 - [runWorkflow](functions/runWorkflow.md)
 - [startSession](functions/startSession.md)

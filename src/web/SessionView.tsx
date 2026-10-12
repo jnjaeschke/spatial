@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Artifact, Ref, SelectorAnswerData, SelectorQuestionData } from "../shared/types.ts";
+import type { Ref } from "../shared/types.ts";
 import { repoName } from "../shared/repos.ts";
 import { useSessionState, useModels } from "./api.ts";
 import { ActivityStrip } from "./ActivityStrip.tsx";
@@ -10,7 +10,6 @@ import { AskOnSelect } from "./AskOnSelect.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { TextSizeControl } from "./TextSizeControl.tsx";
 import { ExportDialog } from "./ExportDialog.tsx";
-import { SelectorQuestion } from "./SelectorQuestion.tsx";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
 import { activePhaseView, sessionViews } from "./phase-views.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
@@ -63,9 +62,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   if (error) return <p className="empty failed">{error}</p>;
   if (modelsError) return <p className="empty failed">Models could not be loaded: {modelsError}</p>;
   if (!state || !models) return <p className="empty">Loading…</p>;
-  const selecting = state.tasks.filter((t) => t.kind === "selectWorkflow").at(-1);
-  const question = state.artifacts.findLast((a) => a.type === "SelectorQuestion") as Artifact<SelectorQuestionData> | undefined;
-  const openQuestion = question && selecting?.status === "succeeded" && !state.artifacts.some((a) => a.type === "SelectorAnswer" && (a.data as SelectorAnswerData).question === question.id) ? question : null;
   const decision = openDecision(state.artifacts);
   const latestEpoch = state.epochs.at(-1) ?? null;
   const past = viewed !== null && viewed !== latestEpoch?.n ? state.epochs.find((e) => e.n === viewed) ?? null : null;
@@ -74,12 +70,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const { phase, view } = activePhaseView(webPlugins, shown);
   const extra = sessionViews(webPlugins, shown, viewId);
   const Body = extra.active?.Body ?? view?.Body;
-  const body = state.session.workflow === null && openQuestion
-    ? <SelectorQuestion sessionId={sessionId} question={openQuestion} llm={models.default} />
-    : state.session.workflow === null
-      ? <p className={`empty${selecting?.status === "failed" ? " failed" : ""}`} data-testid="selecting">{selecting?.status === "failed" ? `Could not choose a workflow: ${selecting.error}` : "Choosing a workflow…"}</p>
-      : Body ? <Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
-        : <p className="empty failed">No view for phase {phase}</p>;
+  const body = Body ? <Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
+    : <p className="empty failed">No view for phase {phase}</p>;
   const visible = notices.filter((notice) => !view?.isStaleNotice?.(state, notice));
   return <RouteContext.Provider value={route}><div className="app">
     <div className="topbar"><a className="back" href={routeUrl({ kind: "repo", path: state.session.worktree })}>{repoName(state.session.repoDir)}</a><b className="session-title">{state.session.title}</b><code className="repo" title={state.session.worktree}>{state.session.worktree}</code><span className="topbar-extras" ref={setTopbarSlot} />{extra.available.length > 0 && <Segmented label="Session view" className="session-views" options={[{ value: "", label: phase ?? "phase", title: "Phase view" }, ...extra.available.map((candidate) => ({ value: candidate.id, label: candidate.label, title: candidate.label }))]} value={extra.active?.id ?? ""} onChange={(id) => showSessionView(id || null)} />}{decision && <DecisionControls key={decision.id} sessionId={sessionId} repoDir={state.session.repoDir} decision={decision} testId="topbar-decision" />}<span className="spacer" />{!extra.active && view?.exportable?.(state) && <button type="button" onClick={() => setExporting(true)}>Export…</button>}<label className="desktop-toggle"><input type="checkbox" aria-label="Desktop notifications" checked={desktop} onChange={(event) => {

@@ -3,7 +3,6 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { plugins } from "../plugins/index.ts";
 import { chatTurn } from "../tasks/chat-turn/task.ts";
-import { selectWorkflow } from "../tasks/select-workflow/task.ts";
 import { makeGit } from "./git.ts";
 import { ClaudeBackend } from "./llm/claude.ts";
 import { CodexBackend } from "./llm/codex.ts";
@@ -20,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import type { McpServerSpec } from "./llm/types.ts";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
-export const corePlugin = { id: "core", tasks: [chatTurn, selectWorkflow] };
+export const corePlugin = { id: "core", tasks: [chatTurn] };
 
 export function defaultDbPath(): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial", "runtime.sqlite");
@@ -29,6 +28,11 @@ export function defaultDbPath(): string {
 /** The session MCP server: a stdio child reading the session database, with the tool binaries the runtime uses. */
 export function sessionServerSpec(dbPath: string, sessionId: Id, bins: { webspecBin?: string; searchfoxBin?: string; chromiumSearchBin?: string }): McpServerSpec {
   return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", dbPath, "--session", sessionId, ...(bins.webspecBin ? ["--webspec-bin", bins.webspecBin] : []), ...(bins.searchfoxBin ? ["--searchfox-bin", bins.searchfoxBin] : []), ...(bins.chromiumSearchBin ? ["--chromium-search-bin", bins.chromiumSearchBin] : [])] };
+}
+
+/** The `spatial` MCP server in repo mode, for LLM work before a session exists. */
+export function repoServerSpec(repo: string): McpServerSpec {
+  return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--repo", repo] };
 }
 
 /** The code search of every engine: Gecko over `searchfox`, WebKit over searchfox's `wubkat` repository, Blink over chromium-search. */
@@ -57,5 +61,6 @@ export function createRuntime(opts: {
     repoContext: loadRepoContext,
     knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId, { webspecBin: opts.webspecBin, searchfoxBin: opts.searchfoxBin, chromiumSearchBin: opts.chromiumSearchBin }) }),
+    repoMcp: (repo) => ({ spatial: repoServerSpec(repo) }),
   });
 }
