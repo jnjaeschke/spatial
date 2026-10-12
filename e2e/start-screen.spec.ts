@@ -49,11 +49,11 @@ test("sessions are listed by last activity, and a session can be deleted after c
   await expect(items).toHaveCount(2);
   await expect(items.first()).toContainText("Older session");
 
-  await items.filter({ hasText: "Newer session" }).getByRole("button", { name: "Delete session Newer session" }).click();
+  await items.filter({ hasText: "Newer session" }).getByRole("button", { name: "Delete session" }).click();
   const dialog = page.getByTestId("delete-session-dialog");
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(items).toHaveCount(2);
-  await items.filter({ hasText: "Newer session" }).getByRole("button", { name: "Delete session Newer session" }).click();
+  await items.filter({ hasText: "Newer session" }).getByRole("button", { name: "Delete session" }).click();
   await dialog.getByRole("button", { name: "Delete" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(items).toHaveCount(1);

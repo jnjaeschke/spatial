@@ -18,7 +18,7 @@ export function SessionList({ sessions }: { sessions: SessionListing[] }) {
   return <>
     <ul className="session-list">{sessions.filter((s) => !deleted.has(s.id)).map((s) => <li key={s.id}>
       <a href={routeUrl({ kind: "session", sessionId: s.id, place: null })}>{s.title}</a> <span className="badge">{s.workflow ?? "starting"}</span> <code>{s.worktree}</code> <time dateTime={s.lastActive} title={`Created ${new Date(s.createdAt).toLocaleString()}`}>{new Date(s.lastActive).toLocaleString()}</time>
-      <IconButton label={`Delete session ${s.title}`} className="delete-session" onClick={() => setDeleting(s)}>×</IconButton>
+      <IconButton label="Delete session" className="delete-session" onClick={() => setDeleting(s)}>×</IconButton>
     </li>)}</ul>
     {deleting && <DeleteSessionDialog session={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setDeleted((ids) => new Set(ids).add(deleting.id)); setDeleting(null); }} />}
   </>;
