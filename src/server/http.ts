@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, TaskActivityResponse, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
@@ -270,6 +270,10 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       if (!loadRepoContext(session.worktree).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
       const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server } satisfies McpServerData, threadId);
       send(res, 201, { artifactId: artifact.id });
+    }],
+    ["GET", /^\/api\/sessions\/([^/]+)\/tasks\/([^/]+)\/activity$/, async ({ params }): Promise<TaskActivityResponse> => {
+      const id = requireSession(rt, params[0]).id;
+      return { activity: rt.store.listTaskActivity(id, params[1]!), lastEventId: rt.store.lastEventId(id) };
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/events$/, async ({ req, res, params, url }) => {
       const id = requireSession(rt, params[0]).id;

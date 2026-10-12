@@ -364,6 +364,28 @@ Pending and running tasks of `kind` in every session.
 
 ***
 
+### listTaskActivity()
+
+> **listTaskActivity**(`sessionId`, `taskId`): [`LlmActivity`](../../../shared/types/type-aliases/LlmActivity.md)[]
+
+Everything `taskId`'s LLM runs reported as activity, oldest first.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### taskId
+
+`string`
+
+#### Returns
+
+[`LlmActivity`](../../../shared/types/type-aliases/LlmActivity.md)[]
+
+***
+
 ### listTaskProgress()
 
 > **listTaskProgress**(`sessionId`, `taskId`, `limit`): [`Progress`](../../../shared/types/type-aliases/Progress.md)[]

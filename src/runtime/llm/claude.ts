@@ -24,7 +24,7 @@ export class ClaudeBackend implements LlmBackend {
     const write = req.tools === "write";
     const mode = req.writeMode ?? "auto";
     const args = [
-      "-p", "--output-format", write ? "stream-json" : "json", ...(write ? ["--verbose"] : []),
+      "-p", "--output-format", "stream-json", "--verbose",
       "--model", req.model,
       "--effort", req.effort,
       "--setting-sources", "",
@@ -43,17 +43,13 @@ export class ClaudeBackend implements LlmBackend {
     if (req.system !== undefined) args.push("--system-prompt", req.system);
     if (req.schema) args.push("--json-schema", JSON.stringify(req.schema));
 
-    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: req.prompt, cwd: req.cwd, signal: req.signal, onStdoutLine: write && req.onEvent ? claudeEventReader(req.onEvent) : undefined });
+    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: req.prompt, cwd: req.cwd, signal: req.signal, onStdoutLine: req.onEvent ? claudeEventReader(req.onEvent) : undefined });
     let out: Record<string, any> | undefined;
-    if (write) {
-      for (const line of stdout.split("\n")) {
-        if (!line.startsWith("{")) continue;
-        try { const event = JSON.parse(line); if (event.type === "result") out = event; } catch { /* a partial line */ }
-      }
-      if (!out && code === 0) throw new Error("claude produced no result event");
-    } else {
-      try { out = JSON.parse(stdout); } catch { out = undefined; }
+    for (const line of stdout.split("\n")) {
+      if (!line.startsWith("{")) continue;
+      try { const event = JSON.parse(line); if (event.type === "result") out = event; } catch { /* a partial line */ }
     }
+    if (!out && code === 0) throw new Error("claude produced no result event");
     if (out?.is_error) throw new Error(`claude: ${out.result ?? out.subtype ?? "unknown error"}`);
     if (code !== 0 || !out) throw new Error(`claude exited with code ${code}: ${(stderr || stdout).trim().slice(-2000)}`);
     if (typeof out.session_id !== "string" || out.session_id.length === 0) throw new Error("claude: the run reported no session id");

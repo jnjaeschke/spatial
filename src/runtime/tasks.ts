@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
 } from "../shared/types.ts";
-import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
+import type { LlmEvent, LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
 import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView, type WorkflowView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
@@ -326,7 +326,11 @@ export class Runtime {
       codeSearch: Object.freeze({ ...this.#codeSearch }),
       llm: {
         run: async (prompt, selection) => {
-          const r = await this.#llm.run(selection, prompt, controller.signal);
+          const onEvent = (event: LlmEvent) => {
+            if (event.kind === "activity") emit("task.activity", { taskId: task.id, activity: event.activity });
+            prompt.onEvent?.(event);
+          };
+          const r = await this.#llm.run(selection, { ...prompt, onEvent }, controller.signal);
           emit("llm.usage", { selection: r.selection, usage: r.usage ?? null });
           return r;
         },

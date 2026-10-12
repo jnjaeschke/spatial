@@ -1,4 +1,4 @@
-import type { BackendModels, LlmBackendId, LlmSelection, ModelInfo, WriteMode } from "../../shared/types.ts";
+import type { BackendModels, LlmActivity, LlmBackendId, LlmSelection, ModelInfo, WriteMode } from "../../shared/types.ts";
 
 /** The run finished but its output does not have the requested shape; `providerSessionId` lets the caller resume it with the problem. */
 export class LlmOutputError extends Error {
@@ -19,17 +19,18 @@ export interface LlmPrompt {
   tools: "none" | "read-only" | "write";
   /** With `tools: "write"`: `auto` lets the CLI's own approval logic allow edits and commands, `full` skips approvals and sandboxing, `editsOnly` allows file edits without any shell. Default `auto`. */
   writeMode?: WriteMode;
-  /** Receives progress and finished shell commands during write-mode runs. */
+  /** Receives the run's events as its output streams. */
   onEvent?: (event: LlmEvent) => void;
   /** Continue this provider session instead of starting a new one; a resumed write run keeps the write mode's tools and permissions. */
   resumeProviderSession?: string;
   mcpServers?: Record<string, McpServerSpec>;
 }
 
-/** Progress, finished shell commands and the provider session id of a write-mode run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. */
+/** Progress, finished shell commands, activity and the provider session id of a run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. */
 export type LlmEvent =
   | { kind: "progress"; message: string }
   | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string }
+  | { kind: "activity"; activity: LlmActivity }
   | { kind: "session"; providerSessionId: string };
 
 export type McpServerSpec =

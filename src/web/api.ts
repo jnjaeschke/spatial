@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { ChatThreadData, DirectoryListing, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { ChatThreadData, DirectoryListing, LlmActivity, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, TaskActivityResponse, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 import { readLastUsed, subscribeLastUsed, withLastUsed } from "./llm-choice.ts";
 
@@ -73,6 +73,7 @@ export const api = {
   submitReview: (sessionId: string, body: { revision: number; action: "comment" | "accept" | "request-changes"; body: string }) =>
     post<{ inlines: number; skipped: { source: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/review-submit`, body),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
+  taskActivity: (sessionId: string, taskId: string) => get<TaskActivityResponse>(`/api/sessions/${sessionId}/tasks/${taskId}/activity`),
   steer: (sessionId: string, text: string) => post<{ steerId: string }>(`/api/sessions/${sessionId}/steer`, { text }),
   decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
@@ -85,7 +86,7 @@ export const api = {
   retry: (sessionId: string) => post<{}>(`/api/sessions/${sessionId}/retry`, {}),
 };
 
-/** Snapshot plus refetch on events. Progress events are kept client-side only. */
+/** Snapshot plus refetch on events. Progress events are kept client-side only; activity events are left to `useTaskActivity`. */
 export function useSessionState(id: string) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +108,7 @@ export function useSessionState(id: string) {
           setProgress((x) => ({ ...x, [p.taskId]: p.progress }));
           return;
         }
+        if (e.type === "task.activity") return;
         if (e.type === "notify") {
           const notice = e.payload as NotifyPayload;
           setNotices((current) => current.some((n) => n.id === notice.id) ? current : [...current, notice]);
@@ -121,6 +123,28 @@ export function useSessionState(id: string) {
   }, [id]);
   const dismissNotice = (noticeId: string) => setNotices((current) => current.filter((n) => n.id !== noticeId));
   return { state, error, progress, notices, dismissNotice };
+}
+
+/** `taskId`'s LLM activity so far, growing while it runs; null while loading. */
+export function useTaskActivity(sessionId: string, taskId: string): { activity: LlmActivity[] | null; error: string | null } {
+  const [state, setState] = useState<{ activity: LlmActivity[] | null; error: string | null }>({ activity: null, error: null });
+  useEffect(() => {
+    let cancelled = false;
+    let es: EventSource | undefined;
+    setState({ activity: null, error: null });
+    api.taskActivity(sessionId, taskId).then(({ activity, lastEventId }) => {
+      if (cancelled) return;
+      setState({ activity, error: null });
+      es = new EventSource(`/api/sessions/${sessionId}/events?after=${lastEventId}`);
+      es.addEventListener("runtime", (m) => {
+        const e = JSON.parse((m as MessageEvent).data) as RuntimeEvent;
+        const p = e.payload as { taskId: string; activity: LlmActivity };
+        if (e.type === "task.activity" && p.taskId === taskId) setState((s) => ({ activity: [...s.activity ?? [], p.activity], error: null }));
+      });
+    }, (e: Error) => !cancelled && setState({ activity: null, error: e.message }));
+    return () => { cancelled = true; es?.close(); };
+  }, [sessionId, taskId]);
+  return state;
 }
 
 /** The configured models with the last-used selection (`rememberLlm`) as `default`; `error` when they could not be loaded, both null while loading. */

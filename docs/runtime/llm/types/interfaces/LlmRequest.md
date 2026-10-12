@@ -50,7 +50,7 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 > `optional` **onEvent?**: (`event`) => `void`
 
-Receives progress and finished shell commands during write-mode runs.
+Receives the run's events as its output streams.
 
 #### Parameters
 

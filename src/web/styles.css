@@ -631,6 +631,19 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity .task.succeeded::before { background: var(--success); }
 .activity .task b { font-weight: 600; color: var(--text); }
 .activity .task button { font-size: 11px; padding: 0 7px; }
+.activity .task .task-name { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; }
+.activity .task .task-name[aria-expanded="true"] { text-decoration: underline; }
+.activity-log { position: fixed; z-index: 20; right: 12px; bottom: 36px; display: flex; flex-direction: column; width: min(640px, calc(100vw - 24px)); max-height: 55vh; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 8px 28px rgb(0 0 0 / 0.25); font-size: 12px; color: var(--text-2); }
+.activity-log header { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.activity-log header b { color: var(--text); }
+.activity-log header button { margin-left: auto; padding: 0 7px; }
+.activity-log .empty, .activity-log .failed { margin: 0; padding: 10px; }
+.activity-log ol { margin: 0; padding: 6px 10px; overflow-y: auto; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.activity-log li { white-space: pre-wrap; overflow-wrap: anywhere; }
+.activity-log .activity-text { color: var(--text); }
+.activity-log .activity-thinking { font-style: italic; color: var(--text-3); }
+.activity-log .activity-tool { font-family: var(--font-mono); }
+.activity-log .activity-tool code { color: var(--link); }
 .activity .failed { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, var(--border)); }
 .activity .failed::before { background: var(--danger); }
 .activity .running { color: var(--link); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); }

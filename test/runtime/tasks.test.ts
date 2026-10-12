@@ -65,6 +65,28 @@ test("successful task: lifecycle, artifact provenance, links, events", async () 
   assert.deepEqual(store.listEvents(session.id).map((e) => e.id), events.map((e) => e.id));
 });
 
+test("LLM activity becomes task.activity events, listed per task; the task's own onEvent still gets every event", async () => {
+  const store = new Store(":memory:");
+  const said = { kind: "text", text: "Looking." } as const;
+  const llm: LlmService = { ...fakeLlm, async run(selection, prompt) {
+    prompt.onEvent?.({ kind: "activity", activity: said });
+    prompt.onEvent?.({ kind: "progress", message: "running ls" });
+    return fakeLlm.run(selection, prompt, new AbortController().signal);
+  } };
+  const seen: string[] = [];
+  const watcher = defineTask<null, null>({ kind: "watcher", async run(ctx) { await ctx.llm.run({ prompt: "p", tools: "read-only", onEvent: (e) => seen.push(e.kind) }); return null; } });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, watcher] }], llm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const events: RuntimeEvent[] = [];
+  rt.onEvent((e) => events.push(e));
+  const echoed = rt.start(session.id, "echo", { v: "hi" });
+  const watched = rt.start(session.id, "watcher", null);
+  await Promise.all([echoed.done, watched.done]);
+  assert.deepEqual(events.filter((e) => e.type === "task.activity" && e.actor === `task:${echoed.taskId}`).map((e) => e.payload), [{ taskId: echoed.taskId, activity: said }]);
+  assert.deepEqual(store.listTaskActivity(session.id, watched.taskId), [said]);
+  assert.deepEqual(seen, ["activity", "progress"]);
+});
+
 test("failing task: status failed, TaskFailedError, task.failed event", async () => {
   const { store, rt, session, events } = setup();
   const { taskId, done } = rt.start(session.id, "boom", null);

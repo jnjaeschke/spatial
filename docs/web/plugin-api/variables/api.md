@@ -622,6 +622,24 @@
 
 `Promise`\<\{ `inlines`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
 
+### taskActivity
+
+> **taskActivity**: (`sessionId`, `taskId`) => `Promise`\<[`TaskActivityResponse`](../../../shared/types/interfaces/TaskActivityResponse.md)\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### taskId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`TaskActivityResponse`](../../../shared/types/interfaces/TaskActivityResponse.md)\>
+
 ### triageComment
 
 > **triageComment**: (`sessionId`, `commentId`, `action`, `text?`) => `Promise`\<\{ `artifactId`: `string`; \}\>

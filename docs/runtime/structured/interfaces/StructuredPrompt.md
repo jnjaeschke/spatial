@@ -44,7 +44,7 @@ A structured LLM request. `validate` runs on replies that match `schema` (`attem
 
 > `optional` **onEvent?**: (`event`) => `void`
 
-Receives progress and finished shell commands during write-mode runs.
+Receives the run's events as its output streams.
 
 #### Parameters
 

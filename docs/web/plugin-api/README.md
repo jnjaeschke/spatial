@@ -363,6 +363,12 @@ Re-exports [LinkKind](../../shared/types/type-aliases/LinkKind.md)
 
 ***
 
+### LlmActivity
+
+Re-exports [LlmActivity](../../shared/types/type-aliases/LlmActivity.md)
+
+***
+
 ### LlmBackendId
 
 Re-exports [LlmBackendId](../../shared/types/type-aliases/LlmBackendId.md)
@@ -582,6 +588,12 @@ Re-exports [SpecSite](../../shared/types/interfaces/SpecSite.md)
 ### StartQuestion
 
 Re-exports [StartQuestion](../../shared/types/interfaces/StartQuestion.md)
+
+***
+
+### TaskActivityResponse
+
+Re-exports [TaskActivityResponse](../../shared/types/interfaces/TaskActivityResponse.md)
 
 ***
 

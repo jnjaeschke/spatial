@@ -56,7 +56,7 @@ test("claude: args, stdin prompt, structured output, usage", async () => {
   assert.equal(call.stdin, "PROMPT");
   assert.equal(call.cwd, dir);
   const a: string[] = call.argv;
-  assert.deepEqual(a.slice(0, 3), ["-p", "--output-format", "json"]);
+  assert.deepEqual(a.slice(0, 4), ["-p", "--output-format", "stream-json", "--verbose"]);
   const flag = (f: string) => a[a.indexOf(f) + 1];
   assert.equal(flag("--model"), "m1");
   assert.equal(flag("--effort"), "high");

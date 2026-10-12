@@ -71,6 +71,12 @@ export interface LlmSelection {
   effort: string;
 }
 
+/** One step of an LLM run as its output streams: text it wrote, its reasoning, or a tool call with the argument that names what it works on. Payload of `task.activity` events. */
+export type LlmActivity = { kind: "text"; text: string } | { kind: "thinking"; text: string } | { kind: "tool"; name: string; detail: string };
+
+/** A task's activity so far; later activity comes as `task.activity` events after `lastEventId`. */
+export interface TaskActivityResponse { activity: LlmActivity[]; lastEventId: number }
+
 export interface ModelInfo {
   id: string;
   efforts: string[];

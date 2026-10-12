@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type {
   Actor, Artifact, ArtifactStatus, Epoch, EpochStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
-  Progress, RuntimeEvent, Session, TaskRecord, TaskStatus,
+  LlmActivity, Progress, RuntimeEvent, Session, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
 import type { SearchDoc } from "./render-ref.ts";
 
@@ -197,6 +197,12 @@ export class Store {
   listTaskProgress(sessionId: Id, taskId: Id, limit: number): Progress[] {
     const rows = this.#db.prepare("SELECT payload FROM events WHERE session_id = ? AND actor = ? AND type = 'task.progress' ORDER BY id DESC LIMIT ?").all(sessionId, `task:${taskId}`, limit) as Row[];
     return rows.map((r) => (JSON.parse(r.payload as string) as { progress: Progress }).progress).reverse();
+  }
+
+  /** Everything `taskId`'s LLM runs reported as activity, oldest first. */
+  listTaskActivity(sessionId: Id, taskId: Id): LlmActivity[] {
+    const rows = this.#db.prepare("SELECT payload FROM events WHERE session_id = ? AND actor = ? AND type = 'task.activity' ORDER BY id").all(sessionId, `task:${taskId}`) as Row[];
+    return rows.map((r) => (JSON.parse(r.payload as string) as { activity: LlmActivity }).activity);
   }
 
   createTask(t: { sessionId: Id; kind: string; input: unknown; parentId?: Id }): TaskRecord {

@@ -389,6 +389,12 @@ Re-exports [LinkKind](../shared/types/type-aliases/LinkKind.md)
 
 ***
 
+### LlmActivity
+
+Re-exports [LlmActivity](../shared/types/type-aliases/LlmActivity.md)
+
+***
+
 ### LlmBackendId
 
 Re-exports [LlmBackendId](../shared/types/type-aliases/LlmBackendId.md)
@@ -842,6 +848,12 @@ Re-exports [str](../server/http/functions/str.md)
 ### StructuredPrompt
 
 Re-exports [StructuredPrompt](../runtime/structured/interfaces/StructuredPrompt.md)
+
+***
+
+### TaskActivityResponse
+
+Re-exports [TaskActivityResponse](../shared/types/interfaces/TaskActivityResponse.md)
 
 ***
 

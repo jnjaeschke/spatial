@@ -88,6 +88,19 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   await expect(conversation.locator(".msg.assistant", { hasText: "Stub answer." })).toHaveCount(2, { timeout: 10_000 });
 });
 
+test("a task's name in the activity strip opens what its LLM run said and did", async ({ page, request }) => {
+  await openStartBox(page, request);
+  const box = page.getByLabel("start");
+  await box.fill("/chat ACTIVITY-PLEASE where is the caller?");
+  await box.press("Enter");
+  await expect(page.getByTestId("conversation")).toContainText("Found it.", { timeout: 10_000 });
+  await page.getByTestId("task-chatTurn").getByRole("button", { name: "chatTurn" }).click();
+  const log = page.getByRole("dialog", { name: "chatTurn activity" });
+  await expect(log.locator("li")).toHaveText(["Find the caller first.", "Grep CallerOfThings", "The caller lives in c.txt."]);
+  await log.getByRole("button", { name: "Close activity" }).click();
+  await expect(log).toHaveCount(0);
+});
+
 test("the model last used starts out selected in the next model picker", async ({ page, request }) => {
   await openStartBox(page, request);
   await page.getByLabel("backend").selectOption("codex");

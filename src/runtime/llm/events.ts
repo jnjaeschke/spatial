@@ -1,11 +1,21 @@
+import type { LlmActivity } from "../../shared/types.ts";
 import type { LlmEvent } from "./types.ts";
 import { capOutput } from "../process.ts";
 
 /** Longest command output an event carries, in characters. */
 export const MAX_COMMAND_OUTPUT = 256 * 1024;
+/** Longest text or thinking an activity event carries, in characters. */
+export const MAX_ACTIVITY_TEXT = 4000;
 const cap = (text: string) => capOutput(text, MAX_COMMAND_OUTPUT);
 const parse = (line: string): Record<string, any> | null => { if (!line.startsWith("{")) return null; try { return JSON.parse(line); } catch { return null; } };
 const firstLine = (text: string) => text.split("\n", 1)[0]!.slice(0, 200);
+const said = (kind: "text" | "thinking", text: unknown): LlmEvent[] => typeof text === "string" && text.trim() ? [{ kind: "activity", activity: { kind, text: capOutput(text, MAX_ACTIVITY_TEXT) } }] : [];
+const tool = (name: string, detail: string): LlmEvent => ({ kind: "activity", activity: { kind: "tool", name, detail: firstLine(detail) } satisfies LlmActivity });
+/** The input that names what a Claude tool call works on, else the whole input. */
+const toolDetail = (input: Record<string, unknown>) => {
+  const named = ["command", "file_path", "pattern", "path", "url", "query", "description"].map((key) => input[key]).find((value) => typeof value === "string");
+  return typeof named === "string" ? named : JSON.stringify(input);
+};
 /** `/usr/bin/zsh -lc 'git status'` -> `git status`: Codex runs every command through a login shell. */
 const unwrap = (command: string) => {
   const inner = /^(?:\S*\/)?(?:ba|z)?sh -lc (.+)$/s.exec(command)?.[1];
@@ -13,7 +23,7 @@ const unwrap = (command: string) => {
   return inner.length > 1 && (inner[0] === "'" || inner[0] === '"') && inner.at(-1) === inner[0] ? inner.slice(1, -1) : inner;
 };
 
-/** Reads Claude `--output-format stream-json` lines: the `system/init` line is the session event. A tool result has no exit code field: an error result starts with `Exit code N`, else `is_error` decides 1 or 0. */
+/** Reads Claude `--output-format stream-json` lines: the `system/init` line is the session event; assistant text, thinking and tool calls (except `StructuredOutput`, the run's answer) are activity. A tool result has no exit code field: an error result starts with `Exit code N`, else `is_error` decides 1 or 0. */
 export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now): (line: string) => void {
   const running = new Map<string, { command: string; startedAt: number }>();
   return (line) => {
@@ -21,8 +31,10 @@ export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => nu
     if (event?.type === "system" && event.subtype === "init" && typeof event.session_id === "string") emit({ kind: "session", providerSessionId: event.session_id });
     const blocks: any[] = Array.isArray(event?.message?.content) ? event!.message.content : [];
     if (event?.type === "assistant") for (const block of blocks) {
+      if (block.type === "text" || block.type === "thinking") { for (const e of said(block.type, block.type === "text" ? block.text : block.thinking)) emit(e); continue; }
       if (block.type !== "tool_use") continue;
       const input = block.input ?? {};
+      if (block.name !== "StructuredOutput") emit(tool(block.name, toolDetail(input)));
       if (block.name === "Bash" && typeof input.command === "string") {
         running.set(block.id, { command: input.command, startedAt: now() });
         emit({ kind: "progress", message: `running ${firstLine(input.command)}` });
@@ -40,7 +52,7 @@ export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => nu
   };
 }
 
-/** Reads Codex `exec --json` lines: `thread.started` is the session event, `command_execution` items become command events, `file_change` items progress. `error` items are warnings and ignored. */
+/** Reads Codex `exec --json` lines: `thread.started` is the session event, `command_execution` items become command events, `file_change` items progress. Messages, reasoning, commands, file changes, MCP calls and web searches are activity. `error` items are warnings and ignored. */
 export function codexEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now): (line: string) => void {
   const started = new Map<string, number>();
   return (line) => {
@@ -48,12 +60,17 @@ export function codexEventReader(emit: (event: LlmEvent) => void, now: () => num
     if (event?.type === "thread.started" && typeof event.thread_id === "string") { emit({ kind: "session", providerSessionId: event.thread_id }); return; }
     const item = event?.item;
     if (!item) return;
+    const completed = event!.type === "item.completed";
+    if (completed && item.type === "agent_message") for (const e of said("text", item.text)) emit(e);
+    else if (completed && item.type === "reasoning") for (const e of said("thinking", item.text)) emit(e);
+    else if (completed && item.type === "mcp_tool_call") emit(tool(`${item.server}.${item.tool}`, JSON.stringify(item.arguments ?? {})));
+    else if (completed && item.type === "web_search") emit(tool("web search", String(item.query ?? "")));
     if (item.type === "command_execution") {
       const command = unwrap(String(item.command));
-      if (event!.type === "item.started") { started.set(item.id, now()); emit({ kind: "progress", message: `running ${firstLine(command)}` }); }
+      if (event!.type === "item.started") { started.set(item.id, now()); emit(tool("shell", command)); emit({ kind: "progress", message: `running ${firstLine(command)}` }); }
       else if (event!.type === "item.completed") emit({ kind: "command", command, exitCode: typeof item.exit_code === "number" ? item.exit_code : 1, durationMs: now() - (started.get(item.id) ?? now()), output: cap(String(item.aggregated_output ?? "")) });
     } else if (item.type === "file_change" && event!.type === "item.completed") {
-      for (const change of item.changes ?? []) emit({ kind: "progress", message: `editing ${change.path}` });
+      for (const change of item.changes ?? []) { emit(tool("edit", String(change.path))); emit({ kind: "progress", message: `editing ${change.path}` }); }
     }
   };
 }

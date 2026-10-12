@@ -8,6 +8,7 @@
 
 ## Variables
 
+- [MAX\_ACTIVITY\_TEXT](variables/MAX_ACTIVITY_TEXT.md)
 - [MAX\_COMMAND\_OUTPUT](variables/MAX_COMMAND_OUTPUT.md)
 
 ## Functions

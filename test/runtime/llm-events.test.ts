@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MAX_COMMAND_OUTPUT, claudeEventReader, codexEventReader } from "../../src/runtime/llm/events.ts";
+import { MAX_ACTIVITY_TEXT, MAX_COMMAND_OUTPUT, claudeEventReader, codexEventReader } from "../../src/runtime/llm/events.ts";
 import { ClaudeBackend } from "../../src/runtime/llm/claude.ts";
 import { CodexBackend } from "../../src/runtime/llm/codex.ts";
 import type { LlmEvent } from "../../src/runtime/llm/types.ts";
@@ -13,12 +13,13 @@ const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)), "utf8");
 const clock = () => { let t = 1000; return () => (t += 250); };
 function read(reader: (line: string) => void, text: string) { for (const line of text.split("\n")) reader(line); }
-const describe = (e: LlmEvent) => e.kind === "progress" ? e.message : e.kind === "command" ? `${e.command} -> ${e.exitCode}` : `session ${e.providerSessionId}`;
+const describe = (e: LlmEvent) => e.kind === "progress" ? e.message : e.kind === "command" ? `${e.command} -> ${e.exitCode}` : e.kind === "session" ? `session ${e.providerSessionId}` : "activity";
+const activities = (events: LlmEvent[]) => events.flatMap((e) => e.kind === "activity" ? [e.activity] : []);
 
 test("claude stream: progress for shell and edits, command runs with exit codes", () => {
   const events: LlmEvent[] = [];
   read(claudeEventReader((e) => events.push(e), clock()), fixture("claude-stream.jsonl"));
-  assert.deepEqual(events.map(describe), [
+  assert.deepEqual(events.filter((e) => e.kind !== "activity").map(describe), [
     "session 69d98f99-fd06-4274-875f-052ab81441e8", "running git status --short", "running false", "false -> 1", "git status --short -> 0", "editing /tmp/spike-oqAa/a.txt",
   ]);
   const status = events.find((e) => e.kind === "command" && e.command === "git status --short")!;
@@ -31,11 +32,56 @@ test("claude stream: progress for shell and edits, command runs with exit codes"
 test("codex stream: wrapped commands are unwrapped, error items are ignored", () => {
   const events: LlmEvent[] = [];
   read(codexEventReader((e) => events.push(e), clock()), fixture("codex.jsonl"));
-  assert.deepEqual(events.map(describe), [
+  assert.deepEqual(events.filter((e) => e.kind !== "activity").map(describe), [
     "session 01a11c66-e36a-7fc0-b477-1b34dd2b17a8", "running git status --short", "git status --short -> 0", "running false", "false -> 1", "running printf 'b' > a.txt", "printf 'b' > a.txt -> 0",
   ]);
   const status = events.find((e) => e.kind === "command")!;
   assert.equal(status.kind === "command" && status.output, "?? b.txt\n?? c.txt\n");
+});
+
+test("claude stream: activity is the text and every tool call but the structured answer; empty thinking is skipped", () => {
+  const events: LlmEvent[] = [];
+  const reader = claudeEventReader((e) => events.push(e), clock());
+  read(reader, fixture("claude-stream.jsonl"));
+  reader(JSON.stringify({ type: "assistant", message: { content: [{ type: "thinking", thinking: "Check the docs first." }, { type: "tool_use", id: "s", name: "StructuredOutput", input: { a: 1 } }, { type: "tool_use", id: "g", name: "Grep", input: { pattern: "foo\nbar" } }, { type: "tool_use", id: "m", name: "mcp__devtools__snap", input: { n: 2 } }] } }));
+  assert.deepEqual(activities(events), [
+    { kind: "tool", name: "Bash", detail: "git status --short" },
+    { kind: "tool", name: "Bash", detail: "false" },
+    { kind: "tool", name: "Read", detail: "/tmp/spike-oqAa/a.txt" },
+    { kind: "tool", name: "Edit", detail: "/tmp/spike-oqAa/a.txt" },
+    { kind: "text", text: "All three steps ran:\n\n1. `git status --short` showed `?? b.txt` and `?? c.txt`.\n2. `false` exited with code 1, as expected.\n3. `a.txt` now contains `b` in place of `a`. It was `a` plus a trailing newline before, and the edit kept the newline." },
+    { kind: "thinking", text: "Check the docs first." },
+    { kind: "tool", name: "Grep", detail: "foo" },
+    { kind: "tool", name: "mcp__devtools__snap", detail: '{"n":2}' },
+  ]);
+});
+
+test("codex stream: activity is messages, reasoning, commands, file changes, MCP calls and searches", () => {
+  const events: LlmEvent[] = [];
+  const reader = codexEventReader((e) => events.push(e), clock());
+  read(reader, fixture("codex.jsonl"));
+  for (const item of [{ type: "reasoning", text: "Look at the tests." }, { type: "file_change", changes: [{ path: "a.txt", kind: "update" }] }, { type: "mcp_tool_call", server: "devtools", tool: "snap", arguments: { n: 2 } }, { type: "web_search", query: "navigation api" }]) reader(JSON.stringify({ type: "item.completed", item: { id: "i", ...item } }));
+  const [first, ...rest] = activities(events);
+  assert.equal(first!.kind === "text" && first!.text.startsWith("I’ll run the commands"), true);
+  assert.deepEqual(rest.slice(0, 3), [
+    { kind: "tool", name: "shell", detail: "git status --short" },
+    { kind: "tool", name: "shell", detail: "false" },
+    { kind: "tool", name: "shell", detail: "printf 'b' > a.txt" },
+  ]);
+  assert.equal(rest[3]!.kind === "text" && rest[3]!.text.startsWith("`git status --short` showed"), true);
+  assert.deepEqual(rest.slice(4), [
+    { kind: "thinking", text: "Look at the tests." },
+    { kind: "tool", name: "edit", detail: "a.txt" },
+    { kind: "tool", name: "devtools.snap", detail: '{"n":2}' },
+    { kind: "tool", name: "web search", detail: "navigation api" },
+  ]);
+});
+
+test("activity text is capped", () => {
+  const events: LlmEvent[] = [];
+  claudeEventReader((e) => events.push(e))(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "x".repeat(MAX_ACTIVITY_TEXT + 10) }] } }));
+  const [activity] = activities(events);
+  assert.ok(activity!.kind === "text" && activity!.text.length < MAX_ACTIVITY_TEXT + 40);
 });
 
 test("readers report the provider session id from the first event that shows it", () => {
@@ -65,6 +111,18 @@ test("readers ignore lines that are not JSON events", () => {
   const reader = codexEventReader((e) => events.push(e));
   for (const line of ["Reading additional input from stdin...", "", "{broken", JSON.stringify({ type: "turn.started" })]) reader(line);
   assert.deepEqual(events, []);
+});
+
+test("read-only runs stream activity too", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "events-"));
+  for (const [Backend, name] of [[ClaudeBackend, "claude-stream.jsonl"], [CodexBackend, "codex.jsonl"]] as const) {
+    const out = join(dir, name);
+    writeFileSync(out, fixture(name));
+    process.env.FAKE_LLM_STDOUT = out;
+    const events: LlmEvent[] = [];
+    await new Backend({ bin: STUB }).run({ prompt: "p", model: "m", effort: "low", tools: "read-only", signal: new AbortController().signal, onEvent: (e) => events.push(e) });
+    assert.ok(activities(events).some((a) => a.kind === "text"), name);
+  }
 });
 
 test("backends stream events to onEvent in write mode", async () => {
