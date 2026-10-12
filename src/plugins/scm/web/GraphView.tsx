@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ErrorText, getJson, Segmented, useUrlParam, type RefRow } from "../../../web/plugin-api.ts";
 import { relativeDate } from "../shared/relative-date.ts";
 import { LaneCell, laneWidth, ROW_HEIGHT } from "./LaneCell.tsx";
@@ -68,6 +68,14 @@ export function GraphView({ worktree, panel }: { worktree: string; panel?: (prop
     if (top < element.scrollTop) element.scrollTop = top;
     else if (top + ROW_HEIGHT > element.scrollTop + element.clientHeight) element.scrollTop = top + ROW_HEIGHT - element.clientHeight;
   };
+  // Revealing waits for the commit that rendered the row: right after a page arrives the list is not yet tall enough to scroll to it.
+  const [pendingReveal, setPendingReveal] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    const index = pendingReveal === null ? undefined : order.get(pendingReveal);
+    if (index === undefined) return;
+    reveal(index);
+    setPendingReveal(null);
+  }, [pendingReveal, order]);
   const select = (sha: string) => setParams({ commit: sha, compare: null });
   const close = () => setParams({ commit: null, compare: null });
   const onRowClick = (event: MouseEvent, sha: string) => {
@@ -92,18 +100,20 @@ export function GraphView({ worktree, panel }: { worktree: string; panel?: (prop
     if (!ref && !/^[0-9a-f]{4,64}$/.test(prefix)) { setJumpError(`Not a ref or commit: ${wanted}`); return; }
     cancelJump.current = false;
     setJumpError(null);
+    // A ref's commit opens in the panel at once, even when this scope's list does not contain it.
+    if (ref) select(ref.sha);
     let view: LogView = log;
     for (let pages = 0; ; pages++) {
       const index = view.rows.findIndex((row) => row.sha.startsWith(prefix));
       if (index >= 0) {
         setJumpStatus(null);
         select(view.rows[index]!.sha);
-        requestAnimationFrame(() => reveal(index));
+        setPendingReveal(view.rows[index]!.sha);
         return;
       }
       if (view.done || view.error || cancelJump.current || pages >= MAX_JUMP_PAGES) {
         setJumpStatus(null);
-        if (!cancelJump.current) setJumpError(`${wanted} is not among this scope's first ${view.rows.length} commits`);
+        if (!cancelJump.current) setJumpError(`${wanted} is not among this scope's first ${view.rows.length} commits${ref && scope !== "all" ? "; All shows every ref" : ""}`);
         return;
       }
       setJumpStatus(`Loading… ${view.rows.length} commits`);
