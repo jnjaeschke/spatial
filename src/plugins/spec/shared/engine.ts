@@ -7,6 +7,18 @@ export const mappingKey = (engine: Engine, ref: string) => `impl|${engine}|${ref
 /** Identity of a site in a mapping: path and symbol, or path and line for a declaration. */
 export const siteKey = (site: Pick<EngineSite, "path" | "symbol" | "line">) => site.symbol ? `${site.path}|${site.symbol}` : `${site.path}:${site.line}`;
 
+/** Sites a seed may rely on: confirmed or spec-linked, and still at their current location. */
+export const usedSites = (mapping: EngineMapping | null): EngineSite[] => (mapping?.sites ?? []).filter((site) => site.method !== "llm" && !site.stale);
+
+/** Lines `from` to `to` (1-based, inclusive), each prefixed with its number. */
+export const numbered = (lines: string[], from: number, to: number) => lines.slice(from - 1, to).map((text, index) => `${from + index}: ${text}`).join("\n");
+
+/** `text` as a fenced block whose fence is longer than any backtick run inside it. */
+export function fence(text: string): string {
+  const ticks = "`".repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((run) => run[0].length + 1)));
+  return `${ticks}\n${text}\n${ticks}`;
+}
+
 /** Site order: by path, then line. */
 export const byPlace = (a: Pick<EngineSite, "path" | "line">, b: Pick<EngineSite, "path" | "line">) => a.path.localeCompare(b.path) || a.line - b.line;
 
