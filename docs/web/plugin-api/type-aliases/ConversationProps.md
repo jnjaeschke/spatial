@@ -14,6 +14,10 @@
 
 > `optional` **canSteer?**: `boolean`
 
+### decision?
+
+> `optional` **decision?**: [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<[`DecisionData`](../../../shared/types/interfaces/DecisionData.md)\> \| `null`
+
 ### items?
 
 > `optional` **items?**: [`Artifact`](../../../shared/types/interfaces/Artifact.md)[]

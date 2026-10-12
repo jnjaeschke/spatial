@@ -2,7 +2,7 @@ import { useContext, useEffect } from "react";
 import type { SessionState } from "../shared/types.ts";
 import type { PhaseView } from "./plugin-api.ts";
 import { ChatActionsContext, type ChatActions } from "./chat-context.ts";
-import { DecisionControls, ModelsContext } from "./DecisionControls.tsx";
+import { ModelsContext } from "./llm-choice.ts";
 import { IconButton } from "./IconButton.tsx";
 import { MainConversation } from "./MainConversation.tsx";
 import { openDecision } from "./decisions.ts";
@@ -37,8 +37,7 @@ export function SessionPopover({ state, onClose }: { state: SessionState; onClos
   return <section className="activity-log session-log" role="dialog" aria-label="Session" data-testid="session-popover" data-no-ask="" onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
     <header><b>Session</b><IconButton label="Close session" onClick={onClose}>×</IconButton></header>
     <div className="session-log-body">
-      {decision && <DecisionControls key={decision.id} sessionId={state.session.id} decision={decision} testId="session-decision" />}
-      <ChatActionsContext.Provider value={actions}><MainConversation data={data} /></ChatActionsContext.Provider>
+      <ChatActionsContext.Provider value={actions}><MainConversation data={data} decision={decision} /></ChatActionsContext.Provider>
     </div>
   </section>;
 }

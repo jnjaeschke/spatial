@@ -1,4 +1,8 @@
+import { createContext } from "react";
 import type { LlmSelection, ModelsResponse } from "../shared/types.ts";
+
+/** The models the session shell loaded. */
+export const ModelsContext = createContext<ModelsResponse | null>(null);
 
 const KEY = "spatial:last-model";
 const CHANGED = "spatial:last-model-changed";

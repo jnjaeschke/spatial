@@ -1,7 +1,7 @@
 import { IconButton } from "../IconButton.tsx";
 import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
-import type { Artifact, LlmSelection } from "../../shared/types.ts";
+import type { Artifact, DecisionData, LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
 import { isActive } from "../../shared/task-state.ts";
 import { api } from "../api.ts";
@@ -18,6 +18,7 @@ import { COMPOSER_HINT } from "../composer-key.ts";
 import { ErrorText, useAction } from "../action.tsx";
 import { ReplyActionsContext } from "../reply-actions.ts";
 import { interleave } from "../conversation-items.ts";
+import { optionProblem } from "../decisions.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & Record<string, unknown>, "chat">;
 
@@ -34,14 +35,16 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   );
 }
 
-export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Steer and Stop & steer beside Send: Steer hands the text to the running agent, Stop & steer stops the running epoch and steers its rerun. */ canSteer?: boolean; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
+export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Steer and Stop & steer beside Send: Steer hands the text to the running agent, Stop & steer stops the running epoch and steers its rerun. */ canSteer?: boolean; /** An open decision, shown as the newest message with its options as buttons; an option's text is the reply box's text, its model the picker's. */ decision?: Artifact<DecisionData> | null; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
 
-/** Keeps the newest message in view: a new own message scrolls to the end, a new answer scrolls to its start just below the pinned own message. Positions are measured in screen pixels, which the canvas zoom scales. */
-function useFollowLatest(list: RefObject<HTMLDivElement | null>, latest: ChatNodeData["messages"][number] | undefined, busy: boolean) {
+/** Keeps the newest message in view: a new own message or decision scrolls to the end, a new answer scrolls to its start just below the pinned own message. Positions are measured in screen pixels, which the canvas zoom scales. */
+function useFollowLatest(list: RefObject<HTMLDivElement | null>, latest: ChatNodeData["messages"][number] | undefined, busy: boolean, decisionId: string | undefined) {
   const followed = useRef<string | null>(null);
   useLayoutEffect(() => {
     const el = list.current;
-    if (!el || !latest) return;
+    if (!el) return;
+    if (decisionId !== undefined && followed.current !== decisionId) { el.scrollTop = el.scrollHeight; followed.current = decisionId; return; }
+    if (!latest) return;
     if (latest.data.role === "user") { el.scrollTop = el.scrollHeight; followed.current = latest.id; return; }
     if (followed.current === latest.id) return;
     followed.current = latest.id;
@@ -51,7 +54,7 @@ function useFollowLatest(list: RefObject<HTMLDivElement | null>, latest: ChatNod
     const pinned = el.querySelector<HTMLElement>(".msg.pinned");
     const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
     el.scrollTop += (node.getBoundingClientRect().top - el.getBoundingClientRect().top) / scale - (pinned ? pinned.offsetHeight + gap : 0);
-  }, [list, latest, busy]);
+  }, [list, latest, busy, decisionId]);
 }
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages; the last own message stays pinned at the top while its answer scrolls. */
@@ -63,8 +66,11 @@ export function Conversation(data: ConversationProps) {
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
   const [text, setText] = useDraftText(data.draftId);
-  const { error, run, fail, clear } = useAction();
+  const { busy: deciding, error, run, fail, clear } = useAction();
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const decision = data.decision ?? null;
+  const defaultText = decision?.data.options.find((option) => option.defaultText)?.defaultText;
+  useEffect(() => { if (defaultText !== undefined) setText(defaultText); }, [decision?.id]);
   // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
   const turns = (actions?.tasks ?? []).filter((t) => {
     if (t.kind !== "chatTurn") return false;
@@ -79,7 +85,7 @@ export function Conversation(data: ConversationProps) {
   const entries = interleave(data.messages, data.items ?? []);
   const pinnedId = data.messages.findLast((m) => m.data.role === "user")?.id;
   const list = useRef<HTMLDivElement>(null);
-  useFollowLatest(list, data.messages.at(-1), busy);
+  useFollowLatest(list, data.messages.at(-1), busy, decision?.id);
   return <>
       <div ref={list} className="messages body nodrag nopan nowheel">
         {data.lead}
@@ -96,6 +102,20 @@ export function Conversation(data: ConversationProps) {
             {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
           </div>
         ); })}
+        {decision && <div className="msg decision" data-testid="session-decision">
+          <span className="decision-question">{decision.data.question}</span>
+          <span className="decision-options">{decision.data.options.map((option) => {
+            const problem = optionProblem(option, option.takesText ? text : "");
+            return <button key={option.id} type="button" className="nodrag" disabled={deciding || problem !== null} title={problem ?? undefined} onClick={() => {
+              const selection = llm ?? actions?.models.default;
+              if (option.takesModel && selection) rememberLlm(selection);
+              void run(async () => {
+                await api.decide(decision.sessionId, decision.id, option.id, { ...(option.takesText && text.trim() ? { text: text.trim() } : {}), ...(option.takesModel && selection ? { llm: selection } : {}) });
+                if (option.takesText) setText("");
+              });
+            }}>{option.label}</button>;
+          })}</span>
+        </div>}
         {busy && <div className="msg pending">…</div>}
         {failed && <div className="msg failed">{failed.error}</div>}
       </div>

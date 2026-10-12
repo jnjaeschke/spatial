@@ -13,7 +13,7 @@ import { ExportDialog } from "./ExportDialog.tsx";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
 import { activePhaseView, sessionViews } from "./phase-views.ts";
 import { webNodeKinds, webPlugins } from "../plugins/web.ts";
-import { ModelsContext } from "./DecisionControls.tsx";
+import { ModelsContext } from "./llm-choice.ts";
 import { EpochStrip } from "./EpochStrip.tsx";
 import { showEpochStrip, stateAtEpoch } from "./epochs.ts";
 import { RouteContext, routeUrl, sessionViewOf, showSessionView } from "./routes.ts";

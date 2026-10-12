@@ -60,6 +60,7 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(page.getByTestId("investigation-tests")).toContainText("Test cases (1)");
   await expect(page.getByTestId("investigation-tests").getByText("c exists")).toHaveCount(0);
   await expect(page.getByTestId("session-decision")).toContainText("Approve the investigation plan?");
+  await expect(page.getByTestId("session-popover").locator(".messages .msg.decision")).toHaveCount(1);
 
   const bar = page.getByTestId("session-decision");
   await bar.getByRole("button", { name: "Approve" }).click();
@@ -77,7 +78,7 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await page.getByTestId("epoch-chip-5").click();
   await page.getByTestId("session-chip").click();
   await expect(bar.getByRole("button", { name: "Accept" })).toBeVisible();
-  await bar.getByLabel("decision text").fill("REVISE-IMPL tweak line 31");
+  await page.getByTestId("session-popover").getByLabel("message").fill("REVISE-IMPL tweak line 31");
   await bar.getByRole("button", { name: "Revise" }).click();
   await expect(page.getByTestId("epoch-chip-7")).toContainText("review", { timeout: 60_000 });
   await expect(page.getByTestId("epoch-chip-5")).toContainText("Revise (you)");
@@ -299,13 +300,13 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await bar.getByRole("button", { name: "Accept" }).click();
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
   await expect(page.getByTestId("try-proposal")).toContainText("Runs the plain mochitests.");
-  await expect(bar.getByLabel("decision text")).toHaveValue("./mach try fuzzy --query 'mochitest-plain'");
+  await expect(page.getByTestId("session-popover").getByLabel("message")).toHaveValue("./mach try fuzzy --query 'mochitest-plain'");
   expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
-  await bar.getByLabel("decision text").fill("./mach try fuzzy --query 'mochitest-plain' --artifact");
+  await page.getByTestId("session-popover").getByLabel("message").fill("./mach try fuzzy --query 'mochitest-plain' --artifact");
   await treeherder("hold");
   await bar.getByRole("button", { name: "Push" }).click();
   await expect(bar).toContainText(/Submit 1 commit \([0-9a-f]{12}\) to Phabricator\?/, { timeout: 20_000 });
-  await expect(bar.getByLabel("decision text")).toHaveValue("#dom-core");
+  await expect(page.getByTestId("session-popover").getByLabel("message")).toHaveValue("#dom-core");
   await expect(page.getByTestId("reviewer-suggestion")).toContainText("#dom-core");
   expect(existsSync(join(dir, ".git/moz-phab-args"))).toBe(false);
 
@@ -324,7 +325,7 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   expect(readFileSync(join(dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean)).toEqual(["try", "fuzzy", "--query", "mochitest-plain", "--artifact"]);
 
   const base = git(dir, "rev-parse", "main");
-  await bar.getByLabel("decision text").fill("#dom-core, smaug");
+  await page.getByTestId("session-popover").getByLabel("message").fill("#dom-core, smaug");
   await bar.getByRole("button", { name: "Submit", exact: true }).click();
   await expect(page.getByTestId("epoch-chip-7")).toBeVisible({ timeout: 20_000 });
   await page.getByTestId("epoch-chip-7").click();
@@ -348,7 +349,7 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
   await bar.getByRole("button", { name: "Skip" }).click();
   await expect(bar).toContainText(/Submit 1 commit \([0-9a-f]{12}\) to Phabricator\?/, { timeout: 20_000 });
-  await bar.getByLabel("decision text").fill("#dom-core");
+  await page.getByTestId("session-popover").getByLabel("message").fill("#dom-core");
   await bar.getByRole("button", { name: "Submit", exact: true }).click();
 
   await page.getByTestId("epoch-chip-6").waitFor({ timeout: 20_000 });
@@ -392,7 +393,7 @@ test("gecko: chat proposes a try push and nothing is pushed until the click", as
   await conversation.getByRole("button", { name: "Send" }).click();
   const bar = page.getByTestId("session-decision");
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
-  await expect(bar.getByLabel("decision text")).toHaveValue("./mach try auto");
+  await expect(page.getByTestId("session-popover").getByLabel("message")).toHaveValue("./mach try auto");
   await expect(page.getByTestId("try-proposal")).toContainText("You asked for try.");
   expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
   await bar.getByRole("button", { name: "Skip" }).click();
