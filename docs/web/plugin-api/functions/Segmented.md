@@ -8,7 +8,7 @@
 
 > **Segmented**\<`T`\>(`__namedParameters`): `Element`
 
-One choice out of a few, as pressed buttons in a group.
+One choice out of a few, as pressed buttons in a group. An option's `title` is its accessible name and tooltip; with a `description` instead, its text label is the name and the description the tooltip.
 
 ## Type Parameters
 
@@ -30,7 +30,7 @@ One choice out of a few, as pressed buttons in a group.
 
 #### options
 
-`object`[]
+(\{ `label`: `ReactNode`; `title?`: `string`; `value`: `T`; \} \| \{ `description`: `string`; `label`: `string`; `value`: `T`; \})[]
 
 #### value
 

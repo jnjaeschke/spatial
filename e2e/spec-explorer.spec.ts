@@ -226,6 +226,7 @@ test("a claim check opens its trace: one unverified hop dashed on the map, the v
   await exploreNavigate(page);
   await page.getByTestId("traces-toggle").click();
   const panel = page.getByTestId("trace-panel");
+  await expect(panel.getByRole("button", { name: "Check claim" })).toHaveAttribute("title", /answers holds, fails or unclear/);
   await panel.getByRole("button", { name: "Check claim" }).click();
   await panel.getByLabel("Question about the spec").fill("The source snapshot is taken before the origin snapshot.");
   await panel.getByRole("button", { name: "Ask" }).click();
