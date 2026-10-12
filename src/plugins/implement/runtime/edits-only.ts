@@ -3,7 +3,7 @@ import type { AcceptanceCheck, CheckResult } from "../shared/types.ts";
 import { describeCheck, testPaths } from "../shared/acceptance.ts";
 
 /** What the edits-only agent reports after one call. In a fix round `step` names the commit (0-based, oldest first) the edits belong to. */
-export interface EditsOnlyAgentReply { summary: string; planChange: string | null; planInvalid: string | null; step: number | null }
+export interface AgentReply { summary: string; planChange: string | null; planInvalid: string | null; step: number | null }
 export interface EditsOnlyOptions {
   /** Ordered commits from the approved plan with the checks of each. */
   plan: { message: string; checks: AcceptanceCheck[] }[];
@@ -22,7 +22,7 @@ export interface EditsOnlyOptions {
   /** Runs a check and captures its output. */
   runCheck(command: string): Promise<{ id: Id; exitCode: number; output: string }>;
   /** Runs one agent call with the target step and prior problems. */
-  agent(request: { step: number | null; problems: string[] }): Promise<EditsOnlyAgentReply>;
+  agent(request: { step: number | null; problems: string[] }): Promise<AgentReply>;
   /** Git operations used to commit each verified edit. */
   git: {
     changedPaths(): Promise<string[]>;
@@ -39,7 +39,7 @@ const NOT_RUN = { ok: true, message: "not run in edits-only mode", runs: [] as I
 export async function runEditsOnly(o: EditsOnlyOptions): Promise<{ summary: string; planChange: string | null; planInvalid: string | null }> {
   const existing = await o.git.commits();
   const fixRound = existing.length > 0;
-  let last: EditsOnlyAgentReply = { summary: "", planChange: null, planInvalid: null, step: null };
+  let last: AgentReply = { summary: "", planChange: null, planInvalid: null, step: null };
   const steps: (number | null)[] = fixRound ? [null] : o.plan.map((_, index) => index);
   const verdicts = new Map<string, CheckResult>();
   for (const step of steps) {

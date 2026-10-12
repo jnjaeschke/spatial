@@ -6,7 +6,7 @@ import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
 import { checkEvidence, type CommandEvidence } from "../../runtime/check-evidence.ts";
-import { runEditsOnly, type EditsOnlyAgentReply as AgentReply } from "../../runtime/edits-only.ts";
+import { runEditsOnly, type AgentReply } from "../../runtime/edits-only.ts";
 import { steerPlan, steerSections } from "../../runtime/steers.ts";
 import { memorySections } from "../../runtime/memories.ts";
 import type { ReviewFindingData } from "../../../review/api.ts";
