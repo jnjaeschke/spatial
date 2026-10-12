@@ -1,22 +1,17 @@
-import { commandRunData, defineTask, runProcess, type CommandRunData, type Id } from "../../../../plugin-api.ts";
+import { defineTask, type Id } from "../../../../plugin-api.ts";
 import { type StackRewriteData } from "../../../implement/api.ts";
 import { commitRevision } from "../../../review/api.ts";
 import type { PhabSubmissionData, PhabSubmitInput } from "../../shared/types.ts";
+import { assertAtTip, runRecorded } from "../../runtime/recorded-command.ts";
 import { submitArgs } from "../../runtime/submit-command.ts";
 
 export const phabSubmit = defineTask<PhabSubmitInput, { submissionId: Id }>({
   kind: "phabSubmit",
   async run(ctx, { base, head, reviewers, wip }) {
     const args = submitArgs({ base, reviewers, wip });
-    const tip = await ctx.git.resolve("HEAD");
-    if (tip !== head) throw new Error(`The checkout is at ${tip.slice(0, 12)}, not at the accepted tip ${head.slice(0, 12)}; spatial does not move the checkout`);
-    if (await ctx.git.isDirty()) throw new Error("The work tree has uncommitted changes; commit or stash them before submitting");
+    await assertAtTip(ctx, head, "submitting");
     const command = ["moz-phab", ...args].join(" ");
-    const started = Date.now();
-    const out = await runProcess(process.env.SPATIAL_MOZPHAB ?? "moz-phab", args, { stdin: "", cwd: ctx.repo, signal: ctx.signal, onStdoutLine: (line) => { if (line.trim()) ctx.progress({ kind: "indeterminate", message: line.trim() }); } });
-    const output = out.stderr ? `${out.stdout}\n${out.stderr}` : out.stdout;
-    ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, false));
-    if (out.code !== 0) throw new Error(`moz-phab exited ${out.code}; its output is in the command run`);
+    await runRecorded(ctx, "moz-phab", command, process.env.SPATIAL_MOZPHAB ?? "moz-phab", args);
     const after = await ctx.git.resolve("HEAD");
     const revisions = (await ctx.git.log(base, after)).map((commit) => {
       const revision = commitRevision(commit);
