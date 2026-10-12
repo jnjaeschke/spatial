@@ -333,6 +333,12 @@ Re-exports [Id](../../shared/types/type-aliases/Id.md)
 
 ***
 
+### isActive
+
+Re-exports [isActive](../../plugin-api/functions/isActive.md)
+
+***
+
 ### Link
 
 Re-exports [Link](../../shared/types/interfaces/Link.md)
@@ -576,6 +582,12 @@ Re-exports [StartQuestion](../../shared/types/interfaces/StartQuestion.md)
 ### TaskRecord
 
 Re-exports [TaskRecord](../../shared/types/interfaces/TaskRecord.md)
+
+***
+
+### taskState
+
+Re-exports [taskState](../../plugin-api/functions/taskState.md)
 
 ***
 

@@ -1,5 +1,5 @@
 import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
-import { ENGINE_LABEL, fileUrl } from "../../../web/graph-api.ts";
+import { ENGINE_LABEL, fileUrl, isActive } from "../../../web/graph-api.ts";
 import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */
@@ -104,13 +104,13 @@ const taskTarget = (task: Pick<TaskRecord, "kind" | "input">) => `${task.kind}|$
 export function engineTasks<T extends Pick<TaskRecord, "kind" | "status" | "input">>(tasks: T[]): T[] {
   const latest = new Map<string, T>();
   for (const task of tasks) if (ENGINE_TASKS.includes(task.kind)) latest.set(taskTarget(task), task);
-  return tasks.filter((task) => ENGINE_TASKS.includes(task.kind) && (task.status === "pending" || task.status === "running" || (task.status === "failed" && latest.get(taskTarget(task)) === task)));
+  return tasks.filter((task) => ENGINE_TASKS.includes(task.kind) && (isActive(task) || (task.status === "failed" && latest.get(taskTarget(task)) === task)));
 }
 
 /** Whether a mapping, LLM search or alignment of the algorithm in `engine` is pending or running, and the error of its latest failed one, from `engineTasks`. */
 export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], algorithmId: string, engine: Engine): { mapping: boolean; searching: boolean; aligning: boolean; error: string | null } {
   const mine = tasks.filter((task) => (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
-  const running = (kind: string) => mine.some((task) => task.kind === kind && (task.status === "pending" || task.status === "running"));
+  const running = (kind: string) => mine.some((task) => task.kind === kind && isActive(task));
   return { mapping: running("mapEngine"), searching: running("findImplementation"), aligning: running("alignSteps"), error: mine.findLast((task) => task.status === "failed")?.error ?? null };
 }
 

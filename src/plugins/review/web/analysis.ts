@@ -1,4 +1,5 @@
 import type { LlmSelection, SessionState } from "../../../web/plugin-api.ts";
+import { isActive } from "../../../web/graph-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 
 export type Step = "importRevision" | "reviewRange" | "importDiff" | "narrate";
@@ -9,7 +10,7 @@ const STEPS = new Set<Step>(["importRevision", "reviewRange", "importDiff", "nar
 export function analysisStatus(state: SessionState): Analysis {
   const last = state.tasks.filter((task) => STEPS.has(task.kind as Step)).at(-1);
   if (last?.status === "failed" || last?.status === "cancelled") return { state: "failed", step: last.kind as Step, error: last.error ?? "Cancelled" };
-  if (last?.status === "running" || last?.status === "pending") return { state: "running", step: last.kind as Step };
+  if (last && isActive(last)) return { state: "running", step: last.kind as Step };
   return last || state.artifacts.some((artifact) => artifact.type === "WorkflowStart") ? { state: "running", step: null } : { state: "none" };
 }
 

@@ -1,7 +1,6 @@
-import { ErrorText, useAction, type TaskRecord } from "../../../web/plugin-api.ts";
+import { ErrorText, taskState, useAction, type TaskRecord } from "../../../web/plugin-api.ts";
 import type { TraceQuestion } from "../shared/types.ts";
 import { verdictLine, type TraceStatus } from "../shared/traces.ts";
-import { taskState } from "./implementations.ts";
 
 const ofTrace = (traceId: string) => (input: unknown) => (input as { traceId?: string }).traceId === traceId;
 

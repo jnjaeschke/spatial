@@ -120,6 +120,19 @@ test("cancelling a parent cancels its running child", async () => {
   assert.deepEqual(store.listTasks(session.id).map((t) => t.status), ["cancelled", "cancelled"]);
 });
 
+test("activeTask finds a pending or running task of a kind in any session whose input matches", async () => {
+  const { store, rt, session } = setup();
+  const other = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "u" });
+  const { taskId, done } = rt.start(other.id, "parent", { child: "slow" });
+  const queued = store.createTask({ sessionId: session.id, kind: "echo", input: { v: "q" } });
+  assert.equal(rt.activeTask("parent", (input) => (input as { child: string }).child === "slow")?.id, taskId);
+  assert.equal(rt.activeTask("parent", (input) => (input as { child: string }).child === "echo"), null);
+  assert.equal(rt.activeTask("echo", () => true)?.id, queued.id);
+  rt.cancel(taskId);
+  await assert.rejects(done);
+  assert.equal(rt.activeTask("parent", () => true), null);
+});
+
 test("run() resolves with output", async () => {
   const { rt, session } = setup();
   const out = await rt.run<{ artifactId: string }>(session.id, "echo", { v: "x" });

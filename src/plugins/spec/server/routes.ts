@@ -1,4 +1,4 @@
-import { ENGINES, HttpError, startTask, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
 import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData, TraceCodeRef } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
@@ -6,16 +6,16 @@ import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
-import { decideProposal, ensureMapping, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
+import { decideProposal, ensureMapping, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
 import { followQuote, siteKey, usedSites } from "../shared/engine.ts";
-import { alignRunning, startAlign } from "../runtime/align.ts";
-import { compareRunning, flagDifference, startCompare } from "../runtime/compare.ts";
+import { startAlign } from "../runtime/align.ts";
+import { flagDifference, startCompare } from "../runtime/compare.ts";
 import { implementationsData } from "../runtime/implementations.ts";
 import { randomUUID } from "node:crypto";
 import { isSpecRef } from "../shared/refs.ts";
 import { parseSteps } from "../shared/steps.ts";
 import { traceStatus } from "../shared/traces.ts";
-import { addMappingStep, MappingStepConflict, generateTrace, openTraceBoxes, traceCheckRunning, type TraceRequest } from "../runtime/traces.ts";
+import { addMappingStep, MappingStepConflict, generateTrace, openTraceBoxes, startTraceCheck, type TraceRequest } from "../runtime/traces.ts";
 import { loadTraceFacts } from "../tasks/check-trace/task.ts";
 import { TRACE_HOPS, type TraceQuestion } from "../shared/types.ts";
 
@@ -99,8 +99,7 @@ export function specRoutes(rt: Runtime): Route[] {
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/check$/, async ({ res, params }) => {
       const session = requireSession(rt, params[0]!);
       const { trace } = requireTrace(rt, session.id, params[1]!);
-      if (traceCheckRunning(rt, session.id, trace.data.traceId)) throw new HttpError(409, `A check of trace ${trace.data.traceId} is running`);
-      startTask(rt, session.id, "checkTrace", { traceId: trace.data.traceId, traceArtifactId: trace.id });
+      startTraceCheck(rt, session.id, trace.data.traceId, trace.id);
       send(res, 202, { traceArtifactId: trace.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/open$/, async ({ res, params }) => {
@@ -194,7 +193,6 @@ export function specRoutes(rt: Runtime): Route[] {
       if (!mapping) throw new HttpError(409, `${ref} has no ${engine} mapping yet`);
       const stale = staleKey === null ? null : mapping.sites.find((site) => site.stale && siteKey(site) === staleKey);
       if (stale === undefined) throw new HttpError(404, `No stale site ${staleKey} in ${ref}`);
-      if (searchRunning(rt, engine, ref)) throw new HttpError(409, `A ${engine} search for ${ref} is running`);
       send(res, 202, { taskId: startSearch(rt, session.id, engine, algorithm, stale).taskId });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/decide$/, async ({ req, res, params }) => {
@@ -230,17 +228,13 @@ export function specRoutes(rt: Runtime): Route[] {
       const site = usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).find((candidate) => siteKey(candidate) === key);
       if (!site) throw new HttpError(404, `No site ${key} in ${algorithm.data.ref}`);
       if (!site.symbol) throw new HttpError(409, `${site.path}:${site.line} is a declaration; aligning steps needs a function body`);
-      if (alignRunning(rt, engine, algorithm.data.ref)) throw new HttpError(409, `A ${engine} alignment for ${algorithm.data.ref} is running`);
       send(res, 202, { taskId: startAlign(rt, session.id, engine, algorithm, key).taskId });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/compare$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const algorithm = requireAlgorithm(rt, session.id, text(await readJson(req), "ref"));
       if (ENGINES.filter((engine) => usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).length).length < 2) throw new HttpError(409, "Compare needs sites in at least two engines");
-      if (compareRunning(rt, algorithm.data.ref)) throw new HttpError(409, `A comparison of ${algorithm.data.ref} is running`);
-      let run;
-      try { run = await startCompare(rt, session.id, algorithm); } catch (error) { throw new HttpError(502, (error as Error).message); }
-      send(res, 202, { taskId: run.taskId });
+      send(res, 202, { taskId: startCompare(rt, session.id, algorithm).taskId });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/compare\/flag$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

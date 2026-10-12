@@ -1,4 +1,5 @@
 import type { Progress, TaskRecord } from "../shared/types.ts";
+import { isActive } from "../shared/task-state.ts";
 import { api } from "./api.ts";
 
 const describe = (p: Progress | undefined) =>
@@ -8,7 +9,7 @@ const label = (kind: string) => kind === "narrate" ? "analyze" : kind === "impor
 
 /** Running tasks plus the three most recent finished ones; failures show their error. */
 export function ActivityStrip({ tasks, progress }: { tasks: TaskRecord[]; progress: Record<string, Progress> }) {
-  const running = tasks.filter((t) => t.status === "running" || t.status === "pending");
+  const running = tasks.filter(isActive);
   const finished = tasks.filter((t) => !running.includes(t)).slice(-3).reverse();
   return <div className="activity">
     {[...running, ...finished].map((t) => <span key={t.id} className={`task ${t.status}`} data-testid={`task-${t.kind}`} data-status={t.status}>

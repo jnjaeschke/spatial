@@ -3,7 +3,7 @@ import type { LineRange, SpecReferenceData, StepLink } from "../../spec/web/api.
 import { type Artifact, type Id, type LlmSelection, type SessionState, SidePanel, api, numberLines } from "../../../web/plugin-api.ts";
 import { parseSteps } from "../../spec/web/api.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
-import { ErrorText, useAction } from "../../../web/plugin-api.ts";
+import { ErrorText, isActive, useAction } from "../../../web/plugin-api.ts";
 import { SpecSectionView } from "../../spec/web/api.ts";
 import type { DiffData, PatchNarrativeData } from "../../../web/plugin-api.ts";
 
@@ -41,7 +41,7 @@ function ResolvedSpecPanel({ state, specId, latest, llm, onClose, onBack, onFocu
   const supportedHunks = new Set(latest.narrative.data.changes.filter((change) => supportedChanges.has(change.id)).flatMap((change) => change.hunkIds));
   const hasSupportedChanges = supportedChanges.size > 0;
   const unexplainedAdds = latest.diff.data.files.reduce((sum, file) => sum + file.hunks.filter((hunk) => supportedHunks.has(hunk.id)).flatMap((hunk) => numberLines(hunk)).filter((row) => row.kind === "add" && !byLine.has(lineKey(file.path, "new", row.new!)) && [undefined, "unexplained"].includes(otherByLine.get(lineKey(file.path, "new", row.new!))?.reason)).length, 0);
-  const running = task?.status === "pending" || task?.status === "running";
+  const running = !!task && isActive(task);
   const mapped = steps.filter((step) => statuses.get(step.number) !== "unmapped").length;
   const deviates = steps.filter((step) => statuses.get(step.number) === "deviates").length;
   const select = (step: string) => {

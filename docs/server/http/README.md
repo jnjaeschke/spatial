@@ -18,6 +18,7 @@
 ## Functions
 
 - [createHttpServer](functions/createHttpServer.md)
+- [errorStatus](functions/errorStatus.md)
 - [llmField](functions/llmField.md)
 - [putUserArtifact](functions/putUserArtifact.md)
 - [readJson](functions/readJson.md)

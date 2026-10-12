@@ -1,5 +1,5 @@
 import type {
-  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection,
+  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
 } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -158,6 +158,14 @@ export class PhaseBusyError extends Error {
   constructor(id: Id, epoch: Epoch) {
     super(`Session ${id} is running epoch ${epoch.n} (${epoch.phase})`);
     this.name = "PhaseBusyError";
+  }
+}
+
+/** A start refused because an active task already does the same work (`Runtime.activeTask`); the HTTP shell answers 409. */
+export class BusyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BusyError";
   }
 }
 
@@ -424,6 +432,11 @@ export class Runtime {
       this.emit(sessionId, "runtime", "artifact.created", { artifactId: decision.id, type: "Decision" });
       if (!chosen) return;
     }
+  }
+
+  /** The pending or running task of `kind`, in any session, whose input `matches`; null when there is none. Checked synchronously before `start`, it makes the task the guard for work that runs once at a time across sessions. */
+  activeTask(kind: string, matches: (input: unknown) => boolean): TaskRecord | null {
+    return this.#store.listActiveTasks(kind).find((task) => matches(task.input)) ?? null;
   }
 
   runningEpoch(sessionId: Id): Epoch | null {

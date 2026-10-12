@@ -13,7 +13,7 @@ const SCHEMA: JsonSchema = { type: "object", additionalProperties: false, requir
   claims: { type: "array", items: { type: "object", additionalProperties: false, required: ["engine", "text", "code"], properties: { engine: { type: "string", enum: [...ENGINES] }, text: { type: "string" }, code: { type: "array", items: CODE } } } },
 } } } } };
 
-/** An LLM comparison of engine implementations; `startCompare` checks it. */
+/** An LLM comparison of engine implementations; `compareAlgorithm` checks it. */
 export const compareEngines = defineTask<CompareInput, EngineComparison>({
   kind: "compareEngines",
   async run(ctx, { algorithmId, engines }) {
