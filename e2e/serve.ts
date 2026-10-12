@@ -123,6 +123,7 @@ const agentSteerOut = join(implementDir, "agent-steer.jsonl");
 writeFileSync(agentSteerOut, agentEvents.map((event) => JSON.stringify("session_id" in event ? { ...event, session_id: "stub-steer-resumed" } : event)).join("\n") + "\n");
 const steerHangOut = join(implementDir, "steer-hang.jsonl");
 writeFileSync(steerHangOut, JSON.stringify({ type: "system", subtype: "init", session_id: "stub-steer" }) + "\n");
+const steerMemoryOut = stubOut("steer-memory", { action: "add", key: "name-helpers", scope: "repo", memory: { situation: "the agent adds a helper", observed: "It named the helper after its caller", wanted: "Name helpers after what they return", why: null, phases: ["implement"], kinds: [] } });
 // The first implement call of the IMPL-STEER session reports its session and then hangs; the rerun resumes that session.
 process.env.FAKE_LLM_HANG_ON = JSON.stringify({ "You implement a planned code change&&impl-steer&&!stub-steer": steerHangOut });
 const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
@@ -147,7 +148,7 @@ process.env.SPATIAL_MOZPHAB = mozPhab;
 // Implement routes come first: the review prompts of an implement session also contain the generic needles below.
 const reviewerInterpretOut = stubOut("reviewer-comment-interpretation", { comments: [{ phid: "PHID-XCMT-4301", asks: "Name the magic value", proposal: "Use a named constant in c.txt", action: "address", reply: null }, { phid: "PHID-XCMT-4302", asks: "Why a new file?", proposal: "None", action: "reply", reply: "A new file keeps the change small." }] });
 const reviewerAddress = script("reviewer-address", `printf 'kept\\n' >> c.txt\ngit add -A\n${commit} --amend --no-edit\n`);
-const implementRoutes = { "--resume stub-steer": agentSteerOut, 'IMPL-STEER&&"findings"': tryCleanReviewOut, "You interpret reviewer comments": reviewerInterpretOut, "You investigate a bug report&&TRY-E2E": tryInvestigationOut, 'TRY-E2E&&"findings"': tryCleanReviewOut, "You propose a try push": tryProposalOut, "You investigate a bug report": investigationOut, "You implement a planned code change&&Bug 4242": tryAgentOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
+const implementRoutes = { "You distill a steer into a memory": steerMemoryOut, "--resume stub-steer": agentSteerOut, 'IMPL-STEER&&"findings"': tryCleanReviewOut, "You interpret reviewer comments": reviewerInterpretOut, "You investigate a bug report&&TRY-E2E": tryInvestigationOut, 'TRY-E2E&&"findings"': tryCleanReviewOut, "You propose a try push": tryProposalOut, "You investigate a bug report": investigationOut, "You implement a planned code change&&Bug 4242": tryAgentOut, "You implement a planned code change": agentOut, "IMPL-E2E&&# Prior findings\n\nF1 [": fixedReviewOut, 'IMPL-E2E&&"findings"': highReviewOut };
 const specSummaryOut = stubOut("spec-summary", { clauses: [{ text: "Starts with the first step.", steps: ["1"] }] });
 const specVerifyOut = stubOut("spec-verify", { clauses: [{ supported: true, reason: "Step 1 says so." }] });
 const specTraceOut = stubOut("spec-trace", { title: "Source snapshot before the origin snapshot", entries: [

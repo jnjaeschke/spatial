@@ -85,7 +85,7 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   expect(git(dir, "status", "--porcelain")).toBe("");
 });
 
-test("steering a running implement epoch restarts it, resumed with the steer", async ({ page }) => {
+test("steering a running implement epoch restarts it, resumed with the steer, and remembers the steer", async ({ page }) => {
   test.setTimeout(120_000);
   const dir = makeRepo();
   await page.goto(open(dir));
@@ -104,6 +104,17 @@ test("steering a running implement epoch restarts it, resumed with the steer", a
   await page.getByTestId("epoch-chip-2").click();
   await expect(page.getByTestId("steer-outcome")).toContainText(/resumed with your steer/i);
   expect(git(dir, "log", "--format=%s", "main..spatial/impl-steer-make-c-txt-exist")).toBe("Fix the c thing");
+  await page.getByTestId("epoch-chip-3").click();
+  await expect(page.getByTestId("toasts")).toContainText("Remembered: Name helpers after what they return");
+  await expect(conversation.getByTestId("steer-item")).toContainText("STEER-ME name the helper");
+  const notice = conversation.getByTestId("memory-notice");
+  await expect(notice).toContainText("Remembered for this repo");
+  await expect(notice).toContainText("Name helpers after what they return");
+  await notice.getByRole("button", { name: "Forget this" }).click();
+  await expect(notice).toContainText("Forgotten");
+  await expect(notice.getByRole("button", { name: "Forget this" })).toHaveCount(0);
+  await notice.getByRole("button", { name: "Edit instead" }).click();
+  await expect(page).toHaveURL(/\/repo\?path=.*&memory=repo%2Fname-helpers/);
 });
 
 test("a dirty checkout asks before /implement starts and the changes move to the new branch", async ({ page }) => {

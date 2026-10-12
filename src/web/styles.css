@@ -865,3 +865,7 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .check-result.fail > span:first-child { color: var(--danger); }
 .check-message { color: var(--text-2); }
 .check-run { margin-left: 4px; font-size: 11px; }
+.steer-item .steer-label { color: var(--text-3); font-size: 0.8em; }
+.memory-notice { background: var(--surface-2); border: 1px dashed var(--border); }
+.memory-notice p { margin: 0 0 4px; }
+.memory-reactions { display: flex; gap: 6px; }
