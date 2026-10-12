@@ -8,6 +8,7 @@ const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const BASE_SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as { required: string[]; properties: Record<string, unknown> };
 const SCHEMA = { ...BASE_SCHEMA, required: [...BASE_SCHEMA.required, "diagram"], properties: { ...BASE_SCHEMA.properties, diagram: { anyOf: [{ type: "null" }, diagramSchema] } } };
 const KINDS = ["bugfix", "feature", "spec", "perf"];
+const MAX_RETRIES = 2;
 
 /** Input of the investigate phase and task. `previous` is set on a revision: the Investigation to improve and the user's text. */
 export interface InvestigateInput { request: string; profile: string; baseSha: string; branch: string; previous?: { id: Id; text: string | null }; llm?: LlmSelection }
@@ -27,6 +28,14 @@ const isReply = (value: unknown): value is Reply => {
     && Array.isArray(r.openQuestions) && Array.isArray(r.exploration) && r.exploration.every((e) => typeof e?.tried === "string" && typeof e.outcome === "string")
     && Array.isArray(r.specUrls) && r.specUrls.every((url) => typeof url === "string");
 };
+const problemsOf = (value: unknown, profile: { id: string; commitStyle: "stack" | "single" }): string[] => {
+  if (!isReply(value)) return [`The reply is not valid: ${String(JSON.stringify(value)).slice(0, 500)}`];
+  return [
+    ...(value.steps.length === 0 ? ["The investigation has no steps"] : []),
+    ...(profile.commitStyle === "single" && value.steps.length > 1 ? [`The ${profile.id} profile takes one commit but the plan has ${value.steps.length} steps`] : []),
+  ];
+};
+const listProblems = (problems: string[]) => problems.map((problem) => `- ${problem}`).join("\n");
 
 export const investigate = defineTask<InvestigateInput, { investigationId: Id; droppedLocations: string[] }>({
   kind: "investigate",
@@ -47,11 +56,17 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
         ...(threads.length ? ["# Chat threads on the previous investigation", ...threads.map((thread) => ctx.artifacts.render(thread.id))] : []),
       ] : []),
     ].join("\n\n");
-    const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
-    if (!isReply(r.json)) throw new Error(`Investigation reply is not valid: ${JSON.stringify(r.json)}`);
-    const reply = r.json;
-    if (reply.steps.length === 0) throw new Error("The investigation has no steps");
-    if (profile.commitStyle === "single" && reply.steps.length > 1) throw new Error(`The ${profile.id} profile takes one commit but the plan has ${reply.steps.length} steps`);
+    const ask = (text: string, resumeProviderSession?: string) => ctx.llm.run({ prompt: text, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const attempts: string[][] = [];
+    let r = await ask(prompt);
+    for (;;) {
+      const problems = problemsOf(r.json, profile);
+      if (problems.length === 0) break;
+      attempts.push(problems);
+      if (attempts.length > MAX_RETRIES) throw new Error(`The investigation reply still has problems after ${MAX_RETRIES} retries:\n${attempts.map((list, i) => `Attempt ${i + 1}:\n${listProblems(list)}`).join("\n")}`);
+      r = await ask(`Your answer has problems:\n${listProblems(problems)}\n\nAnswer again with the full schema.`, r.providerSessionId);
+    }
+    const reply = r.json as Reply;
     const { verified, dropped } = await verifyLocations(reply.locations, (path) => ctx.git.show(baseSha, path));
     const specRefs: NonNullable<InvestigationData["specRefs"]> = [];
     for (const url of reply.specUrls) specRefs.push(await resolveSpecReference(ctx, url, "llm"));

@@ -24,13 +24,13 @@ const reply = (over: object = {}) => ({
 const step = (symbol: string, line: number) => ({ from: "a", to: "a", symbol, call: `${symbol}()`, what: "w", when: null, guard: null, phase: null, status: "existing", cite: { path: "a.txt", line } });
 const diagram = (over: object = {}) => ({ commit: 1, title: "Flow", summary: "S", lanes: [{ id: "a", label: "A", note: null }], steps: [step("beta", 2), step("missing", 2)], before: null, ...over });
 const specResult = (url: string) => ({ found: true as const, spec: { spec: "HTML", anchor: "a", title: "T", type: "dfn", url, content: "c" } });
-function setup(json: unknown, extra: Plugin[] = [], webspec: Partial<WebspecCapability> = {}) {
+function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = [], webspec: Partial<WebspecCapability> = {}) {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "alpha\nbeta\ngamma\n" }, "base");
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: typeof json === "function" ? json(prompts.length - 1) : json, providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, webspec: webspec as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const run = (input: object = {}) => rt.run<{ investigationId: string; droppedLocations: string[] }>(session.id, "investigate", { request: "fix it", profile: "plain-git", baseSha: base, branch: "spatial/x", llm: selection, ...input });
@@ -128,4 +128,33 @@ test("an Investigation renders for chats on it, with sub-refs for locations and 
   assert.ok(renderRef(rt.plugins.artifactKinds, view, `${investigationId}#loc0`).includes("beta"));
   assert.ok(renderRef(rt.plugins.artifactKinds, view, `${investigationId}#step0`).includes("T"));
   assert.throws(() => renderRef(rt.plugins.artifactKinds, view, `${investigationId}#loc9`), /Unknown ref/);
+});
+
+const twoSteps = [{ title: "a", message: "a", intent: "i", tests: [] }, { title: "b", message: "b", intent: "i", tests: [] }];
+
+test("an invalid reply is answered again in the resumed session with only the problems", async () => {
+  const { store, run, prompts } = setup((call: number) => call === 0 ? { nonsense: true } : reply());
+  const out = await run();
+  assert.equal(prompts.length, 2);
+  assert.equal(prompts[0]!.resumeProviderSession, undefined);
+  assert.equal(prompts[1]!.tools, "read-only");
+  assert.equal(prompts[1]!.resumeProviderSession, "p1");
+  assert.ok(prompts[1]!.prompt.startsWith("Your answer has problems:") && prompts[1]!.prompt.includes("not valid") && prompts[1]!.prompt.includes("Answer again with the full schema."));
+  assert.ok(!prompts[1]!.prompt.includes("# Request"));
+  assert.equal(store.getArtifact<InvestigationData>(out.investigationId).data.summary, "S");
+});
+
+test("a reply without steps, then one with too many for a single-commit profile, is retried through the session chain", async () => {
+  const { run, prompts } = setup((call: number) => [reply({ steps: [] }), reply({ steps: twoSteps }), reply()][call]);
+  await run();
+  assert.equal(prompts.length, 3);
+  assert.deepEqual(prompts.map((p) => p.resumeProviderSession), [undefined, "p1", "p2"]);
+  assert.ok(prompts[1]!.prompt.includes("no steps"));
+  assert.ok(prompts[2]!.prompt.includes("takes one commit"));
+});
+
+test("the investigation fails with every attempt's problems after two retries", async () => {
+  const { run, prompts } = setup(reply({ steps: [] }));
+  await assert.rejects(run(), (error: Error) => /still has problems after 2 retries/.test(error.message) && /Attempt 1/.test(error.message) && /Attempt 3/.test(error.message) && /no steps/.test(error.message));
+  assert.equal(prompts.length, 3);
 });
