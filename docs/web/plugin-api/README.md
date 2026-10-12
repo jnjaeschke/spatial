@@ -40,9 +40,11 @@
 - [PhaseView](interfaces/PhaseView.md)
 - [PhaseViewProps](interfaces/PhaseViewProps.md)
 - [PlacedNode](interfaces/PlacedNode.md)
+- [PluginRepoView](interfaces/PluginRepoView.md)
 - [PluginSessionView](interfaces/PluginSessionView.md)
 - [ReplyActionProps](interfaces/ReplyActionProps.md)
 - [RepoPanelProps](interfaces/RepoPanelProps.md)
+- [RepoViewProps](interfaces/RepoViewProps.md)
 - [RootGraphParts](interfaces/RootGraphParts.md)
 - [RowMark](interfaces/RowMark.md)
 - [SearchfoxLinks](interfaces/SearchfoxLinks.md)
@@ -500,6 +502,12 @@ Re-exports [RefRow](../../shared/types/interfaces/RefRow.md)
 ### RepoInfo
 
 Re-exports [RepoInfo](../../shared/types/interfaces/RepoInfo.md)
+
+***
+
+### repoName
+
+Re-exports [repoName](../../shared/repos/functions/repoName.md)
 
 ***
 

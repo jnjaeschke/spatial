@@ -34,7 +34,9 @@
  * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
  * `src/plugins/web.ts`. A web plugin may also offer **session views** (`WebPlugin.sessionViews`):
  * projections of the session shown instead of the phase view when chosen in the topbar; the choice
- * is in the URL (`?view=`). A canvas model (`CanvasModel`) may split its graph into named **places**
+ * is in the URL (`?view=`). A web plugin may offer **repo views** (`WebPlugin.repoViews`): pages for a
+ * repository outside any session at `/repo/<view>?path=`, linked from the repo page.
+ * A canvas model (`CanvasModel`) may split its graph into named **places**
  * (`CanvasModel.places`): core owns the current place, its history entries, persistence, breadcrumb and
  * drill-in/out keys, and the model defines each place's graph, node representation and guide steps.
  * Zoom only scales the canvas. Core shows an Open button in the title bar of every node that opens a place

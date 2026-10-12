@@ -50,6 +50,12 @@
 
 ***
 
+### repoViews?
+
+> `optional` **repoViews?**: [`PluginRepoView`](PluginRepoView.md)[]
+
+***
+
 ### sessionViews?
 
 > `optional` **sessionViews?**: [`PluginSessionView`](PluginSessionView.md)[]

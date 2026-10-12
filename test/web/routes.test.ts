@@ -5,6 +5,7 @@ import { parseRoute, routeUrl, sessionViewOf, withSessionView, type Route } from
 const routes: Route[] = [
   { kind: "picker" },
   { kind: "repo", path: "/a b/c" },
+  { kind: "repoView", path: "/a b/c", view: "scm" },
   { kind: "session", sessionId: "s1", place: null },
   { kind: "session", sessionId: "s1", place: "change:c3" },
   { kind: "fixture" },
@@ -26,6 +27,12 @@ test("place segments are encoded independently", () => {
 test("unknown and incomplete paths are not app routes", () => {
   assert.equal(parseRoute(new URL("http://localhost/api/x")), null);
   assert.equal(parseRoute(new URL("http://localhost/sessions/")), null);
+});
+
+test("repo views live under /repo/<view>", () => {
+  assert.equal(routeUrl({ kind: "repoView", path: "/r", view: "scm" }), "/repo/scm?path=%2Fr");
+  assert.equal(parseRoute(new URL("http://x/repo/scm")), null);
+  assert.equal(parseRoute(new URL("http://x/repo/a/b?path=%2Fr")), null);
 });
 
 test("session views live in the view query parameter", () => {

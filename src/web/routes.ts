@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-export type Route = { kind: "picker" } | { kind: "repo"; path: string } | { kind: "session"; sessionId: string; place: string | null } | { kind: "fixture" };
+export type Route = { kind: "picker" } | { kind: "repo"; path: string } | { kind: "repoView"; path: string; view: string } | { kind: "session"; sessionId: string; place: string | null } | { kind: "fixture" };
 
 /** What the live session view offers its canvas: the session the URL belongs to and the page title. */
 export const RouteContext = createContext<{ sessionId: string; setTitleParts(parts: string[]): void } | null>(null);
@@ -11,6 +11,12 @@ export function parseRoute(url: URL): Route | null {
   if (url.pathname === "/repo") {
     const path = url.searchParams.get("path");
     return path ? { kind: "repo", path } : null;
+  }
+  const repoView = /^\/repo\/([^/]+)$/.exec(url.pathname);
+  if (repoView) {
+    const path = url.searchParams.get("path");
+    try { return path ? { kind: "repoView", path, view: decodeURIComponent(repoView[1]!) } : null; }
+    catch { return null; }
   }
   const match = /^\/sessions\/([^/]+)(?:\/(.*))?$/.exec(url.pathname);
   if (!match) return null;
@@ -28,6 +34,7 @@ export function parseRoute(url: URL): Route | null {
 export function routeUrl(route: Route): string {
   if (route.kind === "picker" || route.kind === "fixture") return route.kind === "fixture" ? "/?fixture=1" : "/";
   if (route.kind === "repo") return `/repo?path=${encodeURIComponent(route.path)}`;
+  if (route.kind === "repoView") return `/repo/${encodeURIComponent(route.view)}?path=${encodeURIComponent(route.path)}`;
   const base = `/sessions/${encodeURIComponent(route.sessionId)}`;
   return route.place === null ? base : `${base}/${route.place.split(":").map(encodeURIComponent).join("/")}`;
 }

@@ -1,15 +1,18 @@
 import type { ComponentType } from "react";
-import type { ConversationItemProps, ReplyActionProps, RepoPanelProps, WebPlugin } from "../web/plugin-api.ts";
+import type { ConversationItemProps, PluginRepoView, ReplyActionProps, RepoPanelProps, WebPlugin } from "../web/plugin-api.ts";
 import { chatWeb } from "./chat/web/index.ts";
 import { reviewWeb } from "./review/web/index.ts";
 import { implementWeb } from "./implement/web/index.ts";
 import { geckoWeb } from "./gecko/web/index.ts";
 import { coreNodeKinds } from "../web/canvas-kinds.ts";
 import { specWeb } from "./spec/web/index.ts";
+import { scmWeb } from "./scm/web/index.ts";
 
-export const webPlugins: WebPlugin[] = [reviewWeb, chatWeb, implementWeb, geckoWeb, specWeb];
+export const webPlugins: WebPlugin[] = [reviewWeb, chatWeb, implementWeb, geckoWeb, specWeb, scmWeb];
 export const webNodeKinds = Object.assign({}, coreNodeKinds, ...webPlugins.map((plugin) => plugin.nodeKinds ?? {}));
 export const webReplyActions: Record<string, ComponentType<ReplyActionProps>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.replyActions ?? {}));
 export const webConversationItems: Record<string, ComponentType<ConversationItemProps>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.conversationItems ?? {}));
 export const webConversationTasks: ReadonlySet<string> = new Set(webPlugins.flatMap((plugin) => plugin.conversationTasks ?? []));
 export const webRepoPanels: ComponentType<RepoPanelProps>[] = webPlugins.flatMap((plugin) => plugin.repoPanels ?? []);
+export const webRepoViews: PluginRepoView[] = webPlugins.flatMap((plugin) => plugin.repoViews ?? []);
+for (const [index, view] of webRepoViews.entries()) if (webRepoViews.findIndex((other) => other.id === view.id) !== index) throw new Error(`Duplicate repo view: ${view.id}`);

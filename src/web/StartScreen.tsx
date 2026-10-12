@@ -6,8 +6,9 @@ import { ThemeToggle } from "./ThemeToggle.tsx";
 import { StartBox } from "./StartBox.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
 import { routeUrl } from "./routes.ts";
+import type { PluginRepoView } from "./plugin-api.ts";
 
-export function StartScreen({ path, panels }: { path: string; panels: ComponentType<{ repoDir: string }>[] }) {
+export function StartScreen({ path, panels, views }: { path: string; panels: ComponentType<{ repoDir: string }>[]; views: PluginRepoView[] }) {
   const [repo, setRepo] = useState<RepoInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [repos, setRepos] = useState<RecentRepo[] | null>(null);
@@ -32,6 +33,7 @@ export function StartScreen({ path, panels }: { path: string; panels: ComponentT
     <p className="repo-paths"><code>{repo.repoDir}</code> · worktree <code>{repo.worktree}</code></p>
     {models ? <StartBox path={repo.worktree} repoDir={repo.repoDir} models={models} /> : <p className="failed">Models could not be loaded: {modelsError}</p>}
     {error && <p className="failed">{error}</p>}
+    {views.length > 0 && <nav className="repo-views" aria-label="Repository views">{views.map((view) => <a key={view.id} href={routeUrl({ kind: "repoView", path: repo.worktree, view: view.id })}>{view.label}</a>)}</nav>}
     <SessionList sessions={repo.sessions} />
     {panels.map((Panel, index) => <Panel key={index} repoDir={repo.repoDir} />)}
   </div>;

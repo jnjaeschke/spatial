@@ -40,7 +40,11 @@ export interface NodeKind {
 }
 /** Props of a repo page panel: the repository identity (`RepoInfo.repoDir`). */
 export interface RepoPanelProps { repoDir: string }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+/** Props of a repository page: its work tree, repository identity and display name. */
+export interface RepoViewProps { worktree: string; repoDir: string; name: string }
+/** A repository page outside any session, linked from the repo page. */
+export interface PluginRepoView { id: string; label: string; Body: ComponentType<RepoViewProps> }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; /** Repository pages, linked from the repo page. */ repoViews?: PluginRepoView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -60,6 +64,7 @@ export { ChatBody, ChatItem, InlineItem } from "./InlineItem.tsx";
 export { InlineStatesContext, useDraftInlineStates, useInlineState, useInlineStates } from "./inline-state.ts";
 export type { InlineState, InlineStates } from "./inline-state.ts";
 export { routeUrl, showSessionView } from "./routes.ts";
+export { repoName } from "../shared/repos.ts";
 export { useUrlParam } from "./url-param.ts";
 export { Box } from "./Box.tsx";
 export type { BoxProps } from "./Box.tsx";

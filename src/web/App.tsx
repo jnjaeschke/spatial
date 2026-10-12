@@ -7,10 +7,11 @@ import { SearchfoxProvider } from "./SearchfoxProvider.tsx";
 import { SessionPicker } from "./SessionPicker.tsx";
 import { SessionView } from "./SessionView.tsx";
 import { StartScreen } from "./StartScreen.tsx";
+import { RepoViewPage } from "./RepoViewPage.tsx";
 import { ExportView } from "./ExportView.tsx";
 import { exported } from "./exported.ts";
 import { parseRoute, type Route } from "./routes.ts";
-import { webNodeKinds, webPlugins, webRepoPanels } from "../plugins/web.ts";
+import { webNodeKinds, webPlugins, webRepoPanels, webRepoViews } from "../plugins/web.ts";
 
 export function App() {
   if (exported) return <ExportView data={exported} />;
@@ -25,7 +26,8 @@ function LiveApp() {
       const next = parseRoute(new URL(event.destination.url));
       if (!next) return;
       event.intercept({ focusReset: "manual", scroll: "manual", handler: async () => {
-        setRoute((current) => current?.kind === "session" && next.kind === "session" && current.sessionId === next.sessionId ? current : next);
+        setRoute((current) => current?.kind === "session" && next.kind === "session" && current.sessionId === next.sessionId ? current
+          : current?.kind === "repoView" && next.kind === "repoView" && current.path === next.path && current.view === next.view ? current : next);
       } });
     };
     navigation.addEventListener("navigate", onNavigate);
@@ -36,7 +38,8 @@ function LiveApp() {
     const { view } = activePhaseView(webPlugins, state);
     return <div className="app"><div /><NodeKindsContext.Provider value={webNodeKinds}><TopbarSlot.Provider value={null}><SearchfoxProvider state={state} readOnly>{view ? <view.Body {...readOnlyViewProps(state)} /> : null}</SearchfoxProvider></TopbarSlot.Provider></NodeKindsContext.Provider><div /></div>;
   }
-  if (route?.kind === "repo") return <StartScreen key={route.path} path={route.path} panels={webRepoPanels} />;
+  if (route?.kind === "repoView") return <RepoViewPage key={`${route.path}\0${route.view}`} path={route.path} view={route.view} views={webRepoViews} />;
+  if (route?.kind === "repo") return <StartScreen key={route.path} path={route.path} panels={webRepoPanels} views={webRepoViews} />;
   if (route?.kind === "session") return <SessionView key={route.sessionId} sessionId={route.sessionId} />;
   return <SessionPicker />;
 }
