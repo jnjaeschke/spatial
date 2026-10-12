@@ -86,6 +86,21 @@ test("a review chat proposes an exploration; Explore opens the explorer and Back
   await expect(page.getByTestId("change-c1").locator(".inline-item.kind-chat")).toBeVisible();
 });
 
+test("a review chat question about a spec algorithm is traced after Explore", async ({ page, request }) => {
+  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
+  await startReview(page, sessions.find((s) => s.title === "fixture")!.worktree, "HEAD~1..HEAD");
+  await openPatch(page, 0);
+  await page.getByRole("button", { name: "Ask about c1" }).click();
+  const chat = page.getByTestId("change-c1").locator(".inline-item.kind-chat");
+  await chat.getByLabel("message").fill("SPEC-TRACE-PLEASE");
+  await chat.getByRole("button", { name: "Send" }).click();
+  const explore = chat.getByTestId("spec-explore");
+  await expect(explore).toHaveText("Explore HTML#navigate and trace", { timeout: 15_000 });
+  await explore.click();
+  await expect(page).toHaveURL(/[?&]view=spec/);
+  await expect(page.getByTestId("trace-panel").getByTestId("trace-verdict")).toHaveText("fails · 4 steps, 1 unverified hop, 0 unsupported notes", { timeout: 15_000 });
+});
+
 test("an algorithm box shows where Gecko implements it, with step links and tests", async ({ page }) => {
   const navigate = await exploreNavigate(page);
   const rev = "0f".repeat(20);

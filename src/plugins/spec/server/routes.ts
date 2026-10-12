@@ -107,10 +107,12 @@ export function specRoutes(rt: Runtime): Route[] {
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/explore$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const request = requireArtifact(rt, session.id, text(await readJson(req), "requestId"), "SpecExploreRequest", "explore request");
-      const { anchors } = request.data as SpecExploreRequestData;
+      const { anchors, question } = request.data as SpecExploreRequestData;
       try { for (const anchor of anchors) await openSpec(rt, session.id, anchor, null); }
       catch (error) { throw new HttpError(lookupStatus(error), (error as Error).message); }
-      send(res, 201, { opened: anchors.length });
+      const traceId = question ? randomUUID() : null;
+      if (question && traceId) void generateTrace(rt, session.id, { traceId, mode: question.mode, question: question.text, anchors, contextTraceId: null }).catch(log(`trace ${traceId}`));
+      send(res, 201, { opened: anchors.length, traceId });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

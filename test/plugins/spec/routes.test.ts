@@ -61,8 +61,8 @@ test("effect-path opens the boxes of the first witness path in order", async () 
 
 test("explore opens a root box per requested anchor", async () => {
   const { rt, session, routes } = setup();
-  const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#navigate", "HTML#setup"] } });
-  assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/explore`, { requestId: request.id }), { status: 201, body: { opened: 2 } });
+  const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#navigate", "HTML#setup"], question: null } });
+  assert.deepEqual(await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/explore`, { requestId: request.id }), { status: 201, body: { opened: 2, traceId: null } });
   assert.deepEqual(rt.store.listArtifacts(session.id, "SpecOpened").map((a) => a.data), [{ anchor: "HTML#navigate", from: null }, { anchor: "HTML#setup", from: null }]);
 });
 
@@ -83,7 +83,7 @@ test("effect-path rejects a malformed or unopened ref", async () => {
 
 test("explore maps a missing section to 404", async () => {
   const { rt, session, routes } = setup();
-  const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#missing"] } });
+  const request = rt.store.putArtifact({ sessionId: session.id, type: "SpecExploreRequest", status: "proposed", provenance: { taskId: "t" }, data: { anchors: ["HTML#missing"], question: null } });
   assert.equal((await routeCall(routes, "POST", `/api/sessions/${session.id}/spec/explore`, { requestId: request.id })).status, 404);
 });
 

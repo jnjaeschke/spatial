@@ -25,7 +25,7 @@ export interface NoteResult { supported: boolean; reason: string }
 /** Data of a `SpecTraceCheck` artifact: the checks of one `SpecTrace` version (`traceArtifactId`), index-aligned with its entries (`notes` null for an empty note), and the verdict of the generation the trace belongs to. */
 export interface SpecTraceCheckData { traceId: string; traceArtifactId: string; verdict: TraceVerdict | null; hops: HopResult[]; notes: (NoteResult | null)[]; notesTaskId: string | null }
 /** Data of a `SpecExploreRequest` artifact: sections a chat reply proposed to explore. */
-export interface SpecExploreRequestData { anchors: string[] }
+export interface SpecExploreRequestData { anchors: string[]; /** A claim or scenario to trace once the boxes are open. */ question: TraceQuestion | null }
 /** Data of a `SummaryRejected` artifact: the summary of `anchor` at `sha` failed a check in this session. */
 export interface SummaryRejectedData { anchor: string; sha: string; reasons: string[] }
 /** Data of a `SpecSearch` artifact: the results of a search phrase, best first. */

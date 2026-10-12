@@ -13,3 +13,9 @@ Data of a `SpecExploreRequest` artifact: sections a chat reply proposed to explo
 ### anchors
 
 > **anchors**: `string`[]
+
+***
+
+### question
+
+> **question**: [`TraceQuestion`](TraceQuestion.md) \| `null`
