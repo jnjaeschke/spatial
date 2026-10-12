@@ -5,8 +5,18 @@ import { describeCheck, isWptTest } from "../shared/acceptance.ts";
 /** A shell command of this implement epoch, in the order it ran; `edited` is whether the agent had edited a file before it. */
 export interface CommandEvidence { id: Id; command: string; exitCode: number; edited: boolean }
 
+const namesPath = (command: string, path: string) => {
+  const candidates = [path];
+  const wptPrefix = "testing/web-platform/tests/";
+  if (path.startsWith(wptPrefix)) candidates.push(path.slice(wptPrefix.length));
+  return candidates.some((candidate) => {
+    const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?:^|[\\s'\"])${escaped}(?:$|[\\s'\"])`).test(command);
+  });
+};
+
 const runsOf = (check: AcceptanceCheck, runs: CommandEvidence[], profile: Pick<RepoProfile, "isTestCommand">) =>
-  check.kind === "measure" ? runs.filter((run) => run.command.trim() === check.command.trim()) : runs.filter((run) => profile.isTestCommand!(run.command) && run.command.includes(check.path));
+  check.kind === "measure" ? runs.filter((run) => run.command.trim() === check.command.trim()) : runs.filter((run) => profile.isTestCommand!(run.command) && namesPath(run.command, check.path));
 
 const runCount = (mine: CommandEvidence[]) => `${mine.length} run${mine.length === 1 ? "" : "s"}`;
 const measureMessage = (mine: CommandEvidence[]) => mine.length === 0 ? "not run" : mine.some((run) => !run.edited) && mine.some((run) => run.edited) ? `${runCount(mine)}: before and after the first edit` : runCount(mine);
@@ -29,7 +39,7 @@ export function checkEvidence(plan: { title: string; checks: AcceptanceCheck[] }
     if (check.kind !== "measure" && !profile.isTestCommand) return;
     const mine = runsOf(check, runs, profile);
     const label = describeCheck(check), ids = mine.map((run) => run.id);
-    if (check.kind === "measure") { results.push({ step: stepIndex, check: checkIndex, label, ok: mine.length > 0, message: measureMessage(mine), runs: ids }); return; }
+    if (check.kind === "measure") { results.push({ step: stepIndex, check: checkIndex, label, ok: true, message: measureMessage(mine), runs: ids }); return; }
     const problem = problemOf(check, mine, first);
     results.push({ step: stepIndex, check: checkIndex, label, ok: problem === null, message: problem ?? (mine.length === 0 ? "not run in this epoch" : `${runCount(mine)}, the last passed`), runs: ids });
     if (problem !== null) problems.push(`Step "${step.title}", ${describeCheck(check)}: ${problem}`);

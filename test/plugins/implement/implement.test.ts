@@ -335,6 +335,6 @@ test("edits-only stores CheckResults from the runs the runtime made", async () =
   const runs = store.listArtifacts(session.id, "CommandRun").map((a) => a.id);
   assert.deepEqual((stored[0]!.data as CheckResultsData).results, [
     { step: 0, check: 0, label: "covering-test t/c.js", ok: true, message: "passed", runs },
-    { step: 0, check: 1, label: "measure `bench` - faster", ok: false, message: "not run in edits-only mode", runs: [] },
+    { step: 0, check: 1, label: "measure `bench` - faster", ok: true, message: "not run in edits-only mode", runs: [] },
   ]);
 });

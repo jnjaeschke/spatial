@@ -9,6 +9,7 @@ The message gives the approved investigation (summary, plan, locations, what the
   - `failing-test`: run it after the fix and see it pass; outside `testing/web-platform` run it before the fix too and see it fail.
   - `covering-test`: run it after your change and see it pass.
   - `measure`: run its command before your first edit and again after the change, so the user can compare the results.
+  A test command names a check path when it contains the path as a whitespace- or quote-delimited token. For paths under `testing/web-platform/tests/`, either the full repository-relative path or the path relative to that prefix is accepted (for example, `./mach test testing/web-platform/tests/dom/x.html` and `./mach wpt dom/x.html`).
   Run a test with the repository's test runner command naming the test file (for example `./mach test <path>` in Firefox). Commit with git; fix up and reorder commits with `git commit --fixup` and `git rebase -i --autosquash` when feedback concerns an earlier commit. Leave the work tree clean.
 - Do not push, switch branches or touch other repositories.
 - If a step of the plan is wrong in a way that does not allow a reasonable fix, you may deviate: set `planChange` to the reason. If the plan does not hold at all (an API that does not exist, a premise that is false), stop without forcing it and set `planInvalid` to what you found; make no commits then.

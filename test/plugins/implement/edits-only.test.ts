@@ -38,7 +38,17 @@ function fakes(over: { exits?: Record<string, number[]>; paths?: string[][]; com
 test("a bug fix commits the failing test first, then the fix; each step builds and runs its test checks", async () => {
   const { options, log } = fakes({ exits: { "test t.js": [1] } });
   await runEditsOnly(options);
-  assert.deepEqual(log, ["agent 0", "run build", "run test t.js", "commit Add test", "agent 1", "run build", "run test c.js", "commit Fix it"]);
+  assert.deepEqual(log, ["agent 0", "run build", "run test t.js", "commit Add test", "agent 1", "run build", "run test t.js,c.js", "commit Fix it"]);
+});
+
+test("the new-test failure is checked separately and earlier checks rerun cumulatively", async () => {
+  const plan: EditsOnlyOptions["plan"] = [
+    { message: "Add test", checks: [{ kind: "new-test", path: "t.js" }, { kind: "covering-test", path: "c.js" }] },
+    { message: "Fix it", checks: [] },
+  ];
+  const { options, log } = fakes({ plan, exits: { "test t.js": [1], "test c.js": [0], "test t.js,c.js": [0] } });
+  await runEditsOnly(options);
+  assert.deepEqual(log, ["agent 0", "run build", "run test t.js", "run test c.js", "commit Add test", "agent 1", "run build", "run test t.js,c.js", "commit Fix it"]);
 });
 
 test("the step that adds the new test must fail its test run", async () => {
@@ -61,14 +71,14 @@ test("each attempt reports check results from the runs the runtime made", async 
   assert.deepEqual(reports[0], [{ step: 0, check: 0, label: "new-test t.js", ok: false, message: "The build failed", runs: ["c1"] }]);
   assert.deepEqual(reports[1], [{ step: 0, check: 0, label: "new-test t.js", ok: true, message: "failed before the fix, as expected", runs: ["c3"] }]);
   assert.deepEqual(reports.at(-1), [
-    { step: 0, check: 0, label: "new-test t.js", ok: true, message: "failed before the fix, as expected", runs: ["c3"] },
+    { step: 0, check: 0, label: "new-test t.js", ok: true, message: "passed", runs: ["c5"] },
     { step: 1, check: 0, label: "covering-test c.js", ok: true, message: "passed", runs: ["c5"] },
-    { step: 1, check: 1, label: "measure `bench` - faster", ok: false, message: "not run in edits-only mode", runs: [] },
+    { step: 1, check: 1, label: "measure `bench` - faster", ok: true, message: "not run in edits-only mode", runs: [] },
   ]);
 });
 
 test("a later step must pass its tests; exhausted retries fail with the reason", async () => {
-  const { options } = fakes({ exits: { "test t.js": [1], "test c.js": [1, 1] }, paths: [["t.cpp"], ["f.cpp"], ["f.cpp"]] });
+  const { options } = fakes({ exits: { "test t.js": [1], "test t.js,c.js": [1, 1] }, paths: [["t.cpp"], ["f.cpp"], ["f.cpp"]] });
   await assert.rejects(runEditsOnly(options), /Step 2 still fails after 1 retries: The tests failed/);
 });
 

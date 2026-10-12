@@ -17,7 +17,9 @@ export function parseWptMeta(text: string): Map<string, WptSection> {
   let section: WptSection | null = null, target: Expectation[] | null = null;
   let blockIndent = -1, inExpected = false;
   for (const raw of text.split("\n")) {
-    const line = raw.trim();
+    const trimmed = raw.trim();
+    // A section name may contain ` #` ("[touchend #1: …]"); only value lines carry trailing comments.
+    const line = trimmed.startsWith("[") ? trimmed : trimmed.replace(/\s+#.*$/, "");
     if (!line || line.startsWith("#")) continue;
     const indent = raw.length - raw.trimStart().length;
     if (blockIndent >= 0 && indent > blockIndent) {
@@ -55,7 +57,9 @@ export function wptBaseEvidence(meta: Map<string, WptSection>, subtests: string[
   const sections = [...meta.values()];
   const hits: Expectation[] = [];
   const failing = (values: Expectation[]) => {
-    const found = values.filter((value) => FAILING.has(value.status));
+    const groups = new Map<string | null, Expectation[]>();
+    for (const value of values) groups.set(value.condition, [...(groups.get(value.condition) ?? []), value]);
+    const found = [...groups.values()].filter((group) => group.every((value) => FAILING.has(value.status))).flat();
     hits.push(...found);
     return found.length > 0;
   };

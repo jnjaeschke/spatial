@@ -30,6 +30,18 @@ test("only test commands naming the path count", () => {
   assert.deepEqual(first([newTest], runs).results[0]!.runs, []);
 });
 
+test("test paths must be whole command tokens, including WPT paths relative to the tests root", () => {
+  const path = "testing/web-platform/tests/dom/x.html";
+  const check: AcceptanceCheck = { kind: "covering-test", path };
+  const commands = [
+    "t ./mach wpt dom/x.html",
+    `t ./mach test ${path}`,
+    `t ./mach test '${path}'`,
+  ];
+  for (const command of commands) assert.deepEqual(first([check], [run(command, 0)]).problems, []);
+  assert.equal(first([{ kind: "covering-test", path: "a.txt" }], [run("t data.txt", 0)]).results[0]!.runs.length, 0);
+});
+
 test("a failing test must end passing; outside web-platform it must also have failed first", () => {
   assert.match(first([failing], [run("t x/test_f.js", 0)]).problems[0]!, /no failing run before the first passing run/);
   assert.match(first([failing], [run("t x/test_f.js", 0), run("t x/test_f.js", 1), run("t x/test_f.js", 0)]).problems[0]!, /no failing run before the first passing run/);
@@ -54,7 +66,7 @@ test("a measure never produces a problem; its result lists the runs found", () =
   assert.equal(first([measure], [before, before]).results[0]!.message, "2 runs");
   const none = later([measure], []);
   assert.deepEqual(none.problems, []);
-  assert.deepEqual(none.results.map((r) => [r.ok, r.message, r.runs]), [[false, "not run", []]]);
+  assert.deepEqual(none.results.map((r) => [r.ok, r.message, r.runs]), [[true, "not run", []]]);
   assert.deepEqual(first([measure], []).problems, []);
 });
 

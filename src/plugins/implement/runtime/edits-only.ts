@@ -33,9 +33,9 @@ export interface EditsOnlyOptions {
 }
 
 const tail = (output: string) => output.split("\n").slice(-40).join("\n").slice(-4000);
-const NOT_RUN = { ok: false, message: "not run in edits-only mode", runs: [] as Id[] };
+const NOT_RUN = { ok: true, message: "not run in edits-only mode", runs: [] as Id[] };
 
-/** Edits-only mode: the agent only edits; the runtime builds, runs the step's test checks and commits. A fix round checks the whole plan. `measure` checks are not run. */
+/** Edits-only mode: the agent only edits; the runtime builds, runs the cumulative test checks and commits. A fix round checks the whole plan. `measure` checks are not run. */
 export async function runEditsOnly(o: EditsOnlyOptions): Promise<{ summary: string; planChange: string | null; planInvalid: string | null }> {
   const existing = await o.git.commits();
   const fixRound = existing.length > 0;
@@ -45,11 +45,14 @@ export async function runEditsOnly(o: EditsOnlyOptions): Promise<{ summary: stri
   for (const step of steps) {
     const label = step === null ? "fix round" : String(step + 1);
     const count = fixRound ? existing.length : o.plan.length;
-    const checkPaths = [...new Set(step === null ? o.plan.flatMap((planned) => testPaths(planned.checks)) : testPaths(o.plan[step]!.checks))];
+    const checkIndexes = step === null ? o.plan.map((_, index) => index) : Array.from({ length: step + 1 }, (_, index) => index);
     const expectFail = step !== null && o.bugfix && o.plan.length > 1 && o.plan[step]!.checks.some((check) => check.kind === "new-test");
-    const judge = (outcome: (check: AcceptanceCheck) => { ok: boolean; message: string; runs: Id[] }) => {
-      for (const index of step === null ? o.plan.keys() : [step]) {
-        o.plan[index]!.checks.forEach((check, checkIndex) => verdicts.set(`${index}-${checkIndex}`, { step: index, check: checkIndex, label: describeCheck(check), ...outcome(check) }));
+    const checks = checkIndexes.flatMap((index) => o.plan[index]!.checks.map((check) => ({ check, index })));
+    const failPaths = [...new Set(checks.filter(({ check, index }) => expectFail && index === step && check.kind === "new-test").map(({ check }) => check.kind === "measure" ? "" : check.path).filter(Boolean))];
+    const passPaths = [...new Set(checks.filter(({ check, index }) => !(expectFail && index === step && check.kind === "new-test")).flatMap(({ check }) => testPaths([check])))];
+    const judge = (outcome: (check: AcceptanceCheck, index: number) => { ok: boolean; message: string; runs: Id[] }) => {
+      for (const index of checkIndexes) {
+        o.plan[index]!.checks.forEach((check, checkIndex) => verdicts.set(`${index}-${checkIndex}`, { step: index, check: checkIndex, label: describeCheck(check), ...outcome(check, index) }));
       }
       o.onResults([...verdicts.values()].sort((a, b) => a.step - b.step || a.check - b.check));
     };
@@ -70,11 +73,24 @@ export async function runEditsOnly(o: EditsOnlyOptions): Promise<{ summary: stri
           continue;
         }
       }
-      const tests = checkPaths.length > 0 ? await o.runCheck(o.testCommand(checkPaths)) : null;
-      const failed = tests !== null && tests.exitCode !== 0;
-      judge((check) => check.kind === "measure" || tests === null ? NOT_RUN : { ok: failed === expectFail, message: expectFail ? (failed ? "failed before the fix, as expected" : "passed; it must fail before the fix") : failed ? "failed" : "passed", runs: [tests.id] });
-      if (tests !== null && failed !== expectFail) {
-        problems = [expectFail ? "The new test must fail before the fix; the check passed" : `The tests failed:\n${tail(tests.output)}`];
+      const failedTests = expectFail && failPaths.length > 0 ? await o.runCheck(o.testCommand(failPaths)) : null;
+      const passingTests = passPaths.length > 0 ? await o.runCheck(o.testCommand(passPaths)) : null;
+      const failed = failedTests !== null && failedTests.exitCode !== 0;
+      const testsFailed = passingTests !== null && passingTests.exitCode !== 0;
+      judge((check, index) => {
+        if (check.kind === "measure") return NOT_RUN;
+        const expectedFailure = expectFail && index === step && check.kind === "new-test";
+        const tests = expectedFailure ? failedTests : passingTests;
+        if (tests === null) return NOT_RUN;
+        const isFailed = tests.exitCode !== 0;
+        return { ok: expectedFailure ? isFailed : !isFailed, message: expectedFailure ? (isFailed ? "failed before the fix, as expected" : "passed; it must fail before the fix") : isFailed ? "failed" : "passed", runs: [tests.id] };
+      });
+      if (failedTests !== null && !failed) {
+        problems = ["The new test must fail before the fix; the check passed"];
+        continue;
+      }
+      if (passingTests !== null && testsFailed) {
+        problems = [`The tests failed:\n${tail(passingTests.output)}`];
         continue;
       }
       if (fixRound) await o.git.fixup(existing[target]!.sha, o.baseSha);

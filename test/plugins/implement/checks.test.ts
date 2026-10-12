@@ -49,6 +49,13 @@ const ESCAPED = `[OpaqueRange-supported-elements.html]
     expected: FAIL
 `;
 
+const COMMENTED = `[a.html]
+  expected: FAIL # bug 1770258
+  [conditional]
+    expected:
+      if not remoteAsyncMouseEvents: FAIL  # Cannot be fixed
+`;
+
 test("parseWptMeta reads sections, subtests and plain expected values", () => {
   const meta = parseWptMeta(LOOKUP);
   assert.deepEqual([...meta.keys()], ["Node-lookupNamespaceURI.html"]);
@@ -78,6 +85,17 @@ test("parseWptMeta unescapes brackets in subtest names", () => {
   assert.deepEqual([...section.subtests.keys()], ["createValueRange should work on textarea.", "createValueRange should work on input[type=text]."]);
 });
 
+test("parseWptMeta strips inline comments before parsing metadata lines", () => {
+  const section = parseWptMeta(COMMENTED).get("a.html")!;
+  assert.deepEqual(section.expected, [{ status: "FAIL", condition: null }]);
+  assert.deepEqual(section.subtests.get("conditional"), [{ status: "FAIL", condition: "if not remoteAsyncMouseEvents" }]);
+});
+
+test("parseWptMeta keeps ` #` inside section names", () => {
+  const section = parseWptMeta("[multi-touch-interactions.html]\n  [touchend #1: change in targetTouches.length is valid]\n    expected: FAIL\n").get("multi-touch-interactions.html")!;
+  assert.deepEqual([...section.subtests.keys()], ["touchend #1: change in targetTouches.length is valid"]);
+});
+
 test("wptBaseEvidence counts the named subtests that expect a failure", () => {
   const meta = parseWptMeta(LOOKUP);
   assert.deepEqual(wptBaseEvidence(meta, ["Element has namespace URI matching prefix", "Child element should inherit baz namespace"]), { evidence: "FAIL at base: 2 of 2 named subtests" });
@@ -86,15 +104,25 @@ test("wptBaseEvidence counts the named subtests that expect a failure", () => {
 
 test("wptBaseEvidence puts the condition into the evidence when every failing expectation is conditional", () => {
   const name = "Constructed GamepadEvent timestamp should be high resolution and have the same time origin as performance.now()";
-  assert.deepEqual(wptBaseEvidence(parseWptMeta(DISABLED), [name]), { evidence: 'FAIL at base (if os == "android"): 1 of 1 named subtests' });
+  const conditional = parseWptMeta(`[a.html]\n  [${name}]\n    expected:\n      if os == "android": FAIL\n`);
+  assert.deepEqual(wptBaseEvidence(conditional, [name]), { evidence: 'FAIL at base (if os == "android"): 1 of 1 named subtests' });
   const scroll = "Tests that the target_div gets scrollend event when touch dragging.";
   assert.deepEqual(wptBaseEvidence(parseWptMeta(SCROLLEND), [scroll]), { evidence: "TIMEOUT at base: 1 of 1 named subtests" });
 });
 
 test("wptBaseEvidence without named subtests accepts a failing test or any failing subtest", () => {
   assert.deepEqual(wptBaseEvidence(parseWptMeta(LOOKUP), []), { evidence: "FAIL at base: 3 subtests" });
-  assert.deepEqual(wptBaseEvidence(parseWptMeta(ABORT), []), { evidence: 'TIMEOUT at base (if (os == "android") and not debug): the test as a whole' });
+  assert.deepEqual(wptBaseEvidence(parseWptMeta(ABORT), []), { evidence: "ERROR at base: the test as a whole" });
+  assert.deepEqual(wptBaseEvidence(parseWptMeta('[a.html]\n  expected: [FAIL, TIMEOUT]\n'), []), { evidence: "FAIL/TIMEOUT at base: the test as a whole" });
   assert.deepEqual(wptBaseEvidence(parseWptMeta("[a.html]\n  max-asserts: 2\n"), []), { problem: "the metadata expects no failure" });
+});
+
+test("wptBaseEvidence treats mixed expected status lists as intermittent", () => {
+  for (const statuses of ["[PASS, FAIL]", "[FAIL, PASS]", "[OK, TIMEOUT]"]) {
+    assert.deepEqual(wptBaseEvidence(parseWptMeta(`[a.html]\n  expected: ${statuses}\n`), []), { problem: "the metadata expects no failure" });
+    assert.deepEqual(wptBaseEvidence(parseWptMeta(`[a.html]\n  [s]\n    expected: ${statuses}\n`), ["s"]), { problem: 'the metadata expects no failure for "s"' });
+  }
+  assert.deepEqual(wptBaseEvidence(parseWptMeta("[a.html]\n  expected: [FAIL, ERROR]\n"), []), { evidence: "FAIL/ERROR at base: the test as a whole" });
 });
 
 const TESTS = "testing/web-platform/tests/dom/nodes/Node-lookupNamespaceURI.html";
