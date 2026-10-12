@@ -10,6 +10,7 @@ import { specRoutes } from "./server/routes.ts";
 import { specExploreField } from "./runtime/explore-field.ts";
 import { mapEngine } from "./tasks/map-engine/task.ts";
 import { findImplementation } from "./tasks/find-implementation/task.ts";
+import { alignSteps } from "./tasks/align-steps/task.ts";
 
 /** Web spec exploration: spec references, algorithms, traces and summaries. */
-export const specPlugin = definePlugin({ id: "spec", workflows: [exploreWorkflow], phases: [explorePhase], tasks: [loadSpecAlgorithm, searchSpecs, loadEffectPath, summarizeAlgorithm, verifySummary, mapEngine, findImplementation], artifactKinds, searchKinds, chatReplyFields: [specExploreField], server: (rt) => ({ routes: specRoutes(rt) }) });
+export const specPlugin = definePlugin({ id: "spec", workflows: [exploreWorkflow], phases: [explorePhase], tasks: [loadSpecAlgorithm, searchSpecs, loadEffectPath, summarizeAlgorithm, verifySummary, mapEngine, findImplementation, alignSteps], artifactKinds, searchKinds, chatReplyFields: [specExploreField], server: (rt) => ({ routes: specRoutes(rt) }) });

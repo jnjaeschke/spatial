@@ -7,7 +7,8 @@ import { isSpecQuery } from "../shared/refs.ts";
 import { SpecNotFoundError } from "../tasks/load-spec-algorithm/task.ts";
 import { pathOpens } from "../shared/effect-path.ts";
 import { decideProposal, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
-import { siteKey } from "../shared/engine.ts";
+import { siteKey, usedSites } from "../shared/engine.ts";
+import { alignRunning, startAlign } from "../runtime/align.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -114,6 +115,16 @@ export function specRoutes(rt: Runtime): Route[] {
       const entry = decideProposal(rt, session.id, engine, ref, key, decision);
       if (!entry) throw new HttpError(404, `No proposal ${key} in ${ref}`);
       send(res, 201, { entryId: entry.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/align$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const algorithm = requireAlgorithm(rt, session.id, text(body, "ref"));
+      const engine = parseEngine(body.engine);
+      const key = text(body, "key");
+      if (!usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).some((site) => siteKey(site) === key)) throw new HttpError(404, `No site ${key} in ${algorithm.data.ref}`);
+      if (alignRunning(rt, engine, algorithm.data.ref)) throw new HttpError(409, `A ${engine} alignment for ${algorithm.data.ref} is running`);
+      send(res, 202, { taskId: startAlign(rt, session.id, engine, algorithm, key).taskId });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/summaries\/flag$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);

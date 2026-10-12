@@ -120,8 +120,8 @@ test("mappedSteps lists a step's comments across live sites; engineActivity read
   assert.deepEqual(mappedSteps(mapping, "7"), []);
   const task = (kind: string, status: string, algorithmId: string, engine = "gecko", error: string | null = null) => ({ kind, status, input: { algorithmId, engine }, error }) as never;
   const tasks = [task("mapEngine", "running", "A"), task("findImplementation", "succeeded", "A"), task("findImplementation", "pending", "B"), task("findImplementation", "running", "A", "blink")];
-  assert.deepEqual(engineActivity(tasks, "A", "gecko"), { mapping: true, searching: false, error: null });
-  assert.deepEqual(engineActivity(tasks, "A", "blink"), { mapping: false, searching: true, error: null });
+  assert.deepEqual(engineActivity(tasks, "A", "gecko"), { mapping: true, searching: false, aligning: false, error: null });
+  assert.deepEqual(engineActivity(tasks, "A", "blink"), { mapping: false, searching: true, aligning: false, error: null });
 });
 
 test("engineTasks keeps running tasks and a failed task only while it is the latest of its kind, algorithm and engine", () => {
@@ -133,4 +133,7 @@ test("engineTasks keeps running tasks and a failed task only while it is the lat
   const failed = [task("findImplementation", "failed", "A", "old"), task("findImplementation", "failed", "A", "new"), task("mapEngine", "failed", "B", "map"), task("loadSpecAlgorithm", "failed", "A", "other")];
   assert.deepEqual(engineTasks(failed), [failed[1], failed[2]]);
   assert.equal(engineActivity(engineTasks(failed), "A", "gecko").error, "new");
+  const aligns = [task("alignSteps", "running", "A"), task("alignSteps", "failed", "B", "x")];
+  assert.deepEqual(engineTasks(aligns), aligns);
+  assert.deepEqual(engineActivity(aligns, "A", "gecko"), { mapping: false, searching: false, aligning: true, error: null });
 });

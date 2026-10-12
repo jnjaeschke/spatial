@@ -16,6 +16,7 @@ export const specClient = {
   mappings: (sessionId: string, engine: Engine) => fetch(`/api/sessions/${sessionId}/spec/mappings?engine=${engine}`).then(async (res) => { if (!res.ok) throw new Error(`${res.status} ${res.statusText}`); return await res.json() as Record<string, EngineMapping | null>; }),
   findImplementation: (sessionId: string, ref: string, engine: Engine, stale: string | null) => post<{ taskId: string }>(`/api/sessions/${sessionId}/spec/mappings/find`, { ref, engine, stale }),
   decideImplementation: (sessionId: string, ref: string, engine: Engine, key: string, decision: "confirm" | "reject") => post<{ entryId: string }>(`/api/sessions/${sessionId}/spec/mappings/decide`, { ref, engine, key, decision }),
+  alignSteps: (sessionId: string, ref: string, engine: Engine, key: string) => post<{ taskId: string }>(`/api/sessions/${sessionId}/spec/mappings/align`, { ref, engine, key }),
   flagSummary: (sessionId: string, ref: string) => post<{ entryId: string }>(`/api/sessions/${sessionId}/spec/summaries/flag`, { ref }),
   open: (sessionId: string, anchor: string, from: SpecOpenedData["from"]) => post<{ openedId: string }>(`/api/sessions/${sessionId}/spec/open`, { anchor, from }),
   showEffectPath: (sessionId: string, ref: string, effectId: string) => post<{ opened: number }>(`/api/sessions/${sessionId}/spec/effect-path`, { ref, effectId }),

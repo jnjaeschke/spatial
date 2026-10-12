@@ -101,7 +101,7 @@ export function quoteProblem(text: string | null, ref: { path: string; line: num
 /** The Step comments mapped to `step` across a mapping's sites; stale sites are left out. */
 export const mappedSteps = (mapping: EngineMapping, step: string) => mapping.sites.flatMap((site) => site.stale ? [] : site.steps.filter((mapped) => mapped.step === step).map((mapped) => ({ site, step: mapped })));
 
-const ENGINE_TASKS = ["mapEngine", "findImplementation"];
+const ENGINE_TASKS = ["mapEngine", "findImplementation", "alignSteps"];
 const taskTarget = (task: Pick<TaskRecord, "kind" | "input">) => `${task.kind}|${(task.input as { algorithmId?: string } | null)?.algorithmId}|${(task.input as { engine?: string } | null)?.engine}`;
 
 /** The engine tasks that matter to the explorer, oldest first: those pending or running, and the failed one that is the latest of its kind, algorithm and engine. */
@@ -111,11 +111,11 @@ export function engineTasks<T extends Pick<TaskRecord, "kind" | "status" | "inpu
   return tasks.filter((task) => ENGINE_TASKS.includes(task.kind) && (task.status === "pending" || task.status === "running" || (task.status === "failed" && latest.get(taskTarget(task)) === task)));
 }
 
-/** Whether a mapping or an LLM search of the algorithm in `engine` is pending or running, and the error of its latest failed one, from `engineTasks`. */
-export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], algorithmId: string, engine: Engine): { mapping: boolean; searching: boolean; error: string | null } {
+/** Whether a mapping, LLM search or alignment of the algorithm in `engine` is pending or running, and the error of its latest failed one, from `engineTasks`. */
+export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], algorithmId: string, engine: Engine): { mapping: boolean; searching: boolean; aligning: boolean; error: string | null } {
   const mine = tasks.filter((task) => (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
   const running = (kind: string) => mine.some((task) => task.kind === kind && (task.status === "pending" || task.status === "running"));
-  return { mapping: running("mapEngine"), searching: running("findImplementation"), error: mine.findLast((task) => task.status === "failed")?.error ?? null };
+  return { mapping: running("mapEngine"), searching: running("findImplementation"), aligning: running("alignSteps"), error: mine.findLast((task) => task.status === "failed")?.error ?? null };
 }
 
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */
