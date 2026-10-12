@@ -1,5 +1,5 @@
 import type { Artifact, Epoch } from "../../../plugin-api.ts";
-import { latestByPhid, type PhabCommentData } from "../../review/api.ts";
+import { latestByPhid, type PhabCommentData } from "../../review/web/api.ts";
 import type { CommentAction, CommentInterpretationData, CommentTriageData, ReviewerCommentsInput } from "./types.ts";
 
 export interface CommentPlanItem { comment: Artifact<PhabCommentData>; interpretation: Artifact<CommentInterpretationData> | null; action: CommentAction; text: string | null }
