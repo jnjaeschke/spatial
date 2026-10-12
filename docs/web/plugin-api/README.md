@@ -127,7 +127,6 @@
 - [placeSatellites](functions/placeSatellites.md)
 - [postJson](functions/postJson.md)
 - [promiseCache](functions/promiseCache.md)
-- [ReopenClosed](functions/ReopenClosed.md)
 - [rootGraph](functions/rootGraph.md)
 - [rootThread](functions/rootThread.md)
 - [routeUrl](functions/routeUrl.md)

@@ -1,4 +1,4 @@
-import { Fragment, createContext, createElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { Fragment, createContext, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import {
   Background, Controls, MiniMap, NodeResizer, Panel, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow, useStore,
   type Edge, type MiniMapNodeProps, type Node, type NodeProps, type ResizeParams, type Viewport,
@@ -9,6 +9,7 @@ import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, session
 import { quoteRange } from "./quote-range.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
+import { UndoClose } from "./UndoClose.tsx";
 import { useLayers } from "./layers.ts";
 import { useResolvedTheme } from "./theme.ts";
 import { useTextScale } from "./text-scale.ts";
@@ -162,7 +163,11 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     if (!g) throw new Error("Canvas needs a session graph");
     return closeGraph(model.layers && hiddenLayers.size ? model.layers.hide(g, hiddenLayers) : g, closedIds);
   }, [model, state, drafts, freePositions, closedIds, hiddenLayers]);
-  const closedValue = useMemo(() => ({ close, reopen, closedOn }), [close, reopen, closedOn]);
+  const [lastClosed, setLastClosed] = useState<{ id: string; seq: number } | null>(null);
+  const closeWithUndo = useCallback((id: string) => { close(id); setLastClosed((current) => ({ id, seq: (current?.seq ?? 0) + 1 })); }, [close]);
+  const endUndo = useCallback(() => setLastClosed(null), []);
+  const closedValue = useMemo(() => ({ close: closeWithUndo, reopen, closedOn }), [closeWithUndo, reopen, closedOn]);
+  const lastKind = lastClosed && [...closedOn.values()].flat().find((item) => item.id === lastClosed.id)?.kind;
   useLayoutEffect(() => {
     const next = new Set(drafts.map((draft) => draft.id));
     const added = drafts.find((draft) => !knownDrafts.current.has(draft.id));
@@ -875,6 +880,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
       </ResizeContext.Provider>
       </OpenPlaceContext.Provider>
     </CollapseContext.Provider>
+      {lastClosed && closedIds.has(lastClosed.id) && <UndoClose key={lastClosed.seq} label={`Closed the ${lastKind ?? "item"}`} onUndo={() => reopen([lastClosed.id])} onDone={endUndo} />}
     </ClosedContext.Provider>
     </div></Provider>
     </ChatActionsContext.Provider>

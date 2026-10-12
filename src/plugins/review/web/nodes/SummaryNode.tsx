@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { SummaryNodeData } from "../graph.ts";
-import { Box, InlineText, ChatActionsContext, ReopenClosed, AnswerMarkdown } from "../../../../web/plugin-api.ts";
+import { Box, InlineText, ChatActionsContext, AnswerMarkdown } from "../../../../web/plugin-api.ts";
 import { commitColors, commitLabel } from "../../../../web/plugin-api.ts";
 import { ReviewPanel } from "../ReviewPanel.tsx";
 import { ChatItem, FindingItem, PhabItem } from "../InlineItem.tsx";
@@ -40,7 +40,6 @@ export function SummaryNode({ data }: NodeProps<SummaryFlowNode>) {
         <ul className="files">
           {data.commits.map((c, i) => <li key={c.sha}>{data.commits.length > 1 && <><span className="swatch" style={{ background: commitColors(i).swatch }} />{commitLabel(i, c)}</>}{data.commits.length === 1 && c.subject}</li>)}
         </ul>
-        <ReopenClosed hostId={data.narrativeId} />
       </div>
     </Box>
   );

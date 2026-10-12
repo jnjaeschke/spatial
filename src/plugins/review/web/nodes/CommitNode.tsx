@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { CommitNodeData } from "../graph.ts";
-import { IconButton, InlineText, AskContext, ChatActionsContext, api, ReopenClosed, ErrorText, useAction } from "../../../../web/plugin-api.ts";
+import { IconButton, InlineText, AskContext, ChatActionsContext, api, ErrorText, useAction } from "../../../../web/plugin-api.ts";
 import { commitColors } from "../../../../web/plugin-api.ts";
 import { Box } from "../../../../web/plugin-api.ts";
 import { ChatItem, FindingItem } from "../InlineItem.tsx";
@@ -25,7 +25,6 @@ export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
         <ErrorText error={error} />
         <div className="inline-strip">{data.findings.map((finding) => <FindingItem key={finding.findingId} finding={finding} />)}</div>
         <div className="inline-strip">{(data.threads ?? []).map((thread) => <ChatItem key={thread.threadId ?? thread.draftId} thread={thread} />)}</div>
-        <ReopenClosed hostId={id} />
       </div>
     </Box>
   );

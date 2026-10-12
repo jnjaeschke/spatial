@@ -1,4 +1,5 @@
 import { IconButton } from "./IconButton.tsx";
+import { ReopenClosed } from "./ReopenClosed.tsx";
 import { useContext, type KeyboardEvent, type ReactNode, type ReactElement, type MouseEvent, type CSSProperties } from "react";
 import { Handle, Position, useNodeId } from "@xyflow/react";
 import { CollapseContext } from "./collapse.ts";
@@ -43,7 +44,7 @@ export function Box({ kind, testId, title, children, className, data, actions, c
   return <div className={classes} data-testid={testId} {...data} style={style} onKeyDown={onKeyDown} onMouseDown={onMouseDown} onClick={onClick}>
     {handles?.target !== undefined && <Handle type="target" position={handles.target} />}
     {handles?.source !== undefined && <Handle type="source" position={handles.source} />}
-    <div className="title">{title}{actions}{!nested && nodeId !== null && openPlace?.can(nodeId) && <IconButton label="Open (Enter, double-click)" type="button" data-testid="open-place" className="open nodrag" onClick={() => openPlace.open(nodeId)}>Open ›</IconButton>}{collapse && collapsing && <IconButton label={`${closed ? "Expand" : "Collapse"}${collapse.label ? ` ${collapse.label}` : ""}`} className="collapse nodrag" onClick={() => collapsing.toggle(collapse.key)}>{closed ? "▸" : "▾"}</IconButton>}{onClose && <IconButton label={closeLabel} className="close nodrag" onClick={onClose}>×</IconButton>}</div>
+    <div className="title">{title}{actions}{!nested && nodeId !== null && openPlace?.can(nodeId) && <IconButton label="Open (Enter, double-click)" type="button" data-testid="open-place" className="open nodrag" onClick={() => openPlace.open(nodeId)}>Open ›</IconButton>}{collapse && collapsing && <IconButton label={`${closed ? "Expand" : "Collapse"}${collapse.label ? ` ${collapse.label}` : ""}`} className="collapse nodrag" onClick={() => collapsing.toggle(collapse.key)}>{closed ? "▸" : "▾"}</IconButton>}{!nested && nodeId !== null && <ReopenClosed hostId={nodeId} />}{onClose && <IconButton label={closeLabel} className="close nodrag" onClick={onClose}>×</IconButton>}</div>
     {closed ? stub : children}
   </div>;
 }

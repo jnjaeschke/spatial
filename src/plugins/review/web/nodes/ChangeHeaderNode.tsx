@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { ChangeHeaderNodeData } from "../graph.ts";
-import { IconButton, InlineText, AskContext, ChatActionsContext, ReopenClosed, api, Box, ErrorText, useAction, commitColors } from "../../../../web/plugin-api.ts";
+import { IconButton, InlineText, AskContext, ChatActionsContext, api, Box, ErrorText, useAction, commitColors } from "../../../../web/plugin-api.ts";
 import { ChatItem, FindingItem, PhabItem, SpecItem } from "../InlineItem.tsx";
 
 export type ChangeHeaderFlowNode = Node<ChangeHeaderNodeData & { sessionId: string } & Record<string, unknown>, "changeHeader">;
@@ -20,7 +20,6 @@ export function ChangeHeaderNode({ id: nodeId, data }: NodeProps<ChangeHeaderFlo
         <p className="explanation"><InlineText text={change.explanation} hunks={hunks} diffId={diffId} /></p>
         <p className="rationale"><b>Why:</b> <InlineText text={change.rationale} hunks={hunks} diffId={diffId} /></p>
         <div className="inline-strip">{data.findings.map((finding) => <FindingItem key={finding.findingId} finding={finding} />)}{data.phabThreads.map((thread) => <PhabItem key={thread.anchorId} thread={thread} />)}{data.specs.map((spec) => <SpecItem key={spec.specId} {...spec} />)}{data.threads.map((thread) => <ChatItem key={thread.threadId ?? thread.draftId} thread={thread} />)}</div>
-        <ReopenClosed hostId={nodeId} />
       </div>
     </Box>
   );

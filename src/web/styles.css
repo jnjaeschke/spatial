@@ -382,7 +382,7 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .node > .title:has(> .close) { padding-right: calc(var(--pad-x) + 22px); }
 .close:hover { color: var(--danger); }
 .link-button { padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--accent); font: inherit; cursor: pointer; }
-.reopen-closed { display: block; margin-top: 8px; font-size: 0.85em; }
+.reopen-closed { padding: 0 4px; font-size: 0.85em; color: var(--text-2); }
 button.collapse:hover:not(:disabled) { background: var(--surface-3); color: var(--text); border-color: transparent; }
 .over-collapsed-quote .react-flow__node, .over-collapsed-quote .react-flow__node * { cursor: pointer; }
 .box .body { cursor: text; user-select: text; }
@@ -666,6 +666,7 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
   border: 1px solid light-dark(transparent, #36405a); box-shadow: var(--shadow-3); border-left: 3px solid var(--accent);
 }
 .toast-actions { display: flex; gap: 6px; margin-top: 8px; }
+.undo-close { position: fixed; left: 50%; bottom: 24px; z-index: 50; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; }
 .toast button { border: 0; border-radius: var(--radius-sm); padding: 2px 10px; background: #f2f4f8; color: #1d2130; cursor: pointer; font-size: 12px; box-shadow: none; }
 .toast button:hover:not(:disabled) { background: #ffffff; }
 .toast button[aria-label="Dismiss notification"] { background: transparent; color: #c9cfdc; border: 1px solid #4a5470; }
@@ -744,6 +745,9 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .algorithm-steps li.step-highlight { background: color-mix(in oklab, var(--kind-spec) 18%, transparent); }
 .spec-steps { padding: 10px 0; font-family: "Iowan Old Style", Charter, Georgia, serif; }
 .algorithm-steps { max-height: 560px; overflow: auto; padding: 0 12px 8px; }
+/* A box the user resized gives its height to the steps, not to the space below them. */
+.react-flow__node.fixed-height > .spec-algorithm-node { display: flex; flex-direction: column; }
+.react-flow__node.fixed-height > .spec-algorithm-node > .algorithm-steps { flex: 1 1 auto; min-height: 0; max-height: none; }
 .algorithm-steps.far { position: relative; }
 .algorithm-steps.far > :not(.spec-far-summary) { visibility: hidden; }
 .spec-far-summary { position: absolute; inset: 0; padding: 12px; font-size: 1.6em; overflow: hidden; }

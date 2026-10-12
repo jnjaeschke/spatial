@@ -22,7 +22,7 @@ async function exploreNavigate(page: Page) {
   return navigate;
 }
 
-test("explore HTML#navigate from the start screen: a link opens a box with an edge, closing removes it", async ({ page }) => {
+test("explore HTML#navigate from the start screen: a link opens a box with an edge, closing removes it with an Undo, and its host reopens it", async ({ page }) => {
   const navigate = await exploreNavigate(page);
   await expect(navigate.locator('li[data-step="24.9.1"]')).toBeAttached();
   await navigate.locator('li[data-step="2"]').getByTestId("spec-link").first().click();
@@ -32,6 +32,13 @@ test("explore HTML#navigate from the start screen: a link opens a box with an ed
   await target.getByRole("button", { name: "Close HTML#snapshotting-source-snapshot-params" }).click();
   await expect(target).toHaveCount(0);
   await expect(page.locator(".react-flow__edge-text", { hasText: "step 2" })).toHaveCount(0);
+  const undo = page.getByTestId("undo-close");
+  await expect(undo).toHaveText(/Closed the box/);
+  await undo.getByRole("button", { name: "Undo" }).click();
+  await expect(target).toBeVisible();
+  await expect(undo).toHaveCount(0);
+  await target.getByRole("button", { name: "Close HTML#snapshotting-source-snapshot-params" }).click();
+  await expect(target).toHaveCount(0);
   await navigate.getByRole("button", { name: "Reopen 1 closed box" }).click();
   await expect(target).toBeVisible();
 });
@@ -99,6 +106,21 @@ test("a review chat question about a spec algorithm is traced after Explore", as
   await explore.click();
   await expect(page).toHaveURL(/[?&]view=spec/);
   await expect(page.getByTestId("trace-panel").getByTestId("trace-verdict")).toHaveText("fails · 4 steps, 1 unverified hop, 0 unsupported notes", { timeout: 15_000 });
+});
+
+test("resizing an algorithm box changes the height of its steps", async ({ page }) => {
+  const navigate = await exploreNavigate(page);
+  const node = navigate.locator("..");
+  await navigate.locator("> .title").click();
+  const steps = navigate.locator(".algorithm-steps");
+  const before = (await steps.boundingBox())!.height;
+  const handle = node.locator(".react-flow__resize-control.line.top");
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 250, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(async () => (await steps.boundingBox())!.height).toBeLessThan(before - 150);
 });
 
 test("an algorithm box numbers its steps, and a chat asked from a step's text shows inside the box under that step", async ({ page }) => {

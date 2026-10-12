@@ -11,7 +11,6 @@ import { LlmPicker } from "../LlmPicker.tsx";
 import { AnswerMarkdown } from "../AnswerMarkdown.tsx";
 import { CollapseContext } from "../collapse.ts";
 import { ClosedContext } from "../closed.ts";
-import { ReopenClosed } from "../ReopenClosed.tsx";
 import { Box } from "../Box.tsx";
 import { Composer, useDraftText } from "../Composer.tsx";
 import { COMPOSER_HINT } from "../composer-key.ts";
@@ -30,7 +29,6 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
     <Box kind="chat" testId={`chat-${id}`} handles={{ source: Position.Left }} title={<>Chat{data.messages.length > 0 && ` · ${data.messages.length}`}</>} collapse={data.threadId ? { key: data.threadId } : undefined} onClose={closer ? () => closeChat(data.threadId, data.draftId, actions, closer) : undefined}>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <Conversation {...data} />
-      <ReopenClosed hostId={nodeId} />
     </Box>
   );
 }

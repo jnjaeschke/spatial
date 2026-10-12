@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { HunkNodeData } from "../graph.ts";
-import { Box, DiffView, ReopenClosed, commitColors, type Row } from "../../../../web/plugin-api.ts";
+import { Box, DiffView, commitColors, type Row } from "../../../../web/plugin-api.ts";
 import { UserCommentBox } from "../UserCommentBox.tsx";
 import { SpecStepContext } from "../SpecPanel.tsx";
 import { commentId } from "../CommentDetails.tsx";
@@ -33,7 +33,6 @@ export function HunkNode({ id, data }: NodeProps<HunkFlowNode>) {
           onMark={(mark, rect) => { symbolMark?.click(mark, rect); if (!symbolMark) details?.open({ kind: "symbol", name: mark.name, site: 0 }); }}
           onMarkHover={symbolMark?.hover}
           afterRow={(row) => <>{data.threads.filter((thread) => thread.lines?.path === file.path && thread.lines.end === (thread.lines.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row inline-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}><ChatItem thread={thread} /></td></tr>)}{data.phabThreads.filter((thread) => thread.path === file.path && thread.line === (thread.side === "new" ? row.new : row.old)).map((thread) => <tr className="thread-row inline-row" key={thread.anchorId}><td colSpan={4}><PhabItem thread={thread} /></td></tr>)}{data.comments.filter((comment) => comment.lines.path === file.path && comment.lines.end === (comment.lines.side === "new" ? row.new : row.old)).map((item) => <tr className="thread-row inline-row" key={commentId(item)}><td colSpan={4}><UserCommentItem item={item} diffId={diffId} /></td></tr>)}{data.findings.filter((finding) => finding.lines?.path === file.path && finding.lines.end === (finding.lines.side === "new" ? row.new : row.old)).map((finding) => <tr className="thread-row inline-row" key={finding.findingId}><td colSpan={4}><FindingItem finding={finding} /></td></tr>)}</>} />
-        <ReopenClosed hostId={id} />
       </div>
     </Box>
   );

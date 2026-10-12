@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Position, useStore, type Node, type NodeProps } from "@xyflow/react";
-import { Box, ChatItem, ClosedContext, ReopenClosed } from "../../../web/plugin-api.ts";
+import { Box, ChatItem, ClosedContext } from "../../../web/plugin-api.ts";
 import { SpecLinkContext, SpecMarkdown } from "./SpecMarkdown.tsx";
 import type { AlgorithmNodeData } from "./graph.ts";
 import { ExplorerContext, ExplorerViewContext } from "./context.ts";
@@ -38,6 +38,5 @@ export function AlgorithmNode({ id, data }: NodeProps<AlgorithmFlowNode>) {
     <GeckoStrip mapping={mapping} activity={engineActivity(explorer?.tasks ?? [], data.algorithm.id, "gecko")} notFound={nothingFound(explorer?.tasks ?? [], data.algorithm.id, "gecko")} actions={geckoActions} algorithmRef={algorithm.ref} sessionId={view?.sessionId ?? ""} />
     <SummaryBlock view={explorer?.summaries[algorithm.ref]} onHover={setHighlighted} onFlag={explorer && !explorer.readOnly ? () => explorer.flag(algorithm.ref) : null} />
     <SpecLinkContext.Provider value={links}><div ref={container} data-anchor={data.algorithm.id} className={`spec-steps algorithm-steps body nodrag nopan nowheel${far && summary?.state === "ready" ? " far" : ""}`}><SpecMarkdown text={algorithm.content} steps={ORDERED_LIST.test(algorithm.content)} stepExtras={stepExtras} onStepNumber={addStep} />{chats.get(null)?.map((thread) => <ChatItem key={thread.threadId ?? thread.draftId} thread={thread} />)}{far && summary?.state === "ready" && <div className="spec-far-summary"><span className="badge">AI-written</span>{summary.clauses.map((clause, index) => <p key={index}><ClauseText text={clause.text} /></p>)}</div>}</div></SpecLinkContext.Provider>
-    <ReopenClosed hostId={id} />
   </Box>;
 }

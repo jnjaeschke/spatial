@@ -1,3 +1,4 @@
+import { IconButton } from "./IconButton.tsx";
 import { useContext } from "react";
 import { ClosedContext } from "./closed.ts";
 
@@ -7,5 +8,6 @@ export function ReopenClosed({ hostId }: { hostId: string }) {
   const items = closed?.closedOn.get(hostId) ?? [];
   if (items.length === 0) return null;
   const kind = items.every((item) => item.kind === items[0]!.kind) ? items[0]!.kind : "item";
-  return <button className="link-button reopen-closed nodrag" onClick={() => closed!.reopen(items.map((item) => item.id))}>Reopen {items.length} closed {kind}{items.length === 1 ? "" : kind === "box" ? "es" : "s"}</button>;
+  const label = `Reopen ${items.length} closed ${kind}${items.length === 1 ? "" : kind === "box" ? "es" : "s"}`;
+  return <IconButton label={label} className="reopen-closed nodrag" onClick={() => closed!.reopen(items.map((item) => item.id))}>↺ {items.length}</IconButton>;
 }
