@@ -51,14 +51,14 @@ test("after the investigation the user approves, revises or cancels", () => {
 
 test("profile that requires a bug asks for the number", () => {
   const withoutBug = decide(next(view([start(), branch("stack"), investigation(null)], [epoch(1, "investigate")])));
-  assert.deepEqual(withoutBug.decide.options[0], { id: "approve", label: "Approve", takesModel: true, takesText: true, requiresText: true, textPattern: "\\d+" });
+  assert.deepEqual(withoutBug.decide.options[0], { id: "approve", label: "Approve", takesModel: true, takesText: true, requiresText: true, textPattern: "^\\d+$" });
   const withBug = decide(next(view([start(), branch("stack"), investigation(77)], [epoch(1, "investigate")])));
   assert.equal(withBug.decide.options[0]!.requiresText, undefined);
 });
 
 test("approval starts implement with the chosen model, the bug from the text and the start's write mode", () => {
   const v = (text?: string) => view([start(), branch("stack"), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", ...(text ? { text } : {}), llm: IMPL }, 1)], [epoch(1, "investigate")]);
-  const step = run(next(v("bug 4711 please")));
+  const step = run(next(v("4711")));
   assert.equal(step.run, "implement");
   const { branchId, investigationId, ...rest } = step.input as { branchId: string; investigationId: string };
   assert.ok(branchId && investigationId);
@@ -66,6 +66,13 @@ test("approval starts implement with the chosen model, the bug from the text and
   const withKnownBug = run(next(view([start(), branch("stack"), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
   assert.equal((withKnownBug.input as { bug: number; llm: LlmSelection }).bug, 77);
   assert.deepEqual((withKnownBug.input as { llm: LlmSelection }).llm, START, "no chosen model falls back to the start selection");
+});
+
+test("the approve text is the bug number as typed, and a known bug needs no text", () => {
+  const typed = run(next(view([start(), branch("stack"), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", text: "4711" }, 1)], [epoch(1, "investigate")])));
+  assert.equal((typed.input as { bug: number }).bug, 4711);
+  const known = run(next(view([start(), branch("stack"), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
+  assert.equal((known.input as { bug: number }).bug, 77);
 });
 
 test("revise reinvestigates with the previous investigation and the text; cancel stops", () => {

@@ -34,8 +34,7 @@ function answered(decisions: Artifact<DecisionData>[], key: string, epoch: numbe
 function bugOf(decisions: Artifact<DecisionData>[], investigation: Artifact<InvestigationData>): number | null {
   if (investigation.data.bug !== null) return investigation.data.bug;
   const text = decisions.findLast((a) => a.data.key === "approve" && a.data.chosen?.option === "approve")?.data.chosen?.text;
-  const digits = text?.match(/\d+/)?.[0];
-  return digits ? Number(digits) : null;
+  return text ? Number(text) : null;
 }
 
 function chosenImplementLlm(decisions: Artifact<DecisionData>[]): LlmSelection | undefined {
@@ -47,7 +46,17 @@ function investigateStep(start: Artifact<WorkflowStartData>, branch: Artifact<Im
   return { run: profile.investigatePhase ?? "investigate", input: { request: params.request, profile: profile.id, baseSha: branch.data.baseSha, branch: branch.data.branch, ...(previous ? { previous } : {}), ...(llm ? { llm } : {}) } };
 }
 
-function implementStep(branch: Artifact<ImplementBranchData>, investigation: Artifact<InvestigationData>, bug: number | null, text: string | null, ignorePlanInvalid: boolean, llm: LlmSelection | undefined, start: Artifact<WorkflowStartData>): Step {
+interface ImplementStepOptions {
+  branch: Artifact<ImplementBranchData>;
+  investigation: Artifact<InvestigationData>;
+  bug: number | null;
+  text: string | null;
+  ignorePlanInvalid?: boolean;
+  llm: LlmSelection | undefined;
+  start: Artifact<WorkflowStartData>;
+}
+
+function implementStep({ branch, investigation, bug, text, ignorePlanInvalid, llm, start }: ImplementStepOptions): Step {
   return { run: "implement", input: { branchId: branch.id, investigationId: investigation.id, bug, text, ...(ignorePlanInvalid ? { ignorePlanInvalid: true } : {}), writeMode: start.data.writeMode ?? "auto", ...(llm ? { llm } : {}) } };
 }
 
@@ -76,16 +85,19 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   const decisionStep = (key: string, question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { key, question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
   const llm = (selection: LlmSelection | undefined) => selection ? { llm: selection } : {};
   const approve = answered(decisions, "approve", last.n);
+  const implementLlm = chosenImplementLlm(decisions) ?? start.data.llm;
+  const again = (investigation: Artifact<InvestigationData>, text: string | null, ignorePlanInvalid = false): Step =>
+    implementStep({ branch, investigation, bug: bugOf(decisions, investigation), text, ignorePlanInvalid, llm: implementLlm, start });
   if (last.phase === investigatePhase) {
     if (!investigation) return null;
     if (!approve) {
       const needsBug = Boolean(profile.requiresBug && investigation.data.bug === null);
       return decisionStep("approve", APPROVE, [
-        { id: "approve", label: "Approve", takesModel: true, ...(needsBug ? { takesText: true, requiresText: true, textPattern: "\\d+" } : {}) },
+        { id: "approve", label: "Approve", takesModel: true, ...(needsBug ? { takesText: true, requiresText: true, textPattern: "^\\d+$" } : {}) },
         { id: "revise", label: "Revise", takesText: true, requiresText: true }, { id: "cancel", label: "Cancel" },
       ]);
     }
-    if (approve.option === "approve") return implementStep(branch, investigation, bugOf(decisions, investigation), null, false, chosenImplementLlm(decisions) ?? start.data.llm, start);
+    if (approve.option === "approve") return again(investigation, null);
     if (approve.option === "revise") return investigateStep(start, branch, profile, start.data.llm, { id: investigation.id, text: approve.text ?? "" });
     return null;
   }
@@ -99,7 +111,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
         { id: "continue", label: "Continue anyway", takesText: true }, { id: "cancel", label: "Cancel" },
       ]);
       if (choice.option === "reinvestigate") return investigateStep(start, branch, profile, start.data.llm, { id: investigation.id, text: choice.text ?? reason });
-      if (choice.option === "continue") return implementStep(branch, investigation, bugOf(decisions, investigation), choice.text ?? null, true, chosenImplementLlm(decisions) ?? start.data.llm, start);
+      if (choice.option === "continue") return again(investigation, choice.text ?? null, true);
       return null;
     }
     const input: ReviewPhaseInput = { base: branch.data.baseSha, head: result.data.head, update: view.epochs.some((epoch) => epoch.phase === "review"), ...llm(start.data.llm) };
@@ -109,8 +121,8 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (last.phase === "review") {
     const choice = decisions.findLast((a) => a.epoch === last.n && REVIEW_KEYS.has(a.data.key) && a.data.chosen)?.data.chosen;
     if (choice) {
-      if (choice.option === "fix") return investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), null, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
-      if (choice.option === "revise") return investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), choice.text ?? null, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
+      if (choice.option === "fix") return investigation && result ? again(investigation, null) : null;
+      if (choice.option === "revise") return investigation && result ? again(investigation, choice.text ?? null) : null;
       if (choice.option === "accept") return result ? afterAcceptStep(view, profile, branch, result, start, last.n) : null;
       return null;
     }
@@ -123,7 +135,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     const items = commentPlan(view, last), question = workInQuestion((last.input as ReviewerCommentsInput).comments.length), choice = answered(decisions, "work-in", last.n);
     if (!choice) return decisionStep("work-in", question, [{ id: "work", label: "Work in" }, { id: "later", label: "Not yet" }]);
     const text = choice.option === "work" ? commentsFeedback(items) : null;
-    return text && investigation && result ? implementStep(branch, investigation, bugOf(decisions, investigation), text, false, chosenImplementLlm(decisions) ?? start.data.llm, start) : null;
+    return text && investigation && result ? again(investigation, text) : null;
   }
   return null;
 }
