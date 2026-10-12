@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
+import { requireProfile } from "../../profiles.ts";
 import { describeCheck } from "../../shared/acceptance.ts";
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
@@ -24,8 +25,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
   kind: "implement",
   async run(ctx, input) {
     const branch = ctx.artifacts.get<ImplementBranchData>(input.branchId).data;
-    const profile = ctx.repoProfiles.get(branch.profile);
-    if (!profile) throw new Error(`Unknown repo profile: ${branch.profile}`);
+    const profile = requireProfile(ctx.repoProfiles, branch.profile);
     if (profile.requiresBug && input.bug === null) throw new Error(`The ${profile.id} profile needs a bug number`);
     if (input.writeMode === "editsOnly" && !profile.testCommand) throw new Error(`Edits-only mode needs a test command and the ${profile.id} profile has none`);
     const investigation = ctx.artifacts.get<InvestigationData>(input.investigationId).data;

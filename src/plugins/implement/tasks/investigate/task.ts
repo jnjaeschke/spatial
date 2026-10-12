@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, schemaErrors, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
 import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
+import { requireProfile } from "../../profiles.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
 import { verifyChecks } from "../../runtime/checks.ts";
 import { steerSections, steersOf } from "../../runtime/steers.ts";
@@ -44,8 +45,7 @@ const listProblems = (problems: string[]) => problems.map((problem) => `- ${prob
 export const investigate = defineTask<InvestigateInput, { investigationId: Id; droppedLocations: string[] }>({
   kind: "investigate",
   async run(ctx, { request, profile: profileId, baseSha, branch, previous, llm }) {
-    const profile = ctx.repoProfiles.get(profileId);
-    if (!profile) throw new Error(`Unknown repo profile: ${profileId}`);
+    const profile = requireProfile(ctx.repoProfiles, profileId);
     const current = await makeGitWriter(ctx.repo).currentBranch();
     if (current !== branch) throw new Error(`The checkout is on ${current ?? "a detached HEAD"}, not on ${branch}; spatial does not switch branches for you`);
     const view = ctx.artifacts.view();

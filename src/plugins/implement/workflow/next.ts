@@ -2,6 +2,7 @@ import { type Artifact, type DecisionData, type DecisionOption, type Id, type Ll
 import type { ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
 import type { ImplementInput } from "../tasks/implement/task.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
+import { requireProfile } from "../profiles.ts";
 import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
@@ -72,8 +73,7 @@ const ownPhases = (profile: RepoProfile) => new Set([profile.investigatePhase ??
 export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | null {
   const start = latestArtifact<WorkflowStartData>(view.artifacts, "WorkflowStart"), branch = latestArtifact<ImplementBranchData>(view.artifacts, "ImplementBranch");
   if (!start || !branch) return null;
-  const profile = ctx.repoProfiles.get(branch.data.profile);
-  if (!profile) throw new Error(`Unknown repo profile: ${branch.data.profile}`);
+  const profile = requireProfile(ctx.repoProfiles, branch.data.profile);
   // Phases started outside the workflow (a try push from chat) leave its own last epoch and that epoch's decision in charge.
   const investigatePhase = profile.investigatePhase ?? "investigate", own = ownPhases(profile);
   const last = view.epochs.findLast((epoch) => own.has(epoch.phase));
