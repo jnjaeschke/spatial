@@ -5,7 +5,7 @@
  * Everything a user works on is a plugin; review and chat are the standard library in `src/plugins/`.
  *
  * - A **plugin** (`Plugin`, built with `definePlugin`) bundles any of: workflows, phases, task
- *   definitions, artifact kinds, search kinds, chat context and reply fields, and a server part
+ *   definitions, artifact kinds, search kinds, chat context and reply fields, read-only session MCP tools (`Plugin.mcpTools`), and a server part
  *   with HTTP routes and background services. Registered in `src/plugins/index.ts`.
  * - A **workflow** (`Workflow`) is what a user starts from the start screen or a slash command.
  *   It parses its arguments and runs phases. A workflow's optional `precheck` can ask the start box
@@ -51,7 +51,9 @@
  * composition roots.
  */
 export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(plugin: T): T => plugin;
-export type { ArtifactKind, ChatReplyField, ParseResult, Plugin, PluginRegistry, PluginServer, PrecheckQuestion, RepoProfile, WorkflowContext, StartInput, Step, Workflow } from "./runtime/plugins.ts";
+export type { ArtifactKind, ChatReplyField, McpTool, McpToolContext, ParseResult, Plugin, PluginRegistry, PluginServer, PrecheckQuestion, RepoProfile, WorkflowContext, StartInput, Step, Workflow } from "./runtime/plugins.ts";
+/** Typed plugin MCP tools. */
+export { defineMcpTool } from "./runtime/plugins.ts";
 export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";

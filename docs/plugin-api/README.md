@@ -12,7 +12,7 @@ Core owns sessions, the artifact store, tasks, epochs, the LLM backends, chat an
 Everything a user works on is a plugin; review and chat are the standard library in `src/plugins/`.
 
 - A **plugin** (`Plugin`, built with `definePlugin`) bundles any of: workflows, phases, task
-  definitions, artifact kinds, search kinds, chat context and reply fields, and a server part
+  definitions, artifact kinds, search kinds, chat context and reply fields, read-only session MCP tools (`Plugin.mcpTools`), and a server part
   with HTTP routes and background services. Registered in `src/plugins/index.ts`.
 - A **workflow** (`Workflow`) is what a user starts from the start screen or a slash command.
   It parses its arguments and runs phases. A workflow's optional `precheck` can ask the start box
@@ -184,6 +184,12 @@ Re-exports [DecisionData](../shared/types/interfaces/DecisionData.md)
 ### DecisionOption
 
 Re-exports [DecisionOption](../shared/types/interfaces/DecisionOption.md)
+
+***
+
+### defineMcpTool
+
+Re-exports [defineMcpTool](../runtime/plugins/functions/defineMcpTool.md)
 
 ***
 
@@ -406,6 +412,18 @@ Re-exports [makeChromiumSearch](../runtime/chromium-search/functions/makeChromiu
 ### McpServerData
 
 Re-exports [McpServerData](../shared/types/interfaces/McpServerData.md)
+
+***
+
+### McpTool
+
+Re-exports [McpTool](../runtime/plugins/interfaces/McpTool.md)
+
+***
+
+### McpToolContext
+
+Re-exports [McpToolContext](../runtime/plugins/interfaces/McpToolContext.md)
 
 ***
 

@@ -6,6 +6,10 @@
 
 # mcp/session-server
 
+## Interfaces
+
+- [SessionServerCapabilities](interfaces/SessionServerCapabilities.md)
+
 ## Functions
 
 - [createSessionServer](functions/createSessionServer.md)

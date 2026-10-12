@@ -38,6 +38,14 @@ Ids of the plugins this one imports the public API of (`src/plugins/<id>/api.ts`
 
 ***
 
+### mcpTools?
+
+> `optional` **mcpTools?**: [`McpTool`](McpTool.md)\<`Readonly`\<\{\[`k`: `string`\]: `$ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}\>\>[]
+
+Read-only tools for the session MCP server; names are unique across plugins and core tools.
+
+***
+
 ### phases?
 
 > `optional` **phases?**: [`Phase`](../../tasks/interfaces/Phase.md)\<`any`\>[]

@@ -11,6 +11,13 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeRepo } from "../helpers/git-fixture.ts";
+import { z } from "zod";
+import { defineMcpTool } from "../../src/runtime/plugins.ts";
+import { sessionServerSpec } from "../../src/runtime/create.ts";
+import { makeWebspec } from "../../src/runtime/webspec.ts";
+import type { WebspecCapability } from "../../src/runtime/tasks.ts";
+
+const caps = { webspec: makeWebspec() };
 
 const text = (result: Awaited<ReturnType<Client["callTool"]>>) => (result.content as { text: string }[])[0]!.text;
 const registry = pluginRegistry([corePlugin, ...plugins]);
@@ -25,7 +32,7 @@ test("session MCP exposes live read-only overview, get, and search", async () =>
     diffId: diff.id, summary: "Summary", changes: [{ id: "c1", title: "Add useful thing", explanation: "Useful explanation", rationale: "Because", hunkIds: [], dependsOn: [], specUrls: [] }],
   } });
   store.putSearchDocs(session.id, narrative.id, [{ ref: `${narrative.id}#c1`, kind: "change", body: "Add useful thing\nUseful explanation" }]);
-  const server = createSessionServer(registry, store, session.id, session.worktree);
+  const server = createSessionServer(registry, store, session.id, session.worktree, caps);
   const client = new Client({ name: "test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -61,7 +68,7 @@ test("session MCP exposes bounded read-only SCM tools for its worktree", async (
     const second = repo.commit({ "a.txt": "two\n", "many.txt": Array.from({ length: 405 }, (_, index) => `line${index + 1}`).join("\n") + "\n" }, "second commit");
     const store = new Store(":memory:");
     const session = store.createSession({ worktree: repo.dir, repoDir: `${repo.dir}/.git`, title: "test" });
-    const server = createSessionServer(registry, store, session.id, repo.dir);
+    const server = createSessionServer(registry, store, session.id, repo.dir, caps);
     const client = new Client({ name: "test", version: "1" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -125,7 +132,7 @@ test("read_skill returns indexed skill content and rejects unindexed names", asy
     writeFileSync(join(repo, "outside.md"), "outside secret");
     const store = new Store(":memory:");
     const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "test" });
-    const server = createSessionServer(registry, store, session.id, repo);
+    const server = createSessionServer(registry, store, session.id, repo, caps);
     const client = new Client({ name: "test", version: "1" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -142,4 +149,48 @@ test("read_skill returns indexed skill content and rejects unindexed names", asy
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
+});
+
+const echo = (seen: unknown[], webspec: WebspecCapability) => defineMcpTool({
+  name: "echo_ref", description: "Echo a ref", input: { ref: z.string() },
+  async run(ctx, { ref }) {
+    seen.push([ctx.sessionId, ctx.repo, ctx.webspec === webspec, ctx.signal instanceof AbortSignal]);
+    if (ref === "bad") throw new Error("no such ref");
+    return `got ${ref}`;
+  },
+});
+
+test("plugin MCP tools are registered read-only and run with the session context", async () => {
+  const store = new Store(":memory:");
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const seen: unknown[] = [];
+  const webspec = makeWebspec();
+  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, webspec)] }]), store, session.id, "/repo", { webspec });
+  const client = new Client({ name: "test", version: "1" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const tool = (await client.listTools()).tools.find((t) => t.name === "echo_ref")!;
+  assert.equal(tool.annotations?.readOnlyHint, true);
+  assert.equal(text(await client.callTool({ name: "echo_ref", arguments: { ref: "HTML#a" } })), "got HTML#a");
+  const bad = await client.callTool({ name: "echo_ref", arguments: { ref: "bad" } });
+  assert.equal(bad.isError, true);
+  assert.equal(text(bad), "no such ref");
+  assert.deepEqual(seen, [[session.id, "/repo", true, true], [session.id, "/repo", true, true]]);
+  await client.close();
+  await server.close();
+  store.close();
+});
+
+test("pluginRegistry rejects duplicate MCP tool names", () => {
+  const tool = echo([], makeWebspec());
+  assert.throws(() => pluginRegistry([{ id: "a", mcpTools: [tool] }, { id: "b", mcpTools: [tool] }]), /Duplicate MCP tool: echo_ref/);
+});
+
+test("the session server spec passes the webspec binary when one is configured", () => {
+  const args = (spec: ReturnType<typeof sessionServerSpec>) => {
+    if (spec.type !== "stdio") throw new Error("Expected a stdio session server");
+    return spec.args.slice(1);
+  };
+  assert.deepEqual(args(sessionServerSpec("/d/db.sqlite", "S", { webspecBin: "/bin/ws" })), ["--db", "/d/db.sqlite", "--session", "S", "--webspec-bin", "/bin/ws"]);
+  assert.deepEqual(args(sessionServerSpec("/d/db.sqlite", "S", {})), ["--db", "/d/db.sqlite", "--session", "S"]);
 });

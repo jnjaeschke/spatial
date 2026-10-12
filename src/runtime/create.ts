@@ -1,4 +1,4 @@
-import type { Engine, LlmSelection } from "../shared/types.ts";
+import type { Engine, Id, LlmSelection } from "../shared/types.ts";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { plugins } from "../plugins/index.ts";
@@ -17,12 +17,18 @@ import type { CodeSearch } from "./code-search.ts";
 import { makeWebspec } from "./webspec.ts";
 import { KnowledgeStore } from "./knowledge.ts";
 import { fileURLToPath } from "node:url";
+import type { McpServerSpec } from "./llm/types.ts";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 export const corePlugin = { id: "core", tasks: [chatTurn, selectWorkflow] };
 
 export function defaultDbPath(): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial", "runtime.sqlite");
+}
+
+/** The session MCP server: a stdio child reading the session database, with the tool binaries the runtime uses. */
+export function sessionServerSpec(dbPath: string, sessionId: Id, bins: { webspecBin?: string }): McpServerSpec {
+  return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", dbPath, "--session", sessionId, ...(bins.webspecBin ? ["--webspec-bin", bins.webspecBin] : [])] };
 }
 
 /** The code search of every engine: Gecko over `searchfox`, WebKit over searchfox's `wubkat` repository, Blink over chromium-search. */
@@ -50,10 +56,6 @@ export function createRuntime(opts: {
     webspec: makeWebspec({ bin: opts.webspecBin }), searchfox, codeSearch: makeCodeSearch(searchfox, { searchfoxBin: opts.searchfoxBin, chromiumSearchBin: opts.chromiumSearchBin }),
     repoContext: loadRepoContext,
     knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
-    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: {
-      type: "stdio",
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", opts.dbPath, "--session", sessionId],
-    } }),
+    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId, { webspecBin: opts.webspecBin }) }),
   });
 }

@@ -10,9 +10,14 @@ import { plugins } from "../plugins/index.ts";
 import { Store } from "../runtime/store.ts";
 import { readRepoSkill } from "../runtime/repo-context.ts";
 import { scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmShow, scmStatus } from "../runtime/git.ts";
+import { makeWebspec } from "../runtime/webspec.ts";
+import type { WebspecCapability } from "../runtime/tasks.ts";
 
 // Codex refuses MCP tool calls without readOnlyHint, even with approval_policy=never.
 const annotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
+
+/** Capabilities plugin tools run with; the server process builds them from its flags. */
+export interface SessionServerCapabilities { webspec: WebspecCapability }
 
 function answer(produce: () => string) {
   try {
@@ -27,7 +32,7 @@ async function answerAsync(produce: () => Promise<string>) {
   catch (error) { return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }], isError: true }; }
 }
 
-export function createSessionServer(registry: PluginRegistry, store: Store, sessionId: Id, repoRoot: string): McpServer {
+export function createSessionServer(registry: PluginRegistry, store: Store, sessionId: Id, repoRoot: string, caps: SessionServerCapabilities): McpServer {
   const server = new McpServer({ name: "spatial", version: "1.0.0" });
   server.registerTool("session_overview", { description: "Summarize this session", inputSchema: {}, annotations }, async () => answer(() => sessionOverview(registry, sessionView(store, sessionId)).join("\n\n")));
   server.registerTool("get", { description: "Render a session artifact or subref", inputSchema: { ref: z.string() }, annotations }, async ({ ref }) => answer(() => renderRef(registry.artifactKinds, sessionView(store, sessionId), ref)));
@@ -54,6 +59,9 @@ export function createSessionServer(registry: PluginRegistry, store: Store, sess
   server.registerTool("scm_show", { description: "Show commit metadata and changed-file summary", inputSchema: { rev: z.string() }, annotations }, async ({ rev }) => answerAsync(() => scmShow(repoRoot, rev)));
   server.registerTool("scm_diff", { description: "Show the patch for a commit", inputSchema: { rev: z.string(), path: z.string().optional() }, annotations }, async ({ rev, path }) => answerAsync(() => scmDiff(repoRoot, rev, path)));
   server.registerTool("scm_file", { description: "Read numbered lines from a file at a revision", inputSchema: { rev: z.string(), path: z.string(), start: z.number().int().min(1).optional(), end: z.number().int().min(1).optional() }, annotations }, async ({ rev, path, start, end }) => answerAsync(() => scmFile(repoRoot, rev, path, start, end)));
+  for (const tool of registry.mcpTools) {
+    server.registerTool(tool.name, { description: tool.description, inputSchema: tool.input, annotations }, async (input, extra) => answerAsync(() => tool.run({ sessionId, repo: repoRoot, webspec: caps.webspec, signal: extra.signal }, input)));
+  }
   return server;
 }
 
@@ -63,9 +71,10 @@ async function main(args: string[]): Promise<void> {
     if (index < 0 || !args[index + 1]) throw new Error(`Missing ${name}`);
     return args[index + 1]!;
   };
+  const optional = (name: string) => { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1]; };
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
-  const server = createSessionServer(pluginRegistry([corePlugin, ...plugins]), store, sessionId, store.getSession(sessionId).worktree);
+  const server = createSessionServer(pluginRegistry([corePlugin, ...plugins]), store, sessionId, store.getSession(sessionId).worktree, { webspec: makeWebspec({ bin: optional("--webspec-bin") }) });
   await server.connect(new StdioServerTransport());
 }
 

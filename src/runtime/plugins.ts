@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import type { DecisionOption, Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
-import type { Runtime, TaskContext, TaskDefinition, Phase } from "./tasks.ts";
+import type { Runtime, TaskContext, TaskDefinition, Phase, WebspecCapability } from "./tasks.ts";
 import type { Artifact, Ref } from "../shared/types.ts";
 import type { SearchDoc, SessionView, WorkflowView } from "./render-ref.ts";
 import type { Route } from "../server/http.ts";
@@ -80,6 +80,12 @@ export interface ChatReplyField {
   /** Validates the value and returns artifacts to store and link to the reply, and optionally a phase for the runtime to start after the turn (one per reply). */
   accept(ctx: TaskContext, value: unknown): Promise<{ ok: true; artifacts: { type: string; data: unknown }[]; run?: { phase: string; input: unknown } } | { ok: false; error: string }>;
 }
+/** What a plugin MCP tool may use: the session, its work tree, read-only capabilities and the call's abort signal. */
+export interface McpToolContext { sessionId: Id; repo: string; webspec: WebspecCapability; signal: AbortSignal }
+/** A read-only tool a plugin adds to the session MCP server (`spatial`), which LLM tasks reach through `ctx.sessionMcp`. `input` is the zod shape of its arguments; `run` returns the text answer and throws for an error answer. */
+export interface McpTool<S extends z.ZodRawShape = z.ZodRawShape> { name: string; description: string; input: S; run(ctx: McpToolContext, input: z.infer<z.ZodObject<S>>): Promise<string> }
+/** An `McpTool` whose `run` input is typed from its `input` shape. */
+export const defineMcpTool = <S extends z.ZodRawShape>(tool: McpTool<S>): McpTool => tool as unknown as McpTool;
 /** A packaging unit; contributes any mix of these. Artifact kinds are keyed by artifact type. */
 export interface Plugin {
   id: string;
@@ -96,6 +102,8 @@ export interface Plugin {
   chatContext?(view: SessionView): string | null;
   /** Extra fields of the structured chat reply. */
   chatReplyFields?: ChatReplyField[];
+  /** Read-only tools for the session MCP server; names are unique across plugins and core tools. */
+  mcpTools?: McpTool[];
   server?(rt: Runtime, opts: { intervalMs?: number }): PluginServer;
 }
 /** Contributions of a plugin list merged by `pluginRegistry`, which throws on duplicate ids. */
@@ -108,6 +116,7 @@ export interface PluginRegistry {
   searchKinds: string[];
   chatContext: ((view: SessionView) => string | null)[];
   chatReplyFields: ChatReplyField[];
+  mcpTools: McpTool[];
   repoProfiles: Map<string, RepoProfile>;
 }
 
@@ -128,12 +137,14 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
   const workflows = new Map<string, Workflow<any>>(), phases = new Map<string, Phase<any>>(), tasks = new Map<string, TaskDefinition<any, any>>();
   const repoProfiles = new Map<string, RepoProfile>();
   const fields = new Map<string, ChatReplyField>();
+  const mcpTools = new Map<string, McpTool>();
   for (const plugin of plugins) {
     for (const profile of plugin.repoProfiles ?? []) { if (repoProfiles.has(profile.id)) throw new Error(`Duplicate repo profile: ${profile.id}`); repoProfiles.set(profile.id, profile); }
     for (const workflow of plugin.workflows ?? []) { if (workflows.has(workflow.id)) throw new Error(`Duplicate workflow id: ${workflow.id}`); workflows.set(workflow.id, workflow); }
     for (const phase of plugin.phases ?? []) { if (phases.has(phase.id)) throw new Error(`Duplicate phase id: ${phase.id}`); phases.set(phase.id, phase); }
     for (const task of plugin.tasks ?? []) { if (tasks.has(task.kind)) throw new Error(`Duplicate task kind: ${task.kind}`); tasks.set(task.kind, task); }
     for (const field of plugin.chatReplyFields ?? []) { if (fields.has(field.name)) throw new Error(`Duplicate chat reply field: ${field.name}`); fields.set(field.name, field); }
+    for (const tool of plugin.mcpTools ?? []) { if (mcpTools.has(tool.name)) throw new Error(`Duplicate MCP tool: ${tool.name}`); mcpTools.set(tool.name, tool); }
   }
   const ids = new Set(plugins.map((plugin) => plugin.id));
   for (const plugin of plugins) for (const dependency of plugin.dependsOn ?? []) {
@@ -148,5 +159,5 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     done.add(id);
   };
   for (const plugin of plugins) visit(plugin.id, []);
-  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], repoProfiles };
+  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], mcpTools: [...mcpTools.values()], repoProfiles };
 }

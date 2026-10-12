@@ -6,7 +6,7 @@
 
 # Function: createSessionServer()
 
-> **createSessionServer**(`registry`, `store`, `sessionId`, `repoRoot`): `McpServer`
+> **createSessionServer**(`registry`, `store`, `sessionId`, `repoRoot`, `caps`): `McpServer`
 
 ## Parameters
 
@@ -25,6 +25,10 @@
 ### repoRoot
 
 `string`
+
+### caps
+
+[`SessionServerCapabilities`](../interfaces/SessionServerCapabilities.md)
 
 ## Returns
 
