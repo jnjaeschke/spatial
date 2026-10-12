@@ -12,15 +12,16 @@ export interface LlmPrompt {
   writeMode?: WriteMode;
   /** Receives progress and finished shell commands during write-mode runs. */
   onEvent?: (event: LlmEvent) => void;
-  /** Continue this provider session instead of starting a new one. */
+  /** Continue this provider session instead of starting a new one; a resumed write run keeps the write mode's tools and permissions. */
   resumeProviderSession?: string;
   mcpServers?: Record<string, McpServerSpec>;
 }
 
-/** Progress and finished shell commands of a write-mode run; `output` is capped at 256 KB. */
+/** Progress, finished shell commands and the provider session id of a write-mode run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. */
 export type LlmEvent =
   | { kind: "progress"; message: string }
-  | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string };
+  | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string }
+  | { kind: "session"; providerSessionId: string };
 
 export type McpServerSpec =
   | { type: "stdio"; command: string; args: string[]; env?: Record<string, string> }

@@ -55,7 +55,7 @@ Receives progress and finished shell commands during write-mode runs.
 
 > `optional` **resumeProviderSession?**: `string`
 
-Continue this provider session instead of starting a new one.
+Continue this provider session instead of starting a new one; a resumed write run keeps the write mode's tools and permissions.
 
 ***
 

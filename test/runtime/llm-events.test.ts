@@ -13,12 +13,13 @@ const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)), "utf8");
 const clock = () => { let t = 1000; return () => (t += 250); };
 function read(reader: (line: string) => void, text: string) { for (const line of text.split("\n")) reader(line); }
+const describe = (e: LlmEvent) => e.kind === "progress" ? e.message : e.kind === "command" ? `${e.command} -> ${e.exitCode}` : `session ${e.providerSessionId}`;
 
 test("claude stream: progress for shell and edits, command runs with exit codes", () => {
   const events: LlmEvent[] = [];
   read(claudeEventReader((e) => events.push(e), clock()), fixture("claude-stream.jsonl"));
-  assert.deepEqual(events.map((e) => e.kind === "progress" ? e.message : `${e.command} -> ${e.exitCode}`), [
-    "running git status --short", "running false", "false -> 1", "git status --short -> 0", "editing /tmp/spike-oqAa/a.txt",
+  assert.deepEqual(events.map(describe), [
+    "session 69d98f99-fd06-4274-875f-052ab81441e8", "running git status --short", "running false", "false -> 1", "git status --short -> 0", "editing /tmp/spike-oqAa/a.txt",
   ]);
   const status = events.find((e) => e.kind === "command" && e.command === "git status --short")!;
   assert.equal(status.kind === "command" && status.output, "?? b.txt\n?? c.txt");
@@ -30,11 +31,24 @@ test("claude stream: progress for shell and edits, command runs with exit codes"
 test("codex stream: wrapped commands are unwrapped, error items are ignored", () => {
   const events: LlmEvent[] = [];
   read(codexEventReader((e) => events.push(e), clock()), fixture("codex.jsonl"));
-  assert.deepEqual(events.map((e) => e.kind === "progress" ? e.message : `${e.command} -> ${e.exitCode}`), [
-    "running git status --short", "git status --short -> 0", "running false", "false -> 1", "running printf 'b' > a.txt", "printf 'b' > a.txt -> 0",
+  assert.deepEqual(events.map(describe), [
+    "session 01a11c66-e36a-7fc0-b477-1b34dd2b17a8", "running git status --short", "git status --short -> 0", "running false", "false -> 1", "running printf 'b' > a.txt", "printf 'b' > a.txt -> 0",
   ]);
   const status = events.find((e) => e.kind === "command")!;
   assert.equal(status.kind === "command" && status.output, "?? b.txt\n?? c.txt\n");
+});
+
+test("readers report the provider session id from the first event that shows it", () => {
+  const claude: LlmEvent[] = [];
+  const claudeReader = claudeEventReader((e) => claude.push(e));
+  claudeReader(JSON.stringify({ type: "system", subtype: "init", session_id: "c-1" }));
+  claudeReader(JSON.stringify({ type: "system", subtype: "thinking_tokens", session_id: "c-1" }));
+  assert.deepEqual(claude, [{ kind: "session", providerSessionId: "c-1" }]);
+  const codex: LlmEvent[] = [];
+  const codexReader = codexEventReader((e) => codex.push(e));
+  codexReader(JSON.stringify({ type: "thread.started", thread_id: "t-1" }));
+  codexReader(JSON.stringify({ type: "turn.started" }));
+  assert.deepEqual(codex, [{ kind: "session", providerSessionId: "t-1" }]);
 });
 
 test("command output is capped", () => {

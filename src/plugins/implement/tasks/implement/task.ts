@@ -67,7 +67,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const evidence: CommandEvidence[] = [];
     const onEvent = (event: LlmEvent) => {
       if (event.kind === "progress") ctx.progress({ kind: "indeterminate", message: event.message });
-      else {
+      else if (event.kind === "command") {
         evidence.push({ command: event.command, exitCode: event.exitCode });
         ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
       }

@@ -13,11 +13,12 @@ const unwrap = (command: string) => {
   return inner.length > 1 && (inner[0] === "'" || inner[0] === '"') && inner.at(-1) === inner[0] ? inner.slice(1, -1) : inner;
 };
 
-/** Reads Claude `--output-format stream-json` lines. A tool result has no exit code field: an error result starts with `Exit code N`, else `is_error` decides 1 or 0. */
+/** Reads Claude `--output-format stream-json` lines: the `system/init` line is the session event. A tool result has no exit code field: an error result starts with `Exit code N`, else `is_error` decides 1 or 0. */
 export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now): (line: string) => void {
   const running = new Map<string, { command: string; startedAt: number }>();
   return (line) => {
     const event = parse(line);
+    if (event?.type === "system" && event.subtype === "init" && typeof event.session_id === "string") emit({ kind: "session", providerSessionId: event.session_id });
     const blocks: any[] = Array.isArray(event?.message?.content) ? event!.message.content : [];
     if (event?.type === "assistant") for (const block of blocks) {
       if (block.type !== "tool_use") continue;
@@ -39,11 +40,12 @@ export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => nu
   };
 }
 
-/** Reads Codex `exec --json` lines: `command_execution` items become command events, `file_change` items progress. `error` items are warnings and ignored. */
+/** Reads Codex `exec --json` lines: `thread.started` is the session event, `command_execution` items become command events, `file_change` items progress. `error` items are warnings and ignored. */
 export function codexEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now): (line: string) => void {
   const started = new Map<string, number>();
   return (line) => {
     const event = parse(line);
+    if (event?.type === "thread.started" && typeof event.thread_id === "string") { emit({ kind: "session", providerSessionId: event.thread_id }); return; }
     const item = event?.item;
     if (!item) return;
     if (item.type === "command_execution") {
