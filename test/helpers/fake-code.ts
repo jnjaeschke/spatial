@@ -9,6 +9,7 @@ export function fakeCode(files: Record<string, string>, refs: GeckoSpecRef[], op
   const code: CodeSearch = {
     effect: "read-only", engine, pinned: engine !== "blink", heuristicScopes: engine === "blink",
     async specRefs(url) { calls.push(`specRefs ${url}`); return refs; },
+    async search(query) { calls.push(`search ${query}`); return Object.entries(files).flatMap(([path, text]) => text.split("\n").flatMap((snippet, index) => snippet.includes(query) ? [{ path, line: index + 1, snippet }] : [])); },
     async functionAt(path, line) { calls.push(`functionAt ${path}:${line}`); const found = files[path] === undefined ? null : enclosingFunction(files[path]!.split("\n"), line); return found ? [{ symbol: found.symbol, signature: found.signature }] : []; },
     async file(path) { calls.push(`file ${path}`); return files[path] ?? null; },
     async tip() { calls.push("tip"); return { repoBase: opts.repoBase ?? `https://code.example/${engine}/`, rev: opts.rev?.() ?? (engine === "blink" ? "main" : "r1") }; },

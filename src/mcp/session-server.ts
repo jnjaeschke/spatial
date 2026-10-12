@@ -16,12 +16,16 @@ import type { WebspecCapability } from "../runtime/tasks.ts";
 import type { Knowledge } from "../runtime/knowledge.ts";
 import { KnowledgeStore } from "../runtime/knowledge.ts";
 import { dirname, join } from "node:path";
+import type { Engine } from "../shared/types.ts";
+import type { CodeSearch } from "../runtime/code-search.ts";
+import { makeCodeSearch } from "../runtime/create.ts";
+import { makeSearchfox } from "../runtime/searchfox.ts";
 
 // Codex refuses MCP tool calls without readOnlyHint, even with approval_policy=never.
 const annotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
 
 /** Capabilities plugin tools run with; the server process builds them from its flags. */
-export interface SessionServerCapabilities { webspec: WebspecCapability; knowledge: Pick<Knowledge, "get" | "list"> }
+export interface SessionServerCapabilities { webspec: WebspecCapability; knowledge: Pick<Knowledge, "get" | "list">; codeSearch: Record<Engine, CodeSearch> }
 
 function answer(produce: () => string) {
   try {
@@ -64,7 +68,7 @@ export function createSessionServer(registry: PluginRegistry, store: Store, sess
   server.registerTool("scm_diff", { description: "Show the patch for a commit", inputSchema: { rev: z.string(), path: z.string().optional() }, annotations }, async ({ rev, path }) => answerAsync(() => scmDiff(repoRoot, rev, path)));
   server.registerTool("scm_file", { description: "Read numbered lines from a file at a revision", inputSchema: { rev: z.string(), path: z.string(), start: z.number().int().min(1).optional(), end: z.number().int().min(1).optional() }, annotations }, async ({ rev, path, start, end }) => answerAsync(() => scmFile(repoRoot, rev, path, start, end)));
   for (const tool of registry.mcpTools) {
-    server.registerTool(tool.name, { description: tool.description, inputSchema: tool.input, annotations }, async (input, extra) => answerAsync(async () => capOutput(await tool.run({ sessionId, repo: repoRoot, webspec: caps.webspec, knowledge: caps.knowledge, signal: extra.signal }, input), MAX_TOOL_OUTPUT)));
+    server.registerTool(tool.name, { description: tool.description, inputSchema: tool.input, annotations }, async (input, extra) => answerAsync(async () => capOutput(await tool.run({ sessionId, repo: repoRoot, webspec: caps.webspec, knowledge: caps.knowledge, codeSearch: caps.codeSearch, signal: extra.signal }, input), MAX_TOOL_OUTPUT)));
   }
   return server;
 }
@@ -79,7 +83,8 @@ async function main(args: string[]): Promise<void> {
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
   const knowledge = new KnowledgeStore(join(dirname(value("--db")), "knowledge.db"), { readOnly: true });
-  const server = createSessionServer(pluginRegistry([corePlugin, ...plugins]), store, sessionId, store.getSession(sessionId).worktree, { webspec: makeWebspec({ bin: optional("--webspec-bin") }), knowledge });
+  const searchfoxBin = optional("--searchfox-bin");
+  const server = createSessionServer(pluginRegistry([corePlugin, ...plugins]), store, sessionId, store.getSession(sessionId).worktree, { webspec: makeWebspec({ bin: optional("--webspec-bin") }), knowledge, codeSearch: makeCodeSearch(makeSearchfox({ bin: searchfoxBin }), { searchfoxBin, chromiumSearchBin: optional("--chromium-search-bin") }) });
   await server.connect(new StdioServerTransport());
 }
 

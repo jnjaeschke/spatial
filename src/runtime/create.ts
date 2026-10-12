@@ -27,8 +27,8 @@ export function defaultDbPath(): string {
 }
 
 /** The session MCP server: a stdio child reading the session database, with the tool binaries the runtime uses. */
-export function sessionServerSpec(dbPath: string, sessionId: Id, bins: { webspecBin?: string }): McpServerSpec {
-  return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", dbPath, "--session", sessionId, ...(bins.webspecBin ? ["--webspec-bin", bins.webspecBin] : [])] };
+export function sessionServerSpec(dbPath: string, sessionId: Id, bins: { webspecBin?: string; searchfoxBin?: string; chromiumSearchBin?: string }): McpServerSpec {
+  return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", dbPath, "--session", sessionId, ...(bins.webspecBin ? ["--webspec-bin", bins.webspecBin] : []), ...(bins.searchfoxBin ? ["--searchfox-bin", bins.searchfoxBin] : []), ...(bins.chromiumSearchBin ? ["--chromium-search-bin", bins.chromiumSearchBin] : [])] };
 }
 
 /** The code search of every engine: Gecko over `searchfox`, WebKit over searchfox's `wubkat` repository, Blink over chromium-search. */
@@ -56,6 +56,6 @@ export function createRuntime(opts: {
     webspec: makeWebspec({ bin: opts.webspecBin }), searchfox, codeSearch: makeCodeSearch(searchfox, { searchfoxBin: opts.searchfoxBin, chromiumSearchBin: opts.chromiumSearchBin }),
     repoContext: loadRepoContext,
     knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
-    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId, { webspecBin: opts.webspecBin }) }),
+    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId, { webspecBin: opts.webspecBin, searchfoxBin: opts.searchfoxBin, chromiumSearchBin: opts.chromiumSearchBin }) }),
   });
 }

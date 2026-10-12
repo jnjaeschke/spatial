@@ -84,6 +84,32 @@ The scopes enclosing a line, innermost first; empty at file scope. Network.
 
 ***
 
+### search()
+
+> **search**(`query`, `signal`, `limit?`): `Promise`\<`object`[]\>
+
+Lines whose text matches `query` (case-insensitive), at most `limit` (default 30). Network.
+
+#### Parameters
+
+##### query
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+##### limit?
+
+`number`
+
+#### Returns
+
+`Promise`\<`object`[]\>
+
+***
+
 ### specRefs()
 
 > **specRefs**(`url`, `signal`, `limit?`): `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>

@@ -1,0 +1,5 @@
+docshell/base/BrowsingContext.h:542: MOZ_CAN_RUN_SCRIPT void Navigate(
+docshell/base/BrowsingContext.cpp:2648: void BrowsingContext::Navigate(
+docshell/base/BrowsingContext.cpp:2697:     // When BrowsingContext::Navigate can get called with browser UI involvement
+docshell/base/nsDocShell.cpp:12313:   // navigation path (see BrowsingContext::Navigate). The pre-consume value is
+Total matches: 4

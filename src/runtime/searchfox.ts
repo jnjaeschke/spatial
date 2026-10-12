@@ -37,6 +37,14 @@ export function parseFunctionAt(output: string): CodeScope[] {
   });
 }
 
+/** The hits of `searchfox-cli -q` output: its `path:line: text` rows (the closing `Total matches: N` is none). */
+export function parseSearch(output: string): { path: string; line: number; snippet: string }[] {
+  return output.split("\n").flatMap((row) => {
+    const hit = /^([^\s:][^:]*):(\d+): (.*)$/.exec(row);
+    return hit ? [{ path: hit[1]!, line: Number(hit[2]), snippet: hit[3]! }] : [];
+  });
+}
+
 export function makeSearchfox(opts: { bin?: string; repo?: SearchfoxRepo; tipTtlMs?: number; now?: () => number } = {}): SearchfoxCapability {
   const bin = opts.bin ?? "searchfox-cli";
   const repo = opts.repo ?? "mozilla-central";
@@ -65,6 +73,9 @@ export function makeSearchfox(opts: { bin?: string; repo?: SearchfoxRepo; tipTtl
     async specRefs(url, signal, limit = 30) {
       return parseSpecRefs(await run(["--spec-refs", value(url), "-l", String(limit)], signal));
     },
+    async search(query, signal, limit = 30) {
+      return parseSearch(await run(["-q", value(query), "-l", String(limit)], signal));
+    },
     async functionAt(path, line, signal) {
       if (!Number.isInteger(line) || line < 1) throw new Error(`searchfox-cli line must be a positive integer: ${line}`);
       return parseFunctionAt(await run(["--function-at", `${value(path)}:${line}`], signal));
@@ -92,6 +103,7 @@ export function searchfoxCodeSearch(engine: "gecko" | "webkit", searchfox: Searc
   return {
     effect: "read-only", engine, pinned: true, heuristicScopes: false,
     specRefs: (url, signal, limit) => searchfox.specRefs(url, signal, limit),
+    search: (query, signal, limit) => searchfox.search(query, signal, limit),
     functionAt: (path, line, signal) => searchfox.functionAt(path, line, signal),
     async file(path, signal) {
       try { return await searchfox.file(path, signal); }

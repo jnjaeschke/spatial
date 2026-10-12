@@ -46,6 +46,8 @@ export interface SearchfoxCapability {
   define(symbol: string, signal: AbortSignal): Promise<{ path: string; line: number; text: string } | null>;
   /** Existing Gecko lines referencing a spec section, at most `limit` (default 30); Searchfox matches fragments as prefixes. Network. */
   specRefs(url: string, signal: AbortSignal, limit?: number): Promise<GeckoSpecRef[]>;
+  /** Lines whose text matches `query` (case-insensitive), at most `limit` (default 30). Network. */
+  search(query: string, signal: AbortSignal, limit?: number): Promise<{ path: string; line: number; snippet: string }[]>;
   /** The scopes enclosing a line, innermost first; empty at file scope. Network. */
   functionAt(path: string, line: number, signal: AbortSignal): Promise<CodeScope[]>;
   /** A file's text at Searchfox's current indexed revision. Network. */

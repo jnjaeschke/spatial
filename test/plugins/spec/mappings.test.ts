@@ -26,6 +26,7 @@ function setup() {
   const searchfox: SearchfoxCapability = {
     effect: "read-only",
     async define() { return null; },
+    async search() { throw new Error("not used"); },
     async specRefs(url) { await gate.hold; calls.push(`specRefs ${url}`); return url.endsWith("#setup") ? [{ group: "Code", path: "dom/Setup.cpp", line: 1, url: "https://searchfox.org/mozilla-central/source/dom/Setup.cpp#1" }] : []; },
     async functionAt(path, line) { return path === "dom/Setup.cpp" && line >= 2 && line <= 6 ? [SETUP] : []; },
     async file(path) { if (path !== "dom/Setup.cpp") throw new Error("searchfox-cli exited with code 1: Error: Request failed: 404 Not Found"); return FILE; },

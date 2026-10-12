@@ -11,6 +11,8 @@ export interface CodeSearch {
   readonly heuristicScopes: boolean;
   /** Lines linking a spec section, at most `limit` (default 30), grouped `Code` or a test group. The fragment may be matched as a prefix: callers check each line. Network. */
   specRefs(url: string, signal: AbortSignal, limit?: number): Promise<GeckoSpecRef[]>;
+  /** Lines whose text matches `query`, at most `limit` (default 30). Network. */
+  search(query: string, signal: AbortSignal, limit?: number): Promise<{ path: string; line: number; snippet: string }[]>;
   /** The scopes enclosing a line, innermost first; empty outside every function and type. Network. */
   functionAt(path: string, line: number, signal: AbortSignal): Promise<CodeScope[]>;
   /** A file's text at the current revision; null when it does not exist. Network. */
@@ -22,7 +24,7 @@ export interface CodeSearch {
 /** The code search of an engine the runtime has no tool for: every call fails. */
 export function missingCodeSearch(engine: Engine): CodeSearch {
   const fail = async (): Promise<never> => { throw new Error(`No ${engine} code search configured`); };
-  return { effect: "read-only", engine, pinned: true, heuristicScopes: false, specRefs: fail, functionAt: fail, file: fail, tip: fail };
+  return { effect: "read-only", engine, pinned: true, heuristicScopes: false, specRefs: fail, search: fail, functionAt: fail, file: fail, tip: fail };
 }
 
 /** `text` with regular expression metacharacters escaped. */

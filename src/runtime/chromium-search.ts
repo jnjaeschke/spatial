@@ -48,6 +48,11 @@ export function makeChromiumSearch(opts: { bin?: string } = {}): CodeSearch {
       const stdout = await run(["search", `pcre:yes ${escapeRegex(prefix)}\\S*#${escapeRegex(anchor)} -file:^out/`, "--json", "path,line,snippet", "-L", String(limit)], signal);
       return (JSON.parse(stdout) as { path: string; line: number }[]).map(({ path, line }) => ({ group: TEST_PATH.test(path) ? "Test" : "Code", path, line, url: `${REPO_BASE}+/main:${path};l=${line}` }));
     },
+    async search(query, signal, limit = 30) {
+      if (query.startsWith("-")) throw new Error(`chromium-search argument must not start with "-": ${query}`);
+      const stdout = await run(["search", `pcre:yes ${escapeRegex(query)} -file:^out/`, "--json", "path,line,snippet", "-L", String(limit)], signal);
+      return (JSON.parse(stdout) as { path: string; line: number; snippet: string }[]).map(({ path, line, snippet }) => ({ path, line, snippet }));
+    },
     async functionAt(path, line, signal) {
       if (!Number.isInteger(line) || line < 1) throw new Error(`chromium-search line must be a positive integer: ${line}`);
       const text = await file(path, signal);

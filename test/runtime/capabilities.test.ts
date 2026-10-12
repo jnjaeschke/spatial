@@ -53,6 +53,19 @@ test("searchfox: file returns the raw text; specRefs passes its limit", async ()
   assert.deepEqual([refs.length, refs.filter((r) => r.group === "Code").length, refs.filter((r) => r.group === "Web-Platform Test").length], [44, 32, 12]);
 });
 
+test("searchfox: search parses path:line: text hits and passes its limit", async () => {
+  stdout(SEARCHFOX_FIXTURE("query.txt"));
+  const sf = makeSearchfox({ bin: STUB });
+  const hits = await sf.search("BrowsingContext::Navigate", signal, 4);
+  assert.deepEqual(argv()[0], ["-q", "BrowsingContext::Navigate", "-l", "4"]);
+  assert.equal(hits.length, 4);
+  assert.deepEqual(hits[1], { path: "docshell/base/BrowsingContext.cpp", line: 2648, snippet: "void BrowsingContext::Navigate(" });
+  stdout(SEARCHFOX_FIXTURE("query-none.txt"));
+  assert.deepEqual(await sf.search("zzqqNoSuchThingxx", signal), []);
+  assert.deepEqual(argv()[1], ["-q", "zzqqNoSuchThingxx", "-l", "30"]);
+  await assert.rejects(sf.search("--clear-cache", signal), /must not start with "-"/);
+});
+
 test("searchfox: values that searchfox-cli would read as flags are rejected before it runs", async () => {
   const sf = makeSearchfox({ bin: STUB });
   await assert.rejects(sf.file("--clear-cache", signal), /must not start with "-"/);

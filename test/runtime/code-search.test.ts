@@ -16,11 +16,13 @@ test("missingCodeSearch fails every call with the engine named", async () => {
   assert.deepEqual([code.pinned, code.heuristicScopes], [true, false]);
   await assert.rejects(code.tip(), /No blink code search configured/);
   await assert.rejects(code.file("a.cc", signal), /No blink code search configured/);
+  await assert.rejects(code.search("q", signal), /No blink code search configured/);
 });
 
 test("searchfoxCodeSearch passes calls through, reads a missing file as null, and keeps other failures", async () => {
   const searchfox = {
     specRefs: async (_url: string, _signal: AbortSignal, limit?: number) => [{ group: "Code", path: "a.cpp", line: limit ?? 0, url: "u" }],
+    search: async (query: string, _signal: AbortSignal, limit?: number) => [{ path: "a.cpp", line: limit ?? 0, snippet: query }],
     functionAt: async () => [{ symbol: "_Z1av", signature: "void a() {" }],
     file: async (path: string) => { if (path === "a.cpp") return "text"; throw new Error(path === "gone.cpp" ? "searchfox-cli exited with code 1: Error: Request failed: 404 Not Found" : "searchfox-cli exited with code 1: network unreachable"); },
     tip: async () => ({ repoBase: "https://searchfox.org/mozilla-central/", rev: "abc" }),
@@ -29,6 +31,7 @@ test("searchfoxCodeSearch passes calls through, reads a missing file as null, an
   assert.deepEqual([code.pinned, code.heuristicScopes], [true, false]);
   assert.deepEqual([code.engine, code.effect], ["gecko", "read-only"]);
   assert.deepEqual(await code.specRefs("u", signal, 500), [{ group: "Code", path: "a.cpp", line: 500, url: "u" }]);
+  assert.deepEqual(await code.search("q", signal, 5), [{ path: "a.cpp", line: 5, snippet: "q" }]);
   assert.deepEqual(await code.functionAt("a.cpp", 1, signal), [{ symbol: "_Z1av", signature: "void a() {" }]);
   assert.equal(await code.file("a.cpp", signal), "text");
   assert.equal(await code.file("gone.cpp", signal), null);

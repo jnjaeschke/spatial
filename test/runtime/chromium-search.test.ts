@@ -31,6 +31,15 @@ test("specRefs searches the spec prefix line by line, groups test directories as
   assert.ok(refs.filter((ref) => ref.group !== "Code").every((ref) => ref.group === "Test" && ref.path.includes("/web_tests/")));
 });
 
+test("search looks for the literal text line by line outside out/, with its limit", async () => {
+  stdout(fixture("spec-links-navigate.json"));
+  const hits = await makeChromiumSearch({ bin: STUB }).search("FrameLoader::CancelProvisionalLoaderForNewNavigation(", signal, 20);
+  assert.deepEqual(argv()[0], ["search", "pcre:yes FrameLoader::CancelProvisionalLoaderForNewNavigation\\( -file:^out/", "--json", "path,line,snippet", "-L", "20"]);
+  assert.equal(hits.length, 14);
+  assert.deepEqual(Object.keys(hits[0]!).sort(), ["line", "path", "snippet"]);
+  await assert.rejects(makeChromiumSearch({ bin: STUB }).search("--help", signal), /must not start with "-"/);
+});
+
 test("file parses cat -n output once per path; a failure other than a missing file throws", async () => {
   stdout(fixture("frame_loader.cc.txt"));
   const chromium = makeChromiumSearch({ bin: STUB });

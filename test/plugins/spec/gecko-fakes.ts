@@ -9,7 +9,7 @@ const FILES: Record<string, { length: number; line: number; text: string }> = {
   "dom/Fourth.cpp": { length: 9, line: 1, text: "void Fourth::One() {" },
 };
 export const searchfox: SearchfoxCapability = {
-  effect: "read-only", async define() { return null; }, async specRefs() { return []; },
+  effect: "read-only", async define() { return null; }, async specRefs() { return []; }, async search() { throw new Error("not used"); },
   async functionAt(path, line) {
     if (path === "docshell/base/BrowsingContext.cpp" && line >= 2648 && line <= 2735) return [NAVIGATE];
     if (path === "docshell/base/nsDocShell.cpp") return [INTERNAL_LOAD];

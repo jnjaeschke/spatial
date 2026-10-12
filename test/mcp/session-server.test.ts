@@ -18,8 +18,10 @@ import { makeWebspec } from "../../src/runtime/webspec.ts";
 import { MAX_TOOL_OUTPUT } from "../../src/runtime/git.ts";
 import type { WebspecCapability } from "../../src/runtime/tasks.ts";
 import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
+import type { CodeSearch } from "../../src/runtime/code-search.ts";
 
-const caps = { webspec: makeWebspec(), knowledge: new KnowledgeStore(":memory:") };
+const code = {} as CodeSearch;
+const caps = { webspec: makeWebspec(), knowledge: new KnowledgeStore(":memory:"), codeSearch: { gecko: code, blink: code, webkit: code } };
 
 const text = (result: Awaited<ReturnType<Client["callTool"]>>) => (result.content as { text: string }[])[0]!.text;
 const registry = pluginRegistry([corePlugin, ...plugins]);
@@ -39,7 +41,7 @@ test("session MCP exposes live read-only overview, get, and search", async () =>
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["get", "read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview", "spec_effects", "spec_flow", "spec_query", "spec_refs", "spec_state"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["code_read", "code_search", "get", "read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview", "spec_effects", "spec_flow", "spec_impl", "spec_query", "spec_refs", "spec_state"]);
   assert.ok(tools.every((tool) => tool.annotations?.readOnlyHint === true));
   const got = await client.callTool({ name: "get", arguments: { ref: `${narrative.id}#c1` } });
   assert.match(text(got), /Useful explanation/);
@@ -167,7 +169,7 @@ test("plugin MCP tools are registered read-only, run with the session context an
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const seen: unknown[] = [];
   const webspec = makeWebspec();
-  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, webspec)] }]), store, session.id, "/repo", { webspec, knowledge: new KnowledgeStore(":memory:") });
+  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, webspec)] }]), store, session.id, "/repo", { webspec, knowledge: new KnowledgeStore(":memory:"), codeSearch: caps.codeSearch });
   const client = new Client({ name: "test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -196,4 +198,7 @@ test("the session server spec passes the webspec binary when one is configured",
   };
   assert.deepEqual(args(sessionServerSpec("/d/db.sqlite", "S", { webspecBin: "/bin/ws" })), ["--db", "/d/db.sqlite", "--session", "S", "--webspec-bin", "/bin/ws"]);
   assert.deepEqual(args(sessionServerSpec("/d/db.sqlite", "S", {})), ["--db", "/d/db.sqlite", "--session", "S"]);
+  const configured = sessionServerSpec("/d/db.sqlite", "S", { searchfoxBin: "/bin/sf", chromiumSearchBin: "/bin/cs" });
+  if (configured.type !== "stdio") throw new Error("Expected a stdio session server");
+  assert.deepEqual(configured.args.slice(5), ["--searchfox-bin", "/bin/sf", "--chromium-search-bin", "/bin/cs"]);
 });

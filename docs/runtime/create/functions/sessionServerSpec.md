@@ -22,6 +22,14 @@ The session MCP server: a stdio child reading the session database, with the too
 
 ### bins
 
+#### chromiumSearchBin?
+
+`string`
+
+#### searchfoxBin?
+
+`string`
+
 #### webspecBin?
 
 `string`

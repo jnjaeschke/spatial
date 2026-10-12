@@ -82,6 +82,32 @@ The scopes enclosing a line, innermost first; empty outside every function and t
 
 ***
 
+### search()
+
+> **search**(`query`, `signal`, `limit?`): `Promise`\<`object`[]\>
+
+Lines whose text matches `query`, at most `limit` (default 30). Network.
+
+#### Parameters
+
+##### query
+
+`string`
+
+##### signal
+
+`AbortSignal`
+
+##### limit?
+
+`number`
+
+#### Returns
+
+`Promise`\<`object`[]\>
+
+***
+
 ### specRefs()
 
 > **specRefs**(`url`, `signal`, `limit?`): `Promise`\<[`GeckoSpecRef`](../../../shared/types/interfaces/GeckoSpecRef.md)[]\>
