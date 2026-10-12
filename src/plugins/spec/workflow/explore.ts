@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Artifact, DecisionData, Id, Phase, Workflow } from "../../../plugin-api.ts";
+import { chosenDecision, type Artifact, type Id, type Phase, type Workflow } from "../../../plugin-api.ts";
 import type { SpecSearchData } from "../shared/types.ts";
 import { isSpecQuery, specRef } from "../shared/refs.ts";
 import { openSpec } from "../runtime/open.ts";
@@ -19,8 +19,8 @@ export const explorePhase: Phase<ExploreInput> = {
     const search = view.artifacts.findLast((a) => a.type === "SpecSearch" && a.epoch === epoch.n) as Artifact<SpecSearchData> | undefined;
     if (!search) return null;
     const question = `Which section for "${search.data.phrase}"?`;
-    const decision = view.artifacts.findLast((a) => a.type === "Decision" && a.epoch === epoch.n && (a.data as DecisionData).key === "section") as Artifact<DecisionData> | undefined;
-    if (decision?.data.chosen) return { run: "explore", input: { query: decision.data.chosen.option } };
+    const chosen = chosenDecision(view, epoch.n, "section");
+    if (chosen) return { run: "explore", input: { query: chosen.option } };
     return { decide: { key: "section", question, options: search.data.results.map((r) => ({ id: specRef(r.spec, r.anchor), label: `${r.title} (${specRef(r.spec, r.anchor)})` })) } };
   },
 };

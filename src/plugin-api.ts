@@ -63,6 +63,7 @@ export { specUrlParts } from "./runtime/code-search.ts";
 export { ENGINE_LABEL, ENGINES } from "./shared/engines.ts";
 export { escapeRegex } from "./shared/regex.ts";
 export { plural } from "./shared/plural.ts";
+export { chosenDecision } from "./shared/decisions.ts";
 export { isActive, taskState } from "./shared/task-state.ts";
 export type { CodeSearch } from "./runtime/code-search.ts";
 export { makeChromiumSearch } from "./runtime/chromium-search.ts";

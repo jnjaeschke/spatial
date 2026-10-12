@@ -6,7 +6,7 @@ import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 import { commentsFeedback } from "../runtime/comments-feedback.ts";
-import { workflowView } from "../../../plugin-api.ts";
+import { chosenDecision, workflowView } from "../../../plugin-api.ts";
 
 export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
@@ -15,7 +15,6 @@ const planInvalidQuestion = (reason: string) => `The implement agent reports tha
 const fixQuestion = (count: number) => `Fix ${count} high finding${count === 1 ? "" : "s"}`;
 const REVIEW_KEYS = new Set(["review-fix", "reviewed"]);
 
-type Chosen = NonNullable<DecisionData["chosen"]>;
 const latest = <T>(view: WorkflowView, type: string) => view.artifacts.findLast((a) => a.type === type) as Artifact<T> | undefined;
 const decisionsOf = (view: WorkflowView) => view.artifacts.filter((a) => a.type === "Decision") as Artifact<DecisionData>[];
 
@@ -27,10 +26,6 @@ function ruleRounds(decisions: Artifact<DecisionData>[]): number {
     if (data.chosen.by === "rule" && data.chosen.option === "fix") count++;
   }
   return count;
-}
-
-function answered(decisions: Artifact<DecisionData>[], key: string, epoch: number): Chosen | null {
-  return decisions.findLast((a) => a.data.key === key && a.epoch === epoch && a.data.chosen)?.data.chosen ?? null;
 }
 
 function bugOf(decisions: Artifact<DecisionData>[], investigation: Artifact<InvestigationData>): number | null {
@@ -90,7 +85,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   const open = openHighFindings(view);
   const decisionStep = (key: string, question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { key, question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
   const llm = (selection: LlmSelection | undefined) => selection ? { llm: selection } : {};
-  const approve = answered(decisions, "approve", last.n);
+  const approve = chosenDecision(view, last.n, "approve");
   const implementLlm = chosenImplementLlm(decisions) ?? start.data.llm;
   const again = (investigation: Artifact<InvestigationData>, text: string | null, ignorePlanInvalid = false): Step =>
     implementStep({ branch, investigation, bug: bugOf(decisions, investigation), text, fix: open.map((finding) => finding.id), ignorePlanInvalid, llm: implementLlm, start });
@@ -111,7 +106,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (last.phase === "implement") {
     if (!result || !investigation) return null;
     if (result.data.planInvalid) {
-      const reason = result.data.planInvalid, question = planInvalidQuestion(reason), choice = answered(decisions, "plan-invalid", last.n);
+      const reason = result.data.planInvalid, question = planInvalidQuestion(reason), choice = chosenDecision(view, last.n, "plan-invalid");
       if (!choice) return decisionStep("plan-invalid", question, [
         { id: "reinvestigate", label: "Re-investigate", takesText: true, defaultText: reason },
         { id: "continue", label: "Continue anyway", takesText: true }, { id: "cancel", label: "Cancel" },
@@ -139,7 +134,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   }
 
   if (last.phase === "reviewerComments") {
-    const items = commentPlan(view, last), question = workInQuestion((last.input as ReviewerCommentsInput).comments.length), choice = answered(decisions, "work-in", last.n);
+    const items = commentPlan(view, last), question = workInQuestion((last.input as ReviewerCommentsInput).comments.length), choice = chosenDecision(view, last.n, "work-in");
     if (!choice) return decisionStep("work-in", question, [{ id: "work", label: "Work in" }, { id: "later", label: "Not yet" }]);
     const text = choice.option === "work" ? commentsFeedback(items) : null;
     return text && investigation && result ? again(investigation, text) : null;
