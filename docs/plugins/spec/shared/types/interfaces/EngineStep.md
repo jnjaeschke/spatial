@@ -6,7 +6,7 @@
 
 # Interface: EngineStep
 
-A Step comment inside a mapped function: the comment's line, whether it matches the step's text, and why (`detail`, shown as its tooltip).
+A Step comment inside a mapped function: the comment's line and code, whether it matches the step's text, and why (`detail`, shown as its tooltip).
 
 ## Properties
 
@@ -19,6 +19,12 @@ A Step comment inside a mapped function: the comment's line, whether it matches 
 ### line
 
 > **line**: `number`
+
+***
+
+### quote?
+
+> `optional` **quote?**: `string`
 
 ***
 

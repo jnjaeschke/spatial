@@ -11,7 +11,7 @@ export const siteKey = (site: Pick<EngineSite, "path" | "symbol" | "line">) => s
 export const byPlace = (a: Pick<EngineSite, "path" | "line">, b: Pick<EngineSite, "path" | "line">) => a.path.localeCompare(b.path) || a.line - b.line;
 
 /** Whether tier 1 derives a site from spec-link comments: every mapping run recomputes such sites, so they are never carried over or merged back. */
-export const fromLinks = (site: Pick<EngineSite, "method">) => site.method === "spec-link";
+export const fromLinks = (site: Pick<EngineSite, "method">) => site.method === "spec-link" || site.method === "spec-link-heuristic";
 
 /** A mapping run's result with rejections, confirmations and proposals stored while it ran; tier 1 sites come from the result only. */
 export function mergeLatest(result: EngineMapping, latest: EngineMapping): EngineMapping {
@@ -48,7 +48,7 @@ export function siteName(site: Pick<EngineSite, "signature" | "path" | "line">):
 }
 
 /** Permalink of a line at a mapping's revision. */
-export const codeUrl = (mapping: Pick<EngineMapping, "repoBase" | "rev">, path: string, line: number) => `${mapping.repoBase}rev/${mapping.rev}/${path}#${line}`;
+export const codeUrl = (mapping: Pick<EngineMapping, "engine" | "repoBase" | "rev">, path: string, line: number) => mapping.engine === "blink" ? `${mapping.repoBase}+/${mapping.rev}:${path};l=${line}` : `${mapping.repoBase}rev/${mapping.rev}/${path}#${line}`;
 
 /** Where `quote` is in `lines` (1-based): `line` while it is still there, else the one nearest line with the same trimmed text; null when it is gone or two copies are equally near. */
 export function followQuote(lines: string[], line: number, quote: string): number | null {

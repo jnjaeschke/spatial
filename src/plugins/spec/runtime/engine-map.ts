@@ -29,7 +29,7 @@ const COMPLETE = /[;}]\s*$/;
  * Tier 1: the functions whose spec-link comments link the algorithm, one site per function with the comment lines in `refs`; a comment
  * outside any function belongs to the definition directly below it, or is a declaration site of its own. Also the tests that link it.
  */
-export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "functionAt" | "file">, algorithm: { url: string; anchor: string }, signal: AbortSignal): Promise<{ sites: EngineSite[]; tests: EngineTest[]; files: Map<string, string[]> }> {
+export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "functionAt" | "file" | "heuristicScopes">, algorithm: { url: string; anchor: string }, signal: AbortSignal): Promise<{ sites: EngineSite[]; tests: EngineTest[]; files: Map<string, string[]> }> {
   const refs = (await search.specRefs(algorithm.url, signal, REF_LIMIT)).filter((ref) => ref.group !== "Code" || isCodePath(ref.path));
   const texts = await Promise.all([...new Set(refs.map((ref) => ref.path))].map(async (path) => [path, await search.file(path, signal)] as const));
   const files = new Map(texts.flatMap(([path, text]): [string, string[]][] => text === null ? [] : [[path, text.split("\n")]]));
@@ -39,7 +39,7 @@ export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "funct
     const lines = files.get(ref.path)!;
     const { scope, at } = await enclosing(search, ref, lines, signal);
     const line = scope ? definitionLine(lines, at, scope.signature) : at;
-    const site: EngineSite = { path: ref.path, line, symbol: scope?.symbol ?? "", signature: scope?.signature ?? (lines[at - 1] ?? "").trim(), quote: (lines[line - 1] ?? "").trim(), method: "spec-link", refs: [], steps: [] };
+    const site: EngineSite = { path: ref.path, line, symbol: scope?.symbol ?? "", signature: scope?.signature ?? (lines[at - 1] ?? "").trim(), quote: (lines[line - 1] ?? "").trim(), method: scope && search.heuristicScopes ? "spec-link-heuristic" : "spec-link", refs: [], steps: [] };
     const key = siteKey(site);
     if (!sites.has(key)) sites.set(key, site);
     sites.get(key)!.refs.push(ref.line);
@@ -79,7 +79,7 @@ export async function addSteps(search: Pick<CodeSearch, "functionAt">, analyze: 
       if (!scope || !symbols.has(scope.symbol)) continue;
       const key = `${path}|${scope.symbol}`;
       if (!steps.has(key)) steps.set(key, []);
-      steps.get(key)!.push({ step: check.step, line: check.line, verdict: check.result === "exact" || check.result === "fuzzy" ? "match" : "mismatch", detail: `webspec-index: ${check.result}.${check.text ? ` The comment says: “${check.text}”` : ""}` });
+      steps.get(key)!.push({ step: check.step, line: check.line, verdict: check.result === "exact" || check.result === "fuzzy" ? "match" : "mismatch", detail: `webspec-index: ${check.result}.${check.text ? ` The comment says: “${check.text}”` : ""}`, quote: files.get(path)![check.line - 1] ?? "" });
     }
   }
   return sites.map((site) => site.symbol ? { ...site, steps: steps.get(siteKey(site)) ?? [] } : site);

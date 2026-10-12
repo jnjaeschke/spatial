@@ -11,6 +11,9 @@ import { ensureMapping, storedMapping, updateMapping } from "../../../src/plugin
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
 import { routeCall } from "../../helpers/route-call.ts";
+import { codeUrl } from "../../../src/plugins/spec/shared/engine.ts";
+import { fakeCode } from "../../helpers/fake-code.ts";
+import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const FILE = ["// https://html.spec.whatwg.org/#setup", "void Setup() {", "  // Step 1. Edit the line.", "  Edit();", "  // Step 2. Add the files.", "}", ""].join("\n");
@@ -53,10 +56,23 @@ test("tiers 1 and 2 map an algorithm to its function and Step comments, stored a
   assert.equal(read.entry.provenance.by, "plugin");
   assert.deepEqual({ ...(read.entry.value as EngineMapping), checkedAt: "" }, { engine: "gecko", repoBase: "https://searchfox.org/mozilla-central/", rev: "a".repeat(40), checkedAt: "", tests: [], rejected: [], sites: [
     { path: "dom/Setup.cpp", line: 2, symbol: "_Z5Setupv", signature: "void Setup() {", quote: "void Setup() {", method: "spec-link", refs: [1], steps: [
-      { step: "1", line: 3, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit the line.”" },
-      { step: "2", line: 5, verdict: "mismatch", detail: "webspec-index: mismatch. The comment says: “Add the files.”" },
+      { step: "1", line: 3, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit the line.”", quote: "  // Step 1. Edit the line." },
+      { step: "2", line: 5, verdict: "mismatch", detail: "webspec-index: mismatch. The comment says: “Add the files.”", quote: "  // Step 2. Add the files." },
     ] },
   ] });
+});
+
+test("a Blink mapping runs through its code search, with brace-scan sites and Chromium permalinks", async () => {
+  const { code } = fakeCode({ "a.cc": "// https://html.spec.whatwg.org/#setup\nvoid Setup() {\n  Edit();\n}" }, [{ group: "Code", path: "a.cc", line: 1, url: "u" }]);
+  const { rt, session } = specRuntime({ codeSearch: { blink: code } });
+  const events: unknown[] = [];
+  rt.onEvent((event) => { if (event.type === "spec.mapping") events.push(event.payload); });
+  await ensureMapping(rt, session.id, "blink", putAlgorithm(rt, session.id));
+  const mapping = storedMapping(rt.knowledge, "blink", "HTML#setup")!;
+  assert.deepEqual([mapping.engine, mapping.rev, mapping.sites.map((site) => [site.signature, site.line, site.method])], ["blink", "main", [["void Setup() {", 2, "spec-link-heuristic"]]]);
+  assert.equal(codeUrl(mapping, "a.cc", 2), "https://code.example/blink/+/main:a.cc;l=2");
+  assert.deepEqual(events, [{ ref: "HTML#setup", engine: "blink" }]);
+  assert.equal(storedMapping(rt.knowledge, "gecko", "HTML#setup"), null);
 });
 
 test("a mapping is recomputed only after a day and when the code search moved on", async () => {

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, fragmentOf, innermostFunction, isCodePath, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, fragmentOf, fromLinks, innermostFunction, isCodePath, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");
@@ -74,8 +74,14 @@ test("keys, permalinks and stored values", () => {
   assert.equal(mappingKey("gecko", "HTML#navigate"), "impl|gecko|HTML#navigate");
   assert.equal(siteKey({ path: "a.cpp", symbol: "_Z1av", line: 3 }), "a.cpp|_Z1av");
   assert.equal(siteKey({ path: "a.h", symbol: "", line: 3 }), "a.h:3");
-  assert.equal(codeUrl({ repoBase: "https://searchfox.org/mozilla-central/", rev: "0f".repeat(20) }, "dom/a.cpp", 4), `https://searchfox.org/mozilla-central/rev/${"0f".repeat(20)}/dom/a.cpp#4`);
+  assert.equal(codeUrl({ engine: "gecko", repoBase: "https://searchfox.org/mozilla-central/", rev: "0f".repeat(20) }, "dom/a.cpp", 4), `https://searchfox.org/mozilla-central/rev/${"0f".repeat(20)}/dom/a.cpp#4`);
+  assert.equal(codeUrl({ engine: "webkit", repoBase: "https://searchfox.org/wubkat/", rev: "6b" }, "Source/a.cpp", 4), "https://searchfox.org/wubkat/rev/6b/Source/a.cpp#4");
+  assert.equal(codeUrl({ engine: "blink", repoBase: "https://source.chromium.org/chromium/chromium/src/", rev: "main" }, "third_party/a.cc", 4), "https://source.chromium.org/chromium/chromium/src/+/main:third_party/a.cc;l=4");
   assert.throws(() => engineMapping({ engine: "gecko" }), /unexpected shape/);
+});
+
+test("heuristic spec-link sites count as links", () => {
+  assert.equal(fromLinks({ method: "spec-link-heuristic" }), true);
 });
 
 test("mergeLatest keeps rejections, confirmations and proposals stored while a mapping ran", () => {

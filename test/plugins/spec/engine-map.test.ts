@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { parseNumbered } from "../../../src/runtime/chromium-search.ts";
 import { addSteps, carryOver, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
+import { fakeCode } from "../../helpers/fake-code.ts";
 import type { EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
 import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
@@ -55,7 +57,8 @@ const ref = (group: string, path: string, line: number): GeckoSpecRef => ({ grou
 
 function fakeSearch(refs: GeckoSpecRef[]) {
   const calls: string[] = [];
-  const search: Pick<CodeSearch, "specRefs" | "functionAt" | "file"> = {
+  const search: Pick<CodeSearch, "specRefs" | "functionAt" | "file" | "heuristicScopes"> = {
+    heuristicScopes: false,
     async specRefs(url, _signal, limit) { calls.push(`specRefs ${url} ${limit}`); return refs; },
     async functionAt(path, line) { calls.push(`functionAt ${path}:${line}`); return SCOPES[path]?.(line) ?? []; },
     async file(path) { calls.push(`file ${path}`); return FILES[path]?.join("\n") ?? null; },
@@ -86,6 +89,45 @@ test("references group into one site per function, with a comment above the defi
   assert.ok(!calls.includes("functionAt docshell/base/nsDocShellLoadState.h:4"), "a complete declaration below a comment ends the lookahead");
   assert.ok(!calls.includes("functionAt docshell/base/BrowsingContext.cpp:11"), "a prefix match is dropped before any lookup");
   assert.ok(!calls.includes("functionAt docshell/base/Gone.cpp:4"), "a reference to a missing file is dropped with it");
+});
+
+const FL = "third_party/blink/renderer/core/loader/frame_loader.cc";
+const DOC = "third_party/blink/renderer/core/dom/document.h";
+const FRAME_LOADER = parseNumbered(readFileSync(new URL("../../fixtures/chromium/frame_loader.cc.txt", import.meta.url), "utf8")).join("\n");
+// document.h around the captured line 909: the link sits above a declaration in the class body.
+const DOCUMENT_H = [...Array(905).fill(""), "class Document {", " public:", "  // Corresponds to \"9. Abort the active document of browsingContext.\"", "  // https://html.spec.whatwg.org/C/#navigate", "  void Abort();", "};"].join("\n");
+const HITS = JSON.parse(readFileSync(new URL("../../fixtures/chromium/spec-links-navigate.json", import.meta.url), "utf8")) as { path: string; line: number; snippet: string }[];
+const BLINK_REFS = HITS.map(({ path, line }) => ({ group: /(^|\/)web_tests\//.test(path) ? "Test" : "Code", path, line, url: "u" }));
+// Each captured test file, with its captured lines at their numbers.
+const TEST_FILES = (() => {
+  const byPath = new Map<string, string[]>();
+  for (const hit of HITS) if (hit.path.includes("/web_tests/")) { const lines = byPath.get(hit.path) ?? []; lines[hit.line - 1] = hit.snippet; byPath.set(hit.path, lines); }
+  return Object.fromEntries([...byPath].map(([path, lines]) => [path, Array.from(lines, (line) => line ?? "").join("\n")]));
+})();
+
+test("Blink: the captured spec links become a declaration site, a heuristic function site and the exact-fragment tests", async () => {
+  const { code } = fakeCode({ [FL]: FRAME_LOADER, [DOC]: DOCUMENT_H, ...TEST_FILES }, BLINK_REFS);
+  const { sites, tests } = await specLinkSites(code, { url: "https://html.spec.whatwg.org/#navigate", anchor: "navigate" }, signal);
+  assert.deepEqual(sites.map((site) => [site.path, site.line, site.symbol, site.signature, site.method, site.refs]), [
+    [DOC, 910, "", "void Abort();", "spec-link", [909]],
+    [FL, 1813, "FrameLoader::CancelProvisionalLoaderForNewNavigation", "bool FrameLoader::CancelProvisionalLoaderForNewNavigation() {", "spec-link-heuristic", [1816]],
+  ]);
+  assert.equal(tests.length, 8);
+});
+
+test("WebKit: a prefix match from --spec-refs is dropped by its line, as for Gecko", async () => {
+  const file = ["void FrameLoader::loadURL() {", "  // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate", "  // https://html.spec.whatwg.org/#navigate-fragid", "}"].join("\n");
+  const { code } = fakeCode({ "Source/WebCore/loader/FrameLoader.cpp": file }, [{ group: "Code", path: "Source/WebCore/loader/FrameLoader.cpp", line: 2, url: "u" }, { group: "Code", path: "Source/WebCore/loader/FrameLoader.cpp", line: 3, url: "u" }], { engine: "webkit" });
+  const { sites } = await specLinkSites(code, { url: "https://html.spec.whatwg.org/#navigate", anchor: "navigate" }, signal);
+  assert.deepEqual(sites.map((site) => [site.line, site.method, site.refs]), [[1, "spec-link", [2]]]);
+});
+
+test("Step comment steps keep their comment line as quote", async () => {
+  const search = { async functionAt() { return [{ symbol: "S", signature: "void S() {" }]; } };
+  const site = { path: "a.cc", line: 1, symbol: "S", signature: "void S() {", quote: "void S() {", method: "spec-link-heuristic" as const, refs: [1], steps: [] };
+  const analyze = async () => [{ line: 2, step: "1", text: "Edit.", result: "exact" as const, url: "https://html.spec.whatwg.org/C/#setup" }];
+  const [out] = await addSteps(search, analyze, "setup", [site], new Map([["a.cc", ["void S() {", "  // Step 1. Edit.", "}"]]]), signal);
+  assert.deepEqual(out!.steps, [{ step: "1", line: 2, verdict: "match", detail: "webspec-index: exact. The comment says: “Edit.”", quote: "  // Step 1. Edit." }]);
 });
 
 test("a comment above template, macro and preprocessor lines belongs to the definition below them", async () => {
