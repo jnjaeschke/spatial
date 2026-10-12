@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PhaseViewProps } from "../../../web/plugin-api.ts";
-import { api, Composer, ErrorText, Segmented, useAction } from "../../../web/plugin-api.ts";
+import { api, Composer, ErrorText, plural, Segmented, useAction } from "../../../web/plugin-api.ts";
 import { commentPlan, type CommentPlanItem } from "../shared/comment-plan.ts";
 import type { CommentAction } from "../shared/types.ts";
 import { PhaseShell } from "./api.ts";
@@ -31,13 +31,18 @@ function CommentItem({ sessionId, item, readOnly }: { sessionId: string; item: C
 /** A `reviewerComments` epoch: each reviewer comment with its private interpretation and the user's mark; the Work in decision is in the top bar. */
 export function ReviewerCommentsView({ state, epoch, readOnly = false }: PhaseViewProps) {
   const [result, setResult] = useState<string | null>(null);
+  const { busy, error, run } = useAction();
   if (!epoch) return null;
   const items = commentPlan(state, epoch);
   const replies = items.filter((item) => item.action === "reply" && item.text).length;
   return <PhaseShell state={state} epoch={epoch} readOnly={readOnly} running={epoch.status === "running" ? "Reading the reviewer comments…" : null}><div className="reviewer-comments-panel">
     {/* The text box is seeded from the interpretation, which can arrive after the comment shows: remount then. */}
     <ul className="reviewer-comments">{items.map((item) => <CommentItem key={`${item.comment.data.phid}:${item.interpretation?.id ?? ""}`} sessionId={state.session.id} item={item} readOnly={readOnly} />)}</ul>
-    {!readOnly && replies > 0 && <button type="button" data-testid="post-replies" onClick={() => api.postReplies(state.session.id).then((r) => setResult(`Posted ${r.posted} draft repl${r.posted === 1 ? "y" : "ies"}${r.skipped.length ? `; skipped ${r.skipped.length}: ${r.skipped.map((s) => s.reason).join("; ")}` : ""}`), (e: Error) => setResult(e.message))}>Post {replies} repl{replies === 1 ? "y" : "ies"} as Phabricator drafts</button>}
+    {!readOnly && replies > 0 && <><button type="button" data-testid="post-replies" disabled={busy} onClick={() => void run(async () => {
+      const r = await api.postReplies(state.session.id);
+      setResult(`Posted ${plural(r.posted, "draft reply", "draft replies")}${r.skipped.length ? `; skipped ${r.skipped.length}: ${r.skipped.map((s) => s.reason).join("; ")}` : ""}`);
+    })}>Post {plural(replies, "reply", "replies")} as Phabricator drafts</button><ErrorText error={error} />
+    </>}
     {result && <p data-testid="post-replies-result">{result}</p>}
   </div></PhaseShell>;
 }

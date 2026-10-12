@@ -21,8 +21,12 @@ export const get = <T>(path: string) => fetch(path).then((r) => parse<T>(r));
 /** POST JSON to a runtime route; rejects with `RequestError`. */
 export const post = <T>(path: string, body: unknown) =>
   fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
-const put = <T>(path: string, body: unknown) =>
+/** PUT JSON to a runtime route; rejects with `RequestError`. */
+export const put = <T>(path: string, body: unknown) =>
   fetch(path, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
+/** DELETE JSON to a runtime route; rejects with `RequestError`. */
+export const del = <T>(path: string, body: unknown) =>
+  fetch(path, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
 
 export const api = {
   sessions: () => get<Session[]>("/api/sessions"),

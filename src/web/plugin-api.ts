@@ -72,7 +72,7 @@ export { AskContext, ChatActionsContext, closeChat, draftTexts } from "./chat-co
 export { CollapseContext } from "./collapse.ts";
 export { ClosedContext, useClosed } from "./closed.ts";
 export { DiagramStepContext } from "./diagram-steps.ts";
-export { api, get as getJson, post as postJson, RequestError } from "./api.ts";
+export { api, get as getJson, post as postJson, put as putJson, del as delJson, RequestError } from "./api.ts";
 export { Conversation } from "./nodes/ChatNode.tsx";
 export type { ReplyActionProps } from "./reply-actions.ts";
 export type { ConversationItemProps } from "./conversation-items.ts";

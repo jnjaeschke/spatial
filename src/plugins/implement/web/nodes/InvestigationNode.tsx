@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { InvestigationNodeData } from "../graph.ts";
-import { IconButton, AskContext, InlineText, Box } from "../../../../web/plugin-api.ts";
+import { IconButton, AskContext, InlineText, Box, plural } from "../../../../web/plugin-api.ts";
 
 export type InvestigationFlowNode = Node<InvestigationNodeData & Record<string, unknown>, "investigation">;
 
@@ -19,8 +19,8 @@ export function InvestigationNode({ data }: NodeProps<InvestigationFlowNode>) {
       {d.exploration.length > 0 && <details><summary>What was tried ({d.exploration.length})</summary><ul>{d.exploration.map((e, index) => <li key={index}><InlineText text={e.tried} /> → <InlineText text={e.outcome} /></li>)}</ul></details>}
       {d.specRefs && d.specRefs.length > 0 && <><h4>Specs</h4><ul>{d.specRefs.map((ref, index) => <li key={index}>{ref.resolved ? <a href={ref.resolved.url} target="_blank" rel="noreferrer" className="nodrag">{ref.resolved.title}</a> : <span title={ref.reason}>{ref.url} (unresolved)</span>}</li>)}</ul></>}
       {d.diagramError && <p className="dropped">Diagram dropped: {d.diagramError}</p>}
-      {d.droppedLocations && d.droppedLocations.length > 0 && <p className="dropped" title={d.droppedLocations.join("\n")}>{d.droppedLocations.length} location{d.droppedLocations.length === 1 ? "" : "s"} dropped</p>}
-      {d.droppedChecks && d.droppedChecks.length > 0 && <p className="dropped" data-testid="dropped-checks" title={d.droppedChecks.join("\n")}>{d.droppedChecks.length} check{d.droppedChecks.length === 1 ? "" : "s"} dropped</p>}
+      {d.droppedLocations && d.droppedLocations.length > 0 && <p className="dropped" title={d.droppedLocations.join("\n")}>{plural(d.droppedLocations.length, "location")} dropped</p>}
+      {d.droppedChecks && d.droppedChecks.length > 0 && <p className="dropped" data-testid="dropped-checks" title={d.droppedChecks.join("\n")}>{plural(d.droppedChecks.length, "check")} dropped</p>}
     </div>
   </Box>;
 }
