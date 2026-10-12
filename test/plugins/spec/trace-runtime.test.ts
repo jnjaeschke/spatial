@@ -6,9 +6,13 @@ import { makeWebspec } from "../../../src/runtime/webspec.ts";
 import { fakeCode } from "../../helpers/fake-code.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
 import { generateTrace } from "../../../src/plugins/spec/runtime/traces.ts";
+import { addMappingStep } from "../../../src/plugins/spec/runtime/traces.ts";
+import { ensureMapping, storedMapping, updateMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
+import { mappingKey } from "../../../src/plugins/spec/shared/engine.ts";
+import { mappingStepSite } from "../../../src/plugins/spec/shared/trace-check.ts";
 import { traceStatus } from "../../../src/plugins/spec/shared/traces.ts";
-import type { GeneratedTrace, NoteResult, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../../../src/plugins/spec/shared/types.ts";
-import { specRuntime } from "../../helpers/spec-runtime.ts";
+import type { EngineMapping, GeneratedTrace, NoteResult, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../../../src/plugins/spec/shared/types.ts";
+import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
 
 const fake = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 const TRACE: GeneratedTrace = { title: "Snapshot before origin", entries: [
@@ -19,6 +23,8 @@ const TRACE: GeneratedTrace = { title: "Snapshot before origin", entries: [
 ], verdict: { answer: "fails", reasoning: "Step 3 runs after step 2." } };
 const FILE = "int a;\nvoid Navigate() {\n  if (!doc) return;\n}";
 const CODE = fakeCode({ "a.cc": FILE }, [], { engine: "gecko", repoBase: "https://sf/" }).code;
+const MAPPING: EngineMapping = { engine: "gecko", repoBase: "https://sf/", rev: "r1", sites: [{ path: "a.cc", line: 2, symbol: "_Z8Navigatev", signature: "void Navigate() {", quote: "void Navigate() {", method: "spec-link", refs: [1], steps: [] }], tests: [], rejected: [], checkedAt: "2026-10-11T00:00:00.000Z" };
+const navigate = (line: number, quote: string, step = "7") => ({ ref: "HTML#navigate", step, code: { engine: "gecko" as const, path: "a.cc", line, quote } });
 
 function setup(notes: NoteResult[] | (() => NoteResult[]), webspec: WebspecCapability = fake, gecko: CodeSearch = CODE) {
   const { rt, session, prompts } = specRuntime({ webspec, codeSearch: { gecko }, reply: (prompt) => prompt.system!.startsWith("You trace web spec algorithms") ? TRACE : prompt.system!.startsWith("You check notes on a trace") ? { notes: (typeof notes === "function" ? notes() : notes).slice(0, (prompt.prompt.match(/^## Note /gm) ?? []).length) } : { clauses: [] } });
@@ -53,6 +59,49 @@ test("generateTrace stores the LLM trace verbatim, checks it, verifies its notes
     { anchor: "HTML#snapshotting-source-snapshot-params", from: { anchor: "HTML#navigate", step: "2" } },
     { anchor: "HTML#setup", from: { anchor: "HTML#navigate", step: "3" } },
   ]);
+});
+
+test("mappingStepSite hints at the nearest non-stale site above in the same file, unless it maps the step already", () => {
+  assert.equal(mappingStepSite(MAPPING, { path: "a.cc", line: 3 }, "7"), 0);
+  assert.equal(mappingStepSite(MAPPING, { path: "a.cc", line: 1 }, "7"), null);
+  assert.equal(mappingStepSite(MAPPING, { path: "b.cc", line: 3 }, "7"), null);
+  assert.equal(mappingStepSite({ ...MAPPING, sites: [{ ...MAPPING.sites[0]!, steps: [{ step: "7", line: 3, verdict: "match", detail: "" }] }] }, { path: "a.cc", line: 3 }, "7"), null);
+  assert.equal(mappingStepSite({ ...MAPPING, sites: [{ ...MAPPING.sites[0]!, stale: true }] }, { path: "a.cc", line: 3 }, "7"), null);
+});
+
+test("addMappingStep re-verifies the quote and stores a user version with the proposed step on the site whose function holds the line", async () => {
+  const { rt, session } = setup([]);
+  rt.knowledge.put("global", "spec", mappingKey("gecko", "HTML#navigate"), MAPPING, { by: "plugin", sessionId: session.id });
+  await assert.rejects(addMappingStep(rt, session.id, navigate(2, "if (!doc)")), /a\.cc:2 does not read `if \(!doc\)`/);
+  await assert.rejects(addMappingStep(rt, session.id, navigate(3, "if (!doc)")), /a\.cc:3 does not read `if \(!doc\)`/);
+  await assert.rejects(addMappingStep(rt, session.id, navigate(1, "int a;")), /No gecko site of HTML#navigate holds a\.cc:1/);
+  const entry = await addMappingStep(rt, session.id, navigate(3, "if (!doc) return;"));
+  assert.deepEqual((entry.value as EngineMapping).sites[0]!.steps, [{ step: "7", line: 3, end: 3, quote: "if (!doc) return;", verdict: "proposed", detail: "Cited by a spec trace", origin: "trace" }]);
+  assert.deepEqual(entry.provenance, { by: "user", sessionId: session.id });
+  await assert.rejects(addMappingStep(rt, session.id, navigate(3, "if (!doc) return;")), /void Navigate\(\) \{ maps step 7 already/);
+});
+
+test("addMappingStep stores the step at the mapping's revision when the file moved since", async () => {
+  const { rt, session } = setup([], fake, fakeCode({ "a.cc": `int b;\n${FILE}` }, [], { engine: "gecko", repoBase: "https://sf/" }).code);
+  rt.knowledge.put("global", "spec", mappingKey("gecko", "HTML#navigate"), MAPPING, { by: "plugin", sessionId: session.id });
+  const entry = await addMappingStep(rt, session.id, navigate(4, "if (!doc) return;"));
+  assert.deepEqual((entry.value as EngineMapping).sites[0]!.steps.map((step) => [step.line, step.end]), [[3, 3]]);
+});
+
+test("a trace step stored while a mapping runs survives the mapping's write", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const { code } = fakeCode({ "a.cc": "// https://html.spec.whatwg.org/#setup\nvoid Setup() {\n  Edit();\n}" }, [{ group: "Code", path: "a.cc", line: 1, url: "u" }]);
+  const slow = { ...code, async specRefs(url: string, signal: AbortSignal, limit?: number) { await gate; return code.specRefs(url, signal, limit); } };
+  const { rt, session } = specRuntime({ codeSearch: { blink: slow } });
+  const algorithm = putAlgorithm(rt, session.id);
+  updateMapping(rt, session.id, "blink", "HTML#setup", { by: "plugin", sessionId: session.id }, () => ({ engine: "blink", repoBase: "r/", rev: "main", sites: [{ path: "a.cc", line: 2, symbol: "Setup()", signature: "void Setup() {", quote: "void Setup() {", method: "spec-link-heuristic", refs: [1], steps: [] }], tests: [], rejected: [], checkedAt: new Date(0).toISOString() }));
+  const running = ensureMapping(rt, session.id, "blink", algorithm);
+  await new Promise((resolve) => setImmediate(resolve));
+  await addMappingStep(rt, session.id, { ref: "HTML#setup", step: "1", code: { engine: "blink", path: "a.cc", line: 3, quote: "Edit();" } });
+  release();
+  await running;
+  assert.deepEqual(storedMapping(rt.knowledge, "blink", "HTML#setup")!.sites.map((site) => site.steps.map((step) => [step.step, step.line, step.origin])), [[["1", 3, "trace"]]]);
 });
 
 test("a re-check verifies the code references again", async () => {

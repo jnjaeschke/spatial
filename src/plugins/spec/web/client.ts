@@ -1,4 +1,4 @@
-import type { SpecOpenedData, SpecTraceData, TraceQuestion } from "../shared/types.ts";
+import type { SpecOpenedData, SpecTraceData, TraceCodeRef, TraceQuestion } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
 import type { EngineMapping } from "../shared/types.ts";
 import type { Engine } from "../../../plugin-api.ts";
@@ -26,6 +26,7 @@ export const specClient = {
   mappings: (sessionId: string, engine: Engine) => get<Record<string, EngineMapping | null>>(`/api/sessions/${sessionId}/spec/mappings?engine=${engine}`),
   findImplementation: (sessionId: string, ref: string, engine: Engine, stale: string | null) => post<{ taskId: string }>(`/api/sessions/${sessionId}/spec/mappings/find`, { ref, engine, stale }),
   decideImplementation: (sessionId: string, ref: string, engine: Engine, key: string, decision: "confirm" | "reject") => post<{ entryId: string }>(`/api/sessions/${sessionId}/spec/mappings/decide`, { ref, engine, key, decision }),
+  addMappingStep: (sessionId: string, proposal: { ref: string; step: string; code: TraceCodeRef }) => post<{ entryId: string }>(`/api/sessions/${sessionId}/spec/mappings/steps`, proposal),
   alignSteps: (sessionId: string, ref: string, engine: Engine, key: string) => post<{ taskId: string }>(`/api/sessions/${sessionId}/spec/mappings/align`, { ref, engine, key }),
   compareEngines: (sessionId: string, ref: string) => post<{ taskId: string }>(`/api/sessions/${sessionId}/spec/mappings/compare`, { ref }),
   flagDifference: (sessionId: string, ref: string, entryId: string, index: number) => post<Record<string, never>>(`/api/sessions/${sessionId}/spec/mappings/compare/flag`, { ref, entryId, index }),

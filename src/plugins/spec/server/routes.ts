@@ -1,6 +1,6 @@
 import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
-import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData, TraceCodeRef } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
 import { summaryKey, summaryViews } from "../runtime/summaries.ts";
 import { isSpecQuery } from "../shared/refs.ts";
@@ -14,7 +14,7 @@ import { implementationsData } from "../runtime/implementations.ts";
 import { randomUUID } from "node:crypto";
 import { isSpecRef } from "../shared/refs.ts";
 import { traceStatus } from "../shared/traces.ts";
-import { generateTrace, openTraceBoxes, traceCheckRunning, type TraceRequest } from "../runtime/traces.ts";
+import { addMappingStep, generateTrace, openTraceBoxes, traceCheckRunning, type TraceRequest } from "../runtime/traces.ts";
 import { loadTraceFacts } from "../tasks/check-trace/task.ts";
 import { TRACE_HOPS, type TraceQuestion } from "../shared/types.ts";
 
@@ -49,12 +49,18 @@ function parseFrom(value: unknown): SpecOpenedData["from"] {
 function parseTrace(value: unknown): SpecTraceData {
   const trace = value as Partial<SpecTraceData> | null | undefined;
   if (typeof trace !== "object" || trace === null || !isString(trace.traceId) || !trace.traceId || !isString(trace.title) || !Array.isArray(trace.entries)
-    || !trace.entries.every((entry) => typeof entry === "object" && entry !== null && isString(entry.anchor) && isString(entry.step) && isString(entry.note) && (entry.hop === undefined || HOPS.has(entry.hop as string)) && (entry.code === undefined || Array.isArray(entry.code) && entry.code.every((ref) => typeof ref === "object" && ref !== null && ["gecko", "blink", "webkit"].includes(ref.engine as string) && isString(ref.path) && Number.isInteger(ref.line) && (ref.line as number) >= 1 && isString(ref.quote))))) throw new HttpError(400, "trace must be { traceId, title, entries: { anchor, step, note, hop?, code? }[] }");
+    || !trace.entries.every((entry) => typeof entry === "object" && entry !== null && isString(entry.anchor) && isString(entry.step) && isString(entry.note) && (entry.hop === undefined || HOPS.has(entry.hop as string)) && (entry.code === undefined || Array.isArray(entry.code) && entry.code.every((ref) => { try { parseCodeRef(ref); return true; } catch { return false; } })))) throw new HttpError(400, "trace must be { traceId, title, entries: { anchor, step, note, hop?, code? }[] }");
   if (trace.question !== undefined) {
     const q = trace.question as { mode?: unknown; text?: unknown } | null;
     if (typeof q !== "object" || q === null || !isMode(q.mode) || !isString(q.text)) throw new HttpError(400, "trace.question must be { mode, text }");
   }
   return { traceId: trace.traceId, title: trace.title, entries: trace.entries.map(({ anchor, step, note, hop, code }) => ({ anchor, step, note, ...(hop ? { hop } : {}), ...(code ? { code } : {}) })), ...(trace.question ? { question: { mode: trace.question.mode, text: trace.question.text } } : {}) };
+}
+
+function parseCodeRef(value: unknown): TraceCodeRef {
+  const ref = value as { engine?: unknown; path?: unknown; line?: unknown; quote?: unknown } | null;
+  if (!ref || typeof ref !== "object" || !["gecko", "blink", "webkit"].includes(ref.engine as string) || !isString(ref.path) || !Number.isInteger(ref.line) || (ref.line as number) < 1 || !isString(ref.quote)) throw new HttpError(400, "code must be { engine, path, line, quote }");
+  return ref as TraceCodeRef;
 }
 
 const isOpen = (rt: Runtime, sessionId: string, anchor: string) => rt.store.listArtifacts(sessionId, "SpecOpened").some((a) => (a.data as SpecOpenedData).anchor === anchor);
@@ -180,6 +186,19 @@ export function specRoutes(rt: Runtime): Route[] {
       if (decision !== "confirm" && decision !== "reject") throw new HttpError(400, "decision must be confirm or reject");
       const entry = decideProposal(rt, session.id, engine, ref, key, decision);
       if (!entry) throw new HttpError(404, `No proposal ${key} in ${ref}`);
+      send(res, 201, { entryId: entry.id });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/steps$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req);
+      const ref = text(body, "ref"), step = text(body, "step");
+      if (!isSpecRef(ref)) throw new HttpError(400, "ref must be a SPEC#anchor ref");
+      if (!/^\d+(\.\d+)*$/.test(step)) throw new HttpError(400, "step must be a dotted step path");
+      const code = parseCodeRef(body.code);
+      const algorithm = requireAlgorithm(rt, session.id, ref);
+      let entry;
+      try { entry = await addMappingStep(rt, session.id, { ref: algorithm.data.ref, step, code }); }
+      catch (error) { throw new HttpError(409, (error as Error).message); }
       send(res, 201, { entryId: entry.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/align$/, async ({ req, res, params }) => {

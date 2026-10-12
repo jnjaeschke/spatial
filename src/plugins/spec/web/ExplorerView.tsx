@@ -12,7 +12,7 @@ import { TracePanel } from "./TracePanel.tsx";
 import type { SummaryView } from "../runtime/summaries.ts";
 
 /** The engines whose mappings the explorer shows. */
-const MAPPED_ENGINES: Engine[] = ["gecko"];
+const MAPPED_ENGINES: Engine[] = ["gecko", "blink", "webkit"];
 
 function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderProps) {
   const view = useContext(ExplorerViewContext)!;

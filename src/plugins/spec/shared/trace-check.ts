@@ -1,4 +1,5 @@
 import type { SpecHop } from "../../../plugin-api.ts";
+import type { EngineMapping } from "./types.ts";
 import type { HopResult, SpecAlgorithmData, SpecTraceEntry } from "./types.ts";
 import { parseSteps, stepLinks } from "./steps.ts";
 import { specRef } from "./refs.ts";
@@ -9,6 +10,13 @@ export interface TraceFacts { algorithms: ReadonlyMap<string, SpecAlgorithmData>
 
 /** Key of an effect's witness path from an algorithm in `TraceFacts.witnesses`. */
 export const witnessKey = (ref: string, effectId: string) => `${ref}|${effectId}`;
+
+/** The site of `mapping` a step at `ref` likely belongs to, by stored lines: in the same file, the non-stale site with the greatest line at or before it; null when there is none or that site maps the step already. A hint for offering the step; `addMappingStep` places it at the current revision. */
+export function mappingStepSite(mapping: EngineMapping, ref: { path: string; line: number }, step: string): number | null {
+  let best: number | null = null;
+  mapping.sites.forEach((site, index) => { if (!site.stale && site.path === ref.path && site.line <= ref.line && (best === null || site.line > mapping.sites[best]!.line)) best = index; });
+  return best !== null && !mapping.sites[best]!.steps.some((s) => s.step === step) ? best : null;
+}
 
 const ASYNC_KIND = /^(scheduling|event)\./;
 const inSubtree = (path: string, root: string) => path === root || path.startsWith(`${root}.`);

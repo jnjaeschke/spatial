@@ -13,7 +13,7 @@ import { startSearch, storedMapping } from "../../../src/plugins/spec/runtime/ma
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
 import { routeCall } from "../../helpers/route-call.ts";
-import { CANDIDATE, NAVIGATE_SITE, mapping, searchfox } from "./gecko-fakes.ts";
+import { CANDIDATE, NAVIGATE, NAVIGATE_SITE, mapping, searchfox } from "./gecko-fakes.ts";
 
 const KEY = `docshell/base/BrowsingContext.cpp|${NAVIGATE_SITE.symbol}`;
 
@@ -30,7 +30,8 @@ function setup() {
   const routes = specRoutes(rt);
   const find = (body: object) => routeCall(routes, "POST", `/api/sessions/${session.id}/spec/mappings/find`, { engine: "gecko", ...body });
   const decide = (body: object) => routeCall(routes, "POST", `/api/sessions/${session.id}/spec/mappings/decide`, { engine: "gecko", ...body });
-  return { rt, session, gate, put, entry, find, decide };
+  const addStep = (body: object) => routeCall(routes, "POST", `/api/sessions/${session.id}/spec/mappings/steps`, body);
+  return { rt, session, gate, put, entry, find, decide, addStep };
 }
 async function algorithm(rt: Runtime, sessionId: string, ref = "HTML#setup") {
   const { algorithmId } = await rt.run<{ algorithmId: string }>(sessionId, "loadSpecAlgorithm", { ref });
@@ -131,4 +132,17 @@ test("find and decide reject bad requests", async () => {
   assert.equal((await find({ ref: "HTML#setup" })).status, 202);
   assert.equal((await find({ ref: "HTML#setup" })).status, 409);
   release();
+});
+
+test("mappings/steps: 400 for a malformed proposal, 404 for an algorithm never opened, 409 without a mapping or when the quote is not at its line", async () => {
+  const { rt, session, put, entry, addStep } = setup();
+  const code = { engine: "gecko", path: "docshell/base/BrowsingContext.cpp", line: 2648, quote: NAVIGATE.signature };
+  for (const bad of [{ ref: "setup", step: "1", code }, { ref: "HTML#setup", step: "one", code }, { ref: "HTML#setup", step: "1", code: { ...code, line: 0 } }, { ref: "HTML#setup", step: "1", code: { ...code, engine: "servo" } }]) assert.equal((await addStep(bad)).status, 400);
+  assert.equal((await addStep({ ref: "HTML#setup", step: "1", code })).status, 404);
+  await algorithm(rt, session.id);
+  assert.equal((await addStep({ ref: "HTML#setup", step: "1", code })).status, 409);
+  put(mapping([{ ...NAVIGATE_SITE, method: "user" }]));
+  const before = entry().id;
+  assert.equal((await addStep({ ref: "HTML#setup", step: "1", code: { ...code, quote: "nope" } })).status, 409);
+  assert.equal(entry().id, before);
 });
