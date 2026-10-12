@@ -12,6 +12,23 @@ export interface CommentTriageData { comment: Id; phid: string; action: CommentA
 /** What the user said when stopping a running phase (artifact `Steer`, verified, linked `about →` the WorkflowStart); stamped with the epoch that was stopped. */
 export interface SteerData { text: string; epoch: number; phase: string }
 
+/** Where a memory applies: the session's repository (`Session.repoDir`) or every repository. */
+export type MemoryScope = "repo" | "global";
+/** A way the user wants the agent to work, distilled from a steer (knowledge store, namespace `implement`, key `memory/<slug>`). Empty `kinds` applies to every investigation kind. `source` is set by the runtime. */
+export interface SteerMemory {
+  situation: string; observed: string; wanted: string; why: string | null;
+  phases: string[]; kinds: string[];
+  source: { sessionId: Id; epoch: number; steer: Id };
+}
+/** The current version of a memory with its scope and slug; `confirmed` when the user confirmed this very version. */
+export interface MemoryView { scope: MemoryScope; key: string; entryId: Id; memory: SteerMemory; confirmed: boolean }
+/** Tells the user a steer was remembered (artifact `MemoryNotice`, verified, linked `about →` the steer). Carries the whole memory: the knowledge store cannot read a superseded version, and "Edit instead" restores it. */
+export interface MemoryNoticeData { key: string; scope: MemoryScope; entryId: Id; memory: SteerMemory }
+/** The user's reaction to a notice (artifact `MemoryReaction`, linked `about →` the notice). */
+export interface MemoryReactionData { notice: Id; reaction: "up" | "down" }
+/** The memories a task put in its prompt (artifact `UsedMemories`, verified, stamped with the epoch). */
+export interface UsedMemoriesData { entries: { scope: MemoryScope; key: string; entryId: Id }[] }
+
 /** Recorded (verified) by the start: where the work lives; `baseSha` is the commit the branch started from, or the fork point of the current branch from main for `current-branch`. */
 export interface ImplementBranchData { branch: string; baseSha: string; baseRef: string | null; profile: string; checkout: "new-branch" | "current-branch" }
 /** A source location cited by an investigation. */

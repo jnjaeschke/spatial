@@ -15,9 +15,10 @@ async function until(done: () => boolean) {
 function setup() {
   let runs = 0;
   const hang = defineTask<null, string>({ kind: "hang", run: (ctx) => ++runs > 1 ? Promise.resolve("done") : new Promise<string>((_, reject) => ctx.signal.addEventListener("abort", () => reject(new Error("aborted")))) });
+  const distill = defineTask<{ steerId: string; taskId: string | null }, unknown>({ kind: "distillSteer", run: async () => ({ action: "add", key: "use-helpers", scope: "repo", memory: { situation: "s", observed: "o", wanted: "w", why: null, phases: ["implement"], kinds: [] } }) });
   const phase = (id: string): Phase<unknown> => ({ id, async run(rt, sessionId) { await rt.run(sessionId, "hang", null); } });
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [hang], phases: [phase("implement"), phase("review")] }], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [hang, distill], phases: [phase("implement"), phase("review")] }], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "implement" });
   const start = store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "implement", params: {}, title: "t", prompt: "p" }, provenance: { taskId: "user" } });
   return { rt, store, session, start, runs: () => runs, routes: implementRoutes(rt) };
@@ -39,6 +40,9 @@ test("steering stops the running epoch, stores the steer and reruns the epoch in
   assert.deepEqual(steer.data, { text: "use a helper", epoch: 1, phase: "implement" });
   assert.deepEqual([steer.epoch, steer.status], [1, "verified"]);
   assert.ok(store.listLinks(session.id).some((link) => link.from === steer.id && link.to === start.id && link.kind === "about"));
+  await until(() => store.listArtifacts(session.id, "MemoryNotice").length === 1);
+  const distillation = store.listTasks(session.id).find((task) => task.kind === "distillSteer")!;
+  assert.deepEqual(distillation.input, { steerId: steer.id, taskId: store.listTasks(session.id).find((task) => task.kind === "hang")!.id });
 });
 
 test("a steer needs text, a running epoch and a phase that reads steers", async () => {

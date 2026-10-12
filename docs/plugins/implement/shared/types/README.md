@@ -18,11 +18,17 @@
 - [InvestigationData](interfaces/InvestigationData.md)
 - [InvestigationLocation](interfaces/InvestigationLocation.md)
 - [InvestigationStep](interfaces/InvestigationStep.md)
+- [MemoryNoticeData](interfaces/MemoryNoticeData.md)
+- [MemoryReactionData](interfaces/MemoryReactionData.md)
+- [MemoryView](interfaces/MemoryView.md)
 - [ReviewerCommentsInput](interfaces/ReviewerCommentsInput.md)
 - [StackRewriteData](interfaces/StackRewriteData.md)
 - [SteerData](interfaces/SteerData.md)
+- [SteerMemory](interfaces/SteerMemory.md)
+- [UsedMemoriesData](interfaces/UsedMemoriesData.md)
 
 ## Type Aliases
 
 - [AcceptanceCheck](type-aliases/AcceptanceCheck.md)
 - [CommentAction](type-aliases/CommentAction.md)
+- [MemoryScope](type-aliases/MemoryScope.md)

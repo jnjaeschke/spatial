@@ -1,8 +1,9 @@
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { CommentTriageData, ReviewerCommentsInput, SteerData } from "../shared/types.ts";
-import { HttpError, readJson, requireArtifact, requireSession, send, workflowView, putUserArtifact, text as requireText, type Runtime, type Route, type Epoch } from "../../../plugin-api.ts";
+import { HttpError, readJson, requireArtifact, requireSession, send, workflowView, putUserArtifact, text as requireText, type Artifact, type Runtime, type Route, type Epoch } from "../../../plugin-api.ts";
 import type { PhabCommentData } from "../../review/api.ts";
 import { postInlineReplies } from "../../review/api.ts";
+import { rememberSteer } from "../runtime/distill.ts";
 
 /** The phases that read steers. */
 const STEERABLE = new Set(["investigate", "implement"]);
@@ -57,6 +58,7 @@ export function implementRoutes(rt: Runtime): Route[] {
       try { retry = rt.retryPhase(session.id); }
       catch (e) { throw new HttpError(409, (e as Error).message); }
       retry.then(() => rt.advance(session.id)).catch((e) => console.error(`steer retry failed in session ${session.id}: ${(e as Error).message}`));
+      rememberSteer(rt, session.id, steer as Artifact<SteerData>, cancelled.taskIds[0] ?? null).catch((e) => console.error(`distillSteer failed in session ${session.id}: ${(e as Error).message}`));
       send(res, 202, { steerId: steer.id });
     }],
   ];
