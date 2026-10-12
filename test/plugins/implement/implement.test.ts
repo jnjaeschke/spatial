@@ -308,8 +308,8 @@ test("each provider session id is recorded once as a verified AgentSession", asy
   });
   await run({ llm: selection });
   assert.deepEqual(store.listArtifacts(session.id, "AgentSession").map((a) => [a.status, a.data]), [
-    ["verified", { providerSessionId: "s0", backend: "claude", model: "sonnet" }],
-    ["verified", { providerSessionId: "s1", backend: "claude", model: "sonnet" }],
+    ["verified", { providerSessionId: "s0", backend: "claude", model: "sonnet", resumed: false }],
+    ["verified", { providerSessionId: "s1", backend: "claude", model: "sonnet", resumed: true }],
   ]);
 });
 
@@ -337,4 +337,37 @@ test("edits-only stores CheckResults from the runs the runtime made", async () =
     { step: 0, check: 0, label: "covering-test t/c.js", ok: true, message: "passed", runs },
     { step: 0, check: 1, label: "measure `bench` - faster", ok: true, message: "not run in edits-only mode", runs: [] },
   ]);
+});
+
+test("after a steer the agent resumes its stopped session with only the steer", async () => {
+  const { store, session, put, prompts, run } = setup((_, prompt, r) => {
+    prompt.onEvent?.({ kind: "session", providerSessionId: "p-2" });
+    r.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  });
+  store.createEpoch(session.id, "implement", null);
+  put("AgentSession", { providerSessionId: "p-1", backend: "claude", model: "sonnet", resumed: false });
+  put("Steer", { text: "use a helper", epoch: 1, phase: "implement" });
+  await run({ llm: selection });
+  assert.equal(prompts.length, 1);
+  assert.equal(prompts[0]!.resumeProviderSession, "p-1");
+  assert.equal(prompts[0]!.prompt, "# The user stopped you and said\n\nuse a helper\n\nThe work tree may hold edits from the stopped run.");
+  const latest = store.listArtifacts(session.id, "AgentSession").at(-1)!.data as { providerSessionId: string; resumed: boolean };
+  assert.deepEqual([latest.providerSessionId, latest.resumed], ["p-2", true]);
+});
+
+test("a steer without a stopped session restarts the agent with the steer in its full prompt", async () => {
+  const { store, session, put, prompts, run } = setup((_, prompt, r) => {
+    prompt.onEvent?.({ kind: "session", providerSessionId: "p-3" });
+    r.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  });
+  store.createEpoch(session.id, "implement", null);
+  put("Steer", { text: "use a helper", epoch: 1, phase: "implement" });
+  await run({ llm: selection });
+  assert.equal(prompts[0]!.resumeProviderSession, undefined);
+  assert.ok(prompts[0]!.prompt.startsWith("# The user stopped you and said\n\nuse a helper"));
+  assert.ok(prompts[0]!.prompt.includes("# Investigation"));
+  const latest = store.listArtifacts(session.id, "AgentSession").at(-1)!.data as { resumed: boolean };
+  assert.equal(latest.resumed, false);
 });

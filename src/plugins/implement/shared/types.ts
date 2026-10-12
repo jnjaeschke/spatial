@@ -47,6 +47,10 @@ export interface CheckResult { step: number; check: number; label: string; ok: b
 /** Per-attempt verdicts of an implement epoch (artifact `CheckResults`, verified); the latest in an epoch is current. */
 export interface CheckResultsData { results: CheckResult[] }
 /** The provider session of the implement agent, recorded (verified) when the session starts so a cancelled run leaves it behind; stamped with the epoch. */
-export interface AgentSessionData { providerSessionId: string; backend: string; model: string }
+export interface AgentSessionData {
+  providerSessionId: string; backend: string; model: string;
+  /** Whether the call that opened this session resumed a provider session. */
+  resumed: boolean;
+}
 /** A rewrite of the stack by a tool the user confirmed (moz-phab adds trailers to every commit): implement accepts `to` as its own tip. Artifact `StackRewrite`, verified. */
 export interface StackRewriteData { from: string; to: string; by: string }

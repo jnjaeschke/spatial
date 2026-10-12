@@ -4,6 +4,7 @@ import { resolveSpecReference } from "../../../spec/api.ts";
 import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
 import { verifyChecks } from "../../runtime/checks.ts";
+import { steerSections, steersOf } from "../../runtime/steers.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const BASE_SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as { required: string[]; properties: Record<string, unknown> };
@@ -58,6 +59,7 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
     const view = ctx.artifacts.view();
     const threads = previous ? view.artifacts.filter((a) => a.type === "ChatThread" && (a.data as ChatThreadData).anchor.split("#")[0] === previous.id) : [];
     const prompt = [
+      ...steerSections(steersOf(view.artifacts, ctx.epoch).map((steer) => steer.data.text), false),
       "# Request", request,
       "# Checkout", `Branch ${branch}, based on ${baseSha}.`,
       "# Commit style", `${profile.description}\n${profile.commitStyle === "single" ? "The repository takes ONE commit: plan exactly one step." : "Plan a stack: one step per commit. A step that adds a `new-test` comes before the step that fixes the behaviour."}`,

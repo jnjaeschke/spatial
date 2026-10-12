@@ -232,3 +232,11 @@ test("an investigation renders its checks and the dropped ones for chats", async
 test("a check of an unknown kind makes the reply invalid", async () => {
   await assert.rejects(setup(reply({ steps: [{ title: "T", message: "M", intent: "I", checks: [check("magic")] }] })).run(), /not valid/);
 });
+
+test("the steers of the epoch come first in the prompt", async () => {
+  const { store, session, run, prompts } = setup(reply());
+  store.createEpoch(session.id, "investigate", null);
+  store.putArtifact({ sessionId: session.id, type: "Steer", status: "verified", data: { text: "look at b.txt first", epoch: 1, phase: "investigate" }, provenance: { taskId: "user" } });
+  await run();
+  assert.ok(prompts[0]!.prompt.startsWith("# The user stopped you and said\n\nlook at b.txt first\n\n# Request"));
+});
