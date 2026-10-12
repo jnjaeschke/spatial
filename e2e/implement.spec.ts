@@ -117,6 +117,26 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   await expect(page).toHaveURL(/\/repo\?path=.*&memory=repo%2Fname-helpers/);
 });
 
+test("the repo page lists memories and edits, moves and deletes them", async ({ page, request }) => {
+  const dir = makeRepo();
+  const { repoDir } = await (await request.get(`http://127.0.0.1:4178/api/repo?path=${encodeURIComponent(dir)}`)).json();
+  const memory = { situation: "a test fails for an unrelated reason", observed: "The agent kept retrying", wanted: "Stop and report the unrelated failure", why: null, phases: ["implement"], kinds: [], source: { sessionId: "s1", epoch: 1, steer: "st1" } };
+  const put = await request.put("http://127.0.0.1:4178/api/memories", { data: { repo: repoDir, scope: "repo", key: "report-unrelated-failures", memory } });
+  expect(put.status()).toBe(201);
+  await page.goto(`${open(dir)}&memory=repo%2Freport-unrelated-failures`);
+  const item = page.getByTestId("memory-item");
+  await expect(item.getByLabel("wanted")).toHaveValue("Stop and report the unrelated failure");
+  await item.getByLabel("wanted").fill("Report the failure and continue");
+  await item.getByRole("button", { name: "Save" }).click();
+  await expect(item).toContainText("Report the failure and continue");
+  await expect(item).toContainText("this repo");
+  await item.getByRole("button", { name: "Move to everywhere" }).click();
+  await expect(item).toContainText("everywhere");
+  await item.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByTestId("memory-item")).toHaveCount(0);
+  await expect(page.getByTestId("memories-panel")).toContainText("None yet");
+});
+
 test("a dirty checkout asks before /implement starts and the changes move to the new branch", async ({ page }) => {
   const dir = makeRepo();
   writeFileSync(join(dir, "a.txt"), "dirty\n");

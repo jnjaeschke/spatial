@@ -869,3 +869,11 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .memory-notice { background: var(--surface-2); border: 1px dashed var(--border); }
 .memory-notice p { margin: 0 0 4px; }
 .memory-reactions { display: flex; gap: 6px; }
+.memories-panel { margin-top: 28px; }
+.memories { list-style: none; padding: 0; }
+.memory { padding: 10px 12px; margin: 8px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.memory p { margin: 0 0 4px; }
+.memory-detail { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+.memory-form { display: flex; flex-direction: column; gap: 6px; }
+.memory-field { display: flex; flex-direction: column; gap: 2px; }
+.memory-field textarea, .memory-field input[type="text"], .memory-field input:not([type]) { width: 100%; }
