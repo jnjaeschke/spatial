@@ -3,6 +3,7 @@ import fixture from "./fixtures/sample-state.json" with { type: "json" };
 import type { SessionState } from "../shared/types.ts";
 import { NodeKindsContext, TopbarSlot } from "./plugin-api.ts";
 import { activePhaseView, readOnlyViewProps } from "./phase-views.ts";
+import { SearchfoxProvider } from "./SearchfoxProvider.tsx";
 import { SessionPicker } from "./SessionPicker.tsx";
 import { SessionView } from "./SessionView.tsx";
 import { StartScreen } from "./StartScreen.tsx";
@@ -33,7 +34,7 @@ function LiveApp() {
   if (route?.kind === "fixture") {
     const state = fixture as SessionState;
     const { view } = activePhaseView(webPlugins, state);
-    return <div className="app"><div /><NodeKindsContext.Provider value={webNodeKinds}><TopbarSlot.Provider value={null}>{view ? <view.Body {...readOnlyViewProps(state)} /> : null}</TopbarSlot.Provider></NodeKindsContext.Provider><div /></div>;
+    return <div className="app"><div /><NodeKindsContext.Provider value={webNodeKinds}><TopbarSlot.Provider value={null}><SearchfoxProvider state={state} readOnly>{view ? <view.Body {...readOnlyViewProps(state)} /> : null}</SearchfoxProvider></TopbarSlot.Provider></NodeKindsContext.Provider><div /></div>;
   }
   if (route?.kind === "repo") return <StartScreen key={route.path} path={route.path} panels={webRepoPanels} />;
   if (route?.kind === "session") return <SessionView key={route.sessionId} sessionId={route.sessionId} />;

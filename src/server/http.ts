@@ -8,7 +8,7 @@ import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryL
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
-import { workflowView } from "../runtime/render-ref.ts";
+import { sessionView, workflowView } from "../runtime/render-ref.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { isActive } from "../shared/task-state.ts";
@@ -16,6 +16,7 @@ import { workflowInfo } from "../workflows/registry.ts";
 import { startSession, type PendingStart, type StartRequest } from "../workflows/start.ts";
 import { isGeckoRepo } from "../runtime/searchfox.ts";
 import { resolveCodeLinks } from "../runtime/code-links.ts";
+import { selectLinkRev } from "../runtime/link-rev.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -229,16 +230,15 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
-      return await buildSessionState(rt.store, rt.searchfox, params[0]);
+      return await buildSessionState(rt.store, rt.searchfox, rt.plugins.linkRevs, params[0]);
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/code-links$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const body = await readJson(req);
       if (!Array.isArray(body.tokens) || body.tokens.length < 1 || body.tokens.length > 50 || body.tokens.some((token) => typeof token !== "string" || token.length > 200)) throw new HttpError(400, "tokens must be 1–50 strings of at most 200 characters");
-      const diffs = rt.store.listArtifacts(session.id, "Diff");
-      const diff = diffs.findLast((artifact) => typeof (artifact.data as DiffData).upstreamRev === "string");
-      const rev = (diff?.data as DiffData | undefined)?.upstreamRev;
-      if (!diff || !rev || !isGeckoRepo(session.worktree)) throw new HttpError(409, "Code links require a Gecko Diff with upstreamRev");
+      const rev = selectLinkRev(sessionView(rt.store, session.id), rt.plugins.linkRevs);
+      if (!rev || !isGeckoRepo(session.worktree)) throw new HttpError(409, "Code links require a Gecko session with a known upstream revision");
+      const diff = rt.store.listArtifacts(session.id, "Diff").findLast((artifact) => (artifact.data as DiffData).upstreamRev === rev);
       const prior: Record<string, string | null> = {};
       for (const artifact of rt.store.listArtifacts(session.id, "CodeLinks")) {
         const data = artifact.data as CodeLinksData;
@@ -251,7 +251,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
         added = await resolveCodeLinks({
           git: async (args) => (await execFileAsync("git", ["-C", session.worktree, ...args], { maxBuffer: args[0] === "ls-tree" ? 512 * 1024 * 1024 : undefined })).stdout,
           searchfox: rt.searchfox, repoBase: tip.repoBase, rev,
-          diffPaths: (diff.data as DiffData).files.map((file) => file.path),
+          diffPaths: (diff?.data as DiffData | undefined)?.files.map((file) => file.path) ?? [],
         }, missing);
         if (Object.keys(added).length) {
           const artifact = rt.store.putArtifact<CodeLinksData>({ sessionId: session.id, type: "CodeLinks", status: "verified", data: { rev, links: added }, provenance: { taskId: "runtime" } });

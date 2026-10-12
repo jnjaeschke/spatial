@@ -114,6 +114,26 @@ test("code-links validates requests, requires an upstream Gecko Diff, and caches
   }
 });
 
+test("code-links of an implement session without a Diff resolve at the branch base and state carries that linkRev", async () => {
+  const session = await newSession();
+  writeFileSync(join(repo.dir, "mach"), "");
+  writeFileSync(join(repo.dir, "moz.build"), "");
+  const rev = repo.git("rev-parse", "HEAD");
+  rt.store.putArtifact({ sessionId: session.id, type: "ImplementBranch", status: "verified", data: { branch: "b", baseSha: rev, baseRef: null, profile: "plain-git", checkout: "new-branch" }, provenance: { taskId: "test" } });
+  const searchfox = rt.searchfox as unknown as { tip: () => Promise<{ repoBase: string; rev: string }> };
+  const originalTip = searchfox.tip;
+  try {
+    searchfox.tip = async () => ({ repoBase: "https://searchfox.org/firefox-main/", rev: "tip" });
+    const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
+    assert.deepEqual(state.searchfox, { repoBase: "https://searchfox.org/firefox-main/", tipRev: "tip", linkRev: rev });
+    const res = await post(`/api/sessions/${session.id}/code-links`, { tokens: ["a.txt:1"] });
+    assert.equal(res.status, 200);
+    assert.deepEqual((await res.json()).links, { "a.txt:1": `https://searchfox.org/firefox-main/rev/${rev}/a.txt#1` });
+  } finally {
+    searchfox.tip = originalTip;
+  }
+});
+
 test("dirs lists directories, marks git roots, validates paths, and defaults to injected home", async () => {
   const home = mkdtempSync(join(tmpdir(), "dirs-home-"));
   const child = join(home, "child");

@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { type Artifact, type CanvasModel, type CanvasProviderProps, DiagramStepContext, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
-import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
+import { createContext, useContext, useEffect, type MutableRefObject } from "react";
+import { type Artifact, type CanvasModel, type CanvasProviderProps, DiagramStepContext, api } from "../../../web/plugin-api.ts";
+import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "../../../web/plugin-api.ts";
 
@@ -11,32 +11,10 @@ export const JumpContext = createContext<HunkRow | null>(null);
 
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
-function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, children }: CanvasProviderProps) {
+function ReviewCanvasProvider({ graph, reveal, focusRow, children }: CanvasProviderProps) {
   const setInline = useContext(InlineStatesContext)?.set;
   const revealer = useContext(RevealContext);
   useEffect(() => { if (revealer) revealer.current = reveal; });
-  const [resolvedLinks, setResolvedLinks] = useState<Record<string, string | null>>({});
-  const requested = useRef(new Set<string>());
-  const pending = useRef(new Set<string>());
-  const scheduled = useRef(false);
-  const request = useCallback((token: string) => {
-    if (readOnly || requested.current.has(token)) return;
-    requested.current.add(token);
-    pending.current.add(token);
-    if (scheduled.current) return;
-    scheduled.current = true;
-    queueMicrotask(() => {
-      scheduled.current = false;
-      const tokens = [...pending.current];
-      pending.current.clear();
-      void api.codeLinks(state.session.id, tokens).then(({ links }) => setResolvedLinks((current) => ({ ...current, ...links })), (error: unknown) => console.error(error));
-    });
-  }, [state.session.id, readOnly]);
-  const searchfox = useMemo(() => {
-    const latest = latestNarrative(state);
-    const links = latest ? searchfoxLinks(state, latest.diff.data, request) : null;
-    return links ? { ...links, links: { ...links.links, ...resolvedLinks } } : null;
-  }, [state, request, resolvedLinks]);
   const jump = useContext(JumpContext);
   useEffect(() => {
     if (!setInline) return;
@@ -73,9 +51,7 @@ function ReviewCanvasProvider({ state, graph, readOnly, reveal, focusRow, childr
     if (change) revealStep(change.id, jump.hunkId, { side: jump.side, line: jump.line });
     // Only a new request jumps; graph updates must not re-reveal.
   }, [jump]);
-  return <SearchfoxContext.Provider value={searchfox}>
-    <DiagramStepContext.Provider value={{ onStep: (diagram, step) => { const target = diagramStepTarget(graph.nodes, diagram, step); return target ? () => revealStep(target.changeNodeId, target.hunkId, target.row) : null; } }}>{children}</DiagramStepContext.Provider>
-  </SearchfoxContext.Provider>;
+  return <DiagramStepContext.Provider value={{ onStep: (diagram, step) => { const target = diagramStepTarget(graph.nodes, diagram, step); return target ? () => revealStep(target.changeNodeId, target.hunkId, target.row) : null; } }}>{children}</DiagramStepContext.Provider>;
 }
 
 function CompactToggle() {

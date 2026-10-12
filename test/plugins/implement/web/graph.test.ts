@@ -23,7 +23,7 @@ test("there is no graph before the investigation", () => {
 
 test("the investigation is split into a header, a chain of step nodes and satellites", () => {
   const s = start(), inv = art("Investigation", { ...data, testCases: [{ description: "d", expected: "e" }], openQuestions: ["Q?"] });
-  const g = investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "abc" }), [])!;
+  const g = investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "abc", linkRev: null }), [])!;
   const node = (id: string) => g.nodes.find((n) => n.id === id)!;
   assert.deepEqual(g.nodes.map((n) => n.data.kind), ["investigation", "investigation-step", "investigation-step", "location", "location", "investigation-tests", "investigation-questions"]);
   assert.equal(g.nodes[0]!.id, inv.id);

@@ -21,6 +21,7 @@ import { Segmented } from "./Segmented.tsx";
 import { ReplyActionsContext, derivedArtifacts } from "./reply-actions.ts";
 import { webConversationItems, webReplyActions } from "../plugins/web.ts";
 import { ConversationItemsContext } from "./conversation-items.ts";
+import { SearchfoxProvider } from "./SearchfoxProvider.tsx";
 import { OpenActivityLogContext, type OpenLog } from "./activity-log-context.ts";
 
 export function SessionView({ sessionId }: { sessionId: string }) {
@@ -79,7 +80,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><TextSizeControl /><ThemeToggle /></div>
     {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
-    <OpenActivityLogContext.Provider value={setLog}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}>{body}<AskOnSelect /><ActivityStrip state={state} view={view ?? null} progress={progress} log={log} onLog={setLog} /></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></OpenActivityLogContext.Provider>
+    <OpenActivityLogContext.Provider value={setLog}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}><SearchfoxProvider state={shown} readOnly={past !== null}>{body}<AskOnSelect /><ActivityStrip state={state} view={view ?? null} progress={progress} log={log} onLog={setLog} /></SearchfoxProvider></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></OpenActivityLogContext.Provider>
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} onClose={() => setExporting(false)} />}
   </div></RouteContext.Provider>;

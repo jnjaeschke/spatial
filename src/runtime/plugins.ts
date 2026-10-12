@@ -109,6 +109,8 @@ export interface Plugin {
   chatContext?(view: SessionView): string | null;
   /** Extra fields of the structured chat reply. */
   chatReplyFields?: ChatReplyField[];
+  /** The upstream revision this plugin's session content is based on, for code links when no Diff has an `upstreamRev`; null when it has none. */
+  linkRev?(view: SessionView): string | null;
   /** Read-only tools for the session MCP server; names are unique across plugins and must not be a core tool's name. */
   mcpTools?: McpTool[];
   server?(rt: Runtime, opts: { intervalMs?: number }): PluginServer;
@@ -123,6 +125,7 @@ export interface PluginRegistry {
   searchKinds: string[];
   chatContext: ((view: SessionView) => string | null)[];
   chatReplyFields: ChatReplyField[];
+  linkRevs: ((view: SessionView) => string | null)[];
   mcpTools: McpTool[];
   repoProfiles: Map<string, RepoProfile>;
 }
@@ -166,5 +169,5 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     done.add(id);
   };
   for (const plugin of plugins) visit(plugin.id, []);
-  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], mcpTools: [...mcpTools.values()], repoProfiles };
+  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], linkRevs: plugins.flatMap((plugin) => plugin.linkRev ? [plugin.linkRev] : []), mcpTools: [...mcpTools.values()], repoProfiles };
 }

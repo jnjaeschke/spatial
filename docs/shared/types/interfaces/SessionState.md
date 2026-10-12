@@ -38,9 +38,9 @@ Subscribe to events after this id to miss nothing.
 
 ### searchfox
 
-> **searchfox**: \{ `repoBase`: `string`; `tipRev`: `string`; \} \| `null`
+> **searchfox**: \{ `linkRev`: `string` \| `null`; `repoBase`: `string`; `tipRev`: `string`; \} \| `null`
 
-Searchfox repository base and indexed tip for Gecko repos, else null.
+`linkRev` is the revision code links point at (null when unknown); `tipRev` is Searchfox's current tip.
 
 ***
 

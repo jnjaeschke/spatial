@@ -6,7 +6,7 @@
 
 # Interface: SearchfoxLinks
 
-Where Searchfox links point. `exact` false means the patch's upstream revision is unknown and `rev` is Searchfox's current tip.
+Where Searchfox links point. `exact` false means the session's upstream revision is unknown and `rev` is Searchfox's current tip.
 
 ## Properties
 

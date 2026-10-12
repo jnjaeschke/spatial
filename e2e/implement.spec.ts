@@ -403,6 +403,25 @@ test("gecko: chat proposes a try push and nothing is pushed until the click", as
   await expect(conversation.locator(".msg.assistant")).toContainText("I will start a try push.");
 });
 
+test("gecko: chat answers link local files to Searchfox at the branch base in a session without a Diff", async ({ page }) => {
+  test.setTimeout(60_000);
+  const dir = makeGeckoRepo();
+  const base = git(dir, "rev-parse", "HEAD");
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-E2E make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
+  const conversation = page.getByRole("dialog", { name: "Session" });
+  await expect(conversation.getByTestId("session-decision")).toBeVisible({ timeout: 20_000 });
+  await conversation.getByLabel("message").fill("LOCAL-LINK-PLEASE");
+  await conversation.getByRole("button", { name: "Send" }).click();
+  const answer = conversation.locator(".msg.assistant", { hasText: "See " });
+  await expect(answer.getByRole("link", { name: "a.txt" })).toHaveAttribute("href", `https://searchfox.org/mozilla-central/rev/${base}/a.txt#30`, { timeout: 20_000 });
+  await expect(answer.getByRole("link", { name: "the spec" })).toHaveAttribute("href", "https://example.com/spec");
+  await expect(answer.getByRole("link", { name: "missing" })).toHaveCount(0);
+  await expect(answer.locator("code", { hasText: "missing" })).toBeVisible();
+});
+
 test("memories for the investigate phase are applied and listed in its view", async ({ page, request }) => {
   const dir = makeRepo();
   const { repoDir } = await (await request.get(`http://127.0.0.1:4178/api/repo?path=${encodeURIComponent(dir)}`)).json();

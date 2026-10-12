@@ -155,7 +155,8 @@ export interface SessionState {
   /** Subscribe to events after this id to miss nothing. */
   lastEventId: number;
   /** Searchfox repository base and indexed tip for Gecko repos, else null. */
-  searchfox: { repoBase: string; tipRev: string } | null;
+  /** `linkRev` is the revision code links point at (null when unknown); `tipRev` is Searchfox's current tip. */
+  searchfox: { repoBase: string; tipRev: string; linkRev: string | null } | null;
 }
 
 export interface Provenance {

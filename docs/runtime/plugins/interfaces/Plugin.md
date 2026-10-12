@@ -96,6 +96,24 @@ Extra chat context after the session overview; null when it has none for this se
 
 ***
 
+### linkRev()?
+
+> `optional` **linkRev**(`view`): `string` \| `null`
+
+The upstream revision this plugin's session content is based on, for code links when no Diff has an `upstreamRev`; null when it has none.
+
+#### Parameters
+
+##### view
+
+[`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+#### Returns
+
+`string` \| `null`
+
+***
+
 ### server()?
 
 > `optional` **server**(`rt`, `opts`): [`PluginServer`](PluginServer.md)
