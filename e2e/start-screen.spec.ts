@@ -43,6 +43,7 @@ test("start screen lists the repo's sessions newest first and creates a review s
   await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   await expect(page.getByRole("heading", { level: 2, name: basename(dir) })).toBeVisible();
   const items = page.locator(".session-list li");
+  await expect(items.filter({ hasText: "Session A" })).toHaveCount(1);
   const titles = await items.allTextContents();
   expect(titles.findIndex((text) => text.includes("Session B"))).toBeLessThan(titles.findIndex((text) => text.includes("Session A")));
 
