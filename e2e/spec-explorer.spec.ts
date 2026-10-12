@@ -150,4 +150,7 @@ test("implementations: the Gecko site from searchfox, a Blink proposal confirmed
   await expect(differences.first()).toContainText("AI-written");
   await differences.first().hover();
   await expect(view.locator('tr[data-step="9"].highlight')).toHaveCount(1);
+  await view.getByRole("button", { name: "Flag difference 1" }).click();
+  await expect(differences).toHaveCount(0);
+  await expect(view.locator("tr.highlight")).toHaveCount(0);
 });

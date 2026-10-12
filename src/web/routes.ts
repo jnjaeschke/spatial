@@ -37,7 +37,7 @@ export function sessionViewOf(url: URL): string | null {
   return url.searchParams.get("view");
 }
 
-/** `url` as path, query and hash with the session view set, or removed for null. */
+/** `url` as path, query and hash with the session view set, or removed for null; `params` are set as further query parameters. */
 export function withSessionView(url: URL, view: string | null, params: Record<string, string> = {}): string {
   const next = new URL(url);
   if (view === null) next.searchParams.delete("view");
@@ -46,7 +46,7 @@ export function withSessionView(url: URL, view: string | null, params: Record<st
   return next.pathname + next.search + next.hash;
 }
 
-/** Shows a session view (null: the phase view) as a new history entry. */
+/** Shows a session view (null: the phase view) as a new history entry; `params` are set as further query parameters. */
 export function showSessionView(view: string | null, params: Record<string, string> = {}): void {
   navigation.navigate(withSessionView(new URL(location.href), view, params));
 }

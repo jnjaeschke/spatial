@@ -8,7 +8,7 @@
 
 > **showSessionView**(`view`, `params?`): `void`
 
-Shows a session view (null: the phase view) as a new history entry.
+Shows a session view (null: the phase view) as a new history entry; `params` are set as further query parameters.
 
 ## Parameters
 

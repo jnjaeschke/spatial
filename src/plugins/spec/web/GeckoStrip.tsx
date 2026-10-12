@@ -3,7 +3,8 @@ import { ErrorText, IconButton, showSessionView, useAction } from "../../../web/
 import type { EngineMapping, EngineSite } from "../shared/types.ts";
 import { codeUrl, mappedSteps, siteKey, siteName } from "../shared/engine.ts";
 
-const siteTitle = (site: EngineSite) => [`${site.path}:${site.line}`, site.method === "spec-link" ? `Spec-link comment on line ${site.refs.join(", ")}` : site.method === "spec-link-heuristic" ? `Spec-link comment on line ${site.refs.join(", ")}, function found by brace scan` : site.method === "llm" ? "Proposed by the LLM" : "Confirmed by you", site.stale ? "This code is gone at the current revision" : ""].filter(Boolean).join("\n");
+/** A site's tooltip: its place, how it was found, and whether its code is gone. */
+export const siteTitle = (site: EngineSite) => [`${site.path}:${site.line}`, site.method === "spec-link" ? `Spec-link comment on line ${site.refs.join(", ")}` : site.method === "spec-link-heuristic" ? `Spec-link comment on line ${site.refs.join(", ")}, function found by brace scan` : site.method === "llm" ? "Proposed by the LLM" : "Confirmed by you", site.stale ? "This code is gone at the current revision" : ""].filter(Boolean).join("\n");
 
 type GeckoActions = { find(stale: string | null): Promise<void>; decide(key: string, decision: "confirm" | "reject"): Promise<void> };
 

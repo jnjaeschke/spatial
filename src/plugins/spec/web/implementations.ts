@@ -10,6 +10,14 @@ export function columnState(tasks: Pick<TaskRecord, "kind" | "status" | "input" 
   return { busy, failed: busy ? null : error };
 }
 
+/** Whether a comparison of the algorithm is running, else the error of its latest compare or verify task when that failed. */
+export function compareState(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], algorithmId: string): { busy: boolean; failed: string | null } {
+  const own = tasks.filter((task) => (task.kind === "compareEngines" || task.kind === "verifyComparison") && (task.input as { algorithmId?: string }).algorithmId === algorithmId);
+  const busy = own.some((task) => task.status === "pending" || task.status === "running");
+  const last = own.at(-1);
+  return { busy, failed: !busy && last?.status === "failed" ? last.error : null };
+}
+
 /** Whether Compare applies: at least two engines have a confirmed or spec-link site. */
 export const compareEnabled = (mappings: ImplementationsData["mappings"]) => Object.values(mappings).filter((mapping) => usedSites(mapping).length).length >= 2;
 

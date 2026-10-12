@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { columnState } from "../../../../src/plugins/spec/web/implementations.ts";
+import { columnState, compareState } from "../../../../src/plugins/spec/web/implementations.ts";
 import { cellHighlighted, compareEnabled, differenceTargets } from "../../../../src/plugins/spec/web/implementations.ts";
 import type { EngineMapping, EngineSite } from "../../../../src/plugins/spec/shared/types.ts";
 
@@ -15,6 +15,14 @@ test("columnState: busy while a mapping, search or alignment of this algorithm a
 
 const site = (method: EngineSite["method"], stale = false): EngineSite => ({ path: "a.cc", line: 1, symbol: "S", signature: "void S() {", quote: "void S() {", method, refs: [], steps: [], ...(stale ? { stale: true as const } : {}) });
 const mapping = (engine: EngineMapping["engine"], sites: EngineSite[]): EngineMapping => ({ engine, repoBase: "r/", rev: "x", sites, tests: [], rejected: [], checkedAt: "" });
+
+test("compareState: busy while a compare or verify task of this algorithm runs; the error when the latest one failed", () => {
+  const task = (kind: string, status: string, algorithmId = "A", error: string | null = null) => ({ kind, status, input: { algorithmId }, error }) as never;
+  assert.deepEqual(compareState([task("compareEngines", "running")], "A"), { busy: true, failed: null });
+  assert.deepEqual(compareState([task("compareEngines", "succeeded"), task("verifyComparison", "failed", "A", "boom")], "A"), { busy: false, failed: "boom" });
+  assert.deepEqual(compareState([task("compareEngines", "failed", "A", "boom"), task("compareEngines", "succeeded")], "A"), { busy: false, failed: null });
+  assert.deepEqual(compareState([task("compareEngines", "failed", "B", "boom"), task("mapEngine", "failed", "A", "x")], "A"), { busy: false, failed: null });
+});
 
 test("compareEnabled needs two engines with a confirmed or spec-link site", () => {
   assert.equal(compareEnabled({ gecko: mapping("gecko", [site("spec-link")]), blink: mapping("blink", [site("llm")]), webkit: mapping("webkit", [site("user", true)]) }), false);
