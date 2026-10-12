@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityRows } from "../../src/web/activity-rows.ts";
+import { activityRows, duration } from "../../src/web/activity-rows.ts";
 
 test("a tool call and its result are one row, wherever the result arrives", () => {
   const rows = activityRows([
@@ -22,4 +22,8 @@ test("a call without a result stays a plain row and a result without its call is
   ]);
   assert.equal(rows.length, 2);
   assert.ok(rows.every((r) => r.kind === "tool" && r.result === null));
+});
+
+test("durations read as ms below a second, then seconds, then minutes", () => {
+  assert.deepEqual([duration(12), duration(1234), duration(59_900), duration(125_000)], ["12 ms", "1.2 s", "59.9 s", "2 m 5 s"]);
 });

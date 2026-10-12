@@ -1,9 +1,11 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type {
-  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
+  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmActivity, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
 } from "../shared/types.ts";
 import type { LlmEvent, LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
+import { MAX_RESULT_OUTPUT } from "./llm/events.ts";
+import { capOutput } from "./process.ts";
 import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView, type WorkflowView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
 import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Step, type Workflow } from "./plugins.ts";
@@ -126,6 +128,8 @@ export interface TaskContext {
   chat: { context(view: SessionView): string[]; replyFields: PluginRegistry["chatReplyFields"] };
   links: { put(from: Ref, to: Ref, kind: LinkKind): Link };
   progress(p: Progress): void;
+  /** Adds to the task's activity log, beside its LLM runs' activity: for work the task does itself, such as a command the runtime runs. A result's output is capped like a reader's. */
+  activity(activity: LlmActivity): void;
   events: {
     /** The last `limit` progress lines task `taskId` of this session reported, oldest first. */
     recent(taskId: Id, limit: number): string[];
@@ -379,6 +383,7 @@ export class Runtime {
         },
       },
       progress: (p) => emit("task.progress", { taskId: task.id, progress: p }),
+      activity: (activity) => emit("task.activity", { taskId: task.id, activity: activity.kind === "tool-result" ? { ...activity, output: capOutput(activity.output, MAX_RESULT_OUTPUT) } : activity }),
       events: { recent: (recentTaskId, limit) => this.#store.listTaskProgress(sessionId, recentTaskId, limit).flatMap((p) => progressText(p) ?? []) },
     };
 

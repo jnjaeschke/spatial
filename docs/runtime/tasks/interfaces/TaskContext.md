@@ -346,6 +346,24 @@ Repo skills available through the session MCP server.
 
 ## Methods
 
+### activity()
+
+> **activity**(`activity`): `void`
+
+Adds to the task's activity log, beside its LLM runs' activity: for work the task does itself, such as a command the runtime runs. A result's output is capped like a reader's.
+
+#### Parameters
+
+##### activity
+
+[`LlmActivity`](../../../shared/types/type-aliases/LlmActivity.md)
+
+#### Returns
+
+`void`
+
+***
+
 ### progress()
 
 > **progress**(`p`): `void`

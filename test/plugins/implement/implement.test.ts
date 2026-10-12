@@ -241,6 +241,21 @@ test("edits-only fix rounds feed the problems back to the agent", async () => {
   assert.equal(repo.git("show", "HEAD:b.txt"), "fixed");
 });
 
+test("edits-only checks the runtime runs are tool rows in the implement task's activity", async () => {
+  const { repo, store, session, run } = setup((call, _, r) => {
+    if (call === 0) return ok;
+    writeFileSync(join(r.dir, "b.txt"), "fixed\n");
+    return { ...ok, step: 0 };
+  }, "checked", { ...investigation, steps: [{ ...investigation.steps[0]!, checks: [{ kind: "covering-test", path: "a.txt" }] }] });
+  repo.commit({ "b.txt": "b\n" }, "Add b");
+  await run({ writeMode: "editsOnly" });
+  const [check] = store.listArtifacts(session.id, "CommandRun") as Artifact<CommandRunData>[];
+  const activity = store.listTaskActivity(session.id, check!.provenance.taskId);
+  const callId = check!.data.callId!;
+  assert.deepEqual(activity.find((a) => a.kind === "tool"), { kind: "tool", name: "check", detail: "true", callId });
+  assert.deepEqual(activity.find((a) => a.kind === "tool-result" && a.callId === callId), { kind: "tool-result", callId, exitCode: 0, durationMs: check!.data.durationMs, output: "" });
+});
+
 test("a verification retry resumes the previous attempt's session with only the problems", async () => {
   const { prompts, run } = setup((call, _, r) => {
     if (call === 0) { r.commit({ "b.txt": "b\n" }, "Add b"); writeFileSync(join(r.dir, "stray.txt"), "x\n"); }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
@@ -112,10 +113,12 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
         : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}).${checksLine(index)} The runtime builds, runs the tests and commits.`)
         + (problems.length ? `\n\n${problemsSection(problems)}` : "");
       const runCheck = async (command: string) => {
-        const started = Date.now();
+        const started = Date.now(), callId = `check-${randomUUID()}`;
+        ctx.activity({ kind: "tool", name: "check", detail: command, callId });
         const out = await runProcess("sh", ["-c", command], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
-        const output = out.stdout + out.stderr;
-        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, true));
+        const output = out.stdout + out.stderr, durationMs = Date.now() - started;
+        ctx.activity({ kind: "tool-result", callId, exitCode: out.code, durationMs, output });
+        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, durationMs, output, true, callId));
         return { id: run.id, exitCode: out.code, output };
       };
       const outcome = await runEditsOnly({

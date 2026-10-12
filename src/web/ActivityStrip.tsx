@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Artifact, CommandRunData, Progress, TaskRecord } from "../shared/types.ts";
 import { isActive } from "../shared/task-state.ts";
-import { activityRows } from "./activity-rows.ts";
+import { activityRows, duration } from "./activity-rows.ts";
 import type { ActivityLogTarget } from "./activity-log-context.ts";
 import { api, useTaskActivity } from "./api.ts";
 import { IconButton } from "./IconButton.tsx";
@@ -58,7 +58,7 @@ function ActivityLog({ sessionId, task, target, artifacts, onClose }: { sessionI
           : !row.result || !row.call.callId ? <li key={i} className="activity-tool"><code>{row.call.name}</code> {row.call.detail}</li>
           : <li key={i} className="activity-tool" data-testid="activity-tool" data-call-id={row.call.callId}>
             <button type="button" className="tool-row" aria-expanded={expanded.has(row.call.callId)} onClick={() => toggle(row.call.callId!)}>
-              <code>{row.call.name}</code> {row.call.detail} <span className={row.result.exitCode ? "exit-failed" : undefined}>{row.result.exitCode === null ? "" : row.result.exitCode === 0 ? "✓" : `✗ ${row.result.exitCode}`}</span> <span className="duration">{row.result.durationMs} ms</span>
+              <code>{row.call.name}</code> {row.call.detail} <span className={row.result.exitCode ? "exit-failed" : undefined}>{row.result.exitCode === null ? "" : row.result.exitCode === 0 ? "✓" : `✗ ${row.result.exitCode}`}</span> <span className="duration">{duration(row.result.durationMs)}</span>
             </button>
             {expanded.has(row.call.callId) && <pre className="tool-output" data-testid="tool-output">{fullOutput(row.call.callId, row.result.output)}</pre>}
           </li>)}

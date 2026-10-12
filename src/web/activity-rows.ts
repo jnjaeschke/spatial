@@ -9,3 +9,6 @@ export function activityRows(activity: LlmActivity[]): ActivityRow[] {
   const results = new Map(activity.flatMap((a) => a.kind === "tool-result" ? [[a.callId, a] as const] : []));
   return activity.flatMap((a): ActivityRow[] => a.kind === "tool-result" ? [] : a.kind === "tool" ? [{ kind: "tool", call: a, result: (a.callId && results.get(a.callId)) || null }] : [a]);
 }
+
+/** A tool call's duration for the log. */
+export const duration = (ms: number) => ms < 1000 ? `${ms} ms` : ms < 60_000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60_000)} m ${Math.floor(ms % 60_000 / 1000)} s`;
