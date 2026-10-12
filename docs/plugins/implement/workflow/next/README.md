@@ -13,6 +13,7 @@
 
 ## Functions
 
+- [implementCheckAnswer](functions/implementCheckAnswer.md)
 - [implementNext](functions/implementNext.md)
 - [isActive](functions/isActive.md)
 - [workInQuestion](functions/workInQuestion.md)

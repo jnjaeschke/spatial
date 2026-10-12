@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DecisionOption, Epoch, EpochStatus, LlmSelection, RepoProfile, Step, WorkflowView } from "../../../src/plugin-api.ts";
-import { implementNext, workInQuestion } from "../../../src/plugins/implement/workflow/next.ts";
+import { implementCheckAnswer, implementNext, workInQuestion } from "../../../src/plugins/implement/workflow/next.ts";
 import type { CommentPlanItem } from "../../../src/plugins/implement/shared/comment-plan.ts";
 
 let n = 0;
@@ -213,8 +213,11 @@ test("reviewer comments ask to work in, feed addressed comments to implement, an
   assert.equal(started.run, "implement");
   assert.match((started.input as { text: string }).text, /^Address these reviewer comments/);
 
+  const asked = decision(workInQuestion(1), null, 8) as Artifact<DecisionData>;
+  assert.equal(implementCheckAnswer(view(base, epochs), asked, "work"), null);
   const replied = art("CommentTriage", { comment: comment.id, phid: "P1", action: "reply", text: "thanks" }, 8);
-  assert.equal(next(view([...base, replied, decision(workInQuestion(1), { option: "work", by: "user" }, 8)], epochs)), null);
+  assert.equal(implementCheckAnswer(view([...base, replied], epochs), asked, "work"), "No reviewer comment is marked Address.");
+  assert.equal(implementCheckAnswer(view([...base, replied], epochs), asked, "later"), null);
   assert.equal(next(view([...base, decision(workInQuestion(1), { option: "later", by: "user" }, 8)], epochs)), null);
 
   const afterImplement = view([...baseArtifacts(), result(2), comment, interpretation, chosen, result(9)], [...epochs, epoch(9, "implement")]);

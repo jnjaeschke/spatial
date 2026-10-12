@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { type Workflow, type WorkflowStartData, makeGitWriter } from "../../../plugin-api.ts";
-import { implementNext, isActive } from "./next.ts";
+import { implementCheckAnswer, implementNext, isActive } from "./next.ts";
 
 const params = z.strictObject({
   request: z.string().min(1).describe("The bug fix or feature request as the user wrote it."),
@@ -17,6 +17,7 @@ export const implementWorkflow: Workflow<Params> = {
   argHint: "<what to fix or build>",
   params,
   next: implementNext,
+  checkAnswer: implementCheckAnswer,
   parseArgs: (args) => args.trim() ? { ok: true, params: { request: args.trim(), profile: null, checkout: null } } : { ok: false, error: "Usage: /implement <what to fix or build>" },
   async precheck(repo, p) {
     if (p.checkout !== null) return null;

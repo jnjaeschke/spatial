@@ -128,6 +128,13 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   return null;
 }
 
+/** Refuses Work in when no reviewer comment is marked Address: the answer would start nothing and consume the decision. */
+export function implementCheckAnswer(view: WorkflowView, decision: Artifact<DecisionData>, option: string): string | null {
+  const epoch = view.epochs.find((e) => e.n === decision.epoch);
+  if (option !== "work" || epoch?.phase !== "reviewerComments") return null;
+  return commentsFeedback(commentPlan(view, epoch)) === null ? "No reviewer comment is marked Address." : null;
+}
+
 /** Whether an implement session still has work: an epoch is running, or the session has a next step (an open decision included). Used to refuse a second session on the same checkout. */
 export function isActive(rt: Runtime, sessionId: Id): boolean {
   return rt.runningEpoch(sessionId) !== null || rt.nextStep(sessionId) !== null;

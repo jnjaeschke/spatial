@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { DecisionOption, Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
+import type { DecisionData, DecisionOption, Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
 import type { Runtime, TaskContext, TaskDefinition, Phase, WebspecCapability } from "./tasks.ts";
 import type { CodeSearch } from "./code-search.ts";
 import type { Engine } from "../shared/types.ts";
@@ -53,6 +53,8 @@ export interface Workflow<P> extends WorkflowInfo {
   start(rt: Runtime, sessionId: Id, input: StartInput<P>): Promise<void>;
   /** Reads only stored state and returns the next step; null means wait (an open decision) or done. Called by `Runtime.advance` after the workflow's `start`, after each successful epoch and after each answered decision; a decision it returns must not repeat for the same (question, epoch) once answered. */
   next?(view: WorkflowView, ctx: WorkflowContext): Step | null;
+  /** Why the user cannot take `option` of the open `decision` now, or null to accept it. A refused answer leaves the decision open. */
+  checkAnswer?(view: WorkflowView, decision: Artifact<DecisionData>, option: string): string | null;
   /** Session overview sections for sessions of this workflow; markdown, each starting with a `# ` heading. */
   overview?(view: SessionView): string[];
 }

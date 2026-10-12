@@ -8,6 +8,7 @@ import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageDat
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import type { Runtime } from "../runtime/tasks.ts";
+import { workflowView } from "../runtime/render-ref.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
 import { workflowInfo } from "../workflows/registry.ts";
@@ -111,7 +112,7 @@ export function putUserArtifact(rt: Runtime, sessionId: string, type: string, da
   return artifact;
 }
 
-/** Stores the user's answer to an open `Decision` as a verified version linked `revises →` it. Throws `HttpError` for an unknown option, missing or malformed text, an answered or superseded decision, or a running epoch. */
+/** Stores the user's answer to an open `Decision` as a verified version linked `revises →` it. Throws `HttpError` for an unknown option, missing or malformed text, an answered or superseded decision, a running epoch, or an answer the workflow's `checkAnswer` refuses. */
 function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionData>, optionId: string, text: unknown, llm: unknown): Artifact<DecisionData> {
   if (open.data.chosen) throw new HttpError(409, "Decision already answered");
   if (rt.store.listArtifacts(sessionId, "Decision").at(-1)?.id !== open.id) throw new HttpError(409, "Not the latest decision");
@@ -126,6 +127,9 @@ function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionD
   if (trimmed && option.textPattern && !new RegExp(option.textPattern).test(trimmed)) throw new HttpError(400, `Text for ${option.id} must match ${option.textPattern}`);
   if (llm !== undefined && !option.takesModel) throw new HttpError(400, `Option ${option.id} takes no model`);
   const selection = llmField({ llm });
+  const workflow = rt.store.getSession(sessionId).workflow;
+  const refused = workflow ? rt.workflows.get(workflow)?.checkAnswer?.(workflowView(rt.store, sessionId), open, option.id) : null;
+  if (refused) throw new HttpError(409, refused);
   const answered = rt.store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: "verified", epoch: open.epoch, data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
   const link = rt.store.putLink({ sessionId, from: answered.id, to: open.id, kind: "revises" });
   rt.emit(sessionId, "user", "artifact.created", { artifactId: answered.id, type: "Decision" });

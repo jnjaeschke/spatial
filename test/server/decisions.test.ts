@@ -29,8 +29,9 @@ const asking = workflow("asking", (view) => {
   return null;
 });
 const retrying = workflow("retrying", (view) => view.epochs.length === 0 ? { run: "flaky", input: null } : null);
+const guarded: Workflow<Record<string, never>> = { ...asking, id: "guarded", checkAnswer: (_view, decision, option) => option === "stop" && decision.data.question === "Go?" ? "Nothing to stop" : null };
 const store = new Store(":memory:");
-const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [asking, retrying], phases: [phase("a"), phase("flaky")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [asking, retrying, guarded], phases: [phase("a"), phase("flaky")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
 const server = createHttpServer(rt);
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -92,6 +93,16 @@ test("an older decision and a running epoch are rejected", async () => {
   const running = store.createEpoch(id, "a", null);
   assert.equal((await post(`/api/sessions/${id}/decisions/${open(id).id}`, { option: "go" })).status, 409, "epoch running");
   store.updateEpoch(id, running.n, { status: "succeeded" });
+});
+
+test("an answer the workflow refuses is 409 with its reason and leaves the decision open", async () => {
+  const { id } = session("guarded");
+  await rt.advance(id);
+  const res = await post(`/api/sessions/${id}/decisions/${open(id).id}`, { option: "stop" });
+  assert.equal(res.status, 409);
+  assert.match(await res.text(), /Nothing to stop/);
+  assert.equal(open(id).data.chosen, null);
+  assert.equal((await post(`/api/sessions/${id}/decisions/${open(id).id}`, { option: "go" })).status, 201);
 });
 
 test("unknown sessions, artifacts and artifact types are 404", async () => {

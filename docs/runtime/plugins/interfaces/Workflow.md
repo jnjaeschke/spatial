@@ -58,6 +58,32 @@ Params the selector must produce; a `z.strictObject` so its JSON schema is OpenA
 
 ## Methods
 
+### checkAnswer()?
+
+> `optional` **checkAnswer**(`view`, `decision`, `option`): `string` \| `null`
+
+Why the user cannot take `option` of the open `decision` now, or null to accept it. A refused answer leaves the decision open.
+
+#### Parameters
+
+##### view
+
+[`WorkflowView`](../../render-ref/interfaces/WorkflowView.md)
+
+##### decision
+
+[`Artifact`](../../../shared/types/interfaces/Artifact.md)\<[`DecisionData`](../../../shared/types/interfaces/DecisionData.md)\>
+
+##### option
+
+`string`
+
+#### Returns
+
+`string` \| `null`
+
+***
+
 ### next()?
 
 > `optional` **next**(`view`, `ctx`): [`Step`](../type-aliases/Step.md) \| `null`
