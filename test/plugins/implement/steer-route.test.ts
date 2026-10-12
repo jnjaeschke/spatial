@@ -58,6 +58,39 @@ test("a steer about this task only is remembered for the session", async () => {
   assert.equal(rt.knowledge.get("/repo/.git", "implement", "memory/use-helpers").state, "absent");
 });
 
+test("a live steer goes to the running agent without stopping the epoch, and is remembered", async () => {
+  const { rt, store, session, runs, routes } = setup();
+  const running = rt.runPhase(session.id, "implement", { round: 1 });
+  await tick();
+  const hangId = store.listTasks(session.id).find((task) => task.kind === "hang")!.id;
+  const sent: string[] = [];
+  rt.sendLiveInput = (_sessionId, text) => { sent.push(text); return [hangId]; };
+  const response = await routeCall(routes, "POST", `/api/sessions/${session.id}/steer`, { text: " use a helper ", live: true });
+  assert.equal(response.status, 202);
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0]!.startsWith("use a helper"));
+  const steer = store.listArtifacts(session.id, "Steer")[0]!;
+  assert.deepEqual(steer.data, { text: "use a helper", epoch: 1, phase: "implement", live: true });
+  assert.equal(store.listEpochs(session.id)[0]!.status, "running");
+  assert.equal(runs(), 1);
+  await until(() => store.listArtifacts(session.id, "MemoryNotice").length === 1);
+  assert.equal((store.listTasks(session.id).find((task) => task.kind === "distillSteer")!.input as { taskId: string }).taskId, hangId);
+  rt.cancel(hangId);
+  await running.catch(() => {});
+});
+
+test("a live steer with no agent reading input is refused and stores nothing", async () => {
+  const { rt, store, session, routes } = setup();
+  const running = rt.runPhase(session.id, "implement", { round: 1 });
+  await tick();
+  const response = await routeCall(routes, "POST", `/api/sessions/${session.id}/steer`, { text: "use a helper", live: true });
+  assert.equal(response.status, 409);
+  assert.match(String(response.body.error), /not reading messages/);
+  assert.deepEqual(store.listArtifacts(session.id, "Steer"), []);
+  rt.cancel(store.listTasks(session.id).find((task) => task.kind === "hang")!.id);
+  await running.catch(() => {});
+});
+
 test("a steer needs text, a running epoch and a phase that reads steers", async () => {
   const { rt, store, session, routes } = setup();
   const steer = (text: unknown) => routeCall(routes, "POST", `/api/sessions/${session.id}/steer`, { text });

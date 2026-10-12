@@ -93,7 +93,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const prompt = steerPrompt === null ? (firstCall ? fresh : followUp) : input.writeMode === "editsOnly" ? `${steerPrompt}\n\n${followUp}` : steerPrompt;
       steerPrompt = null;
       firstCall = false;
-      const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
+      const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, liveInput: true, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
       session = r.providerSessionId;
       const errors = schemaErrors(SCHEMA, r.json);
       if (errors.length) throw new Error(`Implement reply is not valid: ${errors.join("; ")}`);

@@ -10,9 +10,10 @@ export interface CommentInterpretationData { comment: Id; phid: string; asks: st
 /** User's mark on a comment, linked `about → comment`; latest per phid wins. */
 export interface CommentTriageData { comment: Id; phid: string; action: CommentAction; text: string | null }
 /** What the user said when stopping a running phase (artifact `Steer`, verified, linked `about →` the WorkflowStart); stamped with the epoch that was stopped. */
-export interface SteerData { text: string; epoch: number; phase: string }
+/** What the user told a running agent. `live`: handed to the running agent, which kept working; otherwise the run was stopped and rerun with it. */
+export interface SteerData { text: string; epoch: number; phase: string; live?: true }
 
-/** Where a memory applies: the session's repository (`Session.repoDir`) or every repository. */
+/** Where a memory applies: this session only, the session's repository (`Session.repoDir`), or every repository. */
 export type MemoryScope = "session" | "repo" | "global";
 /** A way the user wants the agent to work, distilled from a steer (knowledge store, namespace `implement`, key `memory/<slug>`). Empty `kinds` applies to every investigation kind. `source` is set by the runtime. */
 export interface SteerMemory {

@@ -1,4 +1,5 @@
 import type { ModelInfo } from "../../shared/types.ts";
+import type { Writable } from "node:stream";
 import { runProcess } from "../process.ts";
 import { claudeEventReader } from "./events.ts";
 import { LlmOutputError, type LlmBackend, type LlmRequest, type LlmResult } from "./types.ts";
@@ -42,8 +43,12 @@ export class ClaudeBackend implements LlmBackend {
     if (req.resumeProviderSession) args.push("--resume", req.resumeProviderSession);
     if (req.system !== undefined) args.push("--system-prompt", req.system);
     if (req.schema) args.push("--json-schema", JSON.stringify(req.schema));
+    const live = req.liveInput && req.onLiveInput ? liveInput(req.onLiveInput) : null;
+    if (live) args.push("--input-format", "stream-json", "--replay-user-messages");
 
-    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: req.prompt, cwd: req.cwd, signal: req.signal, onStdoutLine: req.onEvent ? claudeEventReader(req.onEvent) : undefined });
+    const events = req.onEvent ? claudeEventReader(req.onEvent) : undefined;
+    const onStdoutLine = live ? (line: string) => { live.read(line); events?.(line); } : events;
+    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: live ? (stdin) => live.open(stdin, req.prompt) : req.prompt, cwd: req.cwd, signal: req.signal, onStdoutLine });
     let out: Record<string, any> | undefined;
     for (const line of stdout.split("\n")) {
       if (!line.startsWith("{")) continue;
@@ -63,4 +68,29 @@ export class ClaudeBackend implements LlmBackend {
     }
     return result;
   }
+}
+
+const userMessage = (text: string) => `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text }] } })}\n`;
+
+/** Claude's stream-json input: the prompt is the first user message and later ones go in while the run works. Claude echoes each message as a replay when it reads it, and every read message is answered by a later `result`, so input ends at the first `result` with no message sent but unread. */
+function liveInput(onLiveInput: NonNullable<LlmRequest["onLiveInput"]>) {
+  let stdin: Writable | null = null;
+  let unread = 0;
+  const close = () => { if (!stdin) return; stdin.end(); stdin = null; onLiveInput(null); };
+  return {
+    open(stream: Writable, prompt: string) {
+      stdin = stream;
+      stream.on("close", close);
+      unread = 1;
+      stream.write(userMessage(prompt));
+      onLiveInput((text) => { if (!stdin) return; unread++; stdin.write(userMessage(text)); });
+    },
+    read(line: string) {
+      if (!line.startsWith("{")) return;
+      let event: Record<string, unknown>;
+      try { event = JSON.parse(line); } catch { return; }
+      if (event.type === "user" && event.isReplay === true) unread--;
+      else if (event.type === "result" && unread === 0) close();
+    },
+  };
 }

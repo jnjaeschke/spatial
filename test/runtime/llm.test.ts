@@ -81,6 +81,22 @@ test("claude: is_error surfaces the result text", async () => {
   await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req()), /claude: Invalid model: m1/);
 });
 
+test("claude live input: the prompt and every message go in as stream-json; input closes at the result once all were read", async () => {
+  stdout(JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { n: 7 }, session_id: "sess-live" }));
+  process.env.FAKE_LLM_SLEEP_MS = "300";
+  const senders: (((text: string) => void) | null)[] = [];
+  const r = await new ClaudeBackend({ bin: STUB }).run(req({ schema: SCHEMA, tools: "write", liveInput: true, onLiveInput: (send) => { senders.push(send); send?.("use a helper"); } }));
+  assert.deepEqual(r.json, { n: 7 });
+  assert.equal(senders.length, 2);
+  assert.equal(senders[1], null);
+  const [call, live] = calls();
+  assert.equal(call.stdin, "PROMPT");
+  assert.deepEqual(live, { live: "use a helper" });
+  const a: string[] = call.argv;
+  assert.equal(a[a.indexOf("--input-format") + 1], "stream-json");
+  assert.ok(a.includes("--replay-user-messages"));
+});
+
 test("claude: nonzero exit with non-JSON output surfaces stderr", async () => {
   stdout("not json");
   process.env.FAKE_LLM_EXIT = "2";

@@ -21,6 +21,14 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ***
 
+### liveInput?
+
+> `optional` **liveInput?**: `boolean`
+
+The run reads messages sent to its task with `Runtime.sendLiveInput` while it works. Only the Claude backend supports it.
+
+***
+
 ### mcpServers?
 
 > `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](../type-aliases/McpServerSpec.md)\>

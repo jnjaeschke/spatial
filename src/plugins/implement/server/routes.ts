@@ -50,12 +50,22 @@ export function implementRoutes(rt: Runtime): Route[] {
       if (steering.has(session.id)) throw new HttpError(409, "A steer is already being handled for this session");
       steering.add(session.id);
       try {
-        const steerText = requireText(await readJson(req), "text", "The steer").trim();
+        const body = await readJson(req);
+        const steerText = requireText(body, "text", "The steer").trim();
+        if (body.live !== undefined && typeof body.live !== "boolean") throw new HttpError(400, "live must be a boolean");
         const running = rt.runningEpoch(session.id);
         if (!running) throw new HttpError(409, "No epoch is running");
         if (!STEERABLE.has(running.phase)) throw new HttpError(409, `The ${running.phase} phase cannot be steered`);
         const start = rt.store.listArtifacts(session.id, "WorkflowStart").at(-1);
         if (!start) throw new HttpError(409, "Session has no start request");
+        if (body.live) {
+          const [taskId] = rt.sendLiveInput(session.id, `${steerText}\n\n(The user sent this while you work. Take it into account and carry on.)`);
+          if (!taskId) throw new HttpError(409, "The agent is not reading messages right now (a Codex run, or between agent runs); use Stop & steer");
+          const steer = putUserArtifact(rt, session.id, "Steer", { text: steerText, epoch: running.n, phase: running.phase, live: true } satisfies SteerData, start.id);
+          rememberSteer(rt, session.id, steer as Artifact<SteerData>, taskId).catch((e) => console.error(`distillSteer failed in session ${session.id}: ${(e as Error).message}`));
+          send(res, 202, { steerId: steer.id });
+          return;
+        }
         let cancelled;
         try { cancelled = await rt.cancelEpoch(session.id); }
         catch (e) { throw new HttpError(409, (e as Error).message); }

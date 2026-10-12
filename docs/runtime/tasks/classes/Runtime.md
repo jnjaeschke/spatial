@@ -370,6 +370,28 @@ Opens the next epoch and runs the phase in it. Throws synchronously (`PhaseBusyE
 
 ***
 
+### sendLiveInput()
+
+> **sendLiveInput**(`sessionId`, `text`): `string`[]
+
+Hands `text` to the session's LLM runs that read live input; the ids of their tasks, empty when none does right now.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### text
+
+`string`
+
+#### Returns
+
+`string`[]
+
+***
+
 ### start()
 
 > **start**\<`O`\>(`sessionId`, `kind`, `input`): `object`

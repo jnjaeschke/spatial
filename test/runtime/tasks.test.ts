@@ -87,6 +87,30 @@ test("LLM activity becomes task.activity events, listed per task; the task's own
   assert.deepEqual(seen, ["activity", "progress"]);
 });
 
+test("live input reaches the session's run that accepts it, and nothing once that run is done", async () => {
+  const store = new Store(":memory:");
+  const heard: string[] = [];
+  let release!: () => void;
+  const llm: LlmService = { ...fakeLlm, async run(selection, prompt) {
+    prompt.onLiveInput?.((text) => heard.push(text));
+    await new Promise<void>((resolve) => { release = resolve; });
+    prompt.onLiveInput?.(null);
+    return fakeLlm.run(selection, prompt, new AbortController().signal);
+  } };
+  const agent = defineTask<null, null>({ kind: "agent", async run(ctx) { await ctx.llm.run({ prompt: "p", tools: "write", liveInput: true }); return null; } });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [agent] }], llm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const other = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "u" });
+  const { taskId, done } = rt.start(session.id, "agent", null);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(rt.sendLiveInput(other.id, "elsewhere"), []);
+  assert.deepEqual(rt.sendLiveInput(session.id, "use a helper"), [taskId]);
+  release();
+  await done;
+  assert.deepEqual(heard, ["use a helper"]);
+  assert.deepEqual(rt.sendLiveInput(session.id, "too late"), []);
+});
+
 test("failing task: status failed, TaskFailedError, task.failed event", async () => {
   const { store, rt, session, events } = setup();
   const { taskId, done } = rt.start(session.id, "boom", null);

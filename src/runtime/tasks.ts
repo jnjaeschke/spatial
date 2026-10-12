@@ -218,6 +218,8 @@ export class Runtime {
   #repoMcp: (repo: string) => Record<string, McpServerSpec>;
   #repoContext: (repo: string) => RepoContext;
   #running = new Map<Id, AbortController>();
+  /** The input senders of LLM runs that read live input, by task. */
+  #live = new Map<Id, { sessionId: Id; send: (text: string) => void }>();
   #epochRuns = new Map<Id, EpochRun>();
   #listeners = new Set<Listener>();
 
@@ -330,7 +332,10 @@ export class Runtime {
             if (event.kind === "activity") emit("task.activity", { taskId: task.id, activity: event.activity });
             prompt.onEvent?.(event);
           };
-          const r = await this.#llm.run(selection, { ...prompt, onEvent }, controller.signal);
+          const onLiveInput = (send: ((text: string) => void) | null) => { if (send) this.#live.set(task.id, { sessionId, send }); else this.#live.delete(task.id); };
+          let r: LlmRunResult;
+          try { r = await this.#llm.run(selection, { ...prompt, onEvent, ...(prompt.liveInput ? { onLiveInput } : {}) }, controller.signal); }
+          finally { this.#live.delete(task.id); }
           emit("llm.usage", { selection: r.selection, usage: r.usage ?? null });
           return r;
         },
@@ -516,6 +521,13 @@ export class Runtime {
       this.emit(sessionId, "runtime", "epoch.failed", { n: done.n, phase: done.phase, error: message });
       throw e;
     }
+  }
+
+  /** Hands `text` to the session's LLM runs that read live input; the ids of their tasks, empty when none does right now. */
+  sendLiveInput(sessionId: Id, text: string): Id[] {
+    const runs = [...this.#live].filter(([, run]) => run.sessionId === sessionId);
+    for (const [, run] of runs) run.send(text);
+    return runs.map(([taskId]) => taskId);
   }
 
   cancel(taskId: Id): void {

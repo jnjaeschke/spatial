@@ -8,4 +8,4 @@
 
 > **MemoryScope** = `"session"` \| `"repo"` \| `"global"`
 
-Where a memory applies: the session's repository (`Session.repoDir`) or every repository.
+Where a memory applies: this session only, the session's repository (`Session.repoDir`), or every repository.

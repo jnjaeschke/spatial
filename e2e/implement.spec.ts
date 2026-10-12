@@ -99,6 +99,12 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   const sessionId = /\/sessions\/([^/?#]+)/.exec(page.url())![1];
   await expect.poll(async () => ((await (await page.request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json()) as { artifacts: { type: string }[] }).artifacts.some((a) => a.type === "AgentSession"), { timeout: 20_000 }).toBe(true);
   const conversation = page.getByTestId("conversation");
+  await conversation.getByLabel("message").fill("Keep the diff small");
+  const liveSteer = conversation.getByRole("button", { name: "Steer", exact: true });
+  await revealNode(page, liveSteer);
+  await liveSteer.click();
+  await expect(conversation.getByTestId("steer-item").first()).toHaveText(/^Steered Keep the diff small/);
+  await expect(page.getByTestId("implement-running")).toBeVisible();
   await conversation.getByLabel("message").fill("STEER-ME name the helper");
   const steer = conversation.getByRole("button", { name: "Stop & steer" });
   await revealNode(page, steer);
@@ -111,7 +117,7 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   expect(git(dir, "log", "--format=%s", "main..spatial/impl-steer-make-c-txt-exist")).toBe("Fix the c thing");
   await page.getByTestId("epoch-chip-3").click();
   await expect(page.getByTestId("toasts")).toContainText("Remembered: Name helpers after what they return");
-  await expect(conversation.getByTestId("steer-item")).toContainText("STEER-ME name the helper");
+  await expect(conversation.getByTestId("steer-item").last()).toHaveText(/^Stopped and steered STEER-ME name the helper/);
   const notice = conversation.getByTestId("memory-notice");
   await expect(notice).toContainText("Remembered for this repo");
   await expect(notice).toContainText("Name helpers after what they return");

@@ -1,13 +1,14 @@
 import { spawn } from "node:child_process";
+import type { Writable } from "node:stream";
 
-/** Spawns `cmd`, writes `stdin`, collects output. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
 /** `text` cut to `max` characters, marked when cut. */
 export const capOutput = (text: string, max: number) => text.length > max ? `${text.slice(0, max)}\n[output truncated]` : text;
 
+/** Spawns `cmd`, writes `stdin`, collects output. A function `stdin` gets the open stream and ends it itself. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
 export function runProcess(
   cmd: string,
   args: string[],
-  opts: { stdin: string; cwd?: string; signal: AbortSignal; env?: Record<string, string>; onStdoutLine?: (line: string) => void },
+  opts: { stdin: string | ((stdin: Writable) => void); cwd?: string; signal: AbortSignal; env?: Record<string, string>; onStdoutLine?: (line: string) => void },
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   return new Promise((resolve, reject) => {
     if (opts.signal.aborted) return reject(new Error("aborted"));
@@ -38,7 +39,8 @@ export function runProcess(
       else resolve({ stdout, stderr, code: code ?? -1 });
     });
     child.stdin.on("error", () => {}); // child may exit before reading stdin; close/error handlers report it
-    child.stdin.end(opts.stdin);
+    if (typeof opts.stdin === "string") child.stdin.end(opts.stdin);
+    else opts.stdin(child.stdin);
   });
 }
 

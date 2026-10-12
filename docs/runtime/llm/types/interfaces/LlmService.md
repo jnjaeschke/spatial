@@ -40,7 +40,7 @@ One failing backend (e.g. codex not installed) must not hide the others.
 
 ##### prompt
 
-[`LlmPrompt`](LlmPrompt.md)
+[`LlmPrompt`](LlmPrompt.md) & `Pick`\<[`LlmRequest`](LlmRequest.md), `"onLiveInput"`\>
 
 ##### signal
 

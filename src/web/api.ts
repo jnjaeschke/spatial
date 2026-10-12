@@ -74,7 +74,8 @@ export const api = {
     post<{ inlines: number; skipped: { source: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/review-submit`, body),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
   taskActivity: (sessionId: string, taskId: string) => get<TaskActivityResponse>(`/api/sessions/${sessionId}/tasks/${taskId}/activity`),
-  steer: (sessionId: string, text: string) => post<{ steerId: string }>(`/api/sessions/${sessionId}/steer`, { text }),
+  /** `live`: hand the text to the running agent instead of stopping and rerunning it. */
+  steer: (sessionId: string, text: string, live = false) => post<{ steerId: string }>(`/api/sessions/${sessionId}/steer`, { text, ...(live ? { live } : {}) }),
   decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
   decideFinding: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>

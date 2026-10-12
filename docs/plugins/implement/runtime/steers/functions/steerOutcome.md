@@ -8,7 +8,7 @@
 
 > **steerOutcome**(`artifacts`, `epoch`): `"resumed"` \| `"restarted"` \| `null`
 
-Whether the run after the epoch's newest steer resumed the stopped agent session: read from the first agent session that follows the steer (later sessions resume for verification retries too). Null until one exists.
+Whether the run after the epoch's newest stop steer resumed the stopped agent session: read from the first agent session that follows the steer (later sessions resume for verification retries too). Null until one exists.
 
 ## Parameters
 

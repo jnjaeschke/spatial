@@ -578,7 +578,9 @@
 
 ### steer
 
-> **steer**: (`sessionId`, `text`) => `Promise`\<\{ `steerId`: `string`; \}\>
+> **steer**: (`sessionId`, `text`, `live`) => `Promise`\<\{ `steerId`: `string`; \}\>
+
+`live`: hand the text to the running agent instead of stopping and rerunning it.
 
 #### Parameters
 
@@ -589,6 +591,10 @@
 ##### text
 
 `string`
+
+##### live?
+
+`boolean` = `false`
 
 #### Returns
 

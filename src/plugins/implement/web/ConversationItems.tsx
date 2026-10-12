@@ -4,7 +4,7 @@ import { memoriesClient } from "./client.ts";
 
 /** What the user said when stopping the running phase. */
 export function SteerItem({ artifact }: ConversationItemProps) {
-  return <div className="msg user steer-item" data-testid="steer-item"><span className="steer-label">Stopped and steered</span> {(artifact.data as SteerData).text}</div>;
+  return <div className="msg user steer-item" data-testid="steer-item"><span className="steer-label">{(artifact.data as SteerData).live ? "Steered" : "Stopped and steered"}</span> {(artifact.data as SteerData).text}</div>;
 }
 
 /** A remembered steer with the user's reaction: confirm it, or forget it and optionally edit it instead. */

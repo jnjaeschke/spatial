@@ -30,6 +30,18 @@ What a task asks of an LLM; model/effort are resolved by the LLM manager.
 
 ***
 
+### liveInput?
+
+> `optional` **liveInput?**: `boolean`
+
+The run reads messages sent to its task with `Runtime.sendLiveInput` while it works. Only the Claude backend supports it.
+
+#### Inherited from
+
+[`LlmPrompt`](LlmPrompt.md).[`liveInput`](LlmPrompt.md#liveinput)
+
+***
+
 ### mcpServers?
 
 > `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](../type-aliases/McpServerSpec.md)\>
@@ -65,6 +77,24 @@ Receives the run's events as its output streams.
 #### Inherited from
 
 [`LlmPrompt`](LlmPrompt.md).[`onEvent`](LlmPrompt.md#onevent)
+
+***
+
+### onLiveInput?
+
+> `optional` **onLiveInput?**: (`send`) => `void`
+
+With `liveInput`, a backend that supports it calls this with a function handing text to the running agent, which reads it after its current tool call, and with null once the run reads no more.
+
+#### Parameters
+
+##### send
+
+((`text`) => `void`) \| `null`
+
+#### Returns
+
+`void`
 
 ***
 

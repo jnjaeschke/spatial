@@ -5,6 +5,7 @@ import { steerOutcome, steerPlan, steerSections, steersOf } from "../../../src/p
 
 const art = (id: string, type: string, data: unknown, epoch: number | null = 1) => ({ id, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch, createdAt: "" }) as Artifact;
 const steer = (id: string, text: string, epoch = 1) => art(id, "Steer", { text, epoch, phase: "implement" }, epoch);
+const liveSteer = (id: string, text: string) => art(id, "Steer", { text, epoch: 1, phase: "implement", live: true });
 const session = (id: string, providerSessionId: string, resumed = false, epoch = 1) => art(id, "AgentSession", { providerSessionId, backend: "claude", model: "sonnet", resumed }, epoch);
 
 test("steersOf lists the steers of one epoch in order", () => {
@@ -24,6 +25,11 @@ test("a run resumes the stopped session with the steers it has not seen, and sta
   assert.deepEqual(steerPlan([steer("a", "one")], null), { all: [], resume: null });
 });
 
+test("a live steer is in the session it was sent to: a resume does not repeat it, a fresh run is told it", () => {
+  assert.deepEqual(steerPlan([session("s1", "p1"), liveSteer("a", "one"), steer("b", "two")], 1), { all: ["one", "two"], resume: { providerSessionId: "p1", steers: ["two"] } });
+  assert.deepEqual(steerPlan([session("s1", "p1"), liveSteer("a", "one")], 1), { all: ["one"], resume: null });
+});
+
 test("the steer sections tell the agent it was stopped and, when it can edit, that its edits may remain", () => {
   assert.deepEqual(steerSections([], true), []);
   assert.deepEqual(steerSections(["use a helper"], true), ["# The user stopped you and said", "use a helper\n\nThe work tree may hold edits from the stopped run."]);
@@ -36,4 +42,6 @@ test("the outcome of a steer is read from the first agent session after the newe
   assert.equal(steerOutcome([session("s1", "p1"), steer("a", "one")], 1), null);
   assert.equal(steerOutcome([session("s1", "p1"), steer("a", "one"), session("s2", "p2", true), session("s3", "p3", true)], 1), "resumed");
   assert.equal(steerOutcome([session("s1", "p1"), steer("a", "one"), session("s2", "p2", false), session("s3", "p3", true)], 1), "restarted");
+  assert.equal(steerOutcome([session("s1", "p1"), steer("a", "one"), session("s2", "p2", true), liveSteer("b", "two")], 1), "resumed");
+  assert.equal(steerOutcome([session("s1", "p1"), liveSteer("a", "one")], 1), null);
 });

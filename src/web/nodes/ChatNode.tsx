@@ -34,7 +34,7 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   );
 }
 
-export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Stop & steer beside Send: the text stops the running epoch and steers its rerun. */ canSteer?: boolean; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
+export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Steer and Stop & steer beside Send: Steer hands the text to the running agent, Stop & steer stops the running epoch and steers its rerun. */ canSteer?: boolean; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
 
 /** Messages and reply form of one chat thread; `lead` renders before the messages. */
 export function Conversation(data: ConversationProps) {
@@ -106,7 +106,10 @@ export function Conversation(data: ConversationProps) {
         <Composer textareaRef={textarea} label="message" placeholder={`Ask AI — ${COMPOSER_HINT}`} value={text} onChange={setText} rows={2} canSubmit={canSend} onSubmit={() => textarea.current?.form?.requestSubmit()} />
         <LlmPicker models={actions.models} value={llm ?? actions.models.default} onChange={setLlm} />
         <button type="submit" disabled={!canSend}>Send</button>
-        {data.canSteer && <button type="button" disabled={text.trim() === ""} onClick={() => void run(async () => { await api.steer(actions.sessionId, text); setText(""); })}>Stop &amp; steer</button>}
+        {data.canSteer && <>
+          <button type="button" disabled={text.trim() === ""} title="Tell the running agent without stopping it; it reads this after its current step" onClick={() => void run(async () => { await api.steer(actions.sessionId, text, true); setText(""); })}>Steer</button>
+          <button type="button" disabled={text.trim() === ""} title="Stop the agent now and rerun it with this" onClick={() => void run(async () => { await api.steer(actions.sessionId, text); setText(""); })}>Stop &amp; steer</button>
+        </>}
         <ErrorText error={error} />
       </form>}
   </>;

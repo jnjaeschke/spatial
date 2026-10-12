@@ -24,6 +24,8 @@ export interface LlmPrompt {
   /** Continue this provider session instead of starting a new one; a resumed write run keeps the write mode's tools and permissions. */
   resumeProviderSession?: string;
   mcpServers?: Record<string, McpServerSpec>;
+  /** The run reads messages sent to its task with `Runtime.sendLiveInput` while it works. Only the Claude backend supports it. */
+  liveInput?: boolean;
 }
 
 /** Progress, finished shell commands, activity and the provider session id of a run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. */
@@ -41,6 +43,8 @@ export interface LlmRequest extends LlmPrompt {
   model: string;
   effort: string;
   signal: AbortSignal;
+  /** With `liveInput`, a backend that supports it calls this with a function handing text to the running agent, which reads it after its current tool call, and with null once the run reads no more. */
+  onLiveInput?: (send: ((text: string) => void) | null) => void;
 }
 
 export interface LlmUsage {
@@ -70,7 +74,7 @@ export interface LlmBackend {
 /** Runtime-owned LLM management. `selection` undefined means the configured default. */
 export interface LlmService {
   readonly defaultSelection: LlmSelection;
-  run(selection: LlmSelection | undefined, prompt: LlmPrompt, signal: AbortSignal): Promise<LlmRunResult>;
+  run(selection: LlmSelection | undefined, prompt: LlmPrompt & Pick<LlmRequest, "onLiveInput">, signal: AbortSignal): Promise<LlmRunResult>;
   /** One failing backend (e.g. codex not installed) must not hide the others. */
   listModels(): Promise<Record<LlmBackendId, BackendModels>>;
 }

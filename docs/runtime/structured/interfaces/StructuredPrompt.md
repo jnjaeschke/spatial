@@ -30,6 +30,18 @@ A structured LLM request. `validate` runs on replies that match `schema` (`attem
 
 ***
 
+### liveInput?
+
+> `optional` **liveInput?**: `boolean`
+
+The run reads messages sent to its task with `Runtime.sendLiveInput` while it works. Only the Claude backend supports it.
+
+#### Inherited from
+
+[`LlmPrompt`](../../llm/types/interfaces/LlmPrompt.md).[`liveInput`](../../llm/types/interfaces/LlmPrompt.md#liveinput)
+
+***
+
 ### mcpServers?
 
 > `optional` **mcpServers?**: `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>

@@ -6,13 +6,19 @@
 
 # Interface: SteerData
 
-What the user said when stopping a running phase (artifact `Steer`, verified, linked `about →` the WorkflowStart); stamped with the epoch that was stopped.
+What the user told a running agent. `live`: handed to the running agent, which kept working; otherwise the run was stopped and rerun with it.
 
 ## Properties
 
 ### epoch
 
 > **epoch**: `number`
+
+***
+
+### live?
+
+> `optional` **live?**: `true`
 
 ***
 
