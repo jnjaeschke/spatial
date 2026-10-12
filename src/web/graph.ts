@@ -54,7 +54,7 @@ export type GraphNodeData = CoreNodeData | PluginNodeData;
 export interface GraphNode { id: string; data: GraphNodeData; anchors?: string[]; position?: FreePosition }
 /** A node with its size, as a layout places it. */
 export interface PlacedNode { id: string; data: GraphNodeData; width: number; height: number; anchors?: string[] }
-export interface GraphEdge { id: string; source: string; target: string; /** Text drawn on the edge. */ label?: string; /** Extra class of the edge element. */ className?: string }
+export interface GraphEdge { id: string; source: string; target: string; /** Text drawn on the edge. */ label?: string; /** Extra class of the edge element. */ className?: string; /** Tooltip of the edge label. */ title?: string }
 export type Graph = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 export const isCoreKind = <K extends CoreNodeData["kind"]>(data: GraphNodeData, kind: K): data is Extract<CoreNodeData, { kind: K }> => data.kind === kind;

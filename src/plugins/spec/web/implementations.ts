@@ -11,8 +11,8 @@ export function columnState(tasks: Pick<TaskRecord, "kind" | "status" | "input" 
 }
 
 /** Whether a comparison of the algorithm is running, else the error of its latest compare or verify task when that failed. */
-export function compareState(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], algorithmId: string): { busy: boolean; failed: string | null } {
-  const own = tasks.filter((task) => (task.kind === "compareEngines" || task.kind === "verifyComparison") && (task.input as { algorithmId?: string }).algorithmId === algorithmId);
+export function taskState(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "error">[], kinds: string[], matches: (input: unknown) => boolean): { busy: boolean; failed: string | null } {
+  const own = tasks.filter((task) => kinds.includes(task.kind) && matches(task.input));
   const busy = own.some((task) => task.status === "pending" || task.status === "running");
   const last = own.at(-1);
   return { busy, failed: !busy && last?.status === "failed" ? last.error : null };

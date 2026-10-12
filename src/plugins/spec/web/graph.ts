@@ -22,8 +22,8 @@ export function openBoxes(opened: SpecOpenedData[], closed: ReadonlySet<string>)
   return { open: [...new Set(opened.map((link) => link.anchor))].filter((ref) => reached.has(ref)), closedHosts };
 }
 
-/** The explorer canvas: the session conversation as root, a box per open algorithm (closed boxes stay in the graph for core to hide and offer for reopening), link edges labelled with their step, and the hops of `trace` between boxes as numbered edges. `closed` holds closed node ids. */
-export function explorerGraph(state: SessionState, drafts: Draft[], closed: ReadonlySet<string>, trace: SpecTraceData | null): Graph | null {
+/** The explorer canvas: the session conversation as root, a box per open algorithm (closed boxes stay in the graph for core to hide and offer for reopening), link edges labelled with their step, and the hops of `trace` between boxes as numbered edges. `closed` holds closed node ids; `unverified` gives reasons for failed trace entries by entry index. */
+export function explorerGraph(state: SessionState, drafts: Draft[], closed: ReadonlySet<string>, trace: SpecTraceData | null, unverified: ReadonlyMap<number, string> = new Map()): Graph | null {
   const start = latestStart(state);
   if (!start) return null;
   const opened = state.artifacts.filter((a) => a.type === "SpecOpened").map((a) => a.data as SpecOpenedData);
@@ -54,7 +54,7 @@ export function explorerGraph(state: SessionState, drafts: Draft[], closed: Read
   entries.forEach((entry, index) => {
     const next = entries[index + 1];
     if (!next || next.anchor === entry.anchor || !shownSet.has(entry.anchor) || !shownSet.has(next.anchor)) return;
-    edges.set(`hop:${index}`, { id: `hop:${index}`, source: specNodeId(entry.anchor), target: specNodeId(next.anchor), label: `${index + 1}`, className: "trace-hop" });
+    edges.set(`hop:${index}`, { id: `hop:${index}`, source: specNodeId(entry.anchor), target: specNodeId(next.anchor), label: `${index + 1}`, className: unverified.has(index + 1) ? "trace-hop unverified" : "trace-hop", ...(unverified.has(index + 1) ? { title: unverified.get(index + 1)! } : {}) });
   });
   return rootGraph(state, drafts, { nodes, edges: [...edges.values()] });
 }

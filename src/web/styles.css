@@ -746,6 +746,20 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .trace-sequence { overflow: auto; padding: 16px; }
 .trace-entries { display: grid; gap: 8px; padding-left: 20px; }
 .trace-entries textarea { width: 100%; }
+.react-flow__edge.trace-hop.unverified path { stroke-dasharray: 6 4; }
+.spec-ask { display: grid; gap: 6px; margin-bottom: 12px; }
+.spec-ask h3 { margin: 0; font-size: 0.95em; }
+.spec-ask textarea { width: 100%; }
+.trace-check { display: grid; gap: 4px; margin-bottom: 8px; padding: 6px 8px; border-left: 3px solid var(--kind-spec); }
+.trace-question, .trace-reasoning { margin: 0; }
+.trace-verdict { margin: 0; font-weight: 600; }
+.trace-verdict.outdated { color: var(--text-2); }
+.trace-recheck { display: flex; gap: 8px; align-items: center; }
+.trace-hop-kind { font-size: 0.75em; padding: 0 4px; margin-right: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.trace-entries li.unverified > .trace-step { text-decoration: underline dashed; }
+.trace-unverified { font-size: 0.8em; color: var(--danger); }
+.trace-entries textarea.unsupported { text-decoration: line-through; }
+.trace-note-reason { margin: 0; font-size: 0.8em; color: var(--danger); }
 .spec-steps ol { list-style: none; margin: 0; padding: 0; }
 .spec-effects { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
 .impl-view { height: 100%; overflow: auto; padding: 12px 16px; }

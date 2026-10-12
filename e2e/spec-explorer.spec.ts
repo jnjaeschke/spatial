@@ -154,3 +154,26 @@ test("implementations: the Gecko site from searchfox, a Blink proposal confirmed
   await expect(differences).toHaveCount(0);
   await expect(view.locator("tr.highlight")).toHaveCount(0);
 });
+
+test("a claim check opens its trace: one unverified hop dashed on the map, the verdict with its counts", async ({ page }) => {
+  await exploreNavigate(page);
+  await page.getByTestId("traces-toggle").click();
+  const panel = page.getByTestId("trace-panel");
+  await panel.getByRole("button", { name: "Check claim" }).click();
+  await panel.getByLabel("Question about the spec").fill("The source snapshot is taken before the origin snapshot.");
+  await panel.getByRole("button", { name: "Ask" }).click();
+  await expect(panel.getByTestId("trace-verdict")).toHaveText("fails · 4 steps, 1 unverified hop, 0 unsupported notes", { timeout: 15_000 });
+  await expect(page.getByTestId("spec-box-HTML#setup")).toBeVisible();
+  await expect(page.locator(".react-flow__edge.trace-hop")).toHaveCount(3);
+  const dashed = page.locator(".react-flow__edge.trace-hop.unverified");
+  await expect(dashed).toHaveCount(1);
+  expect(await dashed.locator("title").textContent()).toBe("HTML#navigate step 3 does not link HTML#setup");
+  await expect(panel.getByTestId("trace-entry-3").locator(".trace-unverified")).toHaveAttribute("title", "HTML#navigate step 3 does not link HTML#setup");
+  await panel.getByLabel("Note for entry 4").fill("Runs the whole setup.");
+  await panel.getByLabel("Note for entry 4").blur();
+  await expect(panel.getByTestId("trace-outdated")).toBeVisible();
+  await expect(page.locator(".react-flow__edge.trace-hop.unverified")).toHaveCount(0);
+  await panel.getByRole("button", { name: "Re-check" }).click();
+  await expect(page.locator(".react-flow__edge.trace-hop.unverified")).toHaveCount(1, { timeout: 15_000 });
+  await expect(panel.getByTestId("trace-outdated")).toHaveCount(0);
+});

@@ -1,13 +1,13 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow } from "../../../web/plugin-api.ts";
 import type { Engine, TaskRecord } from "../../../plugin-api.ts";
-import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../shared/types.ts";
 import { engineTasks } from "../shared/engine.ts";
-import { latestTraces, traceSequence, type TraceRow } from "../shared/traces.ts";
-import { explorerGraph, explorerLayout, specNodeId } from "./graph.ts";
+import { latestTraces, traceSequence, traceStatus, type TraceRow } from "../shared/traces.ts";
+import { explorerGraph, explorerLayout, openBoxes, specNodeId } from "./graph.ts";
 import { ExplorerContext, ExplorerViewContext, type SpecFocus } from "./context.ts";
 import { specClient } from "./client.ts";
-import { useActiveTrace, useTraceWriter } from "./trace-state.ts";
+import { useActiveTrace, useTracePanel, useTraceWriter } from "./trace-state.ts";
 import { TracePanel } from "./TracePanel.tsx";
 import type { SummaryView } from "../runtime/summaries.ts";
 
@@ -50,8 +50,11 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const traces = latestTraces(state.artifacts);
   const [activeId, setActive] = useActiveTrace(state.session.id);
   const active = traces.find((trace) => trace.traceId === activeId) ?? null;
+  const status = useMemo(() => activeId ? traceStatus(state.artifacts, activeId) : null, [state.artifacts, activeId]);
+  const current = status && !status.outdated ? status.check?.data ?? null : null;
+  const unverified = useMemo(() => new Map(current ? current.hops.flatMap((hop, index) => hop.ok ? [] : [[index, hop.reason] as const]) : []), [current]);
   const [mode, setMode] = useState<"map" | "sequence">("map");
-  const [panel, setPanel] = useState(false);
+  const [panel, setPanel] = useTracePanel(state.session.id);
   const [focus, setFocus] = useState<SpecFocus | null>(null);
   const focusNonce = useRef(0);
   const focusTaken = useRef(0);
@@ -72,6 +75,12 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const selectTrace = useCallback((traceId: string) => { activeIdRef.current = traceId; setActive(traceId); }, [setActive]);
+  const select = useCallback((traceId: string) => { selectTrace(traceId); if (traces.find((t) => t.traceId === traceId)?.question) void specClient.openTrace(state.session.id, traceId).catch((error: Error) => console.error(error)); }, [selectTrace, traces, state.session.id]);
+  useEffect(() => { if (!active?.question) return; const ids = [...new Set(active.entries.map((entry) => specNodeId(entry.anchor)))].filter((id) => closed.closed.has(id)); if (ids.length) closed.reopen(ids); }, [active?.traceId, active?.question]);
+  const openRefs = useMemo(() => {
+    const opened = state.artifacts.filter((a) => a.type === "SpecOpened").map((a) => a.data as SpecOpenedData);
+    return openBoxes(opened, new Set([...closed.closed].filter((id) => id.startsWith("spec:")).map((id) => id.slice(5)))).open;
+  }, [state.artifacts, closed.closed]);
   const addToTrace = useCallback(async (anchor: string, step: string) => {
     const entry = { anchor, step, note: "" };
     await writer.edit((known) => {
@@ -80,11 +89,11 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
     }, (trace) => selectTrace(trace.traceId));
   }, [writer, selectTrace]);
   const model = useMemo<CanvasModel>(() => ({
-    graph: (current, currentDrafts) => explorerGraph(current, currentDrafts, closed.closed, active),
+    graph: (currentState, currentDrafts) => explorerGraph(currentState, currentDrafts, closed.closed, active, unverified),
     stack: { is: () => true, layout: explorerLayout },
     revealWhenAdded: (node) => node.data.kind === "spec-algorithm",
     Provider: ExplorerProvider,
-  }), [closed.closed, active]);
+  }), [closed.closed, active, unverified]);
   const flag = useCallback(async (ref: string) => { await specClient.flagSummary(state.session.id, ref); setSummariesRefresh((n) => n + 1); }, [state.session.id]);
   const takeFocus = useCallback((taken: SpecFocus) => { if (focusTaken.current === taken.nonce) return false; focusTaken.current = taken.nonce; return true; }, []);
   const findInGecko = useCallback(async (ref: string, stale: string | null) => { await specClient.findImplementation(state.session.id, ref, "gecko", stale); }, [state.session.id]);
@@ -92,12 +101,12 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, tasks: stableEngineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, stableEngineTasks, flag, findInGecko, decideGecko]);
   return <ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
-    <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={selectTrace} onClose={() => setPanel(false)} />}</div>
+    <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} check={current} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={select} onClose={() => setPanel(false)} sessionId={state.session.id} activeId={activeId} status={status} tasks={state.tasks} openRefs={openRefs} />}</div>
   </></ExplorerViewContext.Provider>;
 }
 
-function TraceSequenceView({ trace, algorithms, onRow }: { trace: SpecTraceData; algorithms: ReadonlyMap<string, { title: string; url: string }>; onRow(row: TraceRow): void }) {
+function TraceSequenceView({ trace, algorithms, check, onRow }: { trace: SpecTraceData; algorithms: ReadonlyMap<string, { title: string; url: string }>; check: SpecTraceCheckData | null; onRow(row: TraceRow): void }) {
   const { lanes, rows } = traceSequence(trace, new Map([...algorithms].map(([ref, algorithm]) => [ref, algorithm.title])));
-  const steps: SequenceArrow[] = rows.map((row) => ({ from: row.from, to: row.to, data: { "data-kind": row.kind }, label: <div className="sequence-label"><span className="sequence-badge">{row.index + 1}</span><code className="sequence-call">step {row.step}</code>{row.note && <span className="sequence-what">{row.note}</span>}</div>, onClick: () => onRow(row) }));
+  const steps: SequenceArrow[] = rows.map((row) => ({ from: row.from, to: row.to, data: { "data-kind": row.kind, "data-unverified": String(check ? !check.hops[row.index + 1]!.ok : false) }, label: <div className="sequence-label"><span className="sequence-badge">{row.index + 1}</span><code className="sequence-call">step {row.step}{check && !check.hops[row.index + 1]!.ok ? " · unverified" : ""}</code>{row.note && <span className="sequence-what">{row.note}</span>}</div>, onClick: () => onRow(row) }));
   return rows.length ? <div className="trace-sequence" data-testid="trace-sequence"><SequenceDiagram title={trace.title} lanes={lanes} steps={steps} /></div> : <p className="empty">Add at least two steps to the trace.</p>;
 }

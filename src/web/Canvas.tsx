@@ -250,9 +250,10 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
   const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
   const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter(isSatellite).map((n) => [n.id, n.anchors ?? []])), [shown]);
-  const edges = useMemo<Edge[]>(() => shown.edges.map((e) => satelliteAnchors.has(e.source)
-    ? { ...e, type: "straight", style: { strokeDasharray: "4 4" } }
-    : { ...e, type: "smoothstep" }), [shown, satelliteAnchors]);
+  const edges = useMemo<Edge[]>(() => shown.edges.map(({ title, ...e }) => {
+    const edge = title ? { ...e, label: <>{e.label}<title>{title}</title></> } : e;
+    return satelliteAnchors.has(edge.source) ? { ...edge, type: "straight", style: { strokeDasharray: "4 4" } } : { ...edge, type: "smoothstep" };
+  }), [shown, satelliteAnchors]);
   // Until the user touches the canvas, every measured layout refits the view, so nodes that arrive later (findings) show up.
   const autoFit = useRef(true);
   // A new epoch is a new graph: fit it again even if the user moved the previous one.

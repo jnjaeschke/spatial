@@ -65,3 +65,11 @@ test("explorerGraph offers a closed root box on the conversation", () => {
   assert.equal((g.nodes.find((node) => node.id === "spec:HTML#r")!.data as AlgorithmNodeData).reopenOn, start.id);
   assert.deepEqual(closeGraph(g, new Set(["spec:HTML#r"])).closedOn.get(start.id), [{ id: "spec:HTML#r", kind: "box" }]);
 });
+
+test("explorerGraph dashes the hop into an unverified entry and titles it with the reason", () => {
+  const s = state([algorithm("HTML#a"), algorithm("HTML#b"), artifact("SpecOpened", link("HTML#a")), artifact("SpecOpened", link("HTML#b", "HTML#a", "1"))] as Artifact[]);
+  const trace = { traceId: "t", title: "T", entries: [{ anchor: "HTML#a", step: "1", note: "" }, { anchor: "HTML#b", step: "1", note: "" }] };
+  const reason = "HTML#a step 1 does not link HTML#b";
+  assert.deepEqual(explorerGraph(s, [], new Set(), trace, new Map([[1, reason]]))!.edges.find((edge) => edge.id === "hop:0"), { id: "hop:0", source: "spec:HTML#a", target: "spec:HTML#b", label: "1", className: "trace-hop unverified", title: reason });
+  assert.equal(explorerGraph(s, [], new Set(), trace)!.edges.find((edge) => edge.id === "hop:0")!.className, "trace-hop");
+});

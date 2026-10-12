@@ -1,4 +1,4 @@
-import type { SpecOpenedData, SpecTraceData } from "../shared/types.ts";
+import type { SpecOpenedData, SpecTraceData, TraceQuestion } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
 import type { EngineMapping } from "../shared/types.ts";
 import type { Engine } from "../../../plugin-api.ts";
@@ -34,4 +34,7 @@ export const specClient = {
   showEffectPath: (sessionId: string, ref: string, effectId: string) => post<{ opened: number }>(`/api/sessions/${sessionId}/spec/effect-path`, { ref, effectId }),
   saveTrace: (sessionId: string, trace: SpecTraceData) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/spec/traces`, { trace }),
   explore: (sessionId: string, requestId: string) => post<{ opened: number }>(`/api/sessions/${sessionId}/spec/explore`, { requestId }),
+  ask: (sessionId: string, request: { mode: TraceQuestion["mode"]; question: string; anchors: string[]; contextTraceId: string | null }) => post<{ traceId: string }>(`/api/sessions/${sessionId}/spec/ask`, request),
+  recheckTrace: (sessionId: string, traceId: string) => post<{ traceArtifactId: string }>(`/api/sessions/${sessionId}/spec/traces/${encodeURIComponent(traceId)}/check`, {}),
+  openTrace: (sessionId: string, traceId: string) => post<{ opened: number }>(`/api/sessions/${sessionId}/spec/traces/${encodeURIComponent(traceId)}/open`, {}),
 };

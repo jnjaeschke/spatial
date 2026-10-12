@@ -35,3 +35,9 @@
 ### target
 
 > **target**: `string`
+
+***
+
+### title?
+
+> `optional` **title?**: `string`
