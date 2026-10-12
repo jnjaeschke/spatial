@@ -7,9 +7,23 @@ export interface StepEffect { effectId: string; via: "direct" | "path" }
 export interface SpecAlgorithmData { ref: string; spec: string; anchor: string; title: string; type: string; url: string; content: string; sha: string; outgoingRefs: number; effects: SpecEffect[]; effectsStatus: SpecEffectsStatus; stepEffects: Record<string, StepEffect[]> }
 /** Data of a `SpecOpened` artifact (user): a box was opened as a root (`from` null) or from step `from.step` (empty when the link is outside any step) of box `from.anchor`. Refs are `SPEC#anchor`. */
 export interface SpecOpenedData { anchor: string; from: { anchor: string; step: string } | null }
-export interface SpecTraceEntry { anchor: string; step: string; note: string }
+/** How a trace walk reached an entry from the previous one. */
+export type TraceHop = "start" | "call" | "return" | "next" | "async";
+/** The question a generated trace answers. */
+export interface TraceQuestion { mode: "claim" | "scenario"; text: string }
+/** The tracer's answer to a claim (LLM interpretation; shown only with its trace and counts). */
+export interface TraceVerdict { answer: "holds" | "fails" | "unclear"; reasoning: string }
+export interface SpecTraceEntry { anchor: string; step: string; note: string; /** Set on generated traces. */ hop?: TraceHop }
 /** Data of a `SpecTrace` artifact (user); the latest artifact per `traceId` is the trace. */
-export interface SpecTraceData { traceId: string; title: string; entries: SpecTraceEntry[] }
+export interface SpecTraceData { traceId: string; title: string; entries: SpecTraceEntry[]; /** Set on generated traces and the user versions that supersede them. */ question?: TraceQuestion }
+/** The structured reply of task `traceSpec`. */
+export interface GeneratedTrace { title: string; entries: { anchor: string; step: string; note: string; hop: TraceHop }[]; verdict: TraceVerdict | null }
+/** A deterministic hop check; `reason` is empty when it passes. */
+export interface HopResult { ok: boolean; reason: string }
+/** The adversarial verdict on one note. */
+export interface NoteResult { supported: boolean; reason: string }
+/** Data of a `SpecTraceCheck` artifact: the checks of one `SpecTrace` version (`traceArtifactId`), index-aligned with its entries (`notes` null for an empty note), and the verdict of the generation the trace belongs to. */
+export interface SpecTraceCheckData { traceId: string; traceArtifactId: string; verdict: TraceVerdict | null; hops: HopResult[]; notes: (NoteResult | null)[]; notesTaskId: string | null }
 /** Data of a `SpecExploreRequest` artifact: sections a chat reply proposed to explore. */
 export interface SpecExploreRequestData { anchors: string[] }
 /** Data of a `SummaryRejected` artifact: the summary of `anchor` at `sha` failed a check in this session. */

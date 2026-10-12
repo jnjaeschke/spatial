@@ -14,6 +14,12 @@
 
 ***
 
+### hop?
+
+> `optional` **hop?**: [`TraceHop`](../type-aliases/TraceHop.md)
+
+***
+
 ### note
 
 > **note**: `string`

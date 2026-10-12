@@ -16,6 +16,12 @@ Data of a `SpecTrace` artifact (user); the latest artifact per `traceId` is the 
 
 ***
 
+### question?
+
+> `optional` **question?**: [`TraceQuestion`](TraceQuestion.md)
+
+***
+
 ### title
 
 > **title**: `string`
