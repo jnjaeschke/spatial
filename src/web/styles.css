@@ -724,12 +724,10 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-impl { padding: 2px 12px 4px; font-size: 0.85em; }
 .spec-impl-row { display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow-x: auto; }
 .spec-impl-label { font-weight: 600; color: var(--text-2); }
-.spec-impl-note, .spec-impl-group { color: var(--text-2); }
-.spec-site.method-llm { text-decoration: none; border-bottom: 1px dashed currentColor; }
-.spec-site-action { padding: 0 2px; font-size: 0.9em; }
+.spec-impl-group { color: var(--text-2); }
+.spec-impl .impl-note { font-size: inherit; }
 .spec-impl-test-list { margin: 4px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; }
 .spec-impl-sites { list-style: none; margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
-.spec-site-item { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .spec-impl-toggle { font-weight: 600; color: var(--text-2); }
 .spec-g-link { margin-left: 4px; padding: 0 3px; font-size: 0.75em; font-weight: 600; text-decoration: none; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .spec-g-link.outdated { color: var(--warning); border-color: currentColor; }
@@ -755,7 +753,6 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .react-flow__edge.trace-hop.unverified path { stroke-dasharray: 6 4; }
 .spec-ask { display: grid; gap: 6px; margin-bottom: 12px; }
 .spec-ask h3 { margin: 0; font-size: 0.95em; }
-.spec-ask textarea { width: 100%; }
 .trace-check { display: grid; gap: 4px; margin-bottom: 8px; padding: 6px 8px; border-left: 3px solid var(--kind-spec); }
 .trace-question, .trace-reasoning { margin: 0; }
 .trace-verdict { margin: 0; font-weight: 600; }
@@ -783,8 +780,8 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .impl-engine { font-weight: 600; }
 .impl-sites { list-style: none; margin: 0; padding: 0; }
 .impl-site { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
-.impl-site.method-llm > a { border-bottom: 1px dashed currentColor; text-decoration: none; }
-.impl-site.stale > a { text-decoration: line-through; }
+.impl-site-link.method-llm { border-bottom: 1px dashed currentColor; text-decoration: none; }
+.impl-site.stale .impl-site-link { text-decoration: line-through; }
 .impl-cell { display: block; font-size: 0.85em; }
 .impl-cell.proposed { border: 1px dashed var(--text-2); padding: 0 3px; }
 .impl-cell.mismatch a { color: var(--danger); }

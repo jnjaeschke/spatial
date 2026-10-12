@@ -218,6 +218,12 @@ Re-exports [PluginNodeData](../plugin-api/type-aliases/PluginNodeData.md)
 
 ***
 
+### plural
+
+Re-exports [plural](../../plugin-api/functions/plural.md)
+
+***
+
 ### rootGraph
 
 Re-exports [rootGraph](../plugin-api/functions/rootGraph.md)

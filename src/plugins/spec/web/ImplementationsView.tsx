@@ -1,43 +1,26 @@
-import { useEffect, useId, useMemo, useState } from "react";
-import { ENGINE_LABEL, ENGINES, ErrorText, IconButton, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { useEffect, useMemo, useState } from "react";
+import { ENGINE_LABEL, ENGINES, ErrorText, plural, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import type { Engine } from "../../../plugin-api.ts";
-import type { EngineDifference, EngineMapping, EngineSite, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
-import { codeUrl, isDeclaration, mappedSteps, nothingFound, siteKey, siteName } from "../shared/engine.ts";
+import type { EngineDifference, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
+import { codeUrl, mappedSteps, nothingFound, siteKey } from "../shared/engine.ts";
 import { cellHighlighted, columnState, taskState, differenceTargets } from "./implementations.ts";
-import { siteTitle } from "./GeckoStrip.tsx";
+import { EngineStatus, SiteItem, type SiteActions } from "./EngineSites.tsx";
 import { DifferencesList } from "./DifferencesList.tsx";
 import { specClient } from "./client.ts";
-
-
-function SiteEntry({ sessionId, data, engine, mapping, site, readOnly }: { sessionId: string; data: ImplementationsData; engine: Engine; mapping: EngineMapping; site: EngineSite; readOnly: boolean }) {
-  const action = useAction();
-  const name = siteName(site);
-  const key = siteKey(site);
-  const whyId = useId();
-  const proposal = site.method === "llm" && !site.stale;
-  const alignable = site.method !== "llm" && !site.stale && !isDeclaration(site) && !site.steps.some((step) => step.verdict !== "proposed");
-  return <li className={`impl-site method-${site.method}${site.stale ? " stale" : ""}`}>
-    <a href={codeUrl(mapping, site.path, site.line)} target="_blank" rel="noreferrer" data-testid={`impl-site-${engine}`} title={siteTitle(site)} aria-describedby={proposal && site.why ? whyId : undefined}>{name}</a>
-    {isDeclaration(site) && <span className="impl-note" title="A spec-link comment above a declaration: there is no function body to align steps with">declaration</span>}
-    {proposal && <span className="badge">AI-proposed</span>}
-    {proposal && site.why && <span id={whyId} className="impl-note">{site.why}</span>}
-    {!readOnly && proposal && <><IconButton type="button" className="link-button" label={`Confirm ${name}`} disabled={action.busy} onClick={() => void action.run(() => specClient.decideImplementation(sessionId, data.ref, engine, key, "confirm"))}>Confirm</IconButton><IconButton type="button" className="link-button" label={`Reject ${name}`} disabled={action.busy} onClick={() => void action.run(() => specClient.decideImplementation(sessionId, data.ref, engine, key, "reject"))}>Reject</IconButton></>}
-    {!readOnly && site.stale && <IconButton type="button" className="link-button" label={`Find again: ${name}`} disabled={action.busy} onClick={() => void action.run(() => specClient.findImplementation(sessionId, data.ref, engine, key))}>Find again</IconButton>}
-    {!readOnly && alignable && <IconButton type="button" className="link-button" label={`Align steps ${name}`} disabled={action.busy} onClick={() => void action.run(() => specClient.alignSteps(sessionId, data.ref, engine, key))}>Align steps</IconButton>}
-    <ErrorText error={action.error} />
-  </li>;
-}
 
 function EngineHeader({ sessionId, data, engine, state, notFound, readOnly }: { sessionId: string; data: ImplementationsData; engine: Engine; state: { busy: boolean; failed: string | null }; notFound: { note: string; reasons: string[] } | null; readOnly: boolean }) {
   const action = useAction();
   const mapping = data.mappings[engine];
-  const placed = mapping?.sites.some((site) => !site.stale) ?? false;
+  const ref = data.ref;
+  const actions: SiteActions | null = readOnly ? null : {
+    find: (stale) => specClient.findImplementation(sessionId, ref, engine, stale),
+    decide: (key, decision) => specClient.decideImplementation(sessionId, ref, engine, key, decision),
+    align: (key) => specClient.alignSteps(sessionId, ref, engine, key),
+  };
   return <div className="impl-col-head">
-    <span className="impl-engine">{ENGINE_LABEL[engine]}</span>{mapping && mapping.tests.length > 0 && <span className="impl-note">{mapping.tests.length} {mapping.tests.length === 1 ? "test" : "tests"}</span>}
-    {mapping ? <ul className="impl-sites">{mapping.sites.map((site) => <SiteEntry key={siteKey(site)} sessionId={sessionId} data={data} engine={engine} mapping={mapping} site={site} readOnly={readOnly} />)}</ul> : !state.busy && !state.failed && <span className="impl-note">not mapped</span>}
-    {!readOnly && mapping && !placed && !state.busy && <button type="button" disabled={action.busy} onClick={() => void action.run(() => specClient.findImplementation(sessionId, data.ref, engine, null))}>Find in {ENGINE_LABEL[engine]}</button>}
-    {!state.busy && notFound && !placed && <span className="impl-note" data-testid={`impl-not-found-${engine}`} title={notFound.reasons.join("\n")}>{notFound.note}</span>}
-    {state.busy && <span className="impl-note">working…</span>}
+    <span className="impl-engine">{ENGINE_LABEL[engine]}</span>{mapping && mapping.tests.length > 0 && <span className="impl-note">{plural(mapping.tests.length, "test")}</span>}
+    {mapping && <ul className="impl-sites">{mapping.sites.map((site) => <SiteItem key={siteKey(site)} sessionId={sessionId} engine={engine} mapping={mapping} site={site} actions={actions} />)}</ul>}
+    <EngineStatus engine={engine} mapping={mapping} working={state.busy ? "working…" : null} notFound={notFound} find={actions && { run: () => void action.run(() => actions.find(null)), busy: action.busy }} testIds={{ notFound: `impl-not-found-${engine}` }} />
     <ErrorText error={action.error ?? state.failed} />
   </div>;
 }

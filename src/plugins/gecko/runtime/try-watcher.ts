@@ -1,4 +1,4 @@
-import { runProcess, type Artifact, type Id, type NotifyPayload, type Runtime } from "../../../plugin-api.ts";
+import { plural, runProcess, type Artifact, type Id, type NotifyPayload, type Runtime } from "../../../plugin-api.ts";
 import type { TryFailure, TryPushData, TryRunData } from "../shared/types.ts";
 
 interface CliJob { job: { id: number; job_type_name: string; platform: string; result: string }; errors: { test?: string | null; status?: string | null; message?: string | null; signature?: string | null; action?: string }[] }
@@ -20,7 +20,6 @@ export const WATCH_LIMIT_MS = 24 * 60 * 60 * 1000;
 export const STOPPED_ERROR = "Stopped watching after 24 hours; refresh to check again";
 const REFRESH = "try-refresh";
 
-const plural = (n: number) => `${n} failing job${n === 1 ? "" : "s"}`;
 const same = (a: TryRunData, b: TryRunData) => JSON.stringify([a.counts, a.failures, a.error, a.complete]) === JSON.stringify([b.counts, b.failures, b.error, b.complete]);
 const carried = (push: Artifact<TryPushData>, last: TryRunData | null, error: string): TryRunData =>
   ({ push: push.id, url: push.data.url, revision: last?.revision ?? null, pushId: last?.pushId ?? null, counts: last?.counts ?? {}, complete: false, failures: last?.failures ?? [], error });
@@ -111,8 +110,8 @@ export class TryWatcher {
     this.#store(sessionId, push, next, taskId);
     const failed = next.failures.length;
     const notice: NotifyPayload | null = next.complete
-      ? { id: `try-${push.id}`, title: failed ? `Try finished: ${plural(failed)}` : "Try finished: all jobs passed", body: push.data.command }
-      : failed > (last?.failures.length ?? 0) ? { id: `try-${push.id}`, title: `Try: ${plural(failed)}`, body: push.data.command } : null;
+      ? { id: `try-${push.id}`, title: failed ? `Try finished: ${plural(failed, "failing job")}` : "Try finished: all jobs passed", body: push.data.command }
+      : failed > (last?.failures.length ?? 0) ? { id: `try-${push.id}`, title: `Try: ${plural(failed, "failing job")}`, body: push.data.command } : null;
     if (notice) this.#rt.emit(sessionId, "runtime", "notify", notice);
   }
 }

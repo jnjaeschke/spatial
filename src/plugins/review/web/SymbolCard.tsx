@@ -1,5 +1,5 @@
-import { createContext, useEffect, useMemo, useRef, useState } from "react";
-import { HoverCard, numberLines, type Artifact, type DiffData, type SessionState } from "../../../web/plugin-api.ts";
+import { createContext, useEffect, useMemo, useRef } from "react";
+import { HoverCard, numberLines, useHoverCard, type Artifact, type DiffData, type SessionState } from "../../../web/plugin-api.ts";
 import type { IntroducedSymbolsData } from "../shared/types.ts";
 import { latestSymbols } from "./symbols.ts";
 
@@ -35,39 +35,34 @@ function symbolSites(diff: DiffData, symbol: IntroducedSymbolsData["symbols"][st
 
 interface OpenCard { name: string; rect: DOMRect; pinned: boolean }
 
-const SHOW_DELAY = 300;
-const HIDE_DELAY = 200;
+const isPinned = (card: OpenCard) => card.pinned;
 
 /**
  * Hover-card state for symbol marks: `marks` goes to `SymbolMarkContext`, `card` is rendered next to the canvas.
  * Marks stop their click's propagation, so the document click listener only sees clicks outside any mark.
  */
 export function useSymbolCard(state: SessionState, diff: Artifact<DiffData> | null, openSite: (name: string, site: number) => void) {
-  const [open, setOpen] = useState<OpenCard | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { open, show, hide, keep, set } = useHoverCard<OpenCard>(isPinned);
   const hovered = useRef<string | null>(null);
-  const clear = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; };
-  const close = () => { clear(); hovered.current = null; setOpen(null); };
-  const scheduleHide = () => { clear(); timer.current = setTimeout(() => setOpen((current) => current?.pinned ? current : null), HIDE_DELAY); };
+  const close = () => { hovered.current = null; set(null); };
   const marks = useMemo<SymbolMarkHandlers>(() => ({
     hover: (mark, rect) => {
-      if (!mark || !rect) { hovered.current = null; scheduleHide(); return; }
+      if (!mark || !rect) { hovered.current = null; hide(); return; }
       if (hovered.current === mark.name) return;
       hovered.current = mark.name;
-      clear();
-      timer.current = setTimeout(() => setOpen((current) => current?.pinned && current.name === mark.name ? current : { name: mark.name, rect, pinned: false }), SHOW_DELAY);
+      show((current) => current?.pinned && current.name === mark.name ? current : { name: mark.name, rect, pinned: false });
     },
-    click: (mark, rect) => { hovered.current = mark.name; clear(); setOpen({ name: mark.name, rect, pinned: true }); },
-  }), []);
+    click: (mark, rect) => { hovered.current = mark.name; set({ name: mark.name, rect, pinned: true }); },
+  }), [show, hide, set]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
     const outside = (event: MouseEvent) => { if (!(event.target instanceof Element && event.target.closest("[data-testid='symbol-card']"))) close(); };
     document.addEventListener("keydown", key);
     document.addEventListener("click", outside);
-    return () => { document.removeEventListener("keydown", key); document.removeEventListener("click", outside); clear(); };
+    return () => { document.removeEventListener("keydown", key); document.removeEventListener("click", outside); };
   }, []);
   const symbol = diff && open ? latestSymbols(state, diff.id)?.symbols[open.name] : undefined;
   const sites = diff && symbol ? symbolSites(diff.data, symbol) : [];
-  const card = open && sites.length > 0 ? <SymbolCard name={open.name} sites={sites} rect={open.rect} stack={!!diff && diff.data.commits.length > 1} pinned={open.pinned} onEnter={clear} onLeave={scheduleHide} onSite={(site) => { const name = open.name; close(); openSite(name, site); }} /> : null;
+  const card = open && sites.length > 0 ? <SymbolCard name={open.name} sites={sites} rect={open.rect} stack={!!diff && diff.data.commits.length > 1} pinned={open.pinned} onEnter={keep} onLeave={hide} onSite={(site) => { const name = open.name; close(); openSite(name, site); }} /> : null;
   return { marks, card };
 }

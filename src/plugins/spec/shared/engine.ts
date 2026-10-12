@@ -1,5 +1,5 @@
 import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
-import { ENGINE_LABEL, fileUrl } from "../../../web/graph-api.ts";
+import { ENGINE_LABEL, fileUrl, plural } from "../../../web/graph-api.ts";
 import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */
@@ -123,7 +123,7 @@ export function nothingFound(tasks: Pick<TaskRecord, "kind" | "status" | "input"
   const output = last?.status === "succeeded" ? last.output as { sites: unknown[]; dropped: { reason: string }[] } : null;
   if (!output || output.sites.length) return null;
   const dropped = output.dropped.length;
-  return { note: `No ${ENGINE_LABEL[engine]} match found${dropped ? `; ${dropped} ${dropped === 1 ? "candidate" : "candidates"} failed the check` : ""}`, reasons: output.dropped.map((item) => item.reason) };
+  return { note: `No ${ENGINE_LABEL[engine]} match found${dropped ? `; ${plural(dropped, "candidate")} failed the check` : ""}`, reasons: output.dropped.map((item) => item.reason) };
 }
 
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */

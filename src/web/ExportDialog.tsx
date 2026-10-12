@@ -5,6 +5,7 @@ import { exportHtml, exportState, type SessionExport } from "./export-state.ts";
 import { loadFileLines } from "./file-lines.ts";
 import { ErrorText, useAction } from "./action.tsx";
 import { Dialog } from "./Dialog.tsx";
+import { plural } from "../shared/plural.ts";
 
 const FILE_CAP = 1_000_000;
 const VIEW_KEYS = ["collapse", "free", "sizes", "view"];
@@ -45,7 +46,6 @@ function contents(data: SessionExport): string[] {
   const posted = new Set((data.state.artifacts.filter((a) => a.type === "PostedComment") as Artifact<PostedCommentData>[]).map((a) => a.data.comment));
   const drafts = data.state.artifacts.filter((a) => a.type === "ReviewComment" && !posted.has(a.id)).length;
   const omitted = Object.entries(data.files).filter(([, lines]) => lines === null).map(([path]) => path);
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   return [
     `${plural(count("ChatThread"), "chat")}, ${plural(count("Note"), "note")}, ${plural(count("Diagram"), "diagram")} (closed ones are left out)`,
     `${plural(count("ReviewFinding"), "finding")}, ${plural(drafts, "unposted draft comment")}`,

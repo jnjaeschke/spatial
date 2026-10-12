@@ -62,6 +62,7 @@ export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } fr
 export { specUrlParts } from "./runtime/code-search.ts";
 export { ENGINE_LABEL, ENGINES } from "./shared/engines.ts";
 export { escapeRegex } from "./shared/regex.ts";
+export { plural } from "./shared/plural.ts";
 export type { CodeSearch } from "./runtime/code-search.ts";
 export { makeChromiumSearch } from "./runtime/chromium-search.ts";
 export { declarationAt, enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";

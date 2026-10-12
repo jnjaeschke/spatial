@@ -48,7 +48,7 @@ export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal
 }
 
 export { Canvas } from "./Canvas.tsx";
-export { HoverCard } from "./HoverCard.tsx";
+export { HoverCard, useHoverCard } from "./HoverCard.tsx";
 export { ChatBody, ChatItem, InlineItem } from "./InlineItem.tsx";
 export { InlineStatesContext, useDraftInlineStates, useInlineState, useInlineStates } from "./inline-state.ts";
 export type { InlineState, InlineStates } from "./inline-state.ts";
@@ -84,6 +84,7 @@ export { sequenceLayout } from "./sequence-layout.ts";
 export { Markdown } from "./Markdown.tsx";
 export type { MarkdownRenderers } from "./Markdown.tsx";
 export { loadFileLines } from "./file-lines.ts";
+export { promiseCache } from "./promise-cache.ts";
 export { DiffRows, changeStarts, type RowMark } from "./diff/DiffRows.tsx";
 export { DiffView } from "./diff/DiffView.tsx";
 export { FilePanel } from "./diff/FilePanel.tsx";

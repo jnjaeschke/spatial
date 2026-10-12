@@ -124,6 +124,7 @@
 - [mergedCodeLinks](functions/mergedCodeLinks.md)
 - [placeSatellites](functions/placeSatellites.md)
 - [postJson](functions/postJson.md)
+- [promiseCache](functions/promiseCache.md)
 - [ReopenClosed](functions/ReopenClosed.md)
 - [rootGraph](functions/rootGraph.md)
 - [rootThread](functions/rootThread.md)
@@ -141,6 +142,7 @@
 - [useClosed](functions/useClosed.md)
 - [useDraftInlineStates](functions/useDraftInlineStates.md)
 - [useDraftText](functions/useDraftText.md)
+- [useHoverCard](functions/useHoverCard.md)
 - [useInlineState](functions/useInlineState.md)
 - [useInlineStates](functions/useInlineStates.md)
 - [useUrlParam](functions/useUrlParam.md)
@@ -402,6 +404,12 @@ Re-exports [PatchNarrativeData](../../shared/types/interfaces/PatchNarrativeData
 ### plainText
 
 Re-exports [plainText](../../plugin-api/functions/plainText.md)
+
+***
+
+### plural
+
+Re-exports [plural](../../plugin-api/functions/plural.md)
 
 ***
 

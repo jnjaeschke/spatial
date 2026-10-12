@@ -84,6 +84,7 @@ composition roots.
 - [makeGitWriter](functions/makeGitWriter.md)
 - [numberLines](functions/numberLines.md)
 - [plainText](functions/plainText.md)
+- [plural](functions/plural.md)
 - [revisedText](functions/revisedText.md)
 - [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
