@@ -1,4 +1,4 @@
-import { isSatellite, latestStart, lines, placeSatellites, rootGraph, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode } from "../../../web/graph-api.ts";
+import { isSatellite, latestStart, lines, placeSatellites, rootGraph, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import type { Artifact, SessionState } from "../../../web/plugin-api.ts";
 import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared/types.ts";
 
@@ -6,7 +6,8 @@ import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData } from "../shared
 export const specNodeId = (ref: string) => `spec:${ref}`;
 
 /** Data of a `spec-algorithm` node: one open algorithm box, laid out right of `parent`, `order` in open order. */
-export type AlgorithmNodeData = { kind: "spec-algorithm"; ref: string; algorithm: Artifact<SpecAlgorithmData>; parent: string; order: number; movable: true; closable: true; reopenOn: string };
+/** An algorithm box; `threads` are the chats asked from its text, hosted inside it. */
+export type AlgorithmNodeData = { kind: "spec-algorithm"; ref: string; algorithm: Artifact<SpecAlgorithmData>; parent: string; order: number; movable: true; closable: true; reopenOn: string; threads: HostedThread[] };
 
 /** The open boxes (refs in first-open order): reachable from a root opening over links from open boxes, without the closed ones; and each closed box an open box (or a root opening, null) still leads to, with that host. */
 export function openBoxes(opened: SpecOpenedData[], closed: ReadonlySet<string>): { open: string[]; closedHosts: Map<string, string | null> } {
@@ -38,7 +39,7 @@ export function explorerGraph(state: SessionState, drafts: Draft[], closed: Read
     const first = opened.find((link) => link.anchor === ref && (link.from === null || openSet.has(link.from.anchor)));
     const parent = first?.from ? specNodeId(first.from.anchor) : start.id;
     const host = closedHosts.get(ref);
-    return { id: specNodeId(ref), data: { kind: "spec-algorithm", ref, algorithm: algorithms.get(ref)!, parent, order, movable: true, closable: true, reopenOn: host === undefined ? parent : host === null ? start.id : specNodeId(host) } satisfies AlgorithmNodeData };
+    return { id: specNodeId(ref), data: { kind: "spec-algorithm", ref, algorithm: algorithms.get(ref)!, parent, order, movable: true, closable: true, reopenOn: host === undefined ? parent : host === null ? start.id : specNodeId(host), threads: [] } satisfies AlgorithmNodeData };
   });
   const edges = new Map<string, GraphEdge>();
   for (const link of opened) {

@@ -40,7 +40,7 @@ test("steps go into a trace, export as markdown, and show as a sequence diagram"
   const navigate = await exploreNavigate(page);
   const add = async (box: ReturnType<Page["getByTestId"]>, step: string, count: number) => {
     await box.locator(`li[data-step="${step}"]`).first().hover();
-    await box.getByRole("button", { name: `Add step ${step} to trace` }).click();
+    await box.getByRole("button", { name: `Add step ${step} to the trace` }).click();
     await expect(page.getByTestId("traces-toggle")).toHaveText(`Traces · ${count}`);
   };
   await add(navigate, "2", 1);
@@ -101,21 +101,26 @@ test("a review chat question about a spec algorithm is traced after Explore", as
   await expect(page.getByTestId("trace-panel").getByTestId("trace-verdict")).toHaveText("fails · 4 steps, 1 unverified hop, 0 unsupported notes", { timeout: 15_000 });
 });
 
-test("an algorithm box numbers its steps, and selected step text can be asked about", async ({ page }) => {
+test("an algorithm box numbers its steps, and a chat asked from a step's text shows inside the box under that step", async ({ page }) => {
   const navigate = await exploreNavigate(page);
   const first = navigate.locator('li[data-step="1"]').first();
-  expect(await first.evaluate((li) => getComputedStyle(li, "::before").content)).toBe('"1" "."');
+  const number = first.getByRole("button", { name: "Add step 1 to the trace" });
+  await expect(number).toHaveText("1.");
+  const numberBox = (await number.boundingBox())!;
   const text = (await first.locator("p").first().boundingBox())!;
-  expect(text.y - (await first.boundingBox())!.y).toBeLessThan(4);
-  await page.mouse.move(text.x + 2, text.y + 8);
+  expect(Math.abs(numberBox.y - text.y)).toBeLessThan(6);
+  await page.mouse.move(numberBox.x + numberBox.width + 6, text.y + 8);
   await page.mouse.down();
-  await page.mouse.move(text.x + 120, text.y + 8, { steps: 8 });
+  await page.mouse.move(numberBox.x + numberBox.width + 140, text.y + 8, { steps: 8 });
   await page.mouse.up();
   const ask = page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true });
   await expect(ask).toBeVisible();
   await ask.click();
-  await expect(page.locator(".chat-quote").last()).toBeVisible();
+  const chat = first.locator(".inline-item.kind-chat");
+  await expect(chat).toHaveCount(1);
+  await expect(chat).toHaveAttribute("data-state", "expanded");
   await expect(page.locator(":focus")).toHaveAttribute("aria-label", "message");
+  await expect(page.locator(".react-flow__node-chat")).toHaveCount(0);
 });
 
 test("an algorithm box shows where Gecko implements it, with step links and tests", async ({ page }) => {

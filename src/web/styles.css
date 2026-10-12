@@ -748,8 +748,6 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .algorithm-steps.far > :not(.spec-far-summary) { visibility: hidden; }
 .spec-far-summary { position: absolute; inset: 0; padding: 12px; font-size: 1.6em; overflow: hidden; }
 .react-flow__edge.trace-hop path { stroke: var(--kind-chat); stroke-width: 2; }
-.spec-add-trace { opacity: 0; font-size: 0.8em; padding: 0 4px; }
-li[data-step]:hover:not(:has(li[data-step]:hover)) > .spec-add-trace, .spec-add-trace:focus-visible { opacity: 1; }
 li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparent); border-radius: var(--radius-sm); }
 .trace-sequence { overflow: auto; padding: 16px; }
 .trace-entries { display: grid; gap: 8px; padding-left: 20px; }
@@ -769,9 +767,11 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .trace-entries textarea.unsupported { text-decoration: line-through; }
 .trace-note-reason { margin: 0; font-size: 0.8em; color: var(--danger); }
 .spec-steps ol { list-style: none; margin: 0; padding: 0; }
-/* The number hangs in the step's left padding, on the first line of its text whether that is a paragraph or not. */
-.spec-steps li[data-step] { padding-left: 2.6em; }
-.spec-steps li[data-step]::before { content: attr(data-step) "."; float: left; width: 3em; margin-left: -3.25em; padding-top: 0.2em; color: var(--text-3); font: 0.8em var(--font-mono); user-select: none; }
+/* Floated, the number sits on the first line of its step's text, paragraph or not, however deep its path. */
+.spec-steps .step-number { position: relative; float: left; min-width: 2.2em; margin: 0.15em 0.5em 0 0; padding: 0 2px; border: 1px solid transparent; border-radius: var(--radius-sm); background: none; color: var(--text-3); font: 0.8em var(--font-mono); text-align: left; user-select: none; }
+.spec-steps button.step-number { cursor: pointer; }
+.spec-steps button.step-number:hover, .spec-steps button.step-number:focus-visible { border-color: var(--kind-spec); color: var(--kind-spec); }
+.spec-steps button.step-number:hover::after, .spec-steps button.step-number:focus-visible::after { content: "+ trace"; position: absolute; left: 0; top: 100%; z-index: 2; padding: 0 3px; border-radius: var(--radius-sm); background: var(--kind-spec); color: var(--surface); font-size: 0.85em; white-space: nowrap; }
 .spec-effects { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
 .impl-view { height: 100%; overflow: auto; padding: 12px 16px; }
 .impl-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }

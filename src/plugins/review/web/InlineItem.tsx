@@ -1,48 +1,18 @@
-import { useContext, type ReactNode } from "react";
+import { useContext } from "react";
 import type { ChangeNodeData, FindingData, PhabThreadData } from "./graph.ts";
-import { IconButton, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type HostedThread } from "../../../web/plugin-api.ts";
+import { ChatItem as InlineChat, CollapseContext, InlineItem, type HostedThread } from "../../../web/plugin-api.ts";
 import { DetailsContext } from "./details.ts";
-import { useInlineState } from "./inline-state.ts";
 import { plainText } from "../../../web/plugin-api.ts";
-import { ChatBody } from "./ChatDetails.tsx";
 import { commentId } from "./CommentDetails.tsx";
 import { FindingBody } from "./FindingDetails.tsx";
 import { PhabBody } from "./PhabDetails.tsx";
 import { UserCommentBox } from "./UserCommentBox.tsx";
 import { SpecLinkContext, SpecMarkdown } from "../../spec/web/api.ts";
 
-type Kind = "chat" | "comment" | "finding" | "phab" | "spec";
-
-/** An item of the review shown where it applies, as a line, a preview or its whole body; `onOpenPanel` shows it in the side panel. */
-export function InlineItem({ kind, id, who, count, text, badges, dimmed, severity, body, onOpenPanel, onClose, testId }: { kind: Kind; id: string; who: string; count?: number; text: string; badges?: ReactNode; dimmed?: boolean; severity?: string; body: ReactNode; onOpenPanel(): void; onClose?(): void; testId: string }) {
-  const [state, setState] = useInlineState(id);
-  const expanded = state === "expanded";
-  const open = () => setState("expanded");
-  const toggle = () => setState(state === "preview" ? "line" : "preview");
-  const head = <><span className="inline-who">{who}</span>{badges}{count !== undefined && count > 0 && <small className="inline-count">{count}</small>}</>;
-  return <div className={`inline-item nodrag nopan kind-${kind}${severity ? ` severity-${severity}` : ""}${dimmed ? " dismissed" : ""} state-${state}`} data-testid={testId} data-state={state} onDoubleClick={(event) => event.stopPropagation()}>
-    <div className="inline-head">
-      {head}
-      {state === "line" && <button type="button" className="inline-text" onClick={open}>{text}</button>}
-      <span className="inline-actions">
-        <IconButton label={expanded ? "Collapse item" : state === "line" ? "Show preview" : "Show as line"} type="button" className="link-button" aria-expanded={expanded} onClick={toggle}>{expanded ? "▴" : state === "preview" ? "▾" : "▸"}</IconButton>
-        <IconButton label="Open in side panel" type="button" className="link-button" onClick={onOpenPanel}>⤢</IconButton>
-        {onClose && <IconButton label="Close chat" type="button" className="link-button" onClick={onClose}>×</IconButton>}
-      </span>
-    </div>
-    {state === "preview" && <button type="button" className="inline-text inline-preview" onClick={open}>{text}</button>}
-    {expanded && <div className="inline-body">{body}</div>}
-  </div>;
-}
-
-/** A chat thread; a new draft shows its composer. */
+/** A chat thread; ⤢ opens it in the review's side panel. */
 export function ChatItem({ thread }: { thread: HostedThread }) {
   const details = useContext(DetailsContext);
-  const actions = useContext(ChatActionsContext);
-  const closed = useContext(ClosedContext);
-  const id = thread.threadId ?? thread.draftId!;
-  const last = thread.messages.at(-1);
-  return <InlineItem kind="chat" id={id} who={last?.data.role === "assistant" ? "AI" : "You"} count={thread.messages.length} text={last ? plainText(last.data.text) : "New chat"} testId={`chat-chip-${id}`} body={<div data-testid={`chat-${id}`}><ChatBody thread={thread} /></div>} onOpenPanel={() => details?.open({ kind: "chat", id })} onClose={() => closeChat(thread.threadId, thread.draftId, actions, closed)} />;
+  return <InlineChat thread={thread} onOpenPanel={() => details?.open({ kind: "chat", id: thread.threadId ?? thread.draftId! })} />;
 }
 
 /** A user comment on diff lines, saved or still a draft. */

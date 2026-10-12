@@ -15,4 +15,5 @@
 - [parseSteps](functions/parseSteps.md)
 - [stepLines](functions/stepLines.md)
 - [stepLinks](functions/stepLinks.md)
+- [stepOfQuote](functions/stepOfQuote.md)
 - [stepSources](functions/stepSources.md)

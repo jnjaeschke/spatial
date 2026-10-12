@@ -5,6 +5,7 @@ import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
 import { alignRunning, startAlign } from "../../../src/plugins/spec/runtime/align.ts";
 import { storedMapping, updateMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
+import { siteKey } from "../../../src/plugins/spec/shared/engine.ts";
 import { fakeCode } from "../../helpers/fake-code.ts";
 import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
 import { routeCall } from "../../helpers/route-call.ts";
@@ -42,6 +43,10 @@ test("startAlign sends the numbered function and stores checked ranges as the si
   assert.equal(prompts[0]!.tools, "none");
   assert.deepEqual(storedMapping(rt.knowledge, "blink", "HTML#setup")!.sites[0]!.steps, [{ step: "2", line: 4, verdict: "match", detail: "" }, { step: "3", line: 6, end: 6, quote: "  Log();", verdict: "proposed", detail: "Cited by a spec trace", origin: "trace" }, { step: "1", line: 3, end: 3, quote: "  Edit(line);", verdict: "proposed", detail: "Calls `Edit`.", origin: "align" }]);
   assert.equal((await routeCall(specRoutes(rt), "POST", `/api/sessions/${session.id}/spec/mappings/align`, { ref: "HTML#setup", engine: "blink", key: "a.cc|Nope" })).status, 404);
+  const declaration = { path: "a.h", line: 3, symbol: "", signature: "void Abort();", quote: "void Abort();", method: "spec-link" as const, refs: [2], steps: [] };
+  updateMapping(rt, session.id, "blink", "HTML#setup", { by: "plugin", sessionId: session.id }, (mapping) => ({ ...mapping!, sites: [...mapping!.sites, declaration] }));
+  const refused = await routeCall(specRoutes(rt), "POST", `/api/sessions/${session.id}/spec/mappings/align`, { ref: "HTML#setup", engine: "blink", key: siteKey(declaration) });
+  assert.deepEqual([refused.status, refused.body.error], [409, "a.h:3 is a declaration; aligning steps needs a function body"]);
 });
 
 test("alignment reads the function where the site's quote is now and stores the ranges at the site's stored line", async () => {

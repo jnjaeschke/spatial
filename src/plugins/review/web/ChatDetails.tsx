@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { type Draft, type HostedThread, type Graph, Conversation, SidePanel, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type useClosed, type ChatActions } from "../../../web/plugin-api.ts";
+import { type Draft, type HostedThread, type Graph, ChatBody, SidePanel, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type useClosed, type ChatActions } from "../../../web/plugin-api.ts";
 
 /** Finds the hosted chat of a chat detail. A draft is followed to its thread through the task of its first turn, which outlives the draft. */
 export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string) => HostedThread | null {
@@ -20,12 +20,6 @@ export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string
 }
 
 /** The quote and conversation of a chat; a new draft's composer is focused. */
-export function ChatBody({ thread }: { thread: HostedThread }) {
-  const body = useRef<HTMLDivElement>(null);
-  const draftId = thread.threadId ? null : thread.draftId;
-  useEffect(() => { if (draftId) body.current?.querySelector("textarea")?.focus({ preventScroll: true }); }, [draftId]);
-  return <div ref={body}>{thread.quote && <blockquote className="chat-quote">{thread.quote.length > 300 ? `${thread.quote.slice(0, 300)}…` : thread.quote}</blockquote>}<Conversation {...thread} /></div>;
-}
 
 /** Panel × and Escape dismiss the panel (an empty draft is discarded); closing the chat itself is on its inline item. */
 export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }: {

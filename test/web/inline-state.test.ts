@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { movedInlineState, parseInlineStates, shownInlineState, withInlineState } from "../../../../src/plugins/review/web/inline-state.ts";
+import { movedInlineState, parseInlineStates, shownInlineState, withInlineState } from "../../src/web/inline-state.ts";
 
 test("parseInlineStates keeps non-default states and drops junk", () => {
   assert.deepEqual(parseInlineStates('{"a":"line","b":"expanded","c":"preview","d":3}'), { a: "line", b: "expanded" });

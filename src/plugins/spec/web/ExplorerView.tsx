@@ -1,9 +1,9 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow } from "../../../web/plugin-api.ts";
+import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow, InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
 import type { Engine, TaskRecord } from "../../../plugin-api.ts";
 import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../shared/types.ts";
 import { engineTasks } from "../shared/engine.ts";
-import { currentCheck, latestTraces, traceSequence, traceStatus, type TraceRow } from "../shared/traces.ts";
+import { appendStep, currentCheck, latestTraces, traceSequence, traceStatus, type TraceRow } from "../shared/traces.ts";
 import { explorerGraph, explorerLayout, openBoxes, specNodeId } from "./graph.ts";
 import { ExplorerContext, ExplorerViewContext, type SpecFocus } from "./context.ts";
 import { specClient } from "./client.ts";
@@ -48,6 +48,8 @@ function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderP
 export function ExplorerView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   const viewKey = `${state.session.id}:spec`;
   const closed = useClosed(viewKey);
+  const inline = useInlineStates(state.session.id);
+  useDraftInlineStates(inline, drafts, state.artifacts);
   const traces = latestTraces(state.artifacts);
   const [activeId, setActive] = useActiveTrace(state.session.id);
   const active = traces.find((trace) => trace.traceId === activeId) ?? null;
@@ -87,11 +89,14 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
     const opened = state.artifacts.filter((a) => a.type === "SpecOpened").map((a) => a.data as SpecOpenedData);
     return openBoxes(opened, new Set([...closed.closed].filter((id) => id.startsWith("spec:")).map((id) => id.slice(5)))).open;
   }, [state.artifacts, closed.closed]);
+  const artifactsRef = useRef(state.artifacts);
+  artifactsRef.current = state.artifacts;
   const addToTrace = useCallback(async (anchor: string, step: string) => {
     const entry = { anchor, step, note: "" };
+    const openers = artifactsRef.current.flatMap((a) => a.type === "SpecOpened" && (a.data as SpecOpenedData).anchor === anchor && (a.data as SpecOpenedData).from ? [(a.data as SpecOpenedData).from!] : []);
     await writer.edit((known) => {
       const current = known.find((trace) => trace.traceId === activeIdRef.current);
-      return current ? { ...current, entries: [...current.entries, entry] } : { traceId: crypto.randomUUID(), title: `Trace ${known.length + 1}`, entries: [entry] };
+      return current ? { ...current, entries: appendStep(current.entries, entry, openers) } : { traceId: crypto.randomUUID(), title: `Trace ${known.length + 1}`, entries: [entry] };
     }, (trace) => selectTrace(trace.traceId));
   }, [writer, selectTrace]);
   const model = useMemo<CanvasModel>(() => ({
@@ -105,10 +110,10 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const findInGecko = useCallback(async (ref: string, stale: string | null) => { await specClient.findImplementation(state.session.id, ref, "gecko", stale); }, [state.session.id]);
   const decideGecko = useCallback(async (ref: string, key: string, decision: "confirm" | "reject") => { await specClient.decideImplementation(state.session.id, ref, "gecko", key, decision); }, [state.session.id]);
   const view = useMemo(() => ({ sessionId: state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, traceCode, tasks: stableEngineTasks, flag, findInGecko, decideGecko }), [state.session.id, closed, addToTrace, focus, takeFocus, summaries, mappings, traceCode, stableEngineTasks, flag, findInGecko, decideGecko]);
-  return <ExplorerViewContext.Provider value={view}><>
+  return <InlineStatesContext.Provider value={inline}><ExplorerViewContext.Provider value={view}><>
     <TopbarExtras><button type="button" data-testid="traces-toggle" aria-pressed={panel} onClick={() => setPanel(!panel)}>Traces · {active?.entries.length ?? 0}</button>{active && <Segmented label="Explorer view" value={mode} onChange={(value: "map" | "sequence") => setMode(value)} options={[{ value: "map", label: "Map", title: "Map" }, { value: "sequence", label: "Sequence", title: "Trace sequence" }]} />}</TopbarExtras>
     <div className="session-body">{mode === "map" || !active ? <Canvas state={state} model={model} closed={closed} viewKey={viewKey} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} /> : <TraceSequenceView trace={active} algorithms={algorithms} check={current} onRow={(row) => { setFocus({ anchor: row.to, step: row.step, nonce: ++focusNonce.current }); setMode("map"); }} />}{panel && <TracePanel writer={writer} traces={traces} active={active} algorithms={algorithms} readOnly={readOnly} onSelect={select} onClose={() => setPanel(false)} sessionId={state.session.id} activeId={activeId} status={status} tasks={state.tasks} openRefs={openRefs} />}</div>
-  </></ExplorerViewContext.Provider>;
+  </></ExplorerViewContext.Provider></InlineStatesContext.Provider>;
 }
 
 function TraceSequenceView({ trace, algorithms, check, onRow }: { trace: SpecTraceData; algorithms: ReadonlyMap<string, { title: string; url: string }>; check: SpecTraceCheckData | null; onRow(row: TraceRow): void }) {

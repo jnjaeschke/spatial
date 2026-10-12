@@ -58,6 +58,19 @@ export function traceStatus(artifacts: Artifact[], traceId: string): TraceStatus
   return { trace, check, outdated: check !== null && check.data.traceArtifactId !== trace.id };
 }
 
+/**
+ * `entries` with a step added by hand. `openers` are the steps the step's box was opened from. When none is the last entry's
+ * algorithm but one is earlier on the trace, the walk went back there first: that step goes in before the new one, so the
+ * trace does not show the new algorithm as called from the last one.
+ */
+export function appendStep(entries: SpecTraceEntry[], entry: SpecTraceEntry, openers: { anchor: string; step: string }[]): SpecTraceEntry[] {
+  const last = entries.at(-1);
+  const from = openers.filter((opener) => opener.step);
+  if (!last || last.anchor === entry.anchor || from.some((opener) => opener.anchor === last.anchor)) return [...entries, entry];
+  const back = from.map((opener) => ({ opener, at: entries.findLastIndex((item) => item.anchor === opener.anchor) })).filter((item) => item.at >= 0).sort((a, b) => b.at - a.at)[0];
+  return back ? [...entries, { anchor: back.opener.anchor, step: back.opener.step, note: "" }, entry] : [...entries, entry];
+}
+
 /** The check that marks a trace's entries, edges and notes: the one of its latest version, else none. */
 export const currentCheck = (status: TraceStatus | null): SpecTraceCheckData | null => status && !status.outdated ? status.check?.data ?? null : null;
 

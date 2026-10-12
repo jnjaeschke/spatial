@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hopOf, latestTraces, traceMarkdown, traceSequence, traceStatus, verdictLine } from "../../../src/plugins/spec/shared/traces.ts";
+import { appendStep, hopOf, latestTraces, traceMarkdown, traceSequence, traceStatus, verdictLine } from "../../../src/plugins/spec/shared/traces.ts";
 import { isSpecRef } from "../../../src/plugins/spec/shared/refs.ts";
 import type { SpecTraceCheckData, SpecTraceData, SpecTraceEntry } from "../../../src/plugins/spec/shared/types.ts";
 import type { Artifact } from "../../../src/shared/types.ts";
@@ -69,4 +69,15 @@ test("verdictLine counts steps, unverified hops and unsupported notes; a scenari
 
 test("isSpecRef accepts SPEC#anchor refs only", () => {
   assert.deepEqual(["HTML#navigate", "CSS-GRID#grid-container", "navigate", "https://html.spec.whatwg.org/#navigate", "HTML#"].map(isSpecRef), [true, true, false, false, false]);
+});
+
+test("appendStep: a step whose box was opened from an earlier algorithm on the trace goes back to that step first", () => {
+  const a3 = hopEntry("A#a", "3"), b1 = hopEntry("A#b", "1"), c1 = hopEntry("A#c", "1");
+  assert.deepEqual(appendStep([a3, b1], c1, [{ anchor: "A#a", step: "5" }]), [a3, b1, hopEntry("A#a", "5"), c1]);
+  assert.deepEqual(appendStep([a3, b1], c1, [{ anchor: "A#a", step: "5" }, { anchor: "A#b", step: "1" }]), [a3, b1, c1]);
+  assert.deepEqual(appendStep([a3, b1], c1, [{ anchor: "A#z", step: "1" }]), [a3, b1, c1]);
+  assert.deepEqual(appendStep([a3, b1], hopEntry("A#b", "2"), [{ anchor: "A#a", step: "3" }]), [a3, b1, hopEntry("A#b", "2")]);
+  assert.deepEqual(appendStep([], c1, [{ anchor: "A#a", step: "5" }]), [c1]);
+  const back = [a3, b1, hopEntry("A#a", "5"), c1];
+  assert.deepEqual(back.map((_, i) => hopOf(back, i)), ["start", "call", "return", "call"]);
 });

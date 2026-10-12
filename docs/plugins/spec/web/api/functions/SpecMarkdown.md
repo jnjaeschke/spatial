@@ -8,7 +8,7 @@
 
 > **SpecMarkdown**(`__namedParameters`): `Element`
 
-Webspec section markdown with short spec refs as in-app links. With `steps`, step `<li>`s carry `data-step` and `stepExtras(path)` renders after a step's own content, before its sub-steps.
+Webspec section markdown with short spec refs as in-app links. With `steps`, step `<li>`s carry `data-step` and their number, `stepExtras(path)` renders after a step's own content, before its sub-steps, and `onStepNumber(path)` makes the number a button.
 
 ## Parameters
 
@@ -21,6 +21,8 @@ Webspec section markdown with short spec refs as in-app links. With `steps`, ste
 #### text
 
 `string`
+
+#### onStepNumber?
 
 #### stepExtras?
 

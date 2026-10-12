@@ -1,7 +1,7 @@
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
 import { IconButton, api, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
-import { InlineStatesContext } from "./inline-state.ts";
+import { InlineStatesContext } from "../../../web/plugin-api.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
 

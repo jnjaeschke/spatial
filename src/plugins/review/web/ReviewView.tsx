@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, useClosed, api } from "../../../web/plugin-api.ts";
 import { latestNarrative, reviewGraph } from "./graph.ts";
 import { JumpContext, RevealContext, reviewCanvas } from "./canvas.tsx";
@@ -14,7 +14,7 @@ import { CommentDetails, findComment } from "./CommentDetails.tsx";
 import { FindingDetails, findFinding } from "./FindingDetails.tsx";
 import { PhabDetails, findPhabThread } from "./PhabDetails.tsx";
 import { SymbolDetails, findSymbol } from "./SymbolDetails.tsx";
-import { InlineStatesContext, useInlineStates } from "./inline-state.ts";
+import { InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
 import { SymbolMarkContext, useSymbolCard } from "./SymbolCard.tsx";
 import { SpecLinkContext } from "../../spec/web/api.ts";
 
@@ -24,7 +24,6 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   const [specSelection, setSpecSelection] = useState<SpecStepSelection | null>(null);
   const closed = useClosed(state.session.id);
   const inline = useInlineStates(state.session.id);
-  const knownDrafts = useRef(new Set(drafts.map((draft) => draft.id)));
   const revealer = useRef<((nodeId: string, collapseId: string) => void) | null>(null);
   const narrative = latestNarrative(state);
   const graph = useMemo(() => reviewGraph(state, drafts), [state, drafts]);
@@ -34,19 +33,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   const epoch = diff ? diffNumber(state.artifacts, diff.id) : null;
   const interdiff = diff ? interdiffOf(state.artifacts, state.links, diff.id) : null;
   const chatThread = useChatLookup(graph, drafts);
-  useEffect(() => {
-    for (const draft of drafts) {
-      if (knownDrafts.current.has(draft.id)) continue;
-      knownDrafts.current.add(draft.id);
-      if (!draft.aside) inline.set(draft.id, "expanded");
-    }
-  }, [drafts, inline.set]);
-  useEffect(() => {
-    for (const draft of drafts) {
-      const thread = draft.taskId ? state.artifacts.find((artifact) => artifact.type === "ChatThread" && artifact.provenance.taskId === draft.taskId) : undefined;
-      if (thread) inline.move(draft.id, thread.id);
-    }
-  }, [drafts, state.artifacts, inline.move]);
+  useDraftInlineStates(inline, drafts, state.artifacts);
   const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : detail.kind === "finding" ? findFinding(graph, detail.id) !== null : detail.kind === "phab" ? findPhabThread(graph, detail.anchorId) !== null : detail.kind === "symbol" ? findSymbol(state, diff, detail.name, detail.site) !== null : detail.kind === "spec" ? state.artifacts.some((artifact) => artifact.id === detail.specId) : true;
   const back = canGoBack(details, resolves) ? () => setDetails((current) => backDetail(current, resolves)) : undefined;
   const closePanel = () => setDetails(closeDetails());

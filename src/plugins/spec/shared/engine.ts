@@ -118,6 +118,9 @@ export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "inpu
   return { mapping: running("mapEngine"), searching: running("findImplementation"), aligning: running("alignSteps"), error: mine.findLast((task) => task.status === "failed")?.error ?? null };
 }
 
+/** A site at a declaration outside any function (a spec-link comment above it): it has no body to align steps with. */
+export const isDeclaration = (site: Pick<EngineSite, "symbol">) => !site.symbol;
+
 const ENGINE_NAME: Record<Engine, string> = { gecko: "Gecko", blink: "Blink", webkit: "WebKit" };
 
 /** What the latest LLM search for the algorithm in `engine` reports when it found nothing: the note, and the reasons its candidates were dropped. Null while one runs or when the latest found something or failed. */

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { type Artifact, type CanvasModel, type CanvasProviderProps, DiagramStepContext, SearchfoxContext, api, searchfoxLinks } from "../../../web/plugin-api.ts";
 import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, latestNarrative, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
-import { InlineStatesContext } from "./inline-state.ts";
+import { InlineStatesContext } from "../../../web/plugin-api.ts";
 
 /** Holds the canvas's reveal function so panels outside the canvas can reveal nodes in it. */
 export const RevealContext = createContext<MutableRefObject<((nodeId: string, collapseId: string) => void) | null> | null>(null);

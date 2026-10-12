@@ -43,3 +43,12 @@ const LINK = /\]\(([A-Za-z0-9-]+#[^)\s]+)\)/g;
 export function stepLinks(markdown: string): Record<string, string[]> {
   return Object.fromEntries(stepSources(markdown).map(({ number, lines }) => [number, [...new Set(lines.filter((line, i) => i === 0 || !line.startsWith(">")).flatMap((line) => [...line.matchAll(LINK)].map((match) => match[1]!)))]]));
 }
+
+/** The deepest step whose text holds the start of `quote` (text selected in the rendered algorithm), whitespace ignored; null when none does. */
+export function stepOfQuote(steps: SpecStep[], quote: string): string | null {
+  const needle = quote.replace(/\s+/g, "").slice(0, 24);
+  if (!needle) return null;
+  let found: SpecStep | null = null;
+  for (const step of steps) if (step.text.replace(/\s+/g, "").includes(needle) && (!found || step.depth >= found.depth)) found = step;
+  return found?.number ?? null;
+}

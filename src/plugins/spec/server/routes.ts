@@ -227,7 +227,9 @@ export function specRoutes(rt: Runtime): Route[] {
       const algorithm = requireAlgorithm(rt, session.id, text(body, "ref"));
       const engine = parseEngine(body.engine);
       const key = text(body, "key");
-      if (!usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).some((site) => siteKey(site) === key)) throw new HttpError(404, `No site ${key} in ${algorithm.data.ref}`);
+      const site = usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).find((candidate) => siteKey(candidate) === key);
+      if (!site) throw new HttpError(404, `No site ${key} in ${algorithm.data.ref}`);
+      if (!site.symbol) throw new HttpError(409, `${site.path}:${site.line} is a declaration; aligning steps needs a function body`);
       if (alignRunning(rt, engine, algorithm.data.ref)) throw new HttpError(409, `A ${engine} alignment for ${algorithm.data.ref} is running`);
       send(res, 202, { taskId: startAlign(rt, session.id, engine, algorithm, key).taskId });
     }],

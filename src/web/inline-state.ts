@@ -1,4 +1,6 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import type { Artifact } from "../shared/types.ts";
+import type { Draft } from "./chat-context.ts";
 
 export type InlineState = "line" | "preview" | "expanded";
 const DEFAULT_STATE: InlineState = "preview";
@@ -53,4 +55,22 @@ export function useInlineState(id: string): [InlineState, (state: InlineState) =
   const states = useContext(InlineStatesContext);
   if (!states) throw new Error("Inline items need InlineStatesContext");
   return [states.state(id), (state) => states.set(id, state)];
+}
+
+/** Opens each inline chat draft made after mount (its composer shows) and carries a draft's state to the thread it becomes once sent. */
+export function useDraftInlineStates(inline: InlineStates, drafts: Draft[], artifacts: Artifact[]): void {
+  const known = useRef(new Set(drafts.map((draft) => draft.id)));
+  useEffect(() => {
+    for (const draft of drafts) {
+      if (known.current.has(draft.id)) continue;
+      known.current.add(draft.id);
+      if (!draft.aside) inline.set(draft.id, "expanded");
+    }
+  }, [drafts, inline.set]);
+  useEffect(() => {
+    for (const draft of drafts) {
+      const thread = draft.taskId ? artifacts.find((artifact) => artifact.type === "ChatThread" && artifact.provenance.taskId === draft.taskId) : undefined;
+      if (thread) inline.move(draft.id, thread.id);
+    }
+  }, [drafts, artifacts, inline.move]);
 }

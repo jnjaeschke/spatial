@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { ErrorText, IconButton, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import type { Engine } from "../../../plugin-api.ts";
 import type { EngineDifference, EngineMapping, EngineSite, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
-import { codeUrl, mappedSteps, nothingFound, siteKey, siteName } from "../shared/engine.ts";
+import { codeUrl, isDeclaration, mappedSteps, nothingFound, siteKey, siteName } from "../shared/engine.ts";
 import { cellHighlighted, columnState, taskState, differenceTargets } from "./implementations.ts";
 import { siteTitle } from "./GeckoStrip.tsx";
 import { DifferencesList } from "./DifferencesList.tsx";
@@ -17,9 +17,10 @@ function SiteEntry({ sessionId, data, engine, mapping, site, readOnly }: { sessi
   const key = siteKey(site);
   const whyId = useId();
   const proposal = site.method === "llm" && !site.stale;
-  const alignable = site.method !== "llm" && !site.stale && !site.steps.some((step) => step.verdict !== "proposed");
+  const alignable = site.method !== "llm" && !site.stale && !isDeclaration(site) && !site.steps.some((step) => step.verdict !== "proposed");
   return <li className={`impl-site method-${site.method}${site.stale ? " stale" : ""}`}>
     <a href={codeUrl(mapping, site.path, site.line)} target="_blank" rel="noreferrer" data-testid={`impl-site-${engine}`} title={siteTitle(site)} aria-describedby={proposal && site.why ? whyId : undefined}>{name}</a>
+    {isDeclaration(site) && <span className="impl-note" title="A spec-link comment above a declaration: there is no function body to align steps with">declaration</span>}
     {proposal && <span className="badge">AI-proposed</span>}
     {proposal && site.why && <span id={whyId} className="impl-note">{site.why}</span>}
     {!readOnly && proposal && <><IconButton type="button" className="link-button" label={`Confirm ${name}`} disabled={action.busy} onClick={() => void action.run(() => specClient.decideImplementation(sessionId, data.ref, engine, key, "confirm"))}>Confirm</IconButton><IconButton type="button" className="link-button" label={`Reject ${name}`} disabled={action.busy} onClick={() => void action.run(() => specClient.decideImplementation(sessionId, data.ref, engine, key, "reject"))}>Reject</IconButton></>}
