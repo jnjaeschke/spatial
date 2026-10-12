@@ -728,6 +728,9 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .spec-site.method-llm { text-decoration: none; border-bottom: 1px dashed currentColor; }
 .spec-site-action { padding: 0 2px; font-size: 0.9em; }
 .spec-impl-test-list { margin: 4px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; }
+.spec-impl-sites { list-style: none; margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+.spec-site-item { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.spec-impl-toggle { font-weight: 600; color: var(--text-2); }
 .spec-g-link { margin-left: 4px; padding: 0 3px; font-size: 0.75em; font-weight: 600; text-decoration: none; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .spec-g-link.outdated { color: var(--warning); border-color: currentColor; }
 .spec-link-missing { color: var(--text-2); text-decoration: underline dotted; cursor: help; }
@@ -766,8 +769,9 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .trace-entries textarea.unsupported { text-decoration: line-through; }
 .trace-note-reason { margin: 0; font-size: 0.8em; color: var(--danger); }
 .spec-steps ol { list-style: none; margin: 0; padding: 0; }
-.spec-steps ol ol { padding-left: 1.2em; }
-.spec-steps li[data-step]::before { content: attr(data-step) "."; display: inline-block; min-width: 2.4em; margin-right: 4px; color: var(--text-3); font: 0.8em var(--font-mono); user-select: none; }
+/* The number hangs in the step's left padding, on the first line of its text whether that is a paragraph or not. */
+.spec-steps li[data-step] { padding-left: 2.6em; }
+.spec-steps li[data-step]::before { content: attr(data-step) "."; float: left; width: 3em; margin-left: -3.25em; padding-top: 0.2em; color: var(--text-3); font: 0.8em var(--font-mono); user-select: none; }
 .spec-effects { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
 .impl-view { height: 100%; overflow: auto; padding: 12px 16px; }
 .impl-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
