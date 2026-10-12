@@ -1,3 +1,11 @@
+import type { TryProposalData } from "../shared/types.ts";
+
+/** Whether `value` has the shape of a `TryProposal` (an LLM reply or a chat field). */
+export const isTryProposal = (value: unknown): value is TryProposalData => {
+  const v = value as Partial<TryProposalData> | null | undefined;
+  return typeof v === "object" && v !== null && typeof v.command === "string" && typeof v.reason === "string";
+};
+
 /** Source of the regular expression the Push decision's text must match; the full check is `tryCommandProblem`. */
 export const TRY_TEXT_PATTERN = "^\\./mach try \\S";
 

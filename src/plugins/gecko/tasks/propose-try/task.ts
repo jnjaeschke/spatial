@@ -1,17 +1,12 @@
 import { readFileSync } from "node:fs";
 import { defineTask, prependRepoContext, type CommandRunData, type Id } from "../../../../plugin-api.ts";
 import type { TryInput, TryProposalData, TryPushData } from "../../shared/types.ts";
-import { tryCommandProblem } from "../../runtime/try-command.ts";
+import { isTryProposal, tryCommandProblem } from "../../runtime/try-command.ts";
 import { changedFiles } from "../../runtime/changed-files.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
 const MAX_TEST_COMMANDS = 20;
-
-const isReply = (value: unknown): value is TryProposalData => {
-  const r = value as Partial<TryProposalData> | null | undefined;
-  return typeof r === "object" && r !== null && typeof r.command === "string" && typeof r.reason === "string";
-};
 
 export const proposeTry = defineTask<TryInput, { proposalId: Id }>({
   kind: "proposeTry",
@@ -35,7 +30,7 @@ export const proposeTry = defineTask<TryInput, { proposalId: Id }>({
       ...(earlier.length ? ["# Earlier try pushes in this session", [...new Set(earlier)].map((command) => `- \`${command}\``).join("\n")] : []),
     ].join("\n\n");
     const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
-    if (!isReply(r.json)) throw new Error(`Try proposal reply is not valid: ${JSON.stringify(r.json)}`);
+    if (!isTryProposal(r.json)) throw new Error(`Try proposal reply is not valid: ${JSON.stringify(r.json)}`);
     const command = r.json.command.trim();
     const problem = tryCommandProblem(command);
     if (problem) throw new Error(`The proposed try command is not usable: ${problem}: ${command}`);
