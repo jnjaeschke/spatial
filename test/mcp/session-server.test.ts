@@ -17,8 +17,9 @@ import { sessionServerSpec } from "../../src/runtime/create.ts";
 import { makeWebspec } from "../../src/runtime/webspec.ts";
 import { MAX_TOOL_OUTPUT } from "../../src/runtime/git.ts";
 import type { WebspecCapability } from "../../src/runtime/tasks.ts";
+import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
 
-const caps = { webspec: makeWebspec() };
+const caps = { webspec: makeWebspec(), knowledge: new KnowledgeStore(":memory:") };
 
 const text = (result: Awaited<ReturnType<Client["callTool"]>>) => (result.content as { text: string }[])[0]!.text;
 const registry = pluginRegistry([corePlugin, ...plugins]);
@@ -166,7 +167,7 @@ test("plugin MCP tools are registered read-only, run with the session context an
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const seen: unknown[] = [];
   const webspec = makeWebspec();
-  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, webspec)] }]), store, session.id, "/repo", { webspec });
+  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, webspec)] }]), store, session.id, "/repo", { webspec, knowledge: new KnowledgeStore(":memory:") });
   const client = new Client({ name: "test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

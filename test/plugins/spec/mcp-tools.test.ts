@@ -8,13 +8,14 @@ import { pluginRegistry } from "../../../src/runtime/plugins.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import type { WebspecCapability, WebspecLookup } from "../../../src/runtime/tasks.ts";
+import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 
 test("spec tools pass their arguments to webspec lookups and answer with the output", async () => {
   const requests: WebspecLookup[] = [];
   const webspec = { lookup: async (request: WebspecLookup) => { requests.push(request); return `text of ${request.command}`; } } as unknown as WebspecCapability;
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
-  const server = createSessionServer(pluginRegistry([corePlugin, specPlugin]), store, session.id, "/repo", { webspec });
+  const server = createSessionServer(pluginRegistry([corePlugin, specPlugin]), store, session.id, "/repo", { webspec, knowledge: new KnowledgeStore(":memory:") });
   const client = new Client({ name: "test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

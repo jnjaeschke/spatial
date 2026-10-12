@@ -6,7 +6,7 @@
 
 # Class: KnowledgeStore
 
-`Knowledge` in its own SQLite file, apart from the disposable session database.
+`Knowledge` in its own SQLite file, apart from the disposable session database. Read-only stores (the session MCP server) only read; the file must exist.
 
 ## Implements
 
@@ -16,13 +16,19 @@
 
 ### Constructor
 
-> **new KnowledgeStore**(`path`): `KnowledgeStore`
+> **new KnowledgeStore**(`path`, `opts?`): `KnowledgeStore`
 
 #### Parameters
 
 ##### path
 
 `string`
+
+##### opts?
+
+###### readOnly?
+
+`boolean`
 
 #### Returns
 

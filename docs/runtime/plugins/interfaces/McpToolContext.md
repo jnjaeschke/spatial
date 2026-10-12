@@ -10,6 +10,12 @@ What a plugin MCP tool may use: the session, its work tree, read-only capabiliti
 
 ## Properties
 
+### knowledge
+
+> **knowledge**: `Pick`\<[`Knowledge`](../../knowledge/interfaces/Knowledge.md), `"get"` \| `"list"`\>
+
+***
+
 ### repo
 
 > **repo**: `string`

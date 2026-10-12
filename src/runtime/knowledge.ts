@@ -36,12 +36,13 @@ function assertJson(value: unknown, path = "value"): void {
   if (typeof value === "object" && value !== null) for (const [key, item] of Object.entries(value)) assertJson(item, `${path}.${key}`);
 }
 
-/** `Knowledge` in its own SQLite file, apart from the disposable session database. */
+/** `Knowledge` in its own SQLite file, apart from the disposable session database. Read-only stores (the session MCP server) only read; the file must exist. */
 export class KnowledgeStore implements Knowledge {
   #db: DatabaseSync;
 
-  constructor(path: string) {
-    this.#db = new DatabaseSync(path, { timeout: 5000 });
+  constructor(path: string, opts: { readOnly?: boolean } = {}) {
+    this.#db = new DatabaseSync(path, { timeout: 5000, readOnly: opts.readOnly ?? false });
+    if (opts.readOnly) return;
     if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
     this.#db.exec(SCHEMA);
   }

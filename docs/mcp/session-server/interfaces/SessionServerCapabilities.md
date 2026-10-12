@@ -10,6 +10,12 @@ Capabilities plugin tools run with; the server process builds them from its flag
 
 ## Properties
 
+### knowledge
+
+> **knowledge**: `Pick`\<[`Knowledge`](../../../runtime/knowledge/interfaces/Knowledge.md), `"get"` \| `"list"`\>
+
+***
+
 ### webspec
 
 > **webspec**: [`WebspecCapability`](../../../runtime/tasks/interfaces/WebspecCapability.md)

@@ -16,6 +16,17 @@ test("put then get returns the current value with provenance", () => {
   assert.deepEqual(entry.provenance, { by: "llm", taskId: "T", sessionId: "S" });
 });
 
+test("a read-only store reads current entries and cannot write", () => {
+  const path = join(mkdtempSync(join(tmpdir(), "knowledge-")), "knowledge.db");
+  const writer = new KnowledgeStore(path);
+  writer.put("global", "spec", "k", 1, by);
+  const reader = new KnowledgeStore(path, { readOnly: true });
+  assert.equal(reader.get("global", "spec", "k").state, "current");
+  assert.throws(() => reader.put("global", "spec", "k", 2, by), /readonly/i);
+  reader.close();
+  writer.close();
+});
+
 test("a second put supersedes the first and keeps it in the file", () => {
   const path = join(mkdtempSync(join(tmpdir(), "knowledge-")), "knowledge.db");
   const store = new KnowledgeStore(path);
