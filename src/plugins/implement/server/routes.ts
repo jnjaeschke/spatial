@@ -4,12 +4,14 @@ import { HttpError, readJson, requireArtifact, requireSession, send, workflowVie
 import type { PhabCommentData } from "../../review/api.ts";
 import { postInlineReplies } from "../../review/api.ts";
 import { rememberSteer } from "../runtime/distill.ts";
+import { memoryRoutes } from "./memory-routes.ts";
 
 /** The phases that read steers. */
 const STEERABLE = new Set(["investigate", "implement"]);
 
 export function implementRoutes(rt: Runtime): Route[] {
   return [
+    ...memoryRoutes(rt),
     ["POST", /^\/api\/sessions\/([^/]+)\/abandon$/, async ({ res, params }) => {
       const session = requireSession(rt, params[0]!);
       if (session.workflow !== "implement") throw new HttpError(409, "Not an implement session");
