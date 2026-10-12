@@ -240,6 +240,41 @@ test("a verification retry resumes the previous attempt's session with only the 
   assert.ok(!prompts[1]!.prompt.includes("# Investigation"));
 });
 
+test("every verification attempt stores CheckResults naming the command runs that prove each check", async () => {
+  const { store, session, run } = setup((call, prompt, r) => {
+    if (call === 0) r.commit({ "b.txt": "b\n" }, "Add b");
+    else { prompt.onEvent?.(event("t node t/a.js", 1)); prompt.onEvent?.(event("t node t/a.js", 0)); }
+    return ok;
+  }, "tp", withChecks({ kind: "new-test", path: "t/a.js" }));
+  await run();
+  const stored = store.listArtifacts(session.id, "CheckResults");
+  assert.equal(stored.length, 2);
+  assert.ok(stored.every((a) => a.status === "verified"));
+  const [early, final] = stored.map((a) => (a.data as CheckResultsData).results);
+  assert.equal(early![0]!.ok, false);
+  const runIds = store.listArtifacts(session.id, "CommandRun").map((a) => a.id);
+  assert.deepEqual(final, [{ step: 0, check: 0, label: "new-test t/a.js", ok: true, message: "2 runs, the last passed", runs: runIds }]);
+});
+
+test("a measure check is reported with its runs and never blocks", async () => {
+  const { store, session, run } = setup((_, prompt, r) => {
+    prompt.onEvent?.(event("bench", 0));
+    prompt.onEvent?.({ kind: "progress", message: "editing b.txt" });
+    r.commit({ "b.txt": "b\n" }, "Add b");
+    prompt.onEvent?.(event("bench", 0));
+    return ok;
+  }, "tp", withChecks({ kind: "measure", command: "bench", goal: "faster" }));
+  await run();
+  const results = (store.listArtifacts(session.id, "CheckResults").at(-1)!.data as CheckResultsData).results;
+  assert.deepEqual(results.map((r) => [r.ok, r.message, r.runs.length]), [[true, "2 runs: before and after the first edit", 2]]);
+});
+
+test("no CheckResults are stored when no check was judged", async () => {
+  const { store, session, run } = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; });
+  await run();
+  assert.equal(store.listArtifacts(session.id, "CheckResults").length, 0);
+});
+
 test("a later implement call uses the follow-up prompt even when the first call has no session id", async () => {
   const { prompts, run } = setup((call, _, repo) => {
     if (call === 1) repo.commit({ "b.txt": "b\n" }, "Add b");

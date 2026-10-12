@@ -135,7 +135,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const reply = await call(attempt === 0 ? prompt : [prompt, problemsSection(problems)].join("\n\n"), problemsSection(problems));
       if (reply.planInvalid && !input.ignorePlanInvalid) return done(await ctx.git.resolve("HEAD"), reply, null, reply.planInvalid);
       const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan: branch.checkout === "new-branch" ? planned : null, planChange: reply.planChange, profile });
-      const found = [...checked.problems, ...checkEvidence(investigation.steps, evidence, { first: !previous, profile }).problems];
+      const judged = checkEvidence(investigation.steps, evidence, { first: !previous, profile });
+      if (judged.results.length) ctx.artifacts.put<CheckResultsData>("CheckResults", "verified", { results: judged.results });
+      const found = [...checked.problems, ...judged.problems];
       if (found.length === 0) return done(checked.head, reply, reply.planChange, null);
       problems = found;
     }

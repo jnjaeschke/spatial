@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkEvidence, type CommandEvidence } from "../../../src/plugins/implement/runtime/check-evidence.ts";
 import type { AcceptanceCheck } from "../../../src/plugins/implement/shared/types.ts";
+import { artifactKinds } from "../../../src/plugins/implement/runtime/kinds.ts";
 
 const profile = { isTestCommand: (command: string) => command.startsWith("t ") };
 let n = 0;
@@ -78,4 +79,14 @@ test("a profile without isTestCommand skips test checks but still reports measur
   const out = checkEvidence(plan(newTest, measure), [], { first: true, profile: {} });
   assert.deepEqual(out.results.map((r) => r.label), ["measure `bench` - faster"]);
   assert.deepEqual(out.problems, []);
+});
+
+test("CheckResults render for chats", () => {
+  const artifact = { id: "c1", sessionId: "s", type: "CheckResults", status: "verified" as const, data: { results: [
+    { step: 0, check: 0, label: "new-test a.js", ok: true, message: "2 runs, the last passed", runs: ["r1", "r2"] },
+    { step: 0, check: 1, label: "covering-test c.js", ok: false, message: "no run", runs: [] },
+  ] }, provenance: { taskId: "t" }, epoch: 2, createdAt: "" };
+  const render = artifactKinds.CheckResults!.render!;
+  assert.equal(render({ artifacts: [], links: [] }, artifact, undefined, () => ""), "# Check results\n\n- passed: new-test a.js - 2 runs, the last passed\n- failed: covering-test c.js - no run");
+  assert.equal(render({ artifacts: [], links: [] }, artifact, "x", () => ""), null);
 });
