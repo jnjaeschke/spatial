@@ -73,6 +73,7 @@ composition roots.
 
 ## Functions
 
+- [chosenDecision](functions/chosenDecision.md)
 - [commandRunData](functions/commandRunData.md)
 - [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
@@ -81,6 +82,7 @@ composition roots.
 - [fileRows](functions/fileRows.md)
 - [isActive](functions/isActive.md)
 - [isGeckoRepo](functions/isGeckoRepo.md)
+- [latestArtifact](functions/latestArtifact.md)
 - [makeGit](functions/makeGit.md)
 - [makeGitWriter](functions/makeGitWriter.md)
 - [numberLines](functions/numberLines.md)

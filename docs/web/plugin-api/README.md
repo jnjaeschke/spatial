@@ -343,6 +343,12 @@ Re-exports [isActive](../../plugin-api/functions/isActive.md)
 
 ***
 
+### latestArtifact
+
+Re-exports [latestArtifact](../../plugin-api/functions/latestArtifact.md)
+
+***
+
 ### Link
 
 Re-exports [Link](../../shared/types/interfaces/Link.md)

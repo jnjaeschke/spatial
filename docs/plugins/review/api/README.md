@@ -58,6 +58,12 @@ Re-exports [FindingVerdictData](../shared/types/interfaces/FindingVerdictData.md
 
 ***
 
+### latestByPhid
+
+Re-exports [latestByPhid](../shared/phab-comments/functions/latestByPhid.md)
+
+***
+
 ### nearestFork
 
 Re-exports [nearestFork](../workflow/review-range/functions/nearestFork.md)

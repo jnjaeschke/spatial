@@ -164,6 +164,12 @@ Re-exports [isSatellite](../plugin-api/functions/isSatellite.md)
 
 ***
 
+### latestArtifact
+
+Re-exports [latestArtifact](../../plugin-api/functions/latestArtifact.md)
+
+***
+
 ### latestStart
 
 Re-exports [latestStart](../plugin-api/functions/latestStart.md)
