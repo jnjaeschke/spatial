@@ -1,4 +1,4 @@
-import type { Id, KnowledgeEntry, Runtime } from "../../../plugin-api.ts";
+import { BusyError, type Id, type KnowledgeEntry, type Runtime } from "../../../plugin-api.ts";
 import type { SpecAlgorithmData, SpecOpenedData, SpecTraceData, TraceCodeRef, TraceQuestion } from "../shared/types.ts";
 import { hopOf } from "../shared/traces.ts";
 import { openSpec } from "./open.ts";
@@ -27,9 +27,13 @@ export async function openTraceBoxes(rt: Runtime, sessionId: Id, trace: SpecTrac
   return stored;
 }
 
-/** Whether a `checkTrace` task of the trace is pending or running. */
-export const traceCheckRunning = (rt: Runtime, sessionId: Id, traceId: string) =>
-  rt.store.listTasks(sessionId).some((task) => task.kind === "checkTrace" && (task.status === "pending" || task.status === "running") && (task.input as { traceId: string }).traceId === traceId);
+/** Starts checking a trace version, one check per trace at a time (`BusyError` while one runs); logs a failure. */
+export function startTraceCheck(rt: Runtime, sessionId: Id, traceId: string, traceArtifactId: Id): Id {
+  if (rt.activeTask("checkTrace", (input) => (input as { traceId: string }).traceId === traceId)) throw new BusyError(`A check of trace ${traceId} is running`);
+  const { taskId, done } = rt.start(sessionId, "checkTrace", { traceId, traceArtifactId });
+  done.catch((error) => console.error(`Check of trace ${traceId} failed: ${(error as Error).message}`));
+  return taskId;
+}
 
 /** Runs the tracer for a question, then checks its trace and opens the boxes of its known anchors, also when the check fails. */
 export async function generateTrace(rt: Runtime, sessionId: Id, request: TraceRequest): Promise<void> {

@@ -79,6 +79,7 @@ composition roots.
 - [escapeRegex](functions/escapeRegex.md)
 - [fetchBugMarkdown](functions/fetchBugMarkdown.md)
 - [fileRows](functions/fileRows.md)
+- [isActive](functions/isActive.md)
 - [isGeckoRepo](functions/isGeckoRepo.md)
 - [makeGit](functions/makeGit.md)
 - [makeGitWriter](functions/makeGitWriter.md)
@@ -88,6 +89,7 @@ composition roots.
 - [revisedText](functions/revisedText.md)
 - [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
+- [taskState](functions/taskState.md)
 
 ## References
 
@@ -124,6 +126,12 @@ Re-exports [BackendModels](../shared/types/type-aliases/BackendModels.md)
 ### BlameEntry
 
 Re-exports [BlameEntry](../runtime/tasks/interfaces/BlameEntry.md)
+
+***
+
+### BusyError
+
+Re-exports [BusyError](../runtime/tasks/classes/BusyError.md)
 
 ***
 

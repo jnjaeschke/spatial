@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ENGINE_LABEL, ENGINES, ErrorText, plural, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { ENGINE_LABEL, ENGINES, ErrorText, plural, showSessionView, taskState, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import type { Engine } from "../../../plugin-api.ts";
 import type { EngineDifference, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
 import { codeUrl, mappedSteps, nothingFound, siteKey } from "../shared/engine.ts";
-import { cellHighlighted, columnState, taskState, differenceTargets } from "./implementations.ts";
+import { cellHighlighted, columnState, differenceTargets } from "./implementations.ts";
 import { EngineStatus, SiteItem, type SiteActions } from "./EngineSites.tsx";
 import { DifferencesList } from "./DifferencesList.tsx";
 import { specClient } from "./client.ts";
@@ -50,7 +50,7 @@ export function ImplementationsView({ state, readOnly = false }: PhaseViewProps)
   // A flagged or replaced difference leaves the list without a mouseleave.
   const live = hovered && shown?.comparison.state === "ready" && shown.comparison.differences.some((difference) => difference.index === hovered.index && difference.summary === hovered.summary) ? hovered : null;
   const targets = live ? differenceTargets(live) : null;
-  const comparison = shown ? taskState(state.tasks, ["compareEngines", "verifyComparison"], (input) => (input as { algorithmId?: string }).algorithmId === shown.algorithmId) : { busy: false, failed: null };
+  const comparison = shown ? taskState(state.tasks, ["compareAlgorithm"], (input) => (input as { algorithmId?: string }).algorithmId === shown.algorithmId) : { busy: false, failed: null };
   return <div className="impl-view" data-testid="impl-view">
     <header className="impl-head"><label>Algorithm <select aria-label="Algorithm" value={ref} onChange={(event) => showSessionView("impl", { ref: event.target.value })}>{refs.map((candidate) => <option key={candidate} value={candidate}>{candidate}</option>)}</select></label>{shown && <span className="impl-note">{shown.title}</span>}</header>
     <ErrorText error={error ?? ensureError} />

@@ -146,6 +146,12 @@ Re-exports [HostedThread](../plugin-api/type-aliases/HostedThread.md)
 
 ***
 
+### isActive
+
+Re-exports [isActive](../../plugin-api/functions/isActive.md)
+
+***
+
 ### isCoreKind
 
 Re-exports [isCoreKind](../plugin-api/functions/isCoreKind.md)
@@ -251,6 +257,12 @@ Re-exports [SATELLITE_WIDTH](../plugin-api/variables/SATELLITE_WIDTH.md)
 ### subgraph
 
 Re-exports [subgraph](../plugin-api/functions/subgraph.md)
+
+***
+
+### taskState
+
+Re-exports [taskState](../../plugin-api/functions/taskState.md)
 
 ***
 

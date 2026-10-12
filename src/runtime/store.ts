@@ -226,6 +226,11 @@ export class Store {
     return (this.#db.prepare("SELECT * FROM tasks WHERE session_id = ? ORDER BY created_at, rowid").all(sessionId) as Row[]).map(toTask);
   }
 
+  /** Pending and running tasks of `kind` in every session. */
+  listActiveTasks(kind: string): TaskRecord[] {
+    return (this.#db.prepare("SELECT * FROM tasks WHERE kind = ? AND status IN ('pending', 'running') ORDER BY created_at, rowid").all(kind) as Row[]).map(toTask);
+  }
+
   private latestEpoch(sessionId: Id): number | null {
     const r = this.#db.prepare("SELECT MAX(n) AS n FROM epochs WHERE session_id = ?").get(sessionId) as Row;
     return r.n === null ? null : Number(r.n);

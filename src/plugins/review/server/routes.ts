@@ -12,7 +12,7 @@ import { updateRevision } from "../workflow/update-revision.ts";
 import type { ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
 import type { SpecReferenceData } from "../../spec/api.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
-import { createSession, HttpError, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, text, llmField, startTask, type Artifact, type DiffData, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
+import { createSession, HttpError, isActive, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, text, llmField, startTask, type Artifact, type DiffData, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
 
 const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();
@@ -22,8 +22,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
     const artifacts = rt.store.listArtifacts(id);
     const latest = latestDiff(artifacts);
     if (latest && narrativeOf(artifacts, latest.id)) throw new HttpError(409, "Session already has a narrative");
-    if (rt.store.listTasks(id).some((task) => HEAVY_TASKS.has(task.kind) &&
-      (task.status === "pending" || task.status === "running"))) {
+    if (rt.store.listTasks(id).some((task) => HEAVY_TASKS.has(task.kind) && isActive(task))) {
       throw new HttpError(409, "Narration already running");
     }
     return latest;
@@ -295,7 +294,7 @@ export function reviewRoutes(rt: Runtime): Route[] {
       if (!prev) throw new HttpError(409, "Session has no imported diff");
       const refs = sessionRefs(artifacts, tasks);
       if (!refs) throw new HttpError(409, "Cannot find the refs of the session");
-      if (tasks.some((task) => HEAVY_TASKS.has(task.kind) && (task.status === "pending" || task.status === "running"))) {
+      if (tasks.some((task) => HEAVY_TASKS.has(task.kind) && isActive(task))) {
         throw new HttpError(409, "A task is already running");
       }
       let head: string;

@@ -1,4 +1,4 @@
-import type { Artifact, Id, Runtime } from "../../../plugin-api.ts";
+import { taskState, type Artifact, type Id, type Runtime } from "../../../plugin-api.ts";
 import type { SpecAlgorithmData, SpecSummary, SummaryRejectedData } from "../shared/types.ts";
 import { parseSteps } from "../shared/steps.ts";
 import { checkSummary } from "../shared/summary-check.ts";
@@ -14,7 +14,7 @@ const rejected = (rt: Runtime, sessionId: Id, algorithm: SpecAlgorithmData) => r
 export async function ensureSummary(rt: Runtime, sessionId: Id, algorithm: Artifact<SpecAlgorithmData>): Promise<void> {
   const steps = parseSteps(algorithm.data.content);
   if (!steps.length || rt.knowledge.get("global", "spec", summaryKey(algorithm.data)).state !== "absent" || rejected(rt, sessionId, algorithm.data)) return;
-  if (rt.store.listTasks(sessionId).some((task) => (task.kind === "summarizeAlgorithm" || task.kind === "verifySummary") && (task.status === "pending" || task.status === "running") && (task.input as { algorithmId: Id }).algorithmId === algorithm.id)) return;
+  if (taskState(rt.store.listTasks(sessionId), ["summarizeAlgorithm", "verifySummary"], (input) => (input as { algorithmId: Id }).algorithmId === algorithm.id).busy) return;
   const summary = rt.start<SpecSummary>(sessionId, "summarizeAlgorithm", { algorithmId: algorithm.id });
   const { clauses } = await summary.done;
   const reasons = checkSummary(clauses, steps);

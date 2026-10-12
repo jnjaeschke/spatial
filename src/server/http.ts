@@ -7,10 +7,11 @@ import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
 import type { SelectorQuestionData, SelectorAnswerData, Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
-import type { Runtime } from "../runtime/tasks.ts";
+import { BusyError, type Runtime } from "../runtime/tasks.ts";
 import { workflowView } from "../runtime/render-ref.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
 import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
+import { isActive } from "../shared/task-state.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { continueSelection, startSession } from "../workflows/start.ts";
 import { isGeckoRepo } from "../runtime/searchfox.ts";
@@ -25,6 +26,9 @@ export class HttpError extends Error {
     this.status = status;
   }
 }
+
+/** The status of the response to an error a route throws: an `HttpError`'s own, 409 for a `BusyError`, else 500. */
+export const errorStatus = (e: unknown) => e instanceof HttpError ? e.status : e instanceof BusyError ? 409 : 500;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
@@ -327,7 +331,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       if (body.aside !== undefined && body.anchor === undefined) throw new HttpError(400, "aside requires anchor");
       if (body.threadId !== undefined && body.aside !== undefined) throw new HttpError(400, "aside cannot be used with threadId");
       if (threadId && rt.store.listTasks(id).some((t) =>
-        t.kind === "chatTurn" && (t.status === "running" || t.status === "pending") && (t.input as { threadId?: string }).threadId === threadId)) {
+        t.kind === "chatTurn" && isActive(t) && (t.input as { threadId?: string }).threadId === threadId)) {
         throw new HttpError(409, "A turn is already running in this thread");
       }
       const { taskId, done } = rt.start<{ threadId: string; messageId: string }>(id, "chatTurn", { threadId, anchor: body.anchor as string | undefined, aside: body.aside as boolean | undefined, text, llm, quote: body.quote, lines: body.lines });
@@ -391,7 +395,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       if (req.method !== "GET") throw new HttpError(405, "Method not allowed");
       await serveStatic(res, url.pathname);
     } catch (e) {
-      const status = e instanceof HttpError ? e.status : 500;
+      const status = errorStatus(e);
       if (status === 500) console.error(e);
       if (!res.headersSent) send(res, status, { error: (e as Error).message });
       else res.end();

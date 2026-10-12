@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { IconButton, type Graph, type ChatActions, api, SidePanel, ChatActionsContext, AnswerMarkdown, Conversation, Composer, ErrorText, useAction } from "../../../web/plugin-api.ts";
+import { IconButton, type Graph, type ChatActions, api, SidePanel, ChatActionsContext, AnswerMarkdown, Conversation, Composer, ErrorText, taskState, useAction } from "../../../web/plugin-api.ts";
 import { findingsOf, type FindingData } from "./graph.ts";
 
 /** Finds the finding of a finding detail. */
@@ -50,12 +50,9 @@ function CommentEditor({ findingId, comment, postedTo }: Pick<FindingData, "find
   const actions = useContext(ChatActionsContext);
   const [body, setBody] = useState(comment?.body ?? "");
   const { busy: saving, error, run } = useAction();
-  const tasks = actions?.tasks.filter((task) => task.kind === "comment" && (task.input as { findingId?: string }).findingId === findingId) ?? [];
-  const latestTask = tasks.at(-1);
-  const busy = latestTask?.status === "running" || latestTask?.status === "pending";
+  const { busy, failed: taskError } = taskState(actions?.tasks ?? [], ["comment"], (input) => (input as { findingId?: string }).findingId === findingId);
   const save = () => { if (actions) void run(() => api.saveComment(actions.sessionId, findingId, body)); };
   const regenerate = () => { if (actions) void run(() => api.regenerateComment(actions.sessionId, findingId, actions.models.default)); };
-  const taskError = latestTask?.status === "failed" ? latestTask.error : null;
   if (!comment && busy) return <div className="comment-draft">Generating comment…</div>;
   if (!comment && taskError) return <div className="comment-draft failed">{taskError}</div>;
   return <div className="comment-draft">

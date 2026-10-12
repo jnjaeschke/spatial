@@ -3,6 +3,7 @@ import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
+import { isActive } from "../../shared/task-state.ts";
 import { api } from "../api.ts";
 import { ChatActionsContext, closeChat } from "../chat-context.ts";
 import type { ChatNodeData } from "../graph.ts";
@@ -54,7 +55,7 @@ export function Conversation(data: ConversationProps) {
       (data.threadId === null && data.draftId === null && input.anchor === data.anchor && !input.aside);
   });
   const last = turns.at(-1);
-  const busy = last?.status === "running" || last?.status === "pending";
+  const busy = !!last && isActive(last);
   const failed = last?.status === "failed" ? last : undefined;
   const canSend = !busy && text.trim() !== "";
   return <>

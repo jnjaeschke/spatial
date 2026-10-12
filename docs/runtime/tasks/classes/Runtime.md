@@ -100,6 +100,28 @@ Plugin data that outlives sessions.
 
 ## Methods
 
+### activeTask()
+
+> **activeTask**(`kind`, `matches`): [`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md) \| `null`
+
+The pending or running task of `kind`, in any session, whose input `matches`; null when there is none. Checked synchronously before `start`, it makes the task the guard for work that runs once at a time across sessions.
+
+#### Parameters
+
+##### kind
+
+`string`
+
+##### matches
+
+(`input`) => `boolean`
+
+#### Returns
+
+[`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md) \| `null`
+
+***
+
 ### advance()
 
 > **advance**(`sessionId`): `Promise`\<`void`\>

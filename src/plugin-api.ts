@@ -54,7 +54,7 @@ export const definePlugin = <T extends import("./runtime/plugins.ts").Plugin>(pl
 export type { ArtifactKind, ChatReplyField, McpTool, McpToolContext, ParseResult, Plugin, PluginRegistry, PluginServer, PrecheckQuestion, RepoProfile, WorkflowContext, StartInput, Step, Workflow } from "./runtime/plugins.ts";
 /** Typed plugin MCP tools. */
 export { defineMcpTool } from "./runtime/plugins.ts";
-export { PhaseBusyError, defineTask } from "./runtime/tasks.ts";
+export { BusyError, PhaseBusyError, defineTask } from "./runtime/tasks.ts";
 export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, WebspecLookup, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";
 export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } from "./runtime/knowledge.ts";
@@ -63,6 +63,7 @@ export { specUrlParts } from "./runtime/code-search.ts";
 export { ENGINE_LABEL, ENGINES } from "./shared/engines.ts";
 export { escapeRegex } from "./shared/regex.ts";
 export { plural } from "./shared/plural.ts";
+export { isActive, taskState } from "./shared/task-state.ts";
 export type { CodeSearch } from "./runtime/code-search.ts";
 export { makeChromiumSearch } from "./runtime/chromium-search.ts";
 export { declarationAt, enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";

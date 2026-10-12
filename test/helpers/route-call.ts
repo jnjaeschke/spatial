@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { HttpError, type Route } from "../../src/server/http.ts";
+import { errorStatus, type Route } from "../../src/server/http.ts";
 
 /** Calls the route matching `method` and `path` like the HTTP server would, without a socket. */
 export async function routeCall(routes: Route[], method: string, path: string, body?: unknown): Promise<{ status: number; body: any }> {
@@ -12,8 +12,9 @@ export async function routeCall(routes: Route[], method: string, path: string, b
     const out = await route[2]({ req: Readable.from(body === undefined ? [] : [JSON.stringify(body)]) as never, res: res as never, params: route[1].exec(url.pathname)!.slice(1), url });
     if (!sent && out !== undefined) text = JSON.stringify(out);
   } catch (error) {
-    if (error instanceof HttpError) return { status: error.status, body: { error: error.message } };
-    throw error;
+    const status = errorStatus(error);
+    if (status === 500) throw error;
+    return { status, body: { error: (error as Error).message } };
   }
   return { status, body: text ? JSON.parse(text) : null };
 }

@@ -264,6 +264,24 @@ Fails every running epoch and pending or running task with `reason`. Only a serv
 
 ***
 
+### listActiveTasks()
+
+> **listActiveTasks**(`kind`): [`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md)[]
+
+Pending and running tasks of `kind` in every session.
+
+#### Parameters
+
+##### kind
+
+`string`
+
+#### Returns
+
+[`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md)[]
+
+***
+
 ### listArtifacts()
 
 > **listArtifacts**(`sessionId`, `type?`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`unknown`\>[]

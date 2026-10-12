@@ -1,5 +1,5 @@
 import { latestDiff, sessionRefs } from "../shared/diffs.ts";
-import type { Id, NotifyPayload, Runtime } from "../../../plugin-api.ts";
+import { isActive, type Id, type NotifyPayload, type Runtime } from "../../../plugin-api.ts";
 
 /** Announces new head SHAs of the refs a session imported. Polls only sessions with a live subscriber; never imports. */
 export class RevisionWatcher {
@@ -42,7 +42,7 @@ export class RevisionWatcher {
     try {
       for (const id of this.#watchers.keys()) {
         const tasks = this.#rt.store.listTasks(id);
-        if (tasks.some((task) => (task.kind === "importDiff" || task.kind === "interdiff") && (task.status === "pending" || task.status === "running"))) continue;
+        if (tasks.some((task) => (task.kind === "importDiff" || task.kind === "interdiff") && isActive(task))) continue;
         const artifacts = this.#rt.store.listArtifacts(id);
         const diff = latestDiff(artifacts);
         const refs = sessionRefs(artifacts, tasks);

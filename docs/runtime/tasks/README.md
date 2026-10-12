@@ -8,6 +8,7 @@
 
 ## Classes
 
+- [BusyError](classes/BusyError.md)
 - [PhaseBusyError](classes/PhaseBusyError.md)
 - [Runtime](classes/Runtime.md)
 - [TaskCancelledError](classes/TaskCancelledError.md)

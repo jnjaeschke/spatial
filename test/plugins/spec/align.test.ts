@@ -2,13 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkAlignment } from "../../../src/plugins/spec/shared/align-check.ts";
 import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
-import { alignRunning, startAlign } from "../../../src/plugins/spec/runtime/align.ts";
+import { startAlign } from "../../../src/plugins/spec/runtime/align.ts";
 import { storedMapping, updateMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import { siteKey } from "../../../src/plugins/spec/shared/engine.ts";
 import { fakeCode } from "../../helpers/fake-code.ts";
 import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
 import { routeCall } from "../../helpers/route-call.ts";
+import { BusyError } from "../../../src/runtime/tasks.ts";
 
 const LINES = ["// x", "void Frame::Navigate() {", "  Edit(line);", "  AddFile(file);", "  Log();", "}"];
 const FN = { line: 2, end: 6 };
@@ -60,7 +61,7 @@ test("alignment reads the function where the site's quote is now and stores the 
   assert.deepEqual(storedMapping(rt.knowledge, "blink", "HTML#setup")!.sites[0]!.steps.map((step) => [step.line, step.end, step.quote]), [[3, 3, "  Edit(line);"]]);
 });
 
-test("one alignment runs at a time per engine and ref: startAlign throws and the route answers 409 meanwhile", async () => {
+test("one alignment runs at a time per engine and ref, whichever session starts it: startAlign throws and the route answers 409 meanwhile", async () => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const { code } = fakeCode({ "a.cc": LINES.join("\n") }, []);
@@ -69,10 +70,11 @@ test("one alignment runs at a time per engine and ref: startAlign throws and the
   const site = { path: "a.cc", line: 2, symbol: "Frame::Navigate()", signature: "void Frame::Navigate() {", quote: "void Frame::Navigate() {", method: "user" as const, refs: [], steps: [] };
   updateMapping(rt, session.id, "blink", "HTML#setup", { by: "plugin", sessionId: session.id }, () => ({ engine: "blink", repoBase: "r/", rev: "main", sites: [site], rejected: [], tests: [], checkedAt: new Date().toISOString() }));
   const first = startAlign(rt, session.id, "blink", algorithm, "a.cc|Frame::Navigate()");
-  assert.equal(alignRunning(rt, "blink", "HTML#setup"), true);
+  const other = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "other" });
+  assert.throws(() => startAlign(rt, other.id, "blink", putAlgorithm(rt, other.id), "a.cc|Frame::Navigate()"), (error: unknown) => error instanceof BusyError && /A blink alignment for HTML#setup is running/.test(error.message));
   assert.throws(() => startAlign(rt, session.id, "blink", algorithm, "a.cc|Frame::Navigate()"), /A blink alignment for HTML#setup is running/);
   assert.equal((await routeCall(specRoutes(rt), "POST", `/api/sessions/${session.id}/spec/mappings/align`, { ref: "HTML#setup", engine: "blink", key: "a.cc|Frame::Navigate()" })).status, 409);
   release();
   await first.merged;
-  assert.equal(alignRunning(rt, "blink", "HTML#setup"), false);
+  assert.equal(rt.activeTask("alignSteps", () => true), null);
 });
