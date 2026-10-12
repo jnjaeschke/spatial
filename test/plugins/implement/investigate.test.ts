@@ -150,7 +150,7 @@ test("an Investigation renders for chats on it, with sub-refs for locations and 
   const view = { artifacts: store.listArtifacts(session.id), links: [] };
   const { renderRef } = await import("../../../src/runtime/render-ref.ts");
   const full = renderRef(rt.plugins.artifactKinds, view, investigationId);
-  for (const text of ["S", "a.txt:2", "Q?", "grep alpha", "found it"]) assert.ok(full.includes(text), text);
+  for (const text of ["S", "a.txt:2 (changed in step 1: T)", "Q?", "grep alpha", "found it"]) assert.ok(full.includes(text), text);
   assert.ok(renderRef(rt.plugins.artifactKinds, view, `${investigationId}#loc0`).includes("beta"));
   assert.ok(renderRef(rt.plugins.artifactKinds, view, `${investigationId}#step0`).includes("T"));
   assert.throws(() => renderRef(rt.plugins.artifactKinds, view, `${investigationId}#loc9`), /Unknown ref/);

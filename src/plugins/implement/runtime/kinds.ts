@@ -2,13 +2,13 @@ import type { Artifact, ArtifactKind, CommandRunData } from "../../../plugin-api
 import type { CheckResultsData, CommentInterpretationData, CommentTriageData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
 import { describeCheck } from "../shared/acceptance.ts";
 
-const renderLocation = (location: InvestigationLocation) => `${location.path}:${location.line} - ${location.why}\n\n\`${location.quote}\``;
+const renderLocation = (data: InvestigationData, location: InvestigationLocation) => `${location.path}:${location.line}${location.step === null ? "" : ` (changed in step ${location.step + 1}: ${data.steps[location.step]!.title})`} - ${location.why}\n\n\`${location.quote}\``;
 
 /** Renders an investigation for chat context, including stable subrefs for its locations and plan steps. */
 export function renderInvestigation(data: InvestigationData, subId?: string): string | null {
   if (subId !== undefined) {
     const location = /^loc(\d+)$/.exec(subId);
-    if (location) return data.locations[Number(location[1])] ? renderLocation(data.locations[Number(location[1])]!) : null;
+    if (location) return data.locations[Number(location[1])] ? renderLocation(data, data.locations[Number(location[1])]!) : null;
     const step = /^step(\d+)$/.exec(subId);
     if (step) {
       const item = data.steps[Number(step[1])];
@@ -20,7 +20,7 @@ export function renderInvestigation(data: InvestigationData, subId?: string): st
     `# Investigation (${data.kind})`, data.summary,
     ...(data.bug !== null ? [`Bug: ${data.bug}`] : []),
     "## Plan", ...data.steps.map((step, i) => `${i + 1}. ${step.title}: ${step.message} - ${step.intent}${step.checks.length ? `\n   Checks: ${step.checks.map(describeCheck).join("; ")}` : ""}`),
-    "## Locations", ...data.locations.map(renderLocation),
+    "## Locations", ...data.locations.map((location) => renderLocation(data, location)),
     "## Test cases", ...data.testCases.map((item) => `- ${item.description}: expected ${item.expected}${item.actual ? `; actual ${item.actual}` : ""}${item.path ? ` (${item.path})` : ""}`),
     ...(data.architecture ? ["## Architecture", data.architecture] : []),
     ...(data.droppedChecks?.length ? ["## Dropped checks", ...data.droppedChecks.map((reason) => `- ${reason}`)] : []),
