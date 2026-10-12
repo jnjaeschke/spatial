@@ -1,4 +1,4 @@
-import type { Id, RepoProfile } from "../../../plugin-api.ts";
+import { escapeRegex, type Id, type RepoProfile } from "../../../plugin-api.ts";
 import type { AcceptanceCheck, CheckResult } from "../shared/types.ts";
 import { describeCheck, isWptTest } from "../shared/acceptance.ts";
 
@@ -9,10 +9,7 @@ const namesPath = (command: string, path: string) => {
   const candidates = [path];
   const wptPrefix = "testing/web-platform/tests/";
   if (path.startsWith(wptPrefix)) candidates.push(path.slice(wptPrefix.length));
-  return candidates.some((candidate) => {
-    const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`(?:^|[\\s'\"])${escaped}(?:$|[\\s'\"])`).test(command);
-  });
+  return candidates.some((candidate) => new RegExp(`(?:^|[\\s'\"])${escapeRegex(candidate)}(?:$|[\\s'\"])`).test(command));
 };
 
 const runsOf = (check: AcceptanceCheck, runs: CommandEvidence[], profile: Pick<RepoProfile, "isTestCommand">) =>
