@@ -1,3 +1,4 @@
+import { escapeRegex } from "../shared/regex.ts";
 import type { DiagramData, DiffData, SequenceLane, SequenceStep } from "../shared/types.ts";
 
 export type SequenceStepProposal = Omit<SequenceStep, "verified" | "text">;
@@ -39,7 +40,7 @@ export async function verifySequence(proposal: SequenceProposal, source: Pick<Di
   const commitIndex = proposal.commit - 1, commit = source.commits[commitIndex]!, parentSha = commitIndex === 0 ? source.baseSha : source.commits[commitIndex - 1]!.sha;
   const cache = new Map<string, Promise<string | null>>();
   const linesAt = (sha: string, path: string): Promise<string[] | null> => { const key = `${sha}\0${path}`; let contents = cache.get(key); if (!contents) { contents = Promise.resolve().then(() => show(sha, path)).catch(() => null); cache.set(key, contents); } return contents.then((text) => text?.split(/\r?\n/) ?? null); };
-  const containsSymbol = (text: string | null, symbol: string): boolean => { if (text === null || symbol.length === 0) return false; const escaped = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), before = /\w/.test(symbol[0]!) ? "(?<!\\w)" : "", last = symbol[symbol.length - 1]!, after = /\w/.test(last) ? "(?!\\w)" : ""; return new RegExp(`${before}${escaped}${after}`).test(text); };
+  const containsSymbol = (text: string | null, symbol: string): boolean => { if (text === null || symbol.length === 0) return false; const escaped = escapeRegex(symbol), before = /\w/.test(symbol[0]!) ? "(?<!\\w)" : "", last = symbol[symbol.length - 1]!, after = /\w/.test(last) ? "(?!\\w)" : ""; return new RegExp(`${before}${escaped}${after}`).test(text); };
   const verifySteps = async (steps: SequenceStepProposal[], sha: string): Promise<SequenceStep[]> => Promise.all(steps.map(async (step) => { const lines = await linesAt(sha, step.cite.path); let match = -1; for (let distance = 0; distance <= 2 && match < 0; distance++) for (const index of distance === 0 ? [step.cite.line - 1] : [step.cite.line - 1 - distance, step.cite.line - 1 + distance]) if (index >= 0 && index < (lines?.length ?? 0) && containsSymbol(lines![index]!, step.symbol)) { match = index; break; } if (match < 0) return { ...step, verified: false, text: null }; return { ...step, cite: { ...step.cite, line: match + 1 }, verified: true, text: lines![match]!.trim() }; }));
   const steps = await verifySteps(proposal.steps, commit.sha), before = proposal.before === null ? null : await verifySteps(proposal.before, parentSha);
   return { ok: true, data: { kind: "sequence", commit: commit.sha, commitIndex, title: proposal.title, summary: proposal.summary, lanes: proposal.lanes, steps, before } };

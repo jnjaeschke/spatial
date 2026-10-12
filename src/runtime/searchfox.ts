@@ -4,7 +4,7 @@ import type { CodeScope, GeckoSpecRef } from "../shared/types.ts";
 import { runChecked } from "./process.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
 import type { CodeSearch } from "./code-search.ts";
-import { escapeRegex } from "./code-search.ts";
+import { escapeRegex } from "../shared/regex.ts";
 
 /** A searchfox repository the runtime searches: Gecko's or WebKit's. */
 export type SearchfoxRepo = "mozilla-central" | "wubkat";

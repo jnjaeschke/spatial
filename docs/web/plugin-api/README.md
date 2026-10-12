@@ -265,6 +265,12 @@ Re-exports [EpochStatus](../../shared/types/type-aliases/EpochStatus.md)
 
 ***
 
+### escapeRegex
+
+Re-exports [escapeRegex](../../plugin-api/functions/escapeRegex.md)
+
+***
+
 ### fileRows
 
 Re-exports [fileRows](../../plugin-api/functions/fileRows.md)

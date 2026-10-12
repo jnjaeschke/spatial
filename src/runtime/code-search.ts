@@ -26,7 +26,6 @@ export function missingCodeSearch(engine: Engine): CodeSearch {
 }
 
 /** `text` with regular expression metacharacters escaped. */
-export const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** What every citation of a spec section starts with (host and directory of its URL, so specs sharing a host stay apart) and its decoded fragment. */
 export function specUrlParts(url: string): { prefix: string; anchor: string } {

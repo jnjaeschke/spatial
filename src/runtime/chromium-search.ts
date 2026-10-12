@@ -1,9 +1,11 @@
 import { enclosingFunction } from "./brace-scan.ts";
-import { escapeRegex, specUrlParts, type CodeSearch } from "./code-search.ts";
-import { runChecked, runProcess } from "./process.ts";
+import { escapeRegex } from "../shared/regex.ts";
+import { specUrlParts, type CodeSearch } from "./code-search.ts";
+import { runChecked } from "./process.ts";
 
 const REPO_BASE = "https://source.chromium.org/chromium/chromium/src/";
 const TEST_PATH = /(^|\/)(web_tests|LayoutTests)\//;
+const FILE_TTL_MS = 10 * 60 * 1000;
 
 /** The lines of a `cat -n` output. */
 export function parseNumbered(out: string): string[] {
@@ -12,22 +14,38 @@ export function parseNumbered(out: string): string[] {
   return Array.from(lines, (line) => line ?? "");
 }
 
-/** `CodeSearch` over Chromium (`chromium-search`) at `main`: spec links by a one-line regex search, functions by brace scan. */
+/**
+ * `CodeSearch` over Chromium (`chromium-search`) at `main`: spec links by a one-line regex search, functions by brace scan. Files are kept
+ * for a few minutes, so the references and scopes of one mapping run read the same revision of a file.
+ */
 export function makeChromiumSearch(opts: { bin?: string } = {}): CodeSearch {
   const bin = opts.bin ?? "chromium-search";
+  const run = async (args: string[], signal: AbortSignal) => (await runChecked(bin, args, { stdin: "", signal, label: "chromium-search" })).stdout;
+  const files = new Map<string, { at: number; text: string | null }>();
+  const fetchFile = async (path: string, signal: AbortSignal) => {
+    try { return parseNumbered(await run(["cat", path, "-n"], signal)).join("\n"); }
+    catch (error) {
+      if (!/File not found/.test((error as Error).message)) throw error;
+      // `cat` reports every failed fetch (timeout, quota) as "File not found"; only a path the file finder does not list is missing.
+      if ((await run(["find", path], signal)).split("\n").includes(path)) throw error;
+      return null;
+    }
+  };
   const file = async (path: string, signal: AbortSignal) => {
     if (path.startsWith("-")) throw new Error(`chromium-search argument must not start with "-": ${path}`);
-    const { stdout, stderr, code } = await runProcess(bin, ["cat", path, "-n"], { stdin: "", signal });
-    if (code === 0) return parseNumbered(stdout).join("\n");
-    if (/File not found/.test(stderr)) return null;
-    throw new Error(`chromium-search exited with code ${code}: ${(stderr || stdout).trim().slice(-1000)}`);
+    const kept = files.get(path);
+    if (kept && Date.now() - kept.at < FILE_TTL_MS) return kept.text;
+    const text = await fetchFile(path, signal);
+    for (const [kept, { at }] of files) if (Date.now() - at >= FILE_TTL_MS) files.delete(kept);
+    files.set(path, { at: Date.now(), text });
+    return text;
   };
   return {
     effect: "read-only", engine: "blink", pinned: false, heuristicScopes: true,
     async specRefs(url, signal, limit = 30) {
       const { prefix, anchor } = specUrlParts(url);
       // Plain terms match per file, `pcre:yes` per line; generated files under out/ repeat the sources.
-      const { stdout } = await runChecked(bin, ["search", `pcre:yes ${escapeRegex(prefix)}\\S*#${escapeRegex(anchor)} -file:^out/`, "--json", "path,line,snippet", "-L", String(limit)], { stdin: "", signal, label: "chromium-search" });
+      const stdout = await run(["search", `pcre:yes ${escapeRegex(prefix)}\\S*#${escapeRegex(anchor)} -file:^out/`, "--json", "path,line,snippet", "-L", String(limit)], signal);
       return (JSON.parse(stdout) as { path: string; line: number }[]).map(({ path, line }) => ({ group: TEST_PATH.test(path) ? "Test" : "Code", path, line, url: `${REPO_BASE}+/main:${path};l=${line}` }));
     },
     async functionAt(path, line, signal) {

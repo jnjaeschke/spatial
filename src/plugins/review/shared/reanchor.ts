@@ -1,12 +1,10 @@
-import { numberLines } from "../../../web/graph-api.ts";
+import { escapeRegex, numberLines } from "../../../web/graph-api.ts";
 import type { ChatThreadData, DiffData, Hunk } from "../../../plugin-api.ts";
 
 type Lines = NonNullable<ChatThreadData["lines"]>;
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 /** Whitespace-flexible literal match used for finding quotes. */
 export function quotePattern(quote: string): RegExp {
-  return new RegExp(quote.split(/\s+/).map(escape).join("\\s+"));
+  return new RegExp(quote.split(/\s+/).map(escapeRegex).join("\\s+"));
 }
 
 /** Finds where a finding's code is in `next`. */

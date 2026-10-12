@@ -1,5 +1,5 @@
 import type { DiffData } from "../../../plugin-api.ts";
-import { numberLines } from "../../../plugin-api.ts";
+import { escapeRegex, numberLines } from "../../../plugin-api.ts";
 
 /** Identifiers of at least 3 characters on added lines, in first-seen order. */
 export function addedIdentifiers(diff: DiffData): string[] {
@@ -11,11 +11,9 @@ export function addedIdentifiers(diff: DiffData): string[] {
   return [...names];
 }
 
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 /** Added lines that declare or define `name`, in diff order. */
 export function definitionSites(diff: DiffData, name: string): { path: string; hunkId: string; line: number; commit: number; kind: "declaration" | "definition" }[] {
-  const escaped = escapeRegExp(name);
+  const escaped = escapeRegex(name);
   const keywordDef = new RegExp(`\\b(?:fn|struct|enum|class|interface|function|const|let|var|def|type|impl|trait|union|namespace|typedef|using|define)\\s+(?:\\w+::)*${escaped}\\b`);
   const declaration = new RegExp(`^(?!\\s*(?:return|else|case|delete|new|throw|co_return|co_await)\\b)\\s*[\\w:<>,*&\\s]*[\\w>*&]\\s*[*&]*\\s*\\b(?:\\w+::)*${escaped}\\s*[;=({\\[]`);
   const matches: { path: string; hunkId: string; line: number; commit: number; kind: "declaration" | "definition" }[] = [];

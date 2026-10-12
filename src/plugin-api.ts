@@ -57,7 +57,8 @@ export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapabili
 export type { Runtime } from "./runtime/tasks.ts";
 export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } from "./runtime/knowledge.ts";
 /** Read-only code search per engine, and the brace scan used where no code index exists. */
-export { ENGINES, escapeRegex, specUrlParts } from "./runtime/code-search.ts";
+export { ENGINES, specUrlParts } from "./runtime/code-search.ts";
+export { escapeRegex } from "./shared/regex.ts";
 export type { CodeSearch } from "./runtime/code-search.ts";
 export { makeChromiumSearch } from "./runtime/chromium-search.ts";
 export { enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";

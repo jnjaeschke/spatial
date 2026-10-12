@@ -86,6 +86,12 @@ Re-exports [Draft](../plugin-api/interfaces/Draft.md)
 
 ***
 
+### escapeRegex
+
+Re-exports [escapeRegex](../../plugin-api/functions/escapeRegex.md)
+
+***
+
 ### FreePosition
 
 Re-exports [FreePosition](../plugin-api/interfaces/FreePosition.md)

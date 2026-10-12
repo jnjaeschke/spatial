@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Stub for chromium-search. `search` finds nothing; `cat <path> -n` prints the captured frame_loader.cc for that path and fails as
+// Stub for chromium-search. `search` finds nothing; `find` lists frame_loader.cc only; `cat <path> -n` prints the captured
+// frame_loader.cc for that path (or fails like an unreachable server when $FAKE_CHROMIUM_UNREACHABLE is set) and fails as
 // chromium-search does for any other path.
 import { readFileSync } from "node:fs";
 
@@ -10,7 +11,12 @@ if (command === "search") {
   process.stdout.write("[]\n");
   process.exit(0);
 }
-if (command === "cat" && arg === FRAME_LOADER) {
+if (command === "find") {
+  if (arg === FRAME_LOADER) process.stdout.write(`${FRAME_LOADER}\n`);
+  else process.stderr.write("No results found\n");
+  process.exit(0);
+}
+if (command === "cat" && arg === FRAME_LOADER && !process.env.FAKE_CHROMIUM_UNREACHABLE) {
   process.stdout.write(readFileSync(new URL("../fixtures/chromium/frame_loader.cc.txt", import.meta.url), "utf8"));
   process.exit(0);
 }

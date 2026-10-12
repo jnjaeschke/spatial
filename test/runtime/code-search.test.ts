@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { escapeRegex, missingCodeSearch, specUrlParts } from "../../src/runtime/code-search.ts";
+import { missingCodeSearch, specUrlParts } from "../../src/runtime/code-search.ts";
+import { escapeRegex } from "../../src/shared/regex.ts";
 import { searchfoxCodeSearch } from "../../src/runtime/searchfox.ts";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";

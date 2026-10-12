@@ -16,6 +16,5 @@
 
 ## Functions
 
-- [escapeRegex](functions/escapeRegex.md)
 - [missingCodeSearch](functions/missingCodeSearch.md)
 - [specUrlParts](functions/specUrlParts.md)

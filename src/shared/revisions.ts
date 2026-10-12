@@ -1,3 +1,4 @@
+import { escapeRegex } from "./regex.ts";
 import type { Artifact, ChatMessageData, Id, Link, RevisionData } from "./types.ts";
 
 /** Locates `quote` within one line of `text`, comparing with whitespace runs collapsed. A span across lines could break the markdown it is struck through in. */
@@ -7,7 +8,7 @@ export function findSpan(text: string, quote: string): { start: number; end: num
   if (/\r|\n/.test(trimmed)) return { error: "quote spans lines" };
   if ([...trimmed].filter((c) => c === "`").length % 2) return { error: "quote splits inline code" };
   const words = trimmed.split(/\s+/);
-  const escaped = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const escaped = words.map(escapeRegex);
   const match = new RegExp(escaped.join("[^\\S\\n]+")).exec(text);
   if (!match || match.index === undefined) return { error: "quote not found" };
   const start = match.index, end = start + match[0].length;

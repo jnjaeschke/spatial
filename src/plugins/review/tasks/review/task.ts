@@ -5,6 +5,7 @@ import { type DiffData, type LlmSelection, type PatchNarrativeData, defineTask, 
 import { numberLines } from "../../../../plugin-api.ts";
 import { diffNumber } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
+import { quotePattern } from "../../shared/reanchor.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
@@ -19,7 +20,6 @@ const isReply = (j: unknown): j is { findings: ReplyFinding[]; verdicts: ReplyVe
     CATEGORIES.includes(f.category as string) && SEVERITIES.includes(f.severity as string) && typeof f.title === "string" && typeof f.body === "string") &&
     Array.isArray(r.verdicts) && r.verdicts.every((v) => typeof v?.finding === "string" && VERDICTS.includes(v.verdict as string) && typeof v.reason === "string");
 };
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>({
   kind: "review",
@@ -75,7 +75,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
       const quote = f.quote.trim();
       if (!quote) return "empty quote";
       if (/[\r\n]/.test(quote)) return "quote spans lines";
-      const pattern = new RegExp(quote.split(/\s+/).map(escape).join("\\s+"));
+      const pattern = quotePattern(quote);
       for (const hunkId of change ? change.hunkIds : [f.anchor]) {
         const { file, hunk } = diffHunks.get(hunkId)!;
         for (const row of numberLines(hunk)) {

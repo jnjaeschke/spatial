@@ -71,6 +71,7 @@ composition roots.
 - [commandRunData](functions/commandRunData.md)
 - [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
+- [escapeRegex](functions/escapeRegex.md)
 - [fetchBugMarkdown](functions/fetchBugMarkdown.md)
 - [fileRows](functions/fileRows.md)
 - [isGeckoRepo](functions/isGeckoRepo.md)
@@ -261,12 +262,6 @@ Re-exports [Epoch](../shared/types/interfaces/Epoch.md)
 ### EpochStatus
 
 Re-exports [EpochStatus](../shared/types/type-aliases/EpochStatus.md)
-
-***
-
-### escapeRegex
-
-Re-exports [escapeRegex](../runtime/code-search/functions/escapeRegex.md)
 
 ***
 

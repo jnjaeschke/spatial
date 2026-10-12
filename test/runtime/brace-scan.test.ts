@@ -50,3 +50,33 @@ test("lines outside function bodies resolve to nothing: namespace and class scop
   for (const line of [3, 7, 13, 14, 30, 35]) assert.equal(enclosingFunction(SOURCE, line), null, `line ${line}`);
   assert.deepEqual(functionsIn(SOURCE).map((fn) => fn.symbol).sort(), ["Count", "Frame::Navigate", "FrameLoader::CancelProvisionalLoaderForNewNavigation"]);
 });
+
+test("templates, elaborated parameter types, operators and constructors with brace member initializers are functions; a braced argument is not", () => {
+  const source = `template <class T>
+void Foo(T t) {
+  Run();
+}
+
+void F(struct stat* s) {
+  Call(a, {1,
+           // https://html.spec.whatwg.org/C/#navigate
+           2});
+}
+
+bool operator==(const A& a, const A& b) {
+  return true;
+}
+
+Foo::Foo(int a) : a_(a), b_{2} {
+  Run();
+}
+
+int Bar::operator()(int x) const {
+  return x;
+}`.split("\n");
+  assert.deepEqual(functionsIn(source).map(({ symbol, line, end }) => [symbol, line, end]).sort(), [
+    ["Bar::operator()", 20, 22], ["F", 6, 10], ["Foo", 2, 4], ["Foo::Foo", 16, 18], ["operator==", 12, 14],
+  ]);
+  assert.equal(enclosingFunction(source, 8)!.symbol, "F");
+  assert.equal(enclosingFunction(source, 17)!.symbol, "Foo::Foo");
+});

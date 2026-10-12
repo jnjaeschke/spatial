@@ -31,17 +31,17 @@ test("specRefs searches the spec prefix line by line, groups test directories as
   assert.ok(refs.filter((ref) => ref.group !== "Code").every((ref) => ref.group === "Test" && ref.path.includes("/web_tests/")));
 });
 
-test("file parses cat -n output; a missing file is null; other failures throw", async () => {
+test("file parses cat -n output once per path; a failure other than a missing file throws", async () => {
   stdout(fixture("frame_loader.cc.txt"));
   const chromium = makeChromiumSearch({ bin: STUB });
   const text = (await chromium.file(FL, signal))!;
   assert.deepEqual(argv()[0], ["cat", FL, "-n"]);
   assert.equal(text.split("\n").length, 1985);
   assert.equal(text.split("\n")[1815], "  // https://html.spec.whatwg.org/C/#navigate");
+  await chromium.functionAt(FL, 1816, signal);
+  assert.equal(argv().length, 1, "the scope lookup reads the file fetched before");
   delete process.env.FAKE_LLM_STDOUT;
   process.env.FAKE_LLM_EXIT = "1";
-  process.env.FAKE_LLM_STDERR = "Error: File not found: x.cc at refs/heads/main\n";
-  assert.equal(await chromium.file("x.cc", signal), null);
   process.env.FAKE_LLM_STDERR = "Error: quota exceeded\n";
   await assert.rejects(chromium.file("x.cc", signal), /chromium-search exited with code 1: Error: quota exceeded/);
   assert.deepEqual(parseNumbered("     1\ta\n     2\t\tb\n"), ["a", "\tb"]);
@@ -64,9 +64,12 @@ test("functionAt is the brace scan's function; the tip is main", async () => {
 });
 
 const FAKE = fileURLToPath(new URL("../stubs/fake-chromium-search.mjs", import.meta.url));
-test("fake chromium-search: no spec links, frame_loader.cc readable, other files missing", async () => {
+test("a file the finder does not list is missing; one it lists that cannot be read is an error, as chromium-search reports both as not found", async () => {
   const fake = makeChromiumSearch({ bin: FAKE });
   assert.deepEqual(await fake.specRefs("https://html.spec.whatwg.org/#navigate", signal), []);
-  assert.equal((await fake.file(FL, signal))!.split("\n").length, 1985);
   assert.equal(await fake.file("x.cc", signal), null);
+  process.env.FAKE_CHROMIUM_UNREACHABLE = "1";
+  try { await assert.rejects(fake.file(FL, signal), /File not found/); }
+  finally { delete process.env.FAKE_CHROMIUM_UNREACHABLE; }
+  assert.equal((await fake.file(FL, signal))!.split("\n").length, 1985);
 });

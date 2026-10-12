@@ -9,7 +9,8 @@
 > **functionsIn**(`lines`): [`ScannedFunction`](../interfaces/ScannedFunction.md)[]
 
 The function definitions of C-like source: every `{` whose preceding text (since the last `;`, `{` or `}`) names something followed by
-`(`, except control statements, lambdas, and namespace, class, struct, union, enum and initializer braces. A heuristic: raw strings and
+`(`, except control statements, lambdas, and namespace, class, struct, union, enum and initializer braces. Braces inside an open `(`
+and member initializer braces (`: a_{1}`) are expressions that the text before a body reaches across. A heuristic: raw strings and
 macros that unbalance braces are not handled.
 
 ## Parameters
