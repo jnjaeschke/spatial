@@ -18,6 +18,12 @@ The shell commands of an implement epoch as chips (tests are marked); clicking o
 
 `CommandChip`[]
 
+#### selected
+
+`string` \| `null`
+
+#### onSelect
+
 ## Returns
 
 `Element` \| `null`

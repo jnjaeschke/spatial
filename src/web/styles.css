@@ -858,3 +858,10 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .terminal-title { color: #9ad; font-family: var(--font-mono); font-size: 12px; }
 .implement-summary, .running { padding: 0 12px; margin: 4px 0; }
 .session-views { margin-left: 8px; }
+.plan-checks { margin: 4px 0 0; padding-left: 1.2em; font-size: 12px; }
+.check-evidence { color: var(--text-2); }
+.check-results { list-style: none; margin: 4px 0; padding: 0 12px; font-size: 12px; }
+.check-result.ok > span:first-child { color: var(--success); }
+.check-result.fail > span:first-child { color: var(--danger); }
+.check-message { color: var(--text-2); }
+.check-run { margin-left: 4px; font-size: 11px; }

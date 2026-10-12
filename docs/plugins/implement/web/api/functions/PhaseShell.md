@@ -8,7 +8,7 @@
 
 > **PhaseShell**(`__namedParameters`): `Element`
 
-The frame of an implement-style phase view: run status, a running line, the command strip, then the body.
+The frame of an implement-style phase view: run status, a running line, the check results, the command strip, then the body. A check result opens its proving command in the strip.
 
 ## Parameters
 

@@ -62,3 +62,10 @@ test("sizes grow with the content and are known for both kinds", () => {
   assert.ok(investigationSize({ kind: "location", anchor: "a", location: data.locations[0]!, searchfox: null }).width > 0);
   assert.throws(() => investigationSize({ kind: "other" }), /No size/);
 });
+
+test("the investigation card grows with its checks and dropped checks", () => {
+  const withChecks: InvestigationData = { ...data, steps: [{ ...data.steps[0]!, checks: [{ kind: "new-test", path: "t.js" }, { kind: "covering-test", path: "c.js" }] }], droppedChecks: ["T: new-test a.txt: the file already exists at the base"] };
+  const plain = investigationSize({ kind: "investigation", investigationId: "i", sessionId: "s", data });
+  const checked = investigationSize({ kind: "investigation", investigationId: "i", sessionId: "s", data: withChecks });
+  assert.ok(checked.height > plain.height);
+});

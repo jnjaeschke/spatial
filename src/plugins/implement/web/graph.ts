@@ -36,7 +36,7 @@ const INVESTIGATION_WIDTH = 760;
 export function investigationSize(data: GraphNodeData): { width: number; height: number } {
   if (data.kind === "investigation") {
     const d = (data as unknown as InvestigationNodeData).data;
-    return { width: INVESTIGATION_WIDTH, height: 170 + lines(d.summary, 60) * 22 + d.steps.length * 56 + d.openQuestions.length * 26 + d.testCases.length * 40 + (d.exploration.length ? 60 + d.exploration.length * 40 : 0) };
+    return { width: INVESTIGATION_WIDTH, height: 170 + lines(d.summary, 60) * 22 + d.steps.length * 56 + d.openQuestions.length * 26 + d.testCases.length * 40 + d.steps.reduce((total, step) => total + step.checks.length, 0) * 24 + (d.droppedChecks?.length ? 24 : 0) + (d.exploration.length ? 60 + d.exploration.length * 40 : 0) };
   }
   if (data.kind === "location") return { width: SATELLITE_WIDTH, height: 110 + lines((data as unknown as LocationNodeData).location.why, 50) * 20 };
   throw new Error(`No size for node kind: ${data.kind}`);
