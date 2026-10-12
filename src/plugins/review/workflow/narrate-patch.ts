@@ -3,7 +3,7 @@ import { diffsOf, diffNumber, interdiffOf, narrativeOf } from "../shared/diffs.t
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 
 /** narrate → (carryFindings) → resolveSpecRefs → review for an imported Diff, with introducedSymbols, mapSpecSteps for each spec section with steps and, in Gecko repos, fetchBugs → summarizeBug alongside the review. */
-export async function narrateDiff(rt: Runtime, sessionId: Id, diffId: Id, llm?: LlmSelection): Promise<void> {
+export async function narrateDiff(rt: Runtime, sessionId: Id, diffId: Id, llm?: LlmSelection, recheck?: Id[]): Promise<void> {
   const symbols = rt.run(sessionId, "introducedSymbols", { diffId }).catch(() => undefined);
   const artifacts = rt.store.listArtifacts(sessionId);
   const links = rt.store.listLinks(sessionId);
@@ -23,6 +23,6 @@ export async function narrateDiff(rt: Runtime, sessionId: Id, diffId: Id, llm?: 
     : Promise.resolve();
   const view = { artifacts: rt.store.listArtifacts(sessionId), links: rt.store.listLinks(sessionId) };
   const mappings = Promise.allSettled(mappableSpecs(view, narrativeId).map((specId) => rt.run(sessionId, "mapSpecSteps", { narrativeId, specId, llm })));
-  await rt.run(sessionId, "review", { narrativeId, llm });
+  await rt.run(sessionId, "review", { narrativeId, llm, ...(recheck ? { recheck } : {}) });
   await Promise.all([mappings, bugs, symbols]);
 }

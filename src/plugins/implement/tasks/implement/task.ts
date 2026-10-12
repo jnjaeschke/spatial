@@ -1,19 +1,19 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
 import type { ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
-import { describeFinding, openHighFindings } from "../../runtime/findings.ts";
+import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
 import { testFirstProblems, type CommandEvidence } from "../../runtime/test-first.ts";
 import { runEditsOnly } from "../../runtime/edits-only.ts";
-import type { FindingDecisionData } from "../../../review/api.ts";
+import type { ReviewFindingData } from "../../../review/api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
 const MAX_RETRIES = 2;
 
-/** Input of the implement phase and task: the approved Investigation and what else the agent should address. */
-export interface ImplementInput { branchId: Id; investigationId: Id; bug: number | null; text: string | null; ignorePlanInvalid?: boolean; llm?: LlmSelection; writeMode: WriteMode }
+/** Input of the implement phase and task: the approved Investigation and what else the agent should address. `fix` lists the open high findings this round was asked to fix; the next review gives a verdict on each. */
+export interface ImplementInput { branchId: Id; investigationId: Id; bug: number | null; text: string | null; fix: Id[]; ignorePlanInvalid?: boolean; llm?: LlmSelection; writeMode: WriteMode }
 export interface AgentReply { summary: string; planChange: string | null; planInvalid: string | null; step: number | null }
 export const isAgentReply = (value: unknown): value is AgentReply => {
   const r = value as Partial<AgentReply> | null | undefined;
@@ -43,21 +43,18 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const expected = rewrite?.data.to ?? previous?.data.head;
     if (expected && !(await ctx.git.isAncestor(expected, tip))) throw new Error(`${branch.branch} moved away from ${expected.slice(0, 12)} since the last implement run; spatial does not move the checkout back`);
 
-    const open = openHighFindings(view);
-    for (const finding of open) {
-      const aboutIds = new Set(view.links.filter((link) => link.kind === "about" && link.to === finding.id).map((link) => link.from));
-      const accepted = view.artifacts.some((a) => a.type === "FindingDecision" && aboutIds.has(a.id) && (a.data as FindingDecisionData).decision === "accepted");
-      if (accepted) continue;
-      const decision = ctx.artifacts.put<FindingDecisionData>("FindingDecision", "verified", { finding: finding.id, decision: "accepted" });
-      ctx.links.put(decision.id, finding.id, "about");
-    }
+    const fix = input.fix.map((id) => {
+      const finding = ctx.artifacts.get<ReviewFindingData>(id);
+      if (finding.type !== "ReviewFinding") throw new Error(`Artifact ${id} is not a ReviewFinding (got ${finding.type})`);
+      return finding;
+    });
     const since = previous?.epoch ?? -1;
     const fresh = (a: Artifact) => (a.epoch ?? 0) > since;
     const feedback = feedbackSections({
       text: input.text,
       notes: view.artifacts.filter((a) => a.type === "Note" && fresh(a)).map((a) => (a.data as { body: string }).body),
       threads: view.artifacts.filter((a) => a.type === "ChatThread" && fresh(a)).map((a) => ctx.artifacts.render(a.id)),
-      findings: open.map(describeFinding),
+      findings: fix.map(describeFinding),
     });
     const prompt = [
       "# Investigation", ctx.artifacts.render(input.investigationId),

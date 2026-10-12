@@ -50,9 +50,48 @@ function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
     url: "https://example.test", resolved: { spec: "Example", anchor: "one", title: "Bug 1 - Add flag", type: "dfn", url: "https://example.test", content: "Spec." }, geckoRefs: [],
   }, provenance: { taskId: "x" } }).id;
   store.putLink({ sessionId: session.id, from: specId, to: `${narrativeId}#c1`, kind: "supports" });
-  const run = (id = narrativeId) => rt.run<{ findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>(session.id, "review", { narrativeId: id, llm: selection });
+  const run = (id = narrativeId, recheck?: string[]) => rt.run<{ findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>(session.id, "review", { narrativeId: id, llm: selection, ...(recheck ? { recheck } : {}) });
   return { store, session, diffId, narrativeId, calls, run };
 }
+
+function secondEpoch(store: ReturnType<typeof setup>["store"], sessionId: string, narrativeId: string, priorId: string) {
+  const diff2 = store.putArtifact({ sessionId, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "x" } });
+  const narrative2 = store.putArtifact({ sessionId, type: "PatchNarrative", status: "proposed", data: { diffId: diff2.id, previous: narrativeId, summary: "update", changes: [] }, provenance: { taskId: "x" } });
+  store.putLink({ sessionId, from: narrative2.id, to: diff2.id, kind: "derivedFrom" });
+  const carry = store.putArtifact({ sessionId, type: "FindingCarry", status: "verified", data: { finding: priorId, toDiff: diff2.id, hunkId: "f0h0" }, provenance: { taskId: "x" } });
+  store.putLink({ sessionId, from: carry.id, to: priorId, kind: "about" });
+  return narrative2.id;
+}
+const priorHigh = { findings: [{ anchor: "c1", quote: null, category: "correctness", severity: "high", title: "Prior", body: "x" }], verdicts: [] };
+
+test("a rechecked finding needs a verdict although nobody accepted it", async () => {
+  const { store, session, narrativeId, calls, run } = setup([priorHigh, { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "Handled now." }] }]);
+  const priorId = (await run()).findingIds[0]!;
+  const narrative2 = secondEpoch(store, session.id, narrativeId, priorId);
+  const out = await run(narrative2, [priorId]);
+  assert.deepEqual(out.findingErrors, []);
+  assert.equal(store.getArtifact<FindingVerdictData>(out.verdictIds[0]!).data.verdict, "addressed");
+  assert.match(calls[1]!.prompt.prompt, /F1 \[open\] Prior[\s\S]*fix requested:/);
+});
+
+test("without recheck an unaccepted prior finding gets no verdict, and a missing recheck verdict is an error", async () => {
+  const unexpected = setup([priorHigh, { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "r" }] }]);
+  const priorId = (await unexpected.run()).findingIds[0]!;
+  const out = await unexpected.run(secondEpoch(unexpected.store, unexpected.session.id, unexpected.narrativeId, priorId));
+  assert.deepEqual(out.findingErrors, ["verdict F1: unknown or not expected"]);
+  assert.doesNotMatch(unexpected.calls[1]!.prompt.prompt, /fix requested:/);
+  const missing = setup([priorHigh, { findings: [], verdicts: [] }]);
+  const missingId = (await missing.run()).findingIds[0]!;
+  const out2 = await missing.run(secondEpoch(missing.store, missing.session.id, missing.narrativeId, missingId), [missingId]);
+  assert.deepEqual(out2.findingErrors, ["no verdict for F1"]);
+});
+
+test("a rechecked finding that is not among the prior findings fails the task", async () => {
+  const { store, session, narrativeId, run } = setup([priorHigh, { findings: [], verdicts: [] }]);
+  const priorId = (await run()).findingIds[0]!;
+  const narrative2 = secondEpoch(store, session.id, narrativeId, priorId);
+  await assert.rejects(run(narrative2, ["nope"]), /Recheck finding nope is not among the prior findings/);
+});
 
 test("valid findings become artifacts with derived lines and links", async () => {
   const { store, session, diffId, narrativeId, calls, run } = setup([{ findings: [

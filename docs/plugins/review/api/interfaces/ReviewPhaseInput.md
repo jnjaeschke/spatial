@@ -6,6 +6,8 @@
 
 # Interface: ReviewPhaseInput
 
+`recheck`: findings the review must give a verdict on besides the accepted ones, because the round before it was asked to fix them.
+
 ## Properties
 
 ### base
@@ -29,6 +31,12 @@
 ### llm?
 
 > `optional` **llm?**: [`LlmSelection`](../../../../shared/types/interfaces/LlmSelection.md)
+
+***
+
+### recheck?
+
+> `optional` **recheck?**: `string`[]
 
 ***
 

@@ -39,7 +39,7 @@ function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof 
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
   const branch = put("ImplementBranch", { branch: "spatial/x", baseSha: base, baseRef: "main", profile, checkout: "new-branch" });
   const inv = put("Investigation", plan);
-  const run = (input: Partial<ImplementInput> = {}) => rt.run<{ resultId: string }>(session.id, "implement", { branchId: branch.id, investigationId: inv.id, bug: null, text: null, writeMode: "auto", ...input });
+  const run = (input: Partial<ImplementInput> = {}) => rt.run<{ resultId: string }>(session.id, "implement", { branchId: branch.id, investigationId: inv.id, bug: null, text: null, fix: [], writeMode: "auto", ...input });
   return { repo, base, store, session, prompts, put, run };
 }
 const results = (store: Store, id: string) => store.listArtifacts(id, "ImplementResult") as Artifact<ImplementResultData>[];
@@ -107,18 +107,14 @@ test("continuing anyway tells the agent not to report the plan invalid", async (
   assert.ok(prompts[0]!.prompt.includes("# Revision request") && prompts[0]!.prompt.includes("go on"));
 });
 
-test("open high findings are accepted before the agent runs", async () => {
+test("the findings the round was asked to fix reach the agent, and no decision is written for them", async () => {
   const { store, session, prompts, put, run } = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; });
   const open = put("ReviewFinding", { anchor: "d#f0h0", severity: "high", title: "Leak", body: "It leaks.", category: "correctness" });
-  const closed = put("ReviewFinding", { anchor: "d#f0h0", severity: "high", title: "Fixed", body: "b", category: "correctness" });
-  const verdict = put("FindingVerdict", { finding: closed.id, verdict: "addressed", reason: "r" });
-  store.putLink({ sessionId: session.id, from: verdict.id, to: closed.id, kind: "about" });
-  await run();
-  const decisions = store.listArtifacts(session.id, "FindingDecision");
-  assert.deepEqual(decisions.map((d) => d.data), [{ finding: open.id, decision: "accepted" }]);
-  assert.ok(store.listLinks(session.id).some((l) => l.from === decisions[0]!.id && l.to === open.id && l.kind === "about"));
+  put("ReviewFinding", { anchor: "d#f0h0", severity: "high", title: "Unrelated", body: "b", category: "correctness" });
+  await run({ fix: [open.id] });
+  assert.deepEqual(store.listArtifacts(session.id, "FindingDecision"), []);
   assert.ok(prompts[0]!.prompt.includes("# Findings to fix") && prompts[0]!.prompt.includes("Leak"));
-  assert.ok(!prompts[0]!.prompt.includes("Fixed"));
+  assert.ok(!prompts[0]!.prompt.includes("Unrelated"));
 });
 
 test("notes and chat threads since the last implement run reach the agent", async () => {

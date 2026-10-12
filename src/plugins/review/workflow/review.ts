@@ -16,11 +16,12 @@ export function parseReviewArgs(args: string): { ok: true; params: Params } | { 
   return { ok: false, error: "Usage: /review [D-number | base..head]" };
 }
 
-export interface ReviewPhaseInput { base: string; head: string; update: boolean; diffId?: Id; llm?: LlmSelection }
+/** `recheck`: findings the review must give a verdict on besides the accepted ones, because the round before it was asked to fix them. */
+export interface ReviewPhaseInput { base: string; head: string; update: boolean; diffId?: Id; llm?: LlmSelection; recheck?: Id[] }
 
 export const reviewPhase: Phase<ReviewPhaseInput> = {
   id: "review",
-  async run(rt: Runtime, sessionId: Id, { base, head, update, diffId: given, llm }, epoch: Epoch) {
+  async run(rt: Runtime, sessionId: Id, { base, head, update, diffId: given, llm, recheck }, epoch: Epoch) {
     const artifacts = rt.store.listArtifacts(sessionId);
     const own = diffsOf(artifacts).filter((diff) => diff.epoch === epoch.n).at(-1);
     const diffId = given ?? own?.id ?? (await rt.run<{ diffId: Id }>(sessionId, "importDiff", { base, head })).diffId;
@@ -29,7 +30,7 @@ export const reviewPhase: Phase<ReviewPhaseInput> = {
     if (update && previous && !interdiffOf(all, rt.store.listLinks(sessionId), diffId)) {
       await rt.run(sessionId, "interdiff", { fromDiffId: previous.id, toDiffId: diffId });
     }
-    await narrateDiff(rt, sessionId, diffId, llm);
+    await narrateDiff(rt, sessionId, diffId, llm, recheck);
   },
 };
 

@@ -62,7 +62,7 @@ test("approval starts implement with the chosen model, the bug from the text and
   assert.equal(step.run, "implement");
   const { branchId, investigationId, ...rest } = step.input as { branchId: string; investigationId: string };
   assert.ok(branchId && investigationId);
-  assert.deepEqual(rest, { bug: 4711, text: null, writeMode: "editsOnly", llm: IMPL });
+  assert.deepEqual(rest, { bug: 4711, text: null, fix: [], writeMode: "editsOnly", llm: IMPL });
   const withKnownBug = run(next(view([start(), branch("stack"), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
   assert.equal((withKnownBug.input as { bug: number; llm: LlmSelection }).bug, 77);
   assert.deepEqual((withKnownBug.input as { llm: LlmSelection }).llm, START, "no chosen model falls back to the start selection");
@@ -246,4 +246,18 @@ test("an answer is found by key and epoch, whatever its question text says", () 
   assert.equal(run(next(afterReview([reworded]))).run, "implement");
   const otherKey = art("Decision", { key: "something-else", question: REVIEWED, options: [], chosen: { option: "revise", by: "user", text: "t" } } satisfies DecisionData, 3);
   assert.equal(decide(next(afterReview([otherKey]))).decide.key, "reviewed");
+});
+
+test("an implement round is asked to fix the findings open when it was started, and the next review rechecks exactly those", () => {
+  const f = finding(3);
+  const revised = decision("reviewed", REVIEWED, { option: "revise", by: "user", text: "more" }, 3);
+  const started = run(next(afterReview([f, revised])));
+  assert.deepEqual((started.input as { fix: string[] }).fix, [f.id]);
+  const implementEpoch = { ...epoch(4, "implement"), input: started.input };
+  const reviewing = view([...baseArtifacts(), result(2), f, revised, result(4)], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), implementEpoch]);
+  assert.deepEqual(run(next(reviewing)), { run: "review", input: { base: "BASE", head: "HEAD1", update: true, llm: START, recheck: [f.id] } });
+  const clean = run(next(afterReview([decision("reviewed", REVIEWED, { option: "revise", by: "user", text: "more" }, 3)])));
+  assert.deepEqual((clean.input as { fix: string[] }).fix, []);
+  const cleanReview = view([...baseArtifacts(), result(2), result(4)], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), { ...epoch(4, "implement"), input: clean.input }]);
+  assert.equal("recheck" in (run(next(cleanReview)).input as object), false);
 });

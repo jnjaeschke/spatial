@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { FindingVerdictData, ReviewCommentData, ReviewFindingData } from "../../shared/types.ts";
 import type { PostedCommentData } from "../../../../plugin-api.ts";
-import { type DiffData, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
+import { type DiffData, type Id, type LlmSelection, type PatchNarrativeData, defineTask, prependRepoContext } from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { diffNumber } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
@@ -21,9 +21,9 @@ const isReply = (j: unknown): j is { findings: ReplyFinding[]; verdicts: ReplyVe
     Array.isArray(r.verdicts) && r.verdicts.every((v) => typeof v?.finding === "string" && VERDICTS.includes(v.verdict as string) && typeof v.reason === "string");
 };
 
-export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>({
+export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; recheck?: Id[] }, { findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>({
   kind: "review",
-  async run(ctx, { narrativeId, llm }) {
+  async run(ctx, { narrativeId, llm, recheck }) {
     const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
     if (narrative.type !== "PatchNarrative") throw new Error(`Artifact ${narrativeId} is not a PatchNarrative (got ${narrative.type})`);
     const diff = ctx.artifacts.get<DiffData>(narrative.data.diffId);
@@ -32,6 +32,8 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
     const currentEpoch = diffNumber(view.artifacts, narrative.data.diffId);
     const priors = findingStates(view, narrativeId).filter((s) => s.epoch < currentEpoch);
     const priorLabels = new Map(priors.map((s, i) => [`F${i + 1}`, s]));
+    const rechecked = new Set(recheck ?? []);
+    for (const id of rechecked) if (!priors.some((s) => s.finding.id === id)) throw new Error(`Recheck finding ${id} is not among the prior findings`);
     const diffHunks = new Map(diff.data.files.flatMap((file) => file.hunks.map((hunk) => [hunk.id, { file, hunk }] as const)));
     const priorText = priors.flatMap((s, i) => {
       const label = `F${i + 1}`;
@@ -49,6 +51,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
           if (posted) lines.push(`posted to D${posted.data.diff}`);
         }
       }
+      if (rechecked.has(s.finding.id)) lines.push("fix requested: the round after this review tried to fix this finding; give a verdict on it");
       if (s.verdict) lines.push(`previous verdict: ${s.verdict.verdict} — ${s.verdict.reason}`);
       return lines.join("\n");
     });
@@ -89,7 +92,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection }, { 
     };
 
     const findingIds: string[] = [], verdictIds: string[] = [], findingErrors: string[] = [];
-    const expected = new Map([...priorLabels].filter(([, s]) => s.decision === "accepted" && s.verdict?.verdict !== "addressed"));
+    const expected = new Map([...priorLabels].filter(([, s]) => (s.decision === "accepted" || rechecked.has(s.finding.id)) && s.verdict?.verdict !== "addressed"));
     const seenVerdicts = new Set<string>();
     for (const v of r.json.verdicts) {
       const state = priorLabels.get(v.finding);

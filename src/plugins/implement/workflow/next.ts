@@ -1,5 +1,6 @@
 import { type Artifact, type DecisionData, type DecisionOption, type Id, type LlmSelection, type RepoProfile, type Runtime, type Step, type WorkflowContext, type WorkflowStartData, type WorkflowView } from "../../../plugin-api.ts";
 import type { ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
+import type { ImplementInput } from "../tasks/implement/task.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
 import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
@@ -51,13 +52,14 @@ interface ImplementStepOptions {
   investigation: Artifact<InvestigationData>;
   bug: number | null;
   text: string | null;
+  fix: Id[];
   ignorePlanInvalid?: boolean;
   llm: LlmSelection | undefined;
   start: Artifact<WorkflowStartData>;
 }
 
-function implementStep({ branch, investigation, bug, text, ignorePlanInvalid, llm, start }: ImplementStepOptions): Step {
-  return { run: "implement", input: { branchId: branch.id, investigationId: investigation.id, bug, text, ...(ignorePlanInvalid ? { ignorePlanInvalid: true } : {}), writeMode: start.data.writeMode ?? "auto", ...(llm ? { llm } : {}) } };
+function implementStep({ branch, investigation, bug, text, fix, ignorePlanInvalid, llm, start }: ImplementStepOptions): Step {
+  return { run: "implement", input: { branchId: branch.id, investigationId: investigation.id, bug, text, fix, ...(ignorePlanInvalid ? { ignorePlanInvalid: true } : {}), writeMode: start.data.writeMode ?? "auto", ...(llm ? { llm } : {}) } };
 }
 
 function afterAcceptStep(view: WorkflowView, profile: RepoProfile, branch: Artifact<ImplementBranchData>, result: Artifact<ImplementResultData>, start: Artifact<WorkflowStartData>, acceptEpoch: number): Step | null {
@@ -82,12 +84,13 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (last.status !== "succeeded") return null;
 
   const decisions = decisionsOf(view), investigation = latest<InvestigationData>(view, "Investigation"), result = latest<ImplementResultData>(view, "ImplementResult");
+  const open = openHighFindings(view);
   const decisionStep = (key: string, question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { key, question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
   const llm = (selection: LlmSelection | undefined) => selection ? { llm: selection } : {};
   const approve = answered(decisions, "approve", last.n);
   const implementLlm = chosenImplementLlm(decisions) ?? start.data.llm;
   const again = (investigation: Artifact<InvestigationData>, text: string | null, ignorePlanInvalid = false): Step =>
-    implementStep({ branch, investigation, bug: bugOf(decisions, investigation), text, ignorePlanInvalid, llm: implementLlm, start });
+    implementStep({ branch, investigation, bug: bugOf(decisions, investigation), text, fix: open.map((finding) => finding.id), ignorePlanInvalid, llm: implementLlm, start });
   if (last.phase === investigatePhase) {
     if (!investigation) return null;
     if (!approve) {
@@ -114,7 +117,8 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
       if (choice.option === "continue") return again(investigation, choice.text ?? null, true);
       return null;
     }
-    const input: ReviewPhaseInput = { base: branch.data.baseSha, head: result.data.head, update: view.epochs.some((epoch) => epoch.phase === "review"), ...llm(start.data.llm) };
+    const fix = (last.input as Partial<ImplementInput> | null)?.fix ?? [];
+    const input: ReviewPhaseInput = { base: branch.data.baseSha, head: result.data.head, update: view.epochs.some((epoch) => epoch.phase === "review"), ...llm(start.data.llm), ...(fix.length ? { recheck: fix } : {}) };
     return { run: "review", input };
   }
 
@@ -126,7 +130,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
       if (choice.option === "accept") return result ? afterAcceptStep(view, profile, branch, result, start, last.n) : null;
       return null;
     }
-    const open = openHighFindings(view), rounds = ruleRounds(decisions), max = profile.autoFixRounds ?? 2;
+    const rounds = ruleRounds(decisions), max = profile.autoFixRounds ?? 2;
     if (open.length > 0 && rounds < max) return decisionStep("review-fix", fixQuestion(open.length), [{ id: "fix", label: "Fix" }], { option: "fix", reason: `${open.length} high finding${open.length === 1 ? "" : "s"} open; automatic fix round ${rounds + 1} of ${max}` });
     return decisionStep("reviewed", REVIEWED, [{ id: "revise", label: "Revise", takesText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" }]);
   }
