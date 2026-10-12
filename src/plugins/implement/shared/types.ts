@@ -33,5 +33,7 @@ export interface InvestigationData {
 }
 /** The implement agent's structured result. */
 export interface ImplementResultData { head: string; branch: string; summary: string; planChange: string | null; planInvalid: string | null }
+/** The provider session of the implement agent, recorded (verified) when the session starts so a cancelled run leaves it behind; stamped with the epoch. */
+export interface AgentSessionData { providerSessionId: string; backend: string; model: string }
 /** A rewrite of the stack by a tool the user confirmed (moz-phab adds trailers to every commit): implement accepts `to` as its own tip. Artifact `StackRewrite`, verified. */
 export interface StackRewriteData { from: string; to: string; by: string }

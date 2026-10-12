@@ -104,6 +104,7 @@ const investigationOut = stubOut("implement-investigation", { kind: "bugfix", su
 ], testCases: [{ description: "c exists", expected: "c.txt exists", actual: null, path: null }], architecture: null,
 steps: [{ title: "Add c", message: "Fix the c thing", intent: "Add c.txt and set line 30.", tests: [] }], openQuestions: ["Should d exist too?"], exploration: [{ tried: "grep for c", outcome: "no c.txt exists" }], specUrls: [], diagram: null });
 const agentEvents = [
+  { type: "system", subtype: "init", session_id: "stub-implement" },
   { type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: "tu1", name: "Bash", input: { command: "echo hello-from-agent" } }] } },
   { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "tu1", content: "hello-from-agent\n", is_error: false }] } },
   { type: "result", is_error: false, result: "", structured_output: { summary: "Implemented the plan.", planChange: null, planInvalid: null, step: null }, session_id: "stub-implement", usage: { input_tokens: 1, output_tokens: 1 } },

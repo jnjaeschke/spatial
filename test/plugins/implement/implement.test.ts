@@ -25,6 +25,7 @@ const testProfilePlugin = { id: "tp", repoProfiles: [
   { id: "tp", description: "t", commitStyle: "single" as const, isTestCommand: (c: string) => c.startsWith("t ") },
   { id: "needs-bug", description: "b", commitStyle: "single" as const, requiresBug: true },
   { id: "checked", description: "c", commitStyle: "single" as const, checkCommand: () => "true" },
+  { id: "checked-stack", description: "c", commitStyle: "stack" as const, checkCommand: () => "true" },
 ] };
 
 function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation) {
@@ -33,7 +34,7 @@ function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof 
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
@@ -199,8 +200,54 @@ test("edits-only fix rounds feed the problems back to the agent", async () => {
   await run({ writeMode: "editsOnly" });
   assert.equal(prompts.length, 2);
   assert.ok(prompts[1]!.prompt.includes("# Problems to fix") && prompts[1]!.prompt.includes("Name the commit"));
+  assert.equal(prompts[1]!.resumeProviderSession, "p1");
+  assert.ok(!prompts[1]!.prompt.includes("# Investigation"));
   assert.equal(repo.git("log", "--format=%s", "-1"), "Add b");
   assert.equal(repo.git("show", "HEAD:b.txt"), "fixed");
+});
+
+test("a verification retry resumes the previous attempt's session with only the problems", async () => {
+  const { prompts, run } = setup((call, _, r) => {
+    if (call === 0) { r.commit({ "b.txt": "b\n" }, "Add b"); writeFileSync(join(r.dir, "stray.txt"), "x\n"); }
+    else { r.git("add", "-A"); r.git("commit", "-q", "--amend", "--no-edit"); }
+    return ok;
+  });
+  await run();
+  assert.equal(prompts[0]!.resumeProviderSession, undefined);
+  assert.equal(prompts[1]!.resumeProviderSession, "p1");
+  assert.ok(prompts[1]!.prompt.startsWith("# Problems to fix") && prompts[1]!.prompt.includes("uncommitted"));
+  assert.ok(!prompts[1]!.prompt.includes("# Investigation"));
+});
+
+const twoSteps: InvestigationData = { ...investigation, kind: "feature", steps: [{ title: "Add b", message: "Add b", intent: "i", tests: [] }, { title: "Add c", message: "Add c", intent: "i", tests: [] }] };
+
+test("edits-only resumes the previous call's session for the next plan step", async () => {
+  const { prompts, run } = setup((call, _, r) => { writeFileSync(join(r.dir, call === 0 ? "b.txt" : "c.txt"), "x\n"); return ok; }, "checked-stack", twoSteps);
+  await run({ writeMode: "editsOnly" });
+  assert.equal(prompts.length, 2);
+  assert.equal(prompts[0]!.resumeProviderSession, undefined);
+  assert.equal(prompts[1]!.resumeProviderSession, "p1");
+  assert.ok(prompts[1]!.prompt.includes("Implement ONLY plan step 2 of 2") && !prompts[1]!.prompt.includes("# Investigation"));
+});
+
+test("each provider session id is recorded once as a verified AgentSession", async () => {
+  const { store, session, run } = setup((call, prompt, r) => {
+    for (let i = 0; i < 2; i++) prompt.onEvent?.({ kind: "session", providerSessionId: `s${call}` });
+    if (call === 0) { r.commit({ "b.txt": "b\n" }, "Add b"); writeFileSync(join(r.dir, "stray.txt"), "x\n"); }
+    else { r.git("add", "-A"); r.git("commit", "-q", "--amend", "--no-edit"); }
+    return ok;
+  });
+  await run({ llm: selection });
+  assert.deepEqual(store.listArtifacts(session.id, "AgentSession").map((a) => [a.status, a.data]), [
+    ["verified", { providerSessionId: "s0", backend: "claude", model: "sonnet" }],
+    ["verified", { providerSessionId: "s1", backend: "claude", model: "sonnet" }],
+  ]);
+});
+
+test("a run that fails after its session started leaves the AgentSession behind", async () => {
+  const { store, session, run } = setup((_, prompt) => { prompt.onEvent?.({ kind: "session", providerSessionId: "s0" }); throw new Error("boom"); });
+  await assert.rejects(run(), /boom/);
+  assert.equal(store.listArtifacts(session.id, "AgentSession").length, 1);
 });
 
 test("edits-only continues past a reported invalid plan when the user chose to continue", async () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess } from "../../../../plugin-api.ts";
-import type { ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
+import type { AgentSessionData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
@@ -32,6 +32,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     if (profile.requiresBug && input.bug === null) throw new Error(`The ${profile.id} profile needs a bug number`);
     if (input.writeMode === "editsOnly" && !profile.checkCommand) throw new Error(`Edits-only mode needs a check command and the ${profile.id} profile has none`);
     const investigation = ctx.artifacts.get<InvestigationData>(input.investigationId).data;
+    const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug) }));
     const writer = makeGitWriter(ctx.repo);
     const view = ctx.artifacts.view();
     const previous = (view.artifacts.filter((a) => a.type === "ImplementResult") as Artifact<ImplementResultData>[]).at(-1);
@@ -65,30 +66,39 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     ].join("\n\n");
 
     const evidence: CommandEvidence[] = [];
+    const selection = input.llm ?? ctx.llm.defaultSelection;
+    let recorded: string | undefined;
+    let session: string | undefined;
     const onEvent = (event: LlmEvent) => {
       if (event.kind === "progress") ctx.progress({ kind: "indeterminate", message: event.message });
+      else if (event.kind === "session") {
+        if (event.providerSessionId === recorded) return;
+        recorded = event.providerSessionId;
+        ctx.artifacts.put<AgentSessionData>("AgentSession", "verified", { providerSessionId: event.providerSessionId, backend: selection.backend, model: selection.model });
+      }
       else if (event.kind === "command") {
         evidence.push({ command: event.command, exitCode: event.exitCode });
         ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
       }
     };
-    const call = async (text: string): Promise<AgentReply> => {
-      const r = await ctx.llm.run({ prompt: text, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
+    /** The first call starts a session with `fresh`; every later call resumes the session of the call before it with only `followUp`. */
+    const call = async (fresh: string, followUp: string): Promise<AgentReply> => {
+      const r = await ctx.llm.run({ prompt: session === undefined ? fresh : followUp, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
+      session = r.providerSessionId;
       if (!isAgentReply(r.json)) throw new Error(`Implement reply is not valid: ${JSON.stringify(r.json)}`);
       return r.json;
     };
+    const problemsSection = (list: string[]) => `# Problems to fix\n${list.map((problem) => `- ${problem}`).join("\n")}`;
     const done = async (head: string, reply: AgentReply, planChange: string | null, planInvalid: string | null) =>
       ({ resultId: ctx.artifacts.put<ImplementResultData>("ImplementResult", "verified", { head, branch: branch.branch, summary: reply.summary, planChange, planInvalid }).id });
 
-    const plan = branch.checkout === "new-branch" ? investigation.steps.map((step) => ({ message: withBug(step.message, input.bug) })) : null;
     if (input.writeMode === "editsOnly") {
-      const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug) }));
       const existing = await ctx.git.log(branch.baseSha, "HEAD");
       const commitSubjects = existing.map((commit) => commit.subject);
       const step = (index: number | null, problems: string[]) => (index === null
         ? "# Edits only\n\nYou cannot run commands. Edit the files that address the feedback and set `step` to the 0-based index of the commit (oldest first) the edits belong to:\n" + commitSubjects.map((subject, i) => `${i}: ${subject}`).join("\n")
         : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}). The runtime runs the checks and commits.`)
-        + (problems.length ? `\n\n# Problems to fix\n${problems.map((problem) => `- ${problem}`).join("\n")}` : "");
+        + (problems.length ? `\n\n${problemsSection(problems)}` : "");
       const runCheck = async (command: string) => {
         const started = Date.now();
         const out = await runProcess("sh", ["-c", command], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
@@ -99,7 +109,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const outcome = await runEditsOnly({
         plan: planned, baseSha: branch.baseSha, bugfix: investigation.kind === "bugfix", maxRetries: MAX_RETRIES, checkCommand: profile.checkCommand!, runCheck,
         agent: async ({ step: index, problems }) => {
-          const reply = await call([prompt, step(index, problems)].join("\n\n"));
+          const reply = await call([prompt, step(index, problems)].join("\n\n"), step(index, problems));
           return input.ignorePlanInvalid ? { ...reply, planInvalid: null } : reply;
         },
         git: { changedPaths: () => writer.changedPaths(), commitAll: (message) => writer.commitAll(message), fixup: (target, base) => writer.fixup(target, base), commits: async () => (await ctx.git.log(branch.baseSha, "HEAD")).map(({ sha, subject }) => ({ sha, subject })) },
@@ -111,9 +121,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     }
     let problems: string[] = [];
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      const reply = await call(attempt === 0 ? prompt : [prompt, "# Problems to fix", problems.map((problem) => `- ${problem}`).join("\n")].join("\n\n"));
+      const reply = await call(attempt === 0 ? prompt : [prompt, problemsSection(problems)].join("\n\n"), problemsSection(problems));
       if (reply.planInvalid && !input.ignorePlanInvalid) return done(await ctx.git.resolve("HEAD"), reply, null, reply.planInvalid);
-      const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan, planChange: reply.planChange, profile });
+      const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan: branch.checkout === "new-branch" ? planned : null, planChange: reply.planChange, profile });
       const found = [...checked.problems, ...(previous ? [] : testFirstProblems(investigation.steps, evidence, profile))];
       if (found.length === 0) return done(checked.head, reply, reply.planChange, null);
       problems = found;

@@ -8,6 +8,7 @@
 
 ## Interfaces
 
+- [AgentSessionData](interfaces/AgentSessionData.md)
 - [CommentInterpretationData](interfaces/CommentInterpretationData.md)
 - [CommentTriageData](interfaces/CommentTriageData.md)
 - [ImplementBranchData](interfaces/ImplementBranchData.md)
