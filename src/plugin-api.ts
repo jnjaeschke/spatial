@@ -81,6 +81,8 @@ export * from "./shared/types.ts";
 export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
 export { makeGitWriter, makeGit } from "./runtime/git.ts";
+export { commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "./runtime/scm.ts";
+export { resolveRepo } from "./runtime/git.ts";
 /** Runs a process, optionally streaming stdout lines. */
 export { runChecked, runProcess } from "./runtime/process.ts";
 /** Structured LLM calls checked against their schema and a domain validator, with repair re-prompts. */

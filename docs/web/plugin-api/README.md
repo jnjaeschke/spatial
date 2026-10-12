@@ -221,6 +221,18 @@ Re-exports [Commit](../../shared/types/interfaces/Commit.md)
 
 ***
 
+### CommitDetail
+
+Re-exports [CommitDetail](../../shared/types/interfaces/CommitDetail.md)
+
+***
+
+### CommitFileStat
+
+Re-exports [CommitFileStat](../../shared/types/interfaces/CommitFileStat.md)
+
+***
+
 ### DecisionData
 
 Re-exports [DecisionData](../../shared/types/interfaces/DecisionData.md)
@@ -383,6 +395,18 @@ Re-exports [LlmSelection](../../shared/types/interfaces/LlmSelection.md)
 
 ***
 
+### LogRow
+
+Re-exports [LogRow](../../shared/types/interfaces/LogRow.md)
+
+***
+
+### LogScope
+
+Re-exports [LogScope](../../shared/types/type-aliases/LogScope.md)
+
+***
+
 ### McpServerData
 
 Re-exports [McpServerData](../../shared/types/interfaces/McpServerData.md)
@@ -464,6 +488,12 @@ Re-exports [RecentRepo](../../shared/types/interfaces/RecentRepo.md)
 ### Ref
 
 Re-exports [Ref](../../shared/types/type-aliases/Ref.md)
+
+***
+
+### RefRow
+
+Re-exports [RefRow](../../shared/types/interfaces/RefRow.md)
 
 ***
 

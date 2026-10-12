@@ -66,6 +66,7 @@
 - [runtime/plugins](runtime/plugins/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
 - [runtime/repo-context](runtime/repo-context/README.md)
+- [runtime/scm](runtime/scm/README.md)
 - [runtime/state](runtime/state/README.md)
 - [runtime/store](runtime/store/README.md)
 - [runtime/structured](runtime/structured/README.md)

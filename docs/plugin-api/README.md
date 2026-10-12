@@ -88,6 +88,7 @@ composition roots.
 - [numberLines](functions/numberLines.md)
 - [plainText](functions/plainText.md)
 - [plural](functions/plural.md)
+- [resolveRepo](functions/resolveRepo.md)
 - [revisedText](functions/revisedText.md)
 - [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
@@ -191,6 +192,24 @@ Re-exports [Commit](../shared/types/interfaces/Commit.md)
 
 ***
 
+### commitDetail
+
+Re-exports [commitDetail](../runtime/scm/functions/commitDetail.md)
+
+***
+
+### CommitDetail
+
+Re-exports [CommitDetail](../shared/types/interfaces/CommitDetail.md)
+
+***
+
+### CommitFileStat
+
+Re-exports [CommitFileStat](../shared/types/interfaces/CommitFileStat.md)
+
+***
+
 ### DecisionData
 
 Re-exports [DecisionData](../shared/types/interfaces/DecisionData.md)
@@ -251,6 +270,12 @@ Re-exports [DiffFile](../shared/types/interfaces/DiffFile.md)
 
 ***
 
+### diffFiles
+
+Re-exports [diffFiles](../runtime/scm/functions/diffFiles.md)
+
+***
+
 ### DiffLine
 
 Re-exports [DiffLine](../shared/types/interfaces/DiffLine.md)
@@ -287,6 +312,12 @@ Re-exports [EpochStatus](../shared/types/type-aliases/EpochStatus.md)
 
 ***
 
+### fileAt
+
+Re-exports [fileAt](../runtime/scm/functions/fileAt.md)
+
+***
+
 ### FileStatus
 
 Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
@@ -308,6 +339,12 @@ Re-exports [GeckoSpecRef](../shared/types/interfaces/GeckoSpecRef.md)
 ### GitCapability
 
 Re-exports [GitCapability](../runtime/tasks/interfaces/GitCapability.md)
+
+***
+
+### hasCommitGraph
+
+Re-exports [hasCommitGraph](../runtime/scm/functions/hasCommitGraph.md)
 
 ***
 
@@ -428,6 +465,24 @@ Re-exports [LlmPrompt](../runtime/llm/types/interfaces/LlmPrompt.md)
 ### LlmSelection
 
 Re-exports [LlmSelection](../shared/types/interfaces/LlmSelection.md)
+
+***
+
+### logPage
+
+Re-exports [logPage](../runtime/scm/functions/logPage.md)
+
+***
+
+### LogRow
+
+Re-exports [LogRow](../shared/types/interfaces/LogRow.md)
+
+***
+
+### LogScope
+
+Re-exports [LogScope](../shared/types/type-aliases/LogScope.md)
 
 ***
 
@@ -584,6 +639,18 @@ Re-exports [RecentRepo](../shared/types/interfaces/RecentRepo.md)
 ### Ref
 
 Re-exports [Ref](../shared/types/type-aliases/Ref.md)
+
+***
+
+### RefRow
+
+Re-exports [RefRow](../shared/types/interfaces/RefRow.md)
+
+***
+
+### refs
+
+Re-exports [refs](../runtime/scm/functions/refs.md)
 
 ***
 

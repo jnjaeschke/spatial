@@ -17,7 +17,7 @@ export const MAX_TOOL_OUTPUT = 64 * 1024;
 
 const capScmOutput = (output: string) => capOutput(output, MAX_TOOL_OUTPUT);
 
-function safeRepoPath(path: string): string {
+export function safeRepoPath(path: string): string {
   if (!path || path.startsWith("/") || path.startsWith("\\") || /^[A-Za-z]:[\\/]/.test(path) || path.split(/[\\/]/).includes("..")) throw new Error(`Invalid path: ${path}`);
   return path;
 }
@@ -32,7 +32,7 @@ function capWholeLines(lines: string[]): { text: string; kept: number } {
   return { text: lines.join("\n"), kept: lines.length };
 }
 
-function safeRevision(value: string, name: string): string {
+export function safeRevision(value: string, name: string): string {
   if (!value || value.startsWith("-")) throw new Error(`Invalid ${name}: ${value}`);
   return value;
 }
@@ -124,6 +124,9 @@ async function git(repo: string, args: string[], env?: Record<string, string>, t
   const { stdout } = await run("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}), ...(timeout ? { timeout } : {}) });
   return stdout;
 }
+
+/** Runs git in `repo` with the settings every read here uses; resolves with stdout and rejects with git's error. */
+export const runGit = git;
 
 export interface PatchIdentity { name: string; email: string; /** Unix seconds. */ time: number }
 

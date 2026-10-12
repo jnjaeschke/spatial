@@ -1,11 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
 import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, TaskActivityResponse, WorkflowInfo, WriteMode } from "../shared/types.ts";
-import { resolveRepo } from "../runtime/git.ts";
+import { resolveRepo, runGit } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
 import { sessionView, workflowView } from "../runtime/render-ref.ts";
@@ -17,8 +15,6 @@ import { startSession, type PendingStart, type StartRequest } from "../workflows
 import { isGeckoRepo } from "../runtime/searchfox.ts";
 import { resolveCodeLinks } from "../runtime/code-links.ts";
 import { selectLinkRev } from "../runtime/link-rev.ts";
-
-const execFileAsync = promisify(execFile);
 
 export class HttpError extends Error {
   status: number;
@@ -249,7 +245,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       if (missing.length) {
         const tip = await rt.searchfox.tip();
         added = await resolveCodeLinks({
-          git: async (args) => (await execFileAsync("git", ["-C", session.worktree, ...args], { maxBuffer: args[0] === "ls-tree" ? 512 * 1024 * 1024 : undefined })).stdout,
+          git: (args) => runGit(session.worktree, args),
           searchfox: rt.searchfox, repoBase: tip.repoBase, rev,
           diffPaths: (diff?.data as DiffData | undefined)?.files.map((file) => file.path) ?? [],
         }, missing);
