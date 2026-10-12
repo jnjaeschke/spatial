@@ -38,6 +38,10 @@ An item shown where it applies inside a box, as a line, a preview or its whole b
 
 `string`
 
+#### running?
+
+`boolean`
+
 #### severity?
 
 `string`

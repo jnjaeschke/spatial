@@ -341,7 +341,10 @@ test("a commit card draws the diagram narration suggests", async ({ page, reques
   await expect(card).toContainText("Flow: how the changed value is applied");
   await expect(page.getByTestId("commit-1").getByRole("button", { name: "Draw diagram" })).toHaveCount(0);
   await card.getByRole("button", { name: "Draw diagram" }).click();
+  await expect(card.getByRole("button", { name: "Drawing…" })).toBeDisabled();
+  await expect(card.locator(".inline-item.kind-chat.running")).toHaveCount(1);
   await expect(page.locator('[data-testid^="diagram-"]')).toContainText("First commit sequence", { timeout: 15_000 });
+  await expect(card.locator(".inline-item.kind-chat.running")).toHaveCount(0);
   await expect(card.getByRole("button", { name: /Draw diagram|Drawing/ })).toHaveCount(0);
 });
 

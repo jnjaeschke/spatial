@@ -6,7 +6,7 @@ import type { Artifact, DecisionData, LlmSelection } from "../../shared/types.ts
 import { applyRevisions } from "../../shared/revisions.ts";
 import { isActive } from "../../shared/task-state.ts";
 import { api } from "../api.ts";
-import { ChatActionsContext, closeChat } from "../chat-context.ts";
+import { ChatActionsContext, closeChat, lastTurn } from "../chat-context.ts";
 import type { ChatNodeData } from "../graph.ts";
 import { LlmPicker } from "../LlmPicker.tsx";
 import { rememberLlm } from "../llm-choice.ts";
@@ -28,9 +28,9 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
   const closer = useContext(ClosedContext);
   const actions = useContext(ChatActionsContext);
   const id = data.threadId ?? data.draftId!;
-
+  const turn = lastTurn(actions?.tasks ?? [], data);
   return (
-    <Box kind="chat" testId={`chat-${id}`} handles={{ source: Position.Left }} title={<>Chat{data.messages.length > 0 && ` · ${data.messages.length}`}</>} collapse={data.threadId ? { key: data.threadId } : undefined} onClose={closer ? () => closeChat(data.threadId, data.draftId, actions, closer) : undefined}>
+    <Box kind="chat" testId={`chat-${id}`} handles={{ source: Position.Left }} title={<>Chat{data.messages.length > 0 && ` · ${data.messages.length}`}{turn && isActive(turn) && <span className="title-running"> · working…</span>}</>} collapse={data.threadId ? { key: data.threadId } : undefined} onClose={closer ? () => closeChat(data.threadId, data.draftId, actions, closer) : undefined}>
       {data.quote && <blockquote className="chat-quote">{data.quote.length > 300 ? `${data.quote.slice(0, 300)}…` : data.quote}</blockquote>}
       <Conversation {...data} />
     </Box>
@@ -78,14 +78,7 @@ export function Conversation(data: ConversationProps) {
   const decision = data.decision ?? null;
   const defaultText = decision?.data.options.find((option) => option.defaultText)?.defaultText;
   useEffect(() => { if (defaultText !== undefined) setText(defaultText); }, [decision?.id]);
-  // Without a draft, the anchor has a single conversation (a finding), so its first turn is found by anchor.
-  const turns = (actions?.tasks ?? []).filter((t) => {
-    if (t.kind !== "chatTurn") return false;
-    const input = t.input as { threadId?: string; anchor?: string; aside?: boolean };
-    return t.id === data.taskId || (data.threadId !== null && input.threadId === data.threadId) ||
-      (data.threadId === null && data.draftId === null && input.anchor === data.anchor && !input.aside);
-  });
-  const last = turns.at(-1);
+  const last = lastTurn(actions?.tasks ?? [], data);
   const busy = !!last && isActive(last);
   const failed = last?.status === "failed" ? last : undefined;
   const cancelled = last?.status === "cancelled";

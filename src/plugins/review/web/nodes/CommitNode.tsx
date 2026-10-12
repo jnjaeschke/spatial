@@ -1,7 +1,7 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { CommitNodeData } from "../graph.ts";
-import { IconButton, InlineText, AskContext, ChatActionsContext, api, ErrorText, useAction } from "../../../../web/plugin-api.ts";
+import { IconButton, InlineText, AskContext, ChatActionsContext, api, ErrorText, isActive, useAction } from "../../../../web/plugin-api.ts";
 import { commitColors } from "../../../../web/plugin-api.ts";
 import { Box } from "../../../../web/plugin-api.ts";
 import { ChatItem, FindingItem } from "../InlineItem.tsx";
@@ -11,9 +11,12 @@ export type CommitFlowNode = Node<CommitNodeData & Record<string, unknown>, "com
 export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);
-  const { busy: drawing, error, run } = useAction();
+  const { busy, error, run } = useAction();
+  const [drawTaskId, setDrawTaskId] = useState<string | null>(null);
+  const drawTask = actions?.tasks.find((task) => task.id === drawTaskId);
+  const drawing = busy || (!!drawTask && isActive(drawTask));
   const draw = (hint: string) => {
-    void run(() => api.turn(actions!.sessionId, { anchor: `${data.narrativeId}#commit-${data.index}`, text: `Draw a sequence diagram of ${hint}.`, llm: actions!.models.default }));
+    void run(async () => setDrawTaskId((await api.turn(actions!.sessionId, { anchor: `${data.narrativeId}#commit-${data.index}`, text: `Draw a sequence diagram of ${hint}.`, llm: actions!.models.default })).taskId));
   };
   const { swatch } = commitColors(data.index);
   return (

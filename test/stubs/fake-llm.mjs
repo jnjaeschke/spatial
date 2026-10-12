@@ -7,6 +7,7 @@
 // (a fake write backend: edit files, commit).
 // $FAKE_LLM_HANG_ON maps needles to files: on a match the file is printed and the stub then waits until killed
 // (a write run that is stopped), without running any action.
+// $FAKE_LLM_DELAYS maps needles to milliseconds the stub waits before its output, instead of $FAKE_LLM_SLEEP_MS.
 // With `--input-format stream-json` (claude live input), stdin is the text of the first user message; every
 // message is echoed as a replay when read, later ones are logged as `{ live: text }`, and the stub exits when
 // stdin ends.
@@ -57,5 +58,5 @@ if (hang) {
     if (output) process.stdout.write(streamInput ? readFileSync(output, "utf8").replace(/\n?$/, "\n") : readFileSync(output, "utf8"));
     if (env.FAKE_LLM_STDERR) process.stderr.write(env.FAKE_LLM_STDERR);
     process.exitCode = Number(env.FAKE_LLM_EXIT ?? 0);
-  }, Number(env.FAKE_LLM_SLEEP_MS ?? 0));
+  }, Number((env.FAKE_LLM_DELAYS && Object.entries(JSON.parse(env.FAKE_LLM_DELAYS)).find(([needle]) => matches(needle, request))?.[1]) ?? env.FAKE_LLM_SLEEP_MS ?? 0));
 }

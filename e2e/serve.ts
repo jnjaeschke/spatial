@@ -141,6 +141,7 @@ writeFileSync(steerHangOut, JSON.stringify({ type: "system", subtype: "init", se
 const steerMemoryOut = stubOut("steer-memory", { action: "add", key: "name-helpers", scope: "repo", memory: { situation: "the agent adds a helper", observed: "It named the helper after its caller", wanted: "Name helpers after what they return", why: null, phases: ["implement"], kinds: [] } });
 // The first implement call of the IMPL-STEER session reports its session and then hangs; the rerun resumes that session.
 // The distillation of the steer "Keep the diff small" and the chat turn ACTIVITY-HANG-PLEASE hang until cancelled.
+process.env.FAKE_LLM_DELAYS = JSON.stringify({ "Draw a sequence diagram of how the changed value": 1500 });
 process.env.FAKE_LLM_HANG_ON = JSON.stringify({ "You implement a planned code change&&impl-steer&&!stub-steer": steerHangOut, "You distill a steer into a memory&&Keep the diff small": steerHangOut, "ACTIVITY-HANG-PLEASE": activityHangOut });
 const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
 const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The value is named." }] });

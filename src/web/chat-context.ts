@@ -26,3 +26,13 @@ export function closeChat(threadId: string | null, draftId: string | null, actio
   const id = threadId ?? draftId;
   if (id) closer?.close(id);
 }
+
+/** The last chat turn of a thread: by its task, its thread, or for a thread not created yet without a draft, by its anchor (an anchor with a single conversation, such as a finding). */
+export function lastTurn(tasks: TaskRecord[], thread: { taskId: string | null; threadId: string | null; draftId: string | null; anchor: Ref }): TaskRecord | undefined {
+  return tasks.filter((t) => {
+    if (t.kind !== "chatTurn") return false;
+    const input = t.input as { threadId?: string; anchor?: string; aside?: boolean };
+    return t.id === thread.taskId || (thread.threadId !== null && input.threadId === thread.threadId) ||
+      (thread.threadId === null && thread.draftId === null && input.anchor === thread.anchor && !input.aside);
+  }).at(-1);
+}

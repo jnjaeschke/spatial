@@ -591,6 +591,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .msg.cancelled { color: var(--text-3); align-self: flex-start; background: var(--surface-2); }
 .msg.failed { background: color-mix(in oklab, var(--danger) 10%, transparent); border: 1px solid color-mix(in oklab, var(--danger) 30%, transparent); }
 @keyframes pulse { 50% { opacity: 0.45; } }
+.inline-item.running .inline-who, .inline-item.running .inline-text, .title-running { animation: pulse 1.2s ease-in-out infinite; }
 .msg-llm { display: block; font-size: 0.7em; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }
 .msg-llm .link-button { margin-left: 8px; font: inherit; }
 .box form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
