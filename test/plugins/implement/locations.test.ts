@@ -4,7 +4,7 @@ import { verifyLocations } from "../../../src/plugins/implement/runtime/location
 
 const files: Record<string, string> = { "a.txt": "alpha\nbeta\ngamma\ndelta\nepsilon\n" };
 const read = async (path: string) => { if (!(path in files)) throw new Error("missing"); return files[path]!; };
-const loc = (path: string, line: number, quote: string) => ({ path, line, quote, why: "w" });
+const loc = (path: string, line: number, quote: string) => ({ path, line, quote, why: "w", step: null });
 
 test("locations: nearest match within two lines wins and corrects the line", async () => {
   const { verified, dropped } = await verifyLocations([loc("a.txt", 2, "beta"), loc("a.txt", 3, "beta"), loc("a.txt", 4, "beta"), loc("a.txt", 5, "beta")], read);

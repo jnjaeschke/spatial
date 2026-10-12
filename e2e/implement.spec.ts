@@ -49,13 +49,17 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   const investigation = page.getByTestId("investigation");
   await expect(investigation).toContainText("The c file is missing.", { timeout: 20_000 });
   await expect(investigation).toContainText("1 location dropped");
-  await expect(investigation).toContainText("Should d exist too?");
+  await expect(page.getByTestId("investigation-questions")).toContainText("Should d exist too?");
   await expect(investigation).toContainText("grep for c");
-  await expect(investigation.getByTestId("acceptance-check")).toHaveCount(1);
-  await expect(investigation.getByTestId("acceptance-check")).toContainText("new-test");
-  await expect(investigation.getByTestId("acceptance-check")).toContainText("c.test.txt");
+  const step = page.getByTestId("investigation-step-0");
+  await expect(step).toContainText("Add c");
+  await expect(step.getByTestId("acceptance-check")).toHaveCount(1);
+  await expect(step.getByTestId("acceptance-check")).toContainText("new-test");
+  await expect(step.getByTestId("acceptance-check")).toContainText("c.test.txt");
   await expect(investigation).toContainText("1 check dropped");
   await expect(page.getByTestId("investigation-location")).toHaveCount(1);
+  await expect(page.getByTestId("investigation-tests")).toContainText("Test cases (1)");
+  await expect(page.getByTestId("investigation-tests").getByText("c exists")).toHaveCount(0);
   await expect(page.getByTestId("decision-node")).toContainText("Approve the investigation plan?");
 
   const bar = page.getByTestId("topbar-decision");
@@ -84,6 +88,33 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   expect(git(dir, "log", "--format=%s", `main..${branch}`)).toBe("Fix the c thing");
   expect(readFileSync(join(dir, "a.txt"), "utf8")).toContain("THIRTY-ONE");
   expect(git(dir, "status", "--porcelain")).toBe("");
+});
+
+test("implement: a plan step is its own node and a selection inside it asks a chat anchored on that step", async ({ page, request }) => {
+  test.setTimeout(60_000);
+  const dir = makeRepo();
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement IMPL-E2E make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
+  const sessionId = decodeURIComponent(new URL(page.url()).pathname.split("/")[2]!);
+  const step = page.getByTestId("investigation-step-0");
+  await expect(step).toContainText("Add c.txt and set line 30.", { timeout: 20_000 });
+  await expect(page.getByTestId("investigation")).not.toContainText("Add c.txt and set line 30.");
+  const text = (await step.locator("p").first().boundingBox())!;
+  await page.mouse.move(text.x + 2, text.y + text.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(text.x + text.width - 2, text.y + text.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
+  const chat = page.locator(".react-flow__node-chat");
+  await chat.getByLabel("message").fill("Why this step?");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect.poll(async () => {
+    const state = await (await request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json() as { artifacts: { id: string; type: string; data: { anchor?: string } }[] };
+    const investigation = state.artifacts.find((artifact) => artifact.type === "Investigation");
+    return state.artifacts.find((artifact) => artifact.type === "ChatThread" && artifact.data.anchor === `${investigation?.id}#step0`) !== undefined;
+  }, { timeout: 20_000 }).toBe(true);
 });
 
 test("steering a running implement epoch restarts it, resumed with the steer, and remembers the steer", async ({ page }) => {

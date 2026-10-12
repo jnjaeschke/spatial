@@ -110,7 +110,7 @@ const implFix = script("fix", `printf 'd\\n' > d.txt\ngit add -A\n${commit} --am
 const implRevise = script("revise", `sed -i 's/^line 31$/THIRTY-ONE/' a.txt\ngit add -A\n${commit} --amend --no-edit\n`);
 const rawCheck = (kind: string, over: object = {}) => ({ kind, path: null, subtests: [], command: null, goal: null, ...over });
 const investigationOut = stubOut("implement-investigation", { kind: "bugfix", summary: "The c file is missing.", bug: null, locations: [
-  { path: "a.txt", line: 30, quote: "line 30", why: "The value to change." }, { path: "gone.txt", line: 1, quote: "x", why: "Does not exist." },
+  { path: "a.txt", line: 30, quote: "line 30", why: "The value to change.", step: 0 }, { path: "gone.txt", line: 1, quote: "x", why: "Does not exist.", step: null },
 ], testCases: [{ description: "c exists", expected: "c.txt exists", actual: null, path: null }], architecture: null,
 steps: [{ title: "Add c", message: "Fix the c thing", intent: "Add c.txt and set line 30.", checks: [rawCheck("new-test", { path: "c.test.txt" }), rawCheck("covering-test", { path: "gone-test.txt" })] }], openQuestions: ["Should d exist too?"], exploration: [{ tried: "grep for c", outcome: "no c.txt exists" }], specUrls: [], diagram: null });
 const agentEvents = [
@@ -137,7 +137,7 @@ const steerMemoryOut = stubOut("steer-memory", { action: "add", key: "name-helpe
 process.env.FAKE_LLM_HANG_ON = JSON.stringify({ "You implement a planned code change&&impl-steer&&!stub-steer": steerHangOut });
 const highReviewOut = stubOut("implement-high-review", { findings: [{ anchor: "f0h0", quote: "THIRTY", category: "correctness", severity: "high", title: "Magic value", body: "`THIRTY` needs a name." }], verdicts: [] });
 const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The value is named." }] });
-const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here." }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", checks: [rawCheck("covering-test", { path: "a.txt" })] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });
+const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here.", step: 0 }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", checks: [rawCheck("covering-test", { path: "a.txt" })] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });
 const tryCleanReviewOut = stubOut("try-clean-review", { findings: [], verdicts: [] });
 const tryProposalOut = stubOut("try-proposal", { command: "./mach try fuzzy --query 'mochitest-plain'", reason: "Runs the plain mochitests." });
 const tryChatOut = stubOut("try-chat", { answer: "I will start a try push.", questions: [], revisions: [], requestMcpServers: [], diagram: null, tryPush: { command: "./mach try auto", reason: "You asked for try." } });

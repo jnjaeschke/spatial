@@ -18,7 +18,7 @@ import { makeRepo } from "../../helpers/git-fixture.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const reply = (over: object = {}) => ({
-  kind: "bugfix", summary: "S", bug: null, locations: [{ path: "a.txt", line: 3, quote: "beta", why: "w" }],
+  kind: "bugfix", summary: "S", bug: null, locations: [{ path: "a.txt", line: 3, quote: "beta", why: "w", step: 0 }],
   testCases: [{ description: "d", expected: "e", actual: null, path: null }], architecture: null,
   steps: [{ title: "T", message: "M", intent: "I", checks: [] }], openQuestions: ["Q?"], exploration: [{ tried: "grep alpha", outcome: "found it" }], specUrls: [], diagram: null, ...over,
 });
@@ -42,7 +42,7 @@ function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = []
 
 test("locations are verified against the base, corrected and reported when dropped", async () => {
   const { store, run, prompts } = setup(reply({ locations: [
-    { path: "a.txt", line: 3, quote: "beta", why: "w" }, { path: "gone.txt", line: 1, quote: "x", why: "w" }, { path: "a.txt", line: 1, quote: "nothere", why: "w" },
+    { path: "a.txt", line: 3, quote: "beta", why: "w", step: 0 }, { path: "gone.txt", line: 1, quote: "x", why: "w", step: 0 }, { path: "a.txt", line: 1, quote: "nothere", why: "w", step: null },
   ] }));
   const out = await run();
   const artifact = store.getArtifact<InvestigationData>(out.investigationId);
@@ -57,6 +57,18 @@ test("locations are verified against the base, corrected and reported when dropp
   assert.equal(prompts[0]!.tools, "read-only");
   assert.ok(prompts[0]!.system!.startsWith("You investigate a bug report or feature request"));
   assert.ok(prompts[0]!.prompt.includes("fix it") && prompts[0]!.prompt.includes("spatial/x"));
+});
+
+test("a location whose step is out of range stays as context with a dropped note", async () => {
+  const { store, run } = setup(reply({ locations: [
+    { path: "a.txt", line: 3, quote: "beta", why: "w", step: 5 }, { path: "a.txt", line: 3, quote: "beta", why: "w", step: -1 }, { path: "a.txt", line: 3, quote: "beta", why: "w", step: 0 },
+  ] }));
+  const out = await run();
+  const data = store.getArtifact<InvestigationData>(out.investigationId).data;
+  assert.deepEqual(data.locations.map((l) => l.step), [null, null, 0]);
+  assert.equal(out.droppedLocations.length, 2);
+  assert.match(out.droppedLocations[0]!, /a\.txt:2: step 5 does not exist; kept as context/);
+  assert.deepEqual(data.droppedLocations, out.droppedLocations);
 });
 
 test("memories relevant to the investigate phase are in the prompt and recorded for the epoch", async () => {

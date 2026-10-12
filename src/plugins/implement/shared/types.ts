@@ -32,8 +32,8 @@ export interface UsedMemoriesData { entries: { scope: MemoryScope; key: string; 
 
 /** Recorded (verified) by the start: where the work lives; `baseSha` is the commit the branch started from, or the fork point of the current branch from main for `current-branch`. */
 export interface ImplementBranchData { branch: string; baseSha: string; baseRef: string | null; profile: string; checkout: "new-branch" | "current-branch" }
-/** A source location cited by an investigation. */
-export interface InvestigationLocation { path: string; line: number; quote: string; why: string }
+/** A source location cited by an investigation. `step` is the index of the plan step that changes it; null for context that explains but is not changed. */
+export interface InvestigationLocation { path: string; line: number; quote: string; why: string; step: number | null }
 /** What shows that a plan step works. `new-test`: a test file the plan adds (absent at the base; fails before the fix, passes after). `failing-test`: an existing test that fails at the base and passes after; `baseEvidence` is set by the runtime for a web-platform test from its metadata. `covering-test`: an existing test that must still pass; a later step may name a file an earlier step adds. `measure`: a command run before and after; the user judges the numbers against `goal`. */
 export type AcceptanceCheck =
   | { kind: "new-test"; path: string }

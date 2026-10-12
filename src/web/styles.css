@@ -415,8 +415,13 @@ button.code-link::after {
 }
 .commit-node { --kind: var(--kind-summary); border-top-width: 4px; }
 .diagram-node { --kind: var(--kind-diagram); }
-.investigation-node .plan { padding-left: 1.2em; }
-.investigation-node h4 { margin: 8px 0 2px; }
+.investigation-node h4, .investigation-details h4 { margin: 8px 0 2px; }
+.investigation-node p { margin: 4px 0; }
+.investigation-step-node { --kind: var(--kind-summary); }
+.investigation-tests-node, .investigation-questions-node { --kind: var(--kind-summary); }
+.investigation-node p.clamped, .investigation-step-node p.clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.clamp-toggle { padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--accent); font: inherit; font-size: 0.85em; cursor: pointer; }
+.investigation-details > summary { cursor: pointer; margin-top: 6px; color: var(--text-2); }
 .location-node .quote { margin: 0; white-space: pre-wrap; }
 .run-status { padding: 6px 12px; }
 .diagram-node .title { display: flex; align-items: baseline; gap: 8px; }

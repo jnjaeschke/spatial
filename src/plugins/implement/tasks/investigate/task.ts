@@ -88,6 +88,11 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
     })();
     const reply = r.json as Reply;
     const { verified, dropped } = await verifyLocations(reply.locations, (path) => ctx.git.show(baseSha, path));
+    const locations = verified.map((location) => {
+      if (location.step === null || (location.step >= 0 && location.step < reply.steps.length)) return location;
+      dropped.push(`${location.path}:${location.line}: step ${location.step} does not exist; kept as context`);
+      return { ...location, step: null };
+    });
     const steps: InvestigationData["steps"] = [], droppedChecks: string[] = [], added = new Set<string>();
     for (const step of reply.steps) {
       const named: AcceptanceCheck[] = [];
@@ -106,7 +111,7 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
     const checked = reply.diagram === null || reply.diagram === undefined ? null : await verifyDiagramAtBase(reply.diagram, baseSha, (sha, path) => ctx.git.show(sha, path));
     const bug = reply.bug !== null && new RegExp(`(?<!\\d)${reply.bug}(?!\\d)`).test(request) ? reply.bug : null;
     const data: InvestigationData = {
-      kind: reply.kind, summary: reply.summary, bug, locations: verified,
+      kind: reply.kind, summary: reply.summary, bug, locations,
       testCases: reply.testCases.map((t) => ({ description: t.description, expected: t.expected, ...(t.actual !== null && t.actual !== undefined ? { actual: t.actual } : {}), ...(t.path !== null && t.path !== undefined ? { path: t.path } : {}) })),
       ...(reply.architecture ? { architecture: reply.architecture } : {}),
       steps, openQuestions: reply.openQuestions, exploration: reply.exploration,

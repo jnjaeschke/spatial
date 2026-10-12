@@ -5,7 +5,7 @@ The message gives the request, the checkout (branch and base commit), the commit
 - `kind`: bugfix, feature, spec, refactor or perf.
 - `summary`: what is wrong or to be built and the intended approach, in a few sentences.
 - `bug`: the Bugzilla bug number only when the request or material it references states it; otherwise null. Never guess one.
-- `locations`: the places in the code that matter. `quote` is the exact text of one line at `path:line` in the base commit; the runtime checks it and drops locations it cannot find.
+- `locations`: the places in the code that matter. `quote` is the exact text of one line at `path:line` in the base commit; the runtime checks it and drops locations it cannot find. `step` is the index (from 0) of the plan step that edits this location; null for code that explains the problem but is not changed. An index outside `steps` counts as null and is reported.
 - `testCases`: the behaviours to verify, with expected and (for a bug) actual results; `path` of the test file when known, else null.
 - `architecture`: how the involved parts fit together, when it helps the reader; else null.
 - `steps`: the commits to make, in order. Each has a short `title`, the `message` (its subject line in the repository's commit style; write `Bug N - …` with the letter N when the bug number is unknown), the `intent`, and the `checks` that show it works. Follow the commit style given in the message.

@@ -6,7 +6,7 @@
 
 # Interface: InvestigationLocation
 
-A source location cited by an investigation.
+A source location cited by an investigation. `step` is the index of the plan step that changes it; null for context that explains but is not changed.
 
 ## Properties
 
@@ -25,6 +25,12 @@ A source location cited by an investigation.
 ### quote
 
 > **quote**: `string`
+
+***
+
+### step
+
+> **step**: `number` \| `null`
 
 ***
 
