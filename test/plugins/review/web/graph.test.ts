@@ -590,7 +590,7 @@ test("summary spec status requires a succeeded resolver for this narrative", () 
   assert.equal(data.kind, "summary");
   if (isReviewKind(data, "summary")) assert.equal(data.specStatus, null);
 
-  st.tasks = [{ id: "resolve", sessionId: "S", kind: "resolveSpecRefs", status: "succeeded", input: { narrativeId: "N" }, output: null, error: null, createdAt: "4", updatedAt: "4", epoch: null}];
+  st.tasks = [{ id: "resolve", sessionId: "S", kind: "resolveSpecRefs", status: "succeeded", input: { narrativeId: "N" }, output: null, error: null, createdAt: "4", updatedAt: "4", epoch: null, parentId: null }];
   data = summary();
   if (isReviewKind(data, "summary")) assert.deepEqual(data.specStatus, { code: 1, inferred: 1, unverified: 1 });
 

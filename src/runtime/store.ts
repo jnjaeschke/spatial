@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), kind TEXT NOT NULL,
   status TEXT NOT NULL, input TEXT NOT NULL, output TEXT, error TEXT,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, epoch INTEGER);
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, epoch INTEGER, parent_id TEXT REFERENCES tasks(id));
 CREATE TABLE IF NOT EXISTS artifacts (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), type TEXT NOT NULL,
   status TEXT NOT NULL, data TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL, epoch INTEGER);
@@ -52,7 +52,7 @@ export class Store {
       const columns = (this.#db.prepare("PRAGMA table_info(sessions)").all() as Row[]).map((r) => r.name).join(",");
       const artifactColumns = (this.#db.prepare("PRAGMA table_info(artifacts)").all() as Row[]).map((r) => r.name).join(",");
       const taskColumns = (this.#db.prepare("PRAGMA table_info(tasks)").all() as Row[]).map((r) => r.name).join(",");
-      if (columns !== SESSION_COLUMNS || artifactColumns !== "id,session_id,type,status,data,provenance,created_at,epoch" || taskColumns !== "id,session_id,kind,status,input,output,error,created_at,updated_at,epoch") throw new Error(`Database ${path} has an outdated schema (sessions are disposable): delete it and restart`);
+      if (columns !== SESSION_COLUMNS || artifactColumns !== "id,session_id,type,status,data,provenance,created_at,epoch" || taskColumns !== "id,session_id,kind,status,input,output,error,created_at,updated_at,epoch,parent_id") throw new Error(`Database ${path} has an outdated schema (sessions are disposable): delete it and restart`);
     }
   }
 
@@ -193,12 +193,12 @@ export class Store {
     return Number(r.id);
   }
 
-  createTask(t: { sessionId: Id; kind: string; input: unknown }): TaskRecord {
+  createTask(t: { sessionId: Id; kind: string; input: unknown; parentId?: Id }): TaskRecord {
     const ts = now();
     const id = randomUUID();
     this.#db
-      .prepare("INSERT INTO tasks VALUES (?, ?, ?, 'pending', ?, NULL, NULL, ?, ?, ?)")
-      .run(id, t.sessionId, t.kind, JSON.stringify(t.input ?? null), ts, ts, this.latestEpoch(t.sessionId));
+      .prepare("INSERT INTO tasks VALUES (?, ?, ?, 'pending', ?, NULL, NULL, ?, ?, ?, ?)")
+      .run(id, t.sessionId, t.kind, JSON.stringify(t.input ?? null), ts, ts, this.latestEpoch(t.sessionId), t.parentId ?? null);
     return this.getTask(id);
   }
 
@@ -241,7 +241,7 @@ function toTask(r: Row): TaskRecord {
       id: r.id as string, sessionId: r.session_id as string, kind: r.kind as string, status: r.status as TaskStatus,
       input: JSON.parse(r.input as string), output: r.output === null ? null : JSON.parse(r.output as string),
       error: (r.error as string | null) ?? null, createdAt: r.created_at as string, updatedAt: r.updated_at as string,
-      epoch: r.epoch === null ? null : Number(r.epoch),
+      epoch: r.epoch === null ? null : Number(r.epoch), parentId: (r.parent_id as string | null) ?? null,
     };
 }
 

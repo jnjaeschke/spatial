@@ -256,6 +256,8 @@ export interface TaskRecord {
   error: string | null;
   /** Latest epoch of the session at creation; null before the first epoch. */
   epoch: number | null;
+  /** The task that started this one through `ctx.run`; null for a top-level task. */
+  parentId: Id | null;
   createdAt: string;
   updatedAt: string;
 }

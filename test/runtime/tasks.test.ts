@@ -38,9 +38,11 @@ const slow = defineTask<null, string>({
   }),
 });
 
+const parent = defineTask<{ child: string }, unknown>({ kind: "parent", run: (ctx, { child }) => ctx.run(child, child === "echo" ? { v: "hi" } : null) });
+
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, boom, slow] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, boom, slow, parent] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
@@ -96,6 +98,26 @@ test("cancel aborts ctx.signal and marks task cancelled", async () => {
   assert.equal(store.getTask(taskId).status, "cancelled");
   assert.equal(events.at(-1)?.type, "task.cancelled");
   assert.throws(() => rt.cancel(taskId), /not running/);
+});
+
+test("ctx.run starts a child task linked to its parent; a child failure fails the parent with its cause", async () => {
+  const { store, rt, session } = setup();
+  const { taskId, done } = rt.start(session.id, "parent", { child: "echo" });
+  const out = await done;
+  const [top, child] = store.listTasks(session.id);
+  assert.deepEqual([top!.id, top!.parentId, child!.kind, child!.parentId, child!.output], [taskId, null, "echo", taskId, out]);
+  const failing = rt.start(session.id, "parent", { child: "boom" });
+  await assert.rejects(failing.done, (e: unknown) => e instanceof TaskFailedError && e.taskId === failing.taskId && e.message === "kaput" && (e.cause as TaskFailedError).cause instanceof Error);
+  assert.deepEqual(store.listTasks(session.id).slice(2).map((t) => [t.kind, t.status]), [["parent", "failed"], ["boom", "failed"]]);
+});
+
+test("cancelling a parent cancels its running child", async () => {
+  const { store, rt, session } = setup();
+  const { taskId, done } = rt.start(session.id, "parent", { child: "slow" });
+  await new Promise((resolve) => setImmediate(resolve));
+  rt.cancel(taskId);
+  await assert.rejects(done, (e: unknown) => e instanceof TaskCancelledError && e.taskId === taskId);
+  assert.deepEqual(store.listTasks(session.id).map((t) => t.status), ["cancelled", "cancelled"]);
 });
 
 test("run() resolves with output", async () => {

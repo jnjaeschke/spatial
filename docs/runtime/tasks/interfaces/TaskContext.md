@@ -317,3 +317,31 @@ Repo skills available through the session MCP server.
 #### Returns
 
 `void`
+
+***
+
+### run()
+
+> **run**\<`O`\>(`kind`, `input`): `Promise`\<`O`\>
+
+Runs a child task: it records this task as its parent, is cancelled with it, and its failure rejects here.
+
+#### Type Parameters
+
+##### O
+
+`O` = `unknown`
+
+#### Parameters
+
+##### kind
+
+`string`
+
+##### input
+
+`unknown`
+
+#### Returns
+
+`Promise`\<`O`\>

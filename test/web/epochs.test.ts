@@ -27,7 +27,7 @@ test("each epoch shows the latest decision that followed it", () => {
 test("the state at an epoch leaves out later epochs and what they created", () => {
   const early = art("Diff", {}, 1), late = art("Diff", {}, 2), before = art("WorkflowStart", {}, null);
   const s = state([before, early, late], [epoch(1, "review"), epoch(2, "review")]);
-  const at1 = stateAtEpoch({ ...s, links: [{ id: "l1", sessionId: "s", from: early.id, to: before.id, kind: "about" }, { id: "l2", sessionId: "s", from: late.id, to: early.id, kind: "about" }], tasks: [{ id: "t1", sessionId: "s", kind: "k", status: "succeeded", input: null, output: null, error: null, epoch: 2, createdAt: "", updatedAt: "" }] }, 1);
+  const at1 = stateAtEpoch({ ...s, links: [{ id: "l1", sessionId: "s", from: early.id, to: before.id, kind: "about" }, { id: "l2", sessionId: "s", from: late.id, to: early.id, kind: "about" }], tasks: [{ id: "t1", sessionId: "s", kind: "k", status: "succeeded", input: null, output: null, error: null, epoch: 2, parentId: null, createdAt: "", updatedAt: "" }] }, 1);
   assert.deepEqual(at1.artifacts.map((a) => a.id), [before.id, early.id]);
   assert.deepEqual(at1.epochs.map((e) => e.n), [1]);
   assert.deepEqual(at1.links.map((l) => l.id), ["l1"]);

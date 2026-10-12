@@ -95,6 +95,8 @@ export interface TaskContext {
   /** Read-only code search per engine. */
   codeSearch: Record<Engine, CodeSearch>;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult>; readonly defaultSelection: LlmSelection };
+  /** Runs a child task: it records this task as its parent, is cancelled with it, and its failure rejects here. */
+  run<O = unknown>(kind: string, input: unknown): Promise<O>;
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
   repoMcp: Record<string, McpServerSpec>;
@@ -254,11 +256,17 @@ export class Runtime {
    * TaskCancelledError; callers that do not await it must attach a rejection handler.
    */
   start<O = unknown>(sessionId: Id, kind: string, input: unknown): { taskId: Id; done: Promise<O> } {
+    return this.#start<O>(sessionId, kind, input, null);
+  }
+
+  #start<O>(sessionId: Id, kind: string, input: unknown, parent: { id: Id; signal: AbortSignal } | null): { taskId: Id; done: Promise<O> } {
     const def = this.#tasks.get(kind);
     if (!def) throw new Error(`Unknown task kind: ${kind}`);
     const session = this.#store.getSession(sessionId);
-    const task = this.#store.createTask({ sessionId, kind, input });
+    const task = this.#store.createTask({ sessionId, kind, input, ...(parent ? { parentId: parent.id } : {}) });
     const controller = new AbortController();
+    const abort = () => controller.abort();
+    parent?.signal.addEventListener("abort", abort, { once: true });
     this.#running.set(task.id, controller);
     const actor: Actor = `task:${task.id}`;
     const emit = (type: string, payload: unknown) => this.emit(sessionId, actor, type, payload);
@@ -284,6 +292,7 @@ export class Runtime {
         },
         defaultSelection: this.#llm.defaultSelection,
       },
+      run: <C,>(childKind: string, childInput: unknown) => this.#start<C>(sessionId, childKind, childInput, { id: task.id, signal: controller.signal }).done,
       sessionMcp: this.#sessionMcp(sessionId),
       repoMcp: {},
       repoRequestableMcp: {},
@@ -349,6 +358,7 @@ export class Runtime {
         emit("task.failed", { taskId: task.id, error: message });
         throw new TaskFailedError(task.id, message, { cause: e });
       } finally {
+        parent?.signal.removeEventListener("abort", abort);
         this.#running.delete(task.id);
       }
     })();

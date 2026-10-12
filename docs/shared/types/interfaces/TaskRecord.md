@@ -52,6 +52,14 @@ Latest epoch of the session at creation; null before the first epoch.
 
 ***
 
+### parentId
+
+> **parentId**: `string` \| `null`
+
+The task that started this one through `ctx.run`; null for a top-level task.
+
+***
+
 ### sessionId
 
 > **sessionId**: `string`
