@@ -5,6 +5,7 @@ import { Runtime, defineTask, type GitCapability, type Phase } from "../../../sr
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementRoutes } from "../../../src/plugins/implement/server/routes.ts";
 import { routeCall } from "../../helpers/route-call.ts";
+import type { MemoryNoticeData } from "../../../src/plugins/implement/shared/types.ts";
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 async function until(done: () => boolean) {
@@ -12,10 +13,10 @@ async function until(done: () => boolean) {
   assert.ok(done(), "condition not reached");
 }
 
-function setup() {
+function setup(scope = "repo") {
   let runs = 0;
   const hang = defineTask<null, string>({ kind: "hang", run: (ctx) => ++runs > 1 ? Promise.resolve("done") : new Promise<string>((_, reject) => ctx.signal.addEventListener("abort", () => reject(new Error("aborted")))) });
-  const distill = defineTask<{ steerId: string; taskId: string | null }, unknown>({ kind: "distillSteer", run: async () => ({ action: "add", key: "use-helpers", scope: "repo", memory: { situation: "s", observed: "o", wanted: "w", why: null, phases: ["implement"], kinds: [] } }) });
+  const distill = defineTask<{ steerId: string; taskId: string | null }, unknown>({ kind: "distillSteer", run: async () => ({ action: "add", key: "use-helpers", scope, memory: { situation: "s", observed: "o", wanted: "w", why: null, phases: ["implement"], kinds: [] } }) });
   const phase = (id: string): Phase<unknown> => ({ id, async run(rt, sessionId) { await rt.run(sessionId, "hang", null); } });
   const store = new Store(":memory:");
   const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [hang, distill], phases: [phase("implement"), phase("review")] }], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
@@ -43,6 +44,18 @@ test("steering stops the running epoch, stores the steer and reruns the epoch in
   await until(() => store.listArtifacts(session.id, "MemoryNotice").length === 1);
   const distillation = store.listTasks(session.id).find((task) => task.kind === "distillSteer")!;
   assert.deepEqual(distillation.input, { steerId: steer.id, taskId: store.listTasks(session.id).find((task) => task.kind === "hang")!.id });
+});
+
+test("a steer about this task only is remembered for the session", async () => {
+  const { rt, store, session, routes } = setup("session");
+  const running = rt.runPhase(session.id, "implement", { round: 1 });
+  await tick();
+  await routeCall(routes, "POST", `/api/sessions/${session.id}/steer`, { text: "leave inheritance out of this patch" });
+  await running;
+  await until(() => store.listArtifacts(session.id, "MemoryNotice").length === 1);
+  assert.equal((store.listArtifacts(session.id, "MemoryNotice")[0]!.data as MemoryNoticeData).scope, "session");
+  assert.equal(rt.knowledge.get(`session:${session.id}`, "implement", "memory/use-helpers").state, "current");
+  assert.equal(rt.knowledge.get("/repo/.git", "implement", "memory/use-helpers").state, "absent");
 });
 
 test("a steer needs text, a running epoch and a phase that reads steers", async () => {

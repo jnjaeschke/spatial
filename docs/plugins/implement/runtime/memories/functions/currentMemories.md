@@ -6,9 +6,9 @@
 
 # Function: currentMemories()
 
-> **currentMemories**(`knowledge`, `repoDir`): [`MemoryView`](../../../shared/types/interfaces/MemoryView.md)[]
+> **currentMemories**(`knowledge`, `repoDir`, `sessionId?`): [`MemoryView`](../../../shared/types/interfaces/MemoryView.md)[]
 
-The current, non-tombstoned memories of the repository, then the global ones, each ordered by slug.
+The current, non-tombstoned memories of the session (when given), then the repository's, then the global ones, each ordered by slug.
 
 ## Parameters
 
@@ -17,6 +17,10 @@ The current, non-tombstoned memories of the repository, then the global ones, ea
 `Pick`\<[`Knowledge`](../../../../../runtime/knowledge/interfaces/Knowledge.md), `"list"`\>
 
 ### repoDir
+
+`string`
+
+### sessionId?
 
 `string`
 

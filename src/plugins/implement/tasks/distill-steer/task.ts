@@ -20,7 +20,7 @@ export const distillSteer = defineTask<DistillInput, DistillReply>({
     const kind = latestArtifact<InvestigationData>(before, "Investigation")?.data.kind;
     const commands = (before.filter((a) => a.type === "CommandRun" && a.epoch === steer.data.epoch) as Artifact<CommandRunData>[]).slice(-20);
     const progress = taskId ? ctx.events.recent(taskId, 30) : [];
-    const existing = currentMemories(ctx.knowledge, ctx.repoDir);
+    const existing = currentMemories(ctx.knowledge, ctx.repoDir, ctx.sessionId);
     const prompt = [
       "# Steer", steer.data.text,
       "# Phase", steer.data.phase,

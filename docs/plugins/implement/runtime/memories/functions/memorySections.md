@@ -14,7 +14,7 @@ Prompt sections for the memories relevant to `phase` and `kind`; when there are 
 
 ### ctx
 
-`Pick`\<[`TaskContext`](../../../../../runtime/tasks/interfaces/TaskContext.md), `"knowledge"` \| `"repoDir"` \| `"artifacts"`\>
+`Pick`\<[`TaskContext`](../../../../../runtime/tasks/interfaces/TaskContext.md), `"knowledge"` \| `"repoDir"` \| `"sessionId"` \| `"artifacts"`\>
 
 ### phase
 

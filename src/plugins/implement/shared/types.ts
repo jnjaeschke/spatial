@@ -13,7 +13,7 @@ export interface CommentTriageData { comment: Id; phid: string; action: CommentA
 export interface SteerData { text: string; epoch: number; phase: string }
 
 /** Where a memory applies: the session's repository (`Session.repoDir`) or every repository. */
-export type MemoryScope = "repo" | "global";
+export type MemoryScope = "session" | "repo" | "global";
 /** A way the user wants the agent to work, distilled from a steer (knowledge store, namespace `implement`, key `memory/<slug>`). Empty `kinds` applies to every investigation kind. `source` is set by the runtime. */
 export interface SteerMemory {
   situation: string; observed: string; wanted: string; why: string | null;

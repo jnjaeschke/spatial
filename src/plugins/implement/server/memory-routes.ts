@@ -66,7 +66,7 @@ export function memoryRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, str(body.sessionId, "sessionId"));
       const notice = requireArtifact(rt, session.id, str(body.noticeId, "noticeId"), "MemoryNotice", "notice");
       const { key, scope, entryId } = notice.data as MemoryNoticeData;
-      const id = scopeId(scope, session.repoDir);
+      const id = scopeId(scope, session.repoDir, session.id);
       const read = rt.knowledge.get(id, MEMORY_NAMESPACE, memoryKey(key));
       if (read.state !== "current" || read.entry.id !== entryId) throw new HttpError(409, "The memory changed since this notice");
       const by = { by: "user", sessionId: session.id } as const;

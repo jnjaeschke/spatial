@@ -6,7 +6,9 @@
 
 # Function: scopeId()
 
-> **scopeId**(`scope`, `repoDir`): `string`
+> **scopeId**(`scope`, `repoDir`, `sessionId?`): `string`
+
+The knowledge scope of a memory scope: `session:<id>`, the repository's `repoDir`, or `global`.
 
 ## Parameters
 
@@ -15,6 +17,10 @@
 [`MemoryScope`](../../../shared/types/type-aliases/MemoryScope.md)
 
 ### repoDir
+
+`string`
+
+### sessionId?
 
 `string`
 

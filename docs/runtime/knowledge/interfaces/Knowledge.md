@@ -6,7 +6,7 @@
 
 # Interface: Knowledge
 
-Plugin data that outlives sessions. `scope` is `"global"` or a repository identity (`RepoInfo.repoDir`); `namespace` is the plugin id.
+Plugin data that outlives a task run. `scope` is `"global"`, a repository identity (`RepoInfo.repoDir`), or `session:<id>` for data of one session; `namespace` is the plugin id.
 Nothing is deleted: `put` supersedes the current entry of its key, and a `null` value is a tombstone.
 
 ## Methods

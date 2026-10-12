@@ -6,7 +6,7 @@
 
 # Function: relevantMemories()
 
-> **relevantMemories**(`knowledge`, `repoDir`, `phase`, `kind`): [`MemoryView`](../../../shared/types/interfaces/MemoryView.md)[]
+> **relevantMemories**(`knowledge`, `repoDir`, `sessionId`, `phase`, `kind`): [`MemoryView`](../../../shared/types/interfaces/MemoryView.md)[]
 
 The memories for a phase: those listing the phase and applying to every kind or to `kind`. A null kind (not known yet) matches the kind-agnostic ones only.
 
@@ -17,6 +17,10 @@ The memories for a phase: those listing the phase and applying to every kind or 
 `Pick`\<[`Knowledge`](../../../../../runtime/knowledge/interfaces/Knowledge.md), `"list"`\>
 
 ### repoDir
+
+`string`
+
+### sessionId
 
 `string`
 

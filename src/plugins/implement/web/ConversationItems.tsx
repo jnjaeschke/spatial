@@ -18,7 +18,7 @@ export function MemoryNoticeItem({ artifact, artifacts, sessionId, repoDir, work
     navigation.navigate(`${routeUrl({ kind: "repo", path: worktree })}&memory=${encodeURIComponent(`${notice.scope}/${notice.key}`)}`);
   });
   return <div className="msg memory-notice" data-testid="memory-notice">
-    <p>Remembered for {notice.scope === "repo" ? "this repo" : "everywhere"}: when <em>{notice.memory.situation}</em>, <em>{notice.memory.wanted}</em></p>
+    <p>Remembered for {notice.scope === "session" ? "this session" : notice.scope === "repo" ? "this repo" : "everywhere"}: when <em>{notice.memory.situation}</em>, <em>{notice.memory.wanted}</em></p>
     {reaction === null && <div className="memory-reactions">
       <IconButton label="Remember this" onClick={() => react("up")}>👍</IconButton>
       <IconButton label="Forget this" onClick={() => react("down")}>👎</IconButton>

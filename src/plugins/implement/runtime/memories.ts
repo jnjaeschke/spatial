@@ -11,12 +11,17 @@ export const isSlug = (key: string): boolean => SLUG.test(key);
 export const memoryKey = (slug: string): string => `memory/${slug}`;
 /** A `confirmed/<slug>` entry holds `{ entryId }` of the memory version the user confirmed. */
 export const confirmedKey = (slug: string): string => `confirmed/${slug}`;
-export const scopeId = (scope: MemoryScope, repoDir: string): string => scope === "repo" ? repoDir : "global";
+/** The knowledge scope of a memory scope: `session:<id>`, the repository's `repoDir`, or `global`. */
+export function scopeId(scope: MemoryScope, repoDir: string, sessionId?: Id): string {
+  if (scope !== "session") return scope === "repo" ? repoDir : "global";
+  if (sessionId === undefined) throw new Error("A session scope needs a session");
+  return `session:${sessionId}`;
+}
 
-/** The current, non-tombstoned memories of the repository, then the global ones, each ordered by slug. */
-export function currentMemories(knowledge: Pick<Knowledge, "list">, repoDir: string): MemoryView[] {
-  return (["repo", "global"] as const).flatMap((scope) => {
-    const id = scopeId(scope, repoDir);
+/** The current, non-tombstoned memories of the session (when given), then the repository's, then the global ones, each ordered by slug. */
+export function currentMemories(knowledge: Pick<Knowledge, "list">, repoDir: string, sessionId?: Id): MemoryView[] {
+  return (sessionId === undefined ? ["repo", "global"] as const : ["session", "repo", "global"] as const).flatMap((scope) => {
+    const id = scopeId(scope, repoDir, sessionId);
     const confirmed = new Map(knowledge.list(id, MEMORY_NAMESPACE, "confirmed/").map((entry) => [entry.key.slice("confirmed/".length), (entry.value as { entryId: Id } | null)?.entryId]));
     return knowledge.list(id, MEMORY_NAMESPACE, "memory/").filter((entry) => entry.value !== null).map((entry) => {
       const key = entry.key.slice("memory/".length);
@@ -26,15 +31,15 @@ export function currentMemories(knowledge: Pick<Knowledge, "list">, repoDir: str
 }
 
 /** The memories for a phase: those listing the phase and applying to every kind or to `kind`. A null kind (not known yet) matches the kind-agnostic ones only. */
-export function relevantMemories(knowledge: Pick<Knowledge, "list">, repoDir: string, phase: string, kind: string | null): MemoryView[] {
-  return currentMemories(knowledge, repoDir).filter(({ memory }) => memory.phases.includes(phase) && (memory.kinds.length === 0 || (kind !== null && memory.kinds.includes(kind))));
+export function relevantMemories(knowledge: Pick<Knowledge, "list">, repoDir: string, sessionId: Id, phase: string, kind: string | null): MemoryView[] {
+  return currentMemories(knowledge, repoDir, sessionId).filter(({ memory }) => memory.phases.includes(phase) && (memory.kinds.length === 0 || (kind !== null && memory.kinds.includes(kind))));
 }
 
 export const memoryBullet = ({ memory }: MemoryView): string => `- When ${memory.situation}: ${memory.wanted}${memory.why ? ` (${memory.why})` : ""}`;
 
 /** Prompt sections for the memories relevant to `phase` and `kind`; when there are any it also records them as a `UsedMemories` artifact of the task's epoch. */
-export function memorySections(ctx: Pick<TaskContext, "knowledge" | "repoDir" | "artifacts">, phase: string, kind: string | null): string[] {
-  const used = relevantMemories(ctx.knowledge, ctx.repoDir, phase, kind);
+export function memorySections(ctx: Pick<TaskContext, "knowledge" | "repoDir" | "sessionId" | "artifacts">, phase: string, kind: string | null): string[] {
+  const used = relevantMemories(ctx.knowledge, ctx.repoDir, ctx.sessionId, phase, kind);
   if (used.length === 0) return [];
   ctx.artifacts.put<UsedMemoriesData>("UsedMemories", "verified", { entries: used.map(({ scope, key, entryId }) => ({ scope, key, entryId })) });
   return ["# How this user wants things done", used.map(memoryBullet).join("\n")];

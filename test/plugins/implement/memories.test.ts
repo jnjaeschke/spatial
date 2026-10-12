@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { confirmedKey, currentMemories, distillProblems, memoryBullet, memoryKey, memoryProblems, memorySections, relevantMemories, type DistillReply } from "../../../src/plugins/implement/runtime/memories.ts";
+import { confirmedKey, currentMemories, scopeId, distillProblems, memoryBullet, memoryKey, memoryProblems, memorySections, relevantMemories, type DistillReply } from "../../../src/plugins/implement/runtime/memories.ts";
 import type { SteerMemory } from "../../../src/plugins/implement/shared/types.ts";
 import type { TaskContext } from "../../../src/plugin-api.ts";
 
@@ -29,9 +29,18 @@ test("current memories are the repo's then the global ones without tombstones; c
   assert.deepEqual(summary()[1], ["repo", "report-failure", false]);
 });
 
+test("a session's memories come first and only in that session; a session scope needs a session", () => {
+  const knowledge = store();
+  knowledge.put(scopeId("session", REPO, "S"), "implement", memoryKey("no-inheritance"), memory({ wanted: "Leave inheritance out" }), user);
+  knowledge.put(scopeId("session", REPO, "T"), "implement", memoryKey("other-session"), memory(), user);
+  assert.deepEqual(currentMemories(knowledge, REPO, "S").map((view) => `${view.scope}/${view.key}`), ["session/no-inheritance", "repo/only-bugfix", "repo/report-failure", "global/short-commits"]);
+  assert.deepEqual(currentMemories(knowledge, REPO).map((view) => view.scope), ["repo", "repo", "global"]);
+  assert.throws(() => scopeId("session", REPO), /session scope needs a session/);
+});
+
 test("relevant memories match the phase, and the kind unless they apply to every kind", () => {
   const knowledge = store();
-  const keys = (phase: string, kind: string | null) => relevantMemories(knowledge, REPO, phase, kind).map((view) => view.key);
+  const keys = (phase: string, kind: string | null) => relevantMemories(knowledge, REPO, "S", phase, kind).map((view) => view.key);
   assert.deepEqual(keys("implement", null), ["report-failure", "short-commits"]);
   assert.deepEqual(keys("implement", "bugfix"), ["only-bugfix", "report-failure", "short-commits"]);
   assert.deepEqual(keys("implement", "feature"), ["report-failure", "short-commits"]);
@@ -68,7 +77,7 @@ test("a distillation adds new keys and updates existing ones, with a slug", () =
 test("memory sections are the bullets of the relevant memories, recorded as UsedMemories; none without memories", () => {
   const knowledge = store();
   const put: { type: string; status: string; data: unknown }[] = [];
-  const ctx = { knowledge, repoDir: REPO, artifacts: { put: (type: string, status: string, data: unknown) => { put.push({ type, status, data }); return {}; } } } as unknown as Pick<TaskContext, "knowledge" | "repoDir" | "artifacts">;
+  const ctx = { knowledge, repoDir: REPO, sessionId: "S", artifacts: { put: (type: string, status: string, data: unknown) => { put.push({ type, status, data }); return {}; } } } as unknown as Pick<TaskContext, "knowledge" | "repoDir" | "sessionId" | "artifacts">;
   assert.deepEqual(memorySections(ctx, "implement", "bugfix"), ["# How this user wants things done", "- When a test fails for an unrelated reason: Stop and report it (it wastes time)\n- When a test fails for an unrelated reason: Stop and report it\n- When a test fails for an unrelated reason: Stop and report it"]);
   assert.deepEqual(put.map((p) => [p.type, p.status, (p.data as { entries: { scope: string; key: string }[] }).entries.map((e) => `${e.scope}/${e.key}`)]), [["UsedMemories", "verified", ["repo/only-bugfix", "repo/report-failure", "global/short-commits"]]]);
   put.length = 0;
