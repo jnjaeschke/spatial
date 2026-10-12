@@ -320,8 +320,8 @@ export interface LogRow { sha: string; parents: string[]; author: string; email:
 export interface RefRow { name: string; kind: "head" | "remote" | "tag" | "HEAD"; sha: string; date: string; upstream?: string; worktree?: string }
 export interface CommitFileStat { path: string; oldPath?: string; status: FileStatus; added: number; deleted: number; binary: boolean }
 export interface CommitDetail extends LogRow { body: string; committer: string; committerDate: string; files: CommitFileStat[] }
-/** Which commits a log page walks: every ref, local branches plus the remote default branch, or one revision range. */
-export type LogScope = { kind: "all" } | { kind: "branches" } | { kind: "range"; range: string };
+/** Which commits a log page walks: every ref, local branches plus the remote default branch, the current branch since its merge-base with the default branch, or one revision range. */
+export type LogScope = { kind: "all" } | { kind: "branches" } | { kind: "current" } | { kind: "range"; range: string };
 
 export interface DiffFile {
   path: string;

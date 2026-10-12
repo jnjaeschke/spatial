@@ -6,9 +6,9 @@
 
 # Function: diffFiles()
 
-> **diffFiles**(`repo`, `a`, `b`, `path?`): `Promise`\<[`DiffFile`](../../../shared/types/interfaces/DiffFile.md)[]\>
+> **diffFiles**(`repo`, `a`, `b`, `paths?`): `Promise`\<[`DiffFile`](../../../shared/types/interfaces/DiffFile.md)[]\>
 
-The parsed diff from `a` (null: the empty tree) to `b`, optionally of one path.
+The parsed diff from `a` (null: the empty tree) to `b`, optionally limited to `paths` (give both paths of a rename so git still pairs them).
 
 ## Parameters
 
@@ -24,9 +24,9 @@ The parsed diff from `a` (null: the empty tree) to `b`, optionally of one path.
 
 `string`
 
-### path?
+### paths?
 
-`string`
+`string`[]
 
 ## Returns
 

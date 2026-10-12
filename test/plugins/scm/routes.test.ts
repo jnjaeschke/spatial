@@ -34,6 +34,15 @@ test("scm routes answer for the repository containing the repo path", async () =
   const rootDiff = await routeCall(routes, "GET", `/api/scm/diff?${q({ repo: r.dir, b: first })}`);
   assert.equal(rootDiff.body[0].status, "added");
 
+  const files = await routeCall(routes, "GET", `/api/scm/files?${q({ repo: r.dir, a: first, b: second })}`);
+  assert.deepEqual(files.body.map((file: { path: string }) => file.path), ["a.txt"]);
+  const rootFiles = await routeCall(routes, "GET", `/api/scm/files?${q({ repo: r.dir, b: first })}`);
+  assert.equal(rootFiles.body[0].status, "added");
+  const current = await routeCall(routes, "GET", `/api/scm/log?${q({ repo: r.dir, scope: "current" })}`);
+  assert.equal(current.status, 200);
+  const twoPaths = await routeCall(routes, "GET", `/api/scm/diff?repo=${encodeURIComponent(r.dir)}&a=${first}&b=${second}&path=a.txt&path=missing.txt`);
+  assert.deepEqual(twoPaths.body.map((file: { path: string }) => file.path), ["a.txt"]);
+
   const file = await routeCall(routes, "GET", `/api/scm/file?${q({ repo: r.dir, rev: first, path: "a.txt" })}`);
   assert.deepEqual(file.body, { lines: ["one"] });
 });
@@ -52,6 +61,7 @@ test("scm routes reject bad input with 400", async () => {
   assert.equal(await status(`/api/scm/log?${q({ repo: r.dir, scope: "all", limit: "x" })}`), 400);
   assert.equal(await status(`/api/scm/commit?${q({ repo: r.dir, rev: "--all" })}`), 400);
   assert.equal(await status(`/api/scm/commit?${q({ repo: r.dir, rev: "missing" })}`), 400);
+  assert.equal(await status(`/api/scm/files?${q({ repo: r.dir, a: "--all", b: sha })}`), 400);
   assert.equal(await status(`/api/scm/diff?${q({ repo: r.dir, b: sha, path: "../x" })}`), 400);
   assert.equal(await status(`/api/scm/file?${q({ repo: r.dir, rev: sha, path: "/etc/passwd" })}`), 400);
 });

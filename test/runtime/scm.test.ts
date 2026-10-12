@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../../src/runtime/scm.ts";
+import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../../src/runtime/scm.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 function history() {
@@ -111,15 +111,48 @@ test("commitDetail has the message, both identities and per-file stats against t
 });
 
 // REQUIRES_REAL_GIT
-test("diffFiles parses a range, a root commit against the empty tree, and one path", async () => {
+test("diffFiles parses a range, a root commit against the empty tree, and selected paths", async () => {
   const { r, root, side, rename } = history();
   const files = await diffFiles(r.dir, root, side);
   assert.deepEqual(files.map((file) => [file.path, file.status, file.binary]), [["a.txt", "modified", false], ["b.bin", "added", true]]);
   assert.deepEqual(files[0]!.hunks[0]!.lines.filter((line) => line.kind !== "ctx"), [{ kind: "add", text: "side" }]);
   assert.deepEqual((await diffFiles(r.dir, null, root)).map((file) => [file.path, file.status]), [["a.txt", "added"], ["old name.txt", "added"]]);
-  assert.deepEqual((await diffFiles(r.dir, root, side, "a.txt")).map((file) => file.path), ["a.txt"]);
+  assert.deepEqual((await diffFiles(r.dir, root, side, ["a.txt"])).map((file) => file.path), ["a.txt"]);
   assert.deepEqual((await diffFiles(r.dir, `${rename}~1`, rename)).map((file) => [file.path, file.oldPath, file.status]), [["new name.txt", "old name.txt", "renamed"]]);
-  await assert.rejects(diffFiles(r.dir, root, side, "../x"), /Invalid path/);
+  assert.deepEqual((await diffFiles(r.dir, `${rename}~1`, rename, ["old name.txt", "new name.txt"])).map((file) => [file.path, file.oldPath, file.status]), [["new name.txt", "old name.txt", "renamed"]]);
+  await assert.rejects(diffFiles(r.dir, root, side, ["../x"]), /Invalid path/);
+});
+
+// REQUIRES_REAL_GIT
+test("changedFiles lists a range's files, and from the empty tree for null", async () => {
+  const { r, root, side, rename } = history();
+  assert.deepEqual((await changedFiles(r.dir, root, side)).map((file) => [file.path, file.status]), [["a.txt", "modified"], ["b.bin", "added"]]);
+  assert.deepEqual((await changedFiles(r.dir, null, root)).map((file) => [file.path, file.status]), [["a.txt", "added"], ["old name.txt", "added"]]);
+  assert.deepEqual((await changedFiles(r.dir, root, rename)).map((file) => file.path), ["a.txt", "b.bin", "c.txt", "new name.txt"]);
+  await assert.rejects(changedFiles(r.dir, "--all", rename), /Invalid revision/);
+});
+
+// REQUIRES_REAL_GIT
+test("logPage current scope walks from the merge-base with the default branch to HEAD", async () => {
+  const { r, rename } = history();
+  r.git("update-ref", "refs/remotes/origin/main", rename);
+  r.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main");
+  r.git("switch", "-q", "-c", "work");
+  const one = r.commit({ "w.txt": "1\n" }, "work one");
+  const two = r.commit({ "w.txt": "2\n" }, "work two");
+  assert.deepEqual((await logPage(r.dir, { kind: "current" }, 0, 50)).map((row) => row.sha), [two, one]);
+  r.git("switch", "-q", "main");
+  const onMain = (await logPage(r.dir, { kind: "current" }, 0, 50)).map((row) => row.sha);
+  assert.ok(onMain.includes(two) && onMain.includes(rename), "on the default branch it walks all branches");
+});
+
+// REQUIRES_REAL_GIT
+test("logPage current scope falls back to local main without a remote", async () => {
+  const { r, rename } = history();
+  r.git("switch", "-q", "-c", "work");
+  const one = r.commit({ "w.txt": "1\n" }, "work one");
+  assert.deepEqual((await logPage(r.dir, { kind: "current" }, 0, 50)).map((row) => row.sha), [one]);
+  assert.ok(rename);
 });
 
 // REQUIRES_REAL_GIT

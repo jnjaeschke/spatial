@@ -8,6 +8,7 @@
 
 ## Functions
 
+- [changedFiles](functions/changedFiles.md)
 - [commitDetail](functions/commitDetail.md)
 - [diffFiles](functions/diffFiles.md)
 - [fileAt](functions/fileAt.md)

@@ -1,5 +1,5 @@
 import { isAbsolute } from "node:path";
-import { commitDetail, diffFiles, fileAt, hasCommitGraph, HttpError, logPage, refs, resolveRepo, type LogScope, type Route } from "../../../plugin-api.ts";
+import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, HttpError, logPage, refs, resolveRepo, type LogScope, type Route } from "../../../plugin-api.ts";
 
 function param(url: URL, name: string): string {
   const value = url.searchParams.get(name);
@@ -17,7 +17,7 @@ function count(url: URL, name: string, fallback: number): number {
 
 function scope(url: URL): LogScope {
   const kind = url.searchParams.get("scope") ?? "branches";
-  if (kind === "all" || kind === "branches") return { kind };
+  if (kind === "all" || kind === "branches" || kind === "current") return { kind };
   if (kind === "range") return { kind, range: param(url, "range") };
   throw new HttpError(400, `Unknown scope: ${kind}`);
 }
@@ -41,7 +41,8 @@ export function scmRoutes(): Route[] {
     scmRoute("refs", async (worktree) => ({ refs: await refs(worktree), commitGraph: await hasCommitGraph(worktree) })),
     scmRoute("log", (worktree, url) => logPage(worktree, scope(url), count(url, "skip", 0), count(url, "limit", 200) || 200)),
     scmRoute("commit", (worktree, url) => commitDetail(worktree, param(url, "rev"))),
-    scmRoute("diff", (worktree, url) => diffFiles(worktree, url.searchParams.get("a"), param(url, "b"), url.searchParams.get("path") ?? undefined)),
+    scmRoute("diff", (worktree, url) => diffFiles(worktree, url.searchParams.get("a"), param(url, "b"), url.searchParams.getAll("path"))),
+    scmRoute("files", (worktree, url) => changedFiles(worktree, url.searchParams.get("a"), param(url, "b"))),
     scmRoute("file", async (worktree, url) => ({ lines: await fileAt(worktree, param(url, "rev"), param(url, "path")) })),
   ];
 }

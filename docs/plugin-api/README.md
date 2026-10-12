@@ -140,6 +140,12 @@ Re-exports [BusyError](../runtime/tasks/classes/BusyError.md)
 
 ***
 
+### changedFiles
+
+Re-exports [changedFiles](../runtime/scm/functions/changedFiles.md)
+
+***
+
 ### ChangeStatus
 
 Re-exports [ChangeStatus](../shared/types/type-aliases/ChangeStatus.md)
