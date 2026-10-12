@@ -20,6 +20,7 @@ import { ErrorText, useAction } from "../action.tsx";
 import { ReplyActionsContext } from "../reply-actions.ts";
 import { interleave } from "../conversation-items.ts";
 import { optionProblem } from "../decisions.ts";
+import { OpenActivityLogContext } from "../activity-log-context.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & Record<string, unknown>, "chat">;
 
@@ -68,6 +69,7 @@ export function Conversation(data: ConversationProps) {
   const replyActions = useContext(ReplyActionsContext);
   const collapse = useContext(CollapseContext);
   const closer = useContext(ClosedContext);
+  const openLog = useContext(OpenActivityLogContext);
   const lastLlm = data.messages.filter((m) => m.data.role === "assistant").at(-1)?.data.llm;
   const [llm, setLlm] = useState<LlmSelection | null>(lastLlm ?? actions?.models.default ?? null);
   const [text, setText] = useDraftText(data.draftId);
@@ -108,7 +110,7 @@ export function Conversation(data: ConversationProps) {
             {m.data.role === "assistant" && m.data.replyErrors?.map(({ label, error }) => <p className="revision-errors" key={label}>{label} dropped: {error}</p>)}
             {m.data.role === "assistant" && replyActions?.derived(m.id).map((artifact) => { const Action = replyActions.components[artifact.type]; return Action ? <Action key={artifact.id} artifact={artifact} sessionId={replyActions.sessionId} /> : null; })}
             {m.data.role === "assistant" && (data.diagramsByMessage?.[m.id] ?? []).map((diagramId) => <IconButton label="Show diagram" key={diagramId} type="button" className="show-diagram nodrag" onClick={() => { closer?.reopen([diagramId]); collapse?.reveal(diagramId, `diagram:${diagramId}`); }}>Show diagram</IconButton>)}
-            {m.data.llm && <span className="msg-llm">{m.data.llm.backend}/{m.data.llm.model}/{m.data.llm.effort}</span>}
+            {m.data.role === "assistant" && (m.data.llm || openLog) && <span className="msg-llm">{m.data.llm && `${m.data.llm.backend}/${m.data.llm.model}/${m.data.llm.effort}`}{openLog && <button type="button" className="link-button nodrag" title="What the LLM did for this answer" onClick={() => openLog({ taskId: m.provenance.taskId })}>Log</button>}</span>}
           </div>
         ); })}
         {decision && <div className="msg decision" data-testid="session-decision">

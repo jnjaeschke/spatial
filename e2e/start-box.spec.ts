@@ -88,6 +88,16 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   await expect(conversation.locator(".msg.assistant", { hasText: "Stub answer." })).toHaveCount(2, { timeout: 10_000 });
 });
 
+test("an answer opens the log of the turn that wrote it", async ({ page, request }) => {
+  await openStartBox(page, request);
+  const box = page.getByLabel("start");
+  await box.fill("/chat ACTIVITY-PLEASE where is the caller?");
+  await box.press("Enter");
+  const answer = page.getByTestId("conversation").locator(".msg.assistant").first();
+  await answer.getByRole("button", { name: "Log" }).click({ timeout: 10_000 });
+  await expect(page.getByRole("dialog", { name: "chatTurn activity" }).locator("li").first()).toHaveText("Find the caller first.");
+});
+
 test("a running chat turn shows its log and cancel inline, not in the activity strip", async ({ page, request }) => {
   await openStartBox(page, request);
   const box = page.getByLabel("start");

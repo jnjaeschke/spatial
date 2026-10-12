@@ -592,6 +592,7 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .msg.failed { background: color-mix(in oklab, var(--danger) 10%, transparent); border: 1px solid color-mix(in oklab, var(--danger) 30%, transparent); }
 @keyframes pulse { 50% { opacity: 0.45; } }
 .msg-llm { display: block; font-size: 0.7em; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }
+.msg-llm .link-button { margin-left: 8px; font: inherit; }
 .box form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .box form .llm-picker select { font-size: calc(11.5px * var(--text-scale, 1)); padding: 2px 20px 2px 4px; color: var(--text-2); background-color: var(--surface-2); }
 @supports (appearance: base-select) { .box form .llm-picker select { padding: 2px 6px; } }
