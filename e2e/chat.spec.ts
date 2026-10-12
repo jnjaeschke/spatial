@@ -78,6 +78,8 @@ test("a chat scrolls to each answer, with the last own message pinned above it",
   await messages.evaluate((el) => { el.scrollTop = el.scrollHeight; });
   const pinned = (await chat.locator(".msg.user", { hasText: "Third question" }).boundingBox())!;
   expect(Math.abs(pinned.y - list.y)).toBeLessThan(12);
+  const pinnedMessage = chat.locator(".msg.user", { hasText: "Third question" });
+  expect(await pinnedMessage.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
 });
 
 test("the panel has one ×; an empty draft is discarded, a draft with text stays inline, Close chat closes it for reopening", async ({ page, request }) => {
