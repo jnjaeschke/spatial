@@ -1,5 +1,5 @@
 import { IconButton } from "../IconButton.tsx";
-import { Fragment, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Position, type Node, type NodeProps } from "@xyflow/react";
 import type { Artifact, LlmSelection } from "../../shared/types.ts";
 import { applyRevisions } from "../../shared/revisions.ts";
@@ -36,7 +36,25 @@ export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
 
 export type ConversationProps = Pick<ChatNodeData, "anchor" | "quote" | "lines" | "diffId" | "hunks" | "threadId" | "draftId" | "taskId" | "messages" | "revisions" | "mcpRequests" | "diagramsByMessage" | "aside"> & { lead?: ReactNode; /** Shows Steer and Stop & steer beside Send: Steer hands the text to the running agent, Stop & steer stops the running epoch and steers its rerun. */ canSteer?: boolean; /** Plugin artifacts shown among the messages in creation order, rendered by `renderItem`. */ items?: Artifact[]; renderItem?(artifact: Artifact): ReactNode };
 
-/** Messages and reply form of one chat thread; `lead` renders before the messages. */
+/** Keeps the newest message in view: a new own message scrolls to the end, a new answer scrolls to its start just below the pinned own message. Positions are measured in screen pixels, which the canvas zoom scales. */
+function useFollowLatest(list: RefObject<HTMLDivElement | null>, latest: ChatNodeData["messages"][number] | undefined, busy: boolean) {
+  const followed = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const el = list.current;
+    if (!el || !latest) return;
+    if (latest.data.role === "user") { el.scrollTop = el.scrollHeight; followed.current = latest.id; return; }
+    if (followed.current === latest.id) return;
+    followed.current = latest.id;
+    const node = el.querySelector<HTMLElement>(`[data-anchor="${CSS.escape(latest.id)}"]`);
+    if (!node) return;
+    const scale = el.getBoundingClientRect().height / el.offsetHeight || 1;
+    const pinned = el.querySelector<HTMLElement>(".msg.pinned");
+    const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
+    el.scrollTop += (node.getBoundingClientRect().top - el.getBoundingClientRect().top) / scale - (pinned ? pinned.offsetHeight + gap : 0);
+  }, [list, latest, busy]);
+}
+
+/** Messages and reply form of one chat thread; `lead` renders before the messages; the last own message stays pinned at the top while its answer scrolls. */
 export function Conversation(data: ConversationProps) {
   const actions = useContext(ChatActionsContext);
   const replyActions = useContext(ReplyActionsContext);
@@ -59,11 +77,14 @@ export function Conversation(data: ConversationProps) {
   const failed = last?.status === "failed" ? last : undefined;
   const canSend = !busy && text.trim() !== "";
   const entries = interleave(data.messages, data.items ?? []);
+  const pinnedId = data.messages.findLast((m) => m.data.role === "user")?.id;
+  const list = useRef<HTMLDivElement>(null);
+  useFollowLatest(list, data.messages.at(-1), busy);
   return <>
-      <div className="messages body nodrag nopan nowheel">
+      <div ref={list} className="messages body nodrag nopan nowheel">
         {data.lead}
         {entries.map((entry) => { if ("item" in entry) return <Fragment key={entry.item.id}>{data.renderItem?.(entry.item)}</Fragment>; const m = entry.message; return (
-          <div key={m.id} className={`msg ${m.data.role}`} data-anchor={m.id}>
+          <div key={m.id} className={`msg ${m.data.role}${m.id === pinnedId ? " pinned" : ""}`} data-anchor={m.id}>
             {m.data.role === "assistant"
               ? <AnswerMarkdown text={applyRevisions(m.data.text, data.revisions[m.id] ?? [])} hunks={data.hunks} diffId={data.diffId} />
               : m.data.text}

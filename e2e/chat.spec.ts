@@ -49,6 +49,37 @@ test("ask about a change: the chat starts inline, send, stub answer appears and 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
+test("a chat scrolls to each answer, with the last own message pinned above it", async ({ page, request }) => {
+  await openNarrated(page, request);
+  const paneBox = (await page.locator(".react-flow__pane").boundingBox())!;
+  const point = await page.evaluate(({ x, y, width, height }) => {
+    for (let fy = 0.2; fy < 0.8; fy += 0.05) for (let fx = 0.2; fx < 0.8; fx += 0.05) {
+      const p = { x: x + width * fx, y: y + height * fy };
+      if (document.elementFromPoint(p.x, p.y)?.classList.contains("react-flow__pane")) return p;
+    }
+    throw new Error("no empty canvas point");
+  }, paneBox);
+  await page.mouse.dblclick(point.x, point.y);
+  const chat = page.locator('.chat-node:has(textarea:focus), .chat-node:has(.msg.user)').first();
+  const questions = ["First question", "Second question", "Third question LONG-ANSWER-PLEASE"];
+  for (const [i, text] of questions.entries()) {
+    await chat.getByLabel("message").fill(text);
+    await chat.getByRole("button", { name: "Send" }).click();
+    await expect(chat.locator(".msg.assistant")).toHaveCount(i + 1, { timeout: 10_000 });
+  }
+  const messages = chat.locator(".messages");
+  await expect.poll(() => messages.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  const list = (await messages.boundingBox())!;
+  const own = (await chat.locator(".msg.user", { hasText: "Third question" }).boundingBox())!;
+  const answer = (await chat.locator(".msg.assistant").last().boundingBox())!;
+  expect(Math.abs(own.y - list.y)).toBeLessThan(12);
+  expect(answer.y).toBeGreaterThanOrEqual(own.y + own.height - 1);
+  expect(answer.y).toBeLessThan(own.y + own.height + 24);
+  await messages.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const pinned = (await chat.locator(".msg.user", { hasText: "Third question" }).boundingBox())!;
+  expect(Math.abs(pinned.y - list.y)).toBeLessThan(12);
+});
+
 test("the panel has one ×; an empty draft is discarded, a draft with text stays inline, Close chat closes it for reopening", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);

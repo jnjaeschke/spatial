@@ -8,7 +8,7 @@
 
 > **Conversation**(`data`): `Element`
 
-Messages and reply form of one chat thread; `lead` renders before the messages.
+Messages and reply form of one chat thread; `lead` renders before the messages; the last own message stays pinned at the top while its answer scrolls.
 
 ## Parameters
 
