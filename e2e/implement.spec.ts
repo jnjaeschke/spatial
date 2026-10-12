@@ -6,6 +6,8 @@ import { test, expect } from "@playwright/test";
 
 const repoDirs: string[] = [];
 test.afterEach(() => { for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+const treeherder = (action: "hold" | "release") => fetch(`http://127.0.0.1:4181/${action}`, { method: "POST" });
+test.afterEach(async () => { await treeherder("release"); });
 
 function git(dir: string, ...args: string[]) {
   return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
@@ -125,6 +127,7 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await expect(bar.getByLabel("decision text")).toHaveValue("./mach try fuzzy --query 'mochitest-plain'");
   expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
   await bar.getByLabel("decision text").fill("./mach try fuzzy --query 'mochitest-plain' --artifact");
+  await treeherder("hold");
   await bar.getByRole("button", { name: "Push" }).click();
   await expect(bar).toContainText(/Submit 1 commit \([0-9a-f]{12}\) to Phabricator\?/, { timeout: 20_000 });
   await expect(bar.getByLabel("decision text")).toHaveValue("#dom-core");
@@ -132,9 +135,17 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   expect(existsSync(join(dir, ".git/moz-phab-args"))).toBe(false);
 
   await page.getByTestId("epoch-chip-5").click();
+  const refresh = page.getByRole("button", { name: "Check Treeherder now" });
+  await expect(page.getByTestId("try-headline")).toContainText("Running: 1 done, 1 running, 1 pending", { timeout: 20_000 });
+  await expect(refresh).toBeVisible();
+  const refreshed = page.waitForResponse((res) => /\/try\/pushes\/[^/]+\/refresh$/.test(res.url()));
+  await refresh.click();
+  expect((await refreshed).status()).toBe(200);
+  await treeherder("release");
   await expect(page.getByTestId("try-failure")).toContainText("test-linux1804-64/opt-mochitest-plain-1", { timeout: 20_000 });
   await expect(page.getByTestId("try-failure")).toContainText("c is missing");
   await expect(page.getByTestId("try-headline")).toContainText("Finished: 3 done, 1 failing", { timeout: 20_000 });
+  await expect(refresh).toHaveCount(0);
   expect(readFileSync(join(dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean)).toEqual(["try", "fuzzy", "--query", "mochitest-plain", "--artifact"]);
 
   const base = git(dir, "rev-parse", "main");

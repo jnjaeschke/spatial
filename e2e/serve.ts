@@ -256,10 +256,11 @@ await new Promise<void>((resolve) => conduit.listen(CONDUIT_PORT, "127.0.0.1", r
 process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${CONDUIT_PORT}`;
 
 const TREEHERDER_PORT = Number(process.env.E2E_TREEHERDER_PORT ?? 4181);
-let statusCalls = 0;
+let statusCalls = 0, held = false;
 const treeherder = createServer((req, res) => {
+  if (req.method === "POST" && (req.url === "/hold" || req.url === "/release")) { held = req.url === "/hold"; res.writeHead(204).end(); return; }
   if (!/^\/api\/project\/try\/push\/\d+\/status\/$/.test(req.url ?? "")) { res.writeHead(404).end(); return; }
-  const done = ++statusCalls > 2;
+  const done = !held && ++statusCalls > 2;
   res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(done ? { completed: 3, pending: 0, running: 0, success: 2, testfailed: 1 } : { completed: 1, pending: 1, running: 1, testfailed: 1 }));
 });
 await new Promise<void>((resolve) => treeherder.listen(TREEHERDER_PORT, "127.0.0.1", resolve));
