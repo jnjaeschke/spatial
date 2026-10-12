@@ -1,5 +1,5 @@
 import { defineTask, makeGitWriter, type Id, type WriteMode } from "../../../../plugin-api.ts";
-import { chooseProfile } from "../../profiles.ts";
+import { chooseProfile, requireEditsOnlyReady } from "../../profiles.ts";
 import { freeBranchName } from "../../branch.ts";
 import type { ImplementBranchData } from "../../shared/types.ts";
 import { nearestFork } from "../../../review/api.ts";
@@ -8,7 +8,7 @@ export const implementStart = defineTask<{ request: string; profile: string | nu
   kind: "implementStart",
   async run(ctx, { request, profile: requested, checkout, writeMode }) {
     const profile = await chooseProfile(ctx.repoProfiles, ctx.repo, requested);
-    if (writeMode === "editsOnly" && !profile.testCommand) throw new Error(`Edits-only mode needs a test command and the ${profile.id} profile has none`);
+    requireEditsOnlyReady(profile, writeMode);
     const writer = makeGitWriter(ctx.repo);
     if (checkout === "new-branch") {
       ctx.progress({ kind: "indeterminate", message: "resolving the base branch" });

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
-import { requireProfile } from "../../profiles.ts";
+import { requireEditsOnlyReady, requireProfile } from "../../profiles.ts";
 import { describeCheck } from "../../shared/acceptance.ts";
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
@@ -27,7 +27,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const branch = ctx.artifacts.get<ImplementBranchData>(input.branchId).data;
     const profile = requireProfile(ctx.repoProfiles, branch.profile);
     if (profile.requiresBug && input.bug === null) throw new Error(`The ${profile.id} profile needs a bug number`);
-    if (input.writeMode === "editsOnly" && !profile.testCommand) throw new Error(`Edits-only mode needs a test command and the ${profile.id} profile has none`);
+    requireEditsOnlyReady(profile, input.writeMode);
     const investigation = ctx.artifacts.get<InvestigationData>(input.investigationId).data;
     const planned = investigation.steps.map((step) => ({ message: withBug(step.message, input.bug), checks: step.checks }));
     const writer = makeGitWriter(ctx.repo);

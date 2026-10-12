@@ -11,6 +11,11 @@ export function requireProfile(profiles: ReadonlyMap<string, RepoProfile>, id: s
   return profile;
 }
 
+/** Throws when edits-only mode is asked of a profile that has no test command to run. */
+export function requireEditsOnlyReady(profile: RepoProfile, writeMode: string | undefined): void {
+  if (writeMode === "editsOnly" && !profile.testCommand) throw new Error(`Edits-only mode needs a test command and the ${profile.id} profile has none`);
+}
+
 /** `requested` when given (it must exist); else the only profile whose `detect` matches `repo`; else plain-git. */
 export async function chooseProfile(profiles: ReadonlyMap<string, RepoProfile>, repo: string, requested: string | null): Promise<RepoProfile> {
   if (requested !== null) return requireProfile(profiles, requested);
