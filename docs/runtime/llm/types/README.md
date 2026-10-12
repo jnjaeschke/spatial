@@ -6,6 +6,10 @@
 
 # runtime/llm/types
 
+## Classes
+
+- [LlmOutputError](classes/LlmOutputError.md)
+
 ## Interfaces
 
 - [LlmBackend](interfaces/LlmBackend.md)

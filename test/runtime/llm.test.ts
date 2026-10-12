@@ -8,7 +8,7 @@ import { ClaudeBackend } from "../../src/runtime/llm/claude.ts";
 import { CodexBackend } from "../../src/runtime/llm/codex.ts";
 import { LlmManager } from "../../src/runtime/llm/manager.ts";
 import { runProcess } from "../../src/runtime/process.ts";
-import type { LlmBackend, LlmRequest } from "../../src/runtime/llm/types.ts";
+import { LlmOutputError, type LlmBackend, type LlmRequest } from "../../src/runtime/llm/types.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 let dir: string;
@@ -93,6 +93,18 @@ test("claude: schema requested but no structured_output", async () => {
   await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req({ schema: SCHEMA })), /no structured_output/);
 });
 
+test("claude: missing provider session id is an error", async () => {
+  for (const session_id of [undefined, ""]) {
+    stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id }));
+    await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req()), /claude: the run reported no session id/);
+  }
+});
+
+test("claude: missing structured output is a retryable LLM output error", async () => {
+  stdout(JSON.stringify({ type: "result", is_error: false, result: "oops", session_id: "s" }));
+  await assert.rejects(new ClaudeBackend({ bin: STUB }).run(req({ schema: SCHEMA })), (error: Error) => error instanceof LlmOutputError && error.message === "claude returned no structured_output");
+});
+
 test("claude: static model list", async () => {
   const models = await new ClaudeBackend({ bin: STUB }).listModels();
   assert.deepEqual(models.map((m) => m.id), ["opus", "sonnet", "haiku"]);
@@ -133,6 +145,22 @@ test("codex: turn.failed surfaces the error message", async () => {
 test("codex: non-JSON agent message with schema is an error", async () => {
   stdout(codexOut("sorry, no"));
   await assert.rejects(new CodexBackend({ bin: STUB }).run(req({ schema: SCHEMA })), /codex returned invalid JSON/);
+});
+
+test("codex: missing thread id is an error", async () => {
+  for (const thread_id of [undefined, ""]) {
+    stdout([
+      { type: "thread.started", thread_id },
+      { type: "item.completed", item: { id: "i1", type: "agent_message", text: "answer" } },
+      { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+    ].map((event) => JSON.stringify(event)).join("\n"));
+    await assert.rejects(new CodexBackend({ bin: STUB }).run(req()), /codex: the run reported no thread id/);
+  }
+});
+
+test("codex: invalid structured output is a retryable LLM output error", async () => {
+  stdout(codexOut("sorry, no"));
+  await assert.rejects(new CodexBackend({ bin: STUB }).run(req({ schema: SCHEMA })), (error: Error) => error instanceof LlmOutputError && error.message.startsWith("codex returned invalid JSON:"));
 });
 
 test("codex: models from models_cache.json; missing file is an error", async () => {

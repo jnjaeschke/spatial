@@ -28,13 +28,13 @@ const testProfilePlugin = { id: "tp", repoProfiles: [
   { id: "checked-stack", description: "c", commitStyle: "stack" as const, checkCommand: () => "true" },
 ] };
 
-function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation) {
+function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof makeRepo>) => unknown, profile = "plain-git", plan: InvestigationData = investigation, providerSessionId: (call: number) => string | undefined = (call) => `p${call + 1}`) {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "1\n" }, "base");
   repo.git("switch", "-c", "spatial/x");
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: agent(prompts.length - 1, prompt, repo), providerSessionId: providerSessionId(prompts.length - 1) as string, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
@@ -216,6 +216,19 @@ test("a verification retry resumes the previous attempt's session with only the 
   assert.equal(prompts[0]!.resumeProviderSession, undefined);
   assert.equal(prompts[1]!.resumeProviderSession, "p1");
   assert.ok(prompts[1]!.prompt.startsWith("# Problems to fix") && prompts[1]!.prompt.includes("uncommitted"));
+  assert.ok(!prompts[1]!.prompt.includes("# Investigation"));
+});
+
+test("a later implement call uses the follow-up prompt even when the first call has no session id", async () => {
+  const { prompts, run } = setup((call, _, repo) => {
+    if (call === 1) repo.commit({ "b.txt": "b\n" }, "Add b");
+    return ok;
+  }, "plain-git", investigation, (call) => call === 0 ? undefined : `p${call + 1}`);
+  await run();
+  assert.equal(prompts.length, 2);
+  assert.equal(prompts[0]!.resumeProviderSession, undefined);
+  assert.equal(prompts[1]!.resumeProviderSession, undefined);
+  assert.ok(prompts[1]!.prompt.startsWith("# Problems to fix"));
   assert.ok(!prompts[1]!.prompt.includes("# Investigation"));
 });
 

@@ -1,5 +1,14 @@
 import type { BackendModels, LlmBackendId, LlmSelection, ModelInfo, WriteMode } from "../../shared/types.ts";
 
+/** The run finished but its output does not have the requested shape; `providerSessionId` lets the caller resume it with the problem. */
+export class LlmOutputError extends Error {
+  readonly providerSessionId: string;
+  constructor(message: string, providerSessionId: string) {
+    super(message);
+    this.providerSessionId = providerSessionId;
+  }
+}
+
 /** What a task asks of an LLM; model/effort are resolved by the LLM manager. */
 export interface LlmPrompt {
   prompt: string;

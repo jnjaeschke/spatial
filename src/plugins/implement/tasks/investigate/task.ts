@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type ChatThreadData, type Id, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, verifyDiagramAtBase } from "../../../../plugin-api.ts";
+import { type ChatThreadData, type Id, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
 import type { InvestigationData } from "../../shared/types.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
@@ -57,15 +57,28 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
       ] : []),
     ].join("\n\n");
     const ask = (text: string, resumeProviderSession?: string) => ctx.llm.run({ prompt: text, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
-    const attempts: string[][] = [];
-    let r = await ask(prompt);
-    for (;;) {
-      const problems = problemsOf(r.json, profile);
-      if (problems.length === 0) break;
-      attempts.push(problems);
-      if (attempts.length > MAX_RETRIES) throw new Error(`The investigation reply still has problems after ${MAX_RETRIES} retries:\n${attempts.map((list, i) => `Attempt ${i + 1}:\n${listProblems(list)}`).join("\n")}`);
-      r = await ask(`Your answer has problems:\n${listProblems(problems)}\n\nAnswer again with the full schema.`, r.providerSessionId);
-    }
+    const r = await (async () => {
+      const attempts: string[][] = [];
+      let session: string | undefined;
+      let nextPrompt = prompt;
+      for (;;) {
+        let result: Awaited<ReturnType<typeof ask>>;
+        let problems: string[];
+        try {
+          result = await ask(nextPrompt, session);
+          session = result.providerSessionId;
+          problems = problemsOf(result.json, profile);
+        } catch (error) {
+          if (!(error instanceof LlmOutputError)) throw error;
+          session = error.providerSessionId;
+          problems = [error.message];
+        }
+        if (problems.length === 0) return result!;
+        attempts.push(problems);
+        if (attempts.length > MAX_RETRIES) throw new Error(`The investigation reply still has problems after ${MAX_RETRIES} retries:\n${attempts.map((list, i) => `Attempt ${i + 1}:\n${listProblems(list)}`).join("\n")}`);
+        nextPrompt = `Your answer has problems:\n${listProblems(problems)}\n\nAnswer again with the full schema.`;
+      }
+    })();
     const reply = r.json as Reply;
     const { verified, dropped } = await verifyLocations(reply.locations, (path) => ctx.git.show(baseSha, path));
     const specRefs: NonNullable<InvestigationData["specRefs"]> = [];

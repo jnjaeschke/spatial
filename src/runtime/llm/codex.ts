@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { ModelInfo, WriteMode } from "../../shared/types.ts";
 import { runProcess } from "../process.ts";
 import { codexEventReader } from "./events.ts";
-import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
+import { LlmOutputError, type LlmBackend, type LlmRequest, type LlmResult } from "./types.ts";
 
 export class CodexBackend implements LlmBackend {
   readonly id = "codex" as const;
@@ -73,7 +73,7 @@ export class CodexBackend implements LlmBackend {
   }
 }
 
-/** `exec resume` accepts neither `--sandbox`, `--approve-for-me` nor `-C`: a resumed run states the same policy as `-c` overrides and works in the process cwd. */
+/** `exec resume` accepts neither `--sandbox`, `--approve-for-me` nor `-C`: a resumed run states the same policy as `-c` overrides (auto mode: workspace-write sandbox, approval requests routed to automatic review) and works in the process cwd. */
 function sandboxArgs(write: boolean, mode: WriteMode, resumed: boolean): string[] {
   if (!write) return resumed ? ["-c", 'sandbox_mode="read-only"'] : ["--sandbox", "read-only"];
   if (mode === "full") return ["--dangerously-bypass-approvals-and-sandbox"];
@@ -99,14 +99,15 @@ function parseCodexOutput(stdout: string, stderr: string, code: number, structur
   }
   if (error) throw new Error(`codex: ${error}`);
   if (code !== 0) throw new Error(`codex exited with code ${code}: ${stderr.trim().slice(-2000)}`);
-  if (text === undefined || threadId === undefined) throw new Error(`codex produced no agent message${warning ? `: ${warning}` : ""}`);
+  if (threadId === undefined || threadId.length === 0) throw new Error("codex: the run reported no thread id");
+  if (text === undefined) throw new Error(`codex produced no agent message${warning ? `: ${warning}` : ""}`);
   const result: LlmResult = { text, providerSessionId: threadId };
   if (usage) result.usage = usage;
   if (structured) {
     try {
       result.json = JSON.parse(text);
     } catch {
-      throw new Error(`codex returned invalid JSON: ${text.slice(0, 500)}`);
+      throw new LlmOutputError(`codex returned invalid JSON: ${text.slice(0, 500)}`, threadId);
     }
   }
   return result;

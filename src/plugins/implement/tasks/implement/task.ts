@@ -69,6 +69,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     const selection = input.llm ?? ctx.llm.defaultSelection;
     let recorded: string | undefined;
     let session: string | undefined;
+    let firstCall = true;
     const onEvent = (event: LlmEvent) => {
       if (event.kind === "progress") ctx.progress({ kind: "indeterminate", message: event.message });
       else if (event.kind === "session") {
@@ -83,7 +84,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     };
     /** The first call starts a session with `fresh`; every later call resumes the session of the call before it with only `followUp`. */
     const call = async (fresh: string, followUp: string): Promise<AgentReply> => {
-      const r = await ctx.llm.run({ prompt: session === undefined ? fresh : followUp, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
+      const prompt = firstCall ? fresh : followUp;
+      firstCall = false;
+      const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
       session = r.providerSessionId;
       if (!isAgentReply(r.json)) throw new Error(`Implement reply is not valid: ${JSON.stringify(r.json)}`);
       return r.json;

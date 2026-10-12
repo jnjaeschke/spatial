@@ -391,6 +391,12 @@ Re-exports [llmField](../server/http/functions/llmField.md)
 
 ***
 
+### LlmOutputError
+
+Re-exports [LlmOutputError](../runtime/llm/types/classes/LlmOutputError.md)
+
+***
+
 ### LlmPrompt
 
 Re-exports [LlmPrompt](../runtime/llm/types/interfaces/LlmPrompt.md)

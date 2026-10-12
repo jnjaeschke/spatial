@@ -1,7 +1,7 @@
 import type { ModelInfo } from "../../shared/types.ts";
 import { runProcess } from "../process.ts";
 import { claudeEventReader } from "./events.ts";
-import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
+import { LlmOutputError, type LlmBackend, type LlmRequest, type LlmResult } from "./types.ts";
 
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 /** What a read-only run may execute: searchfox-cli, chromium-search (every subcommand reads), and webspec-index's query subcommands (not `update`, `reparse` or `clear-db`, which rewrite its index). */
@@ -56,7 +56,8 @@ export class ClaudeBackend implements LlmBackend {
     }
     if (out?.is_error) throw new Error(`claude: ${out.result ?? out.subtype ?? "unknown error"}`);
     if (code !== 0 || !out) throw new Error(`claude exited with code ${code}: ${(stderr || stdout).trim().slice(-2000)}`);
-    if (req.schema && out.structured_output === undefined) throw new Error("claude returned no structured_output");
+    if (typeof out.session_id !== "string" || out.session_id.length === 0) throw new Error("claude: the run reported no session id");
+    if (req.schema && out.structured_output === undefined) throw new LlmOutputError("claude returned no structured_output", out.session_id);
 
     const result: LlmResult = { text: out.result ?? "", providerSessionId: out.session_id };
     if (req.schema) result.json = out.structured_output;

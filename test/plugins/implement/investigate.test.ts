@@ -7,7 +7,7 @@ import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../..
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
-import type { Plugin } from "../../../src/plugin-api.ts";
+import { LlmOutputError, type Plugin } from "../../../src/plugin-api.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
@@ -142,6 +142,21 @@ test("an invalid reply is answered again in the resumed session with only the pr
   assert.ok(prompts[1]!.prompt.startsWith("Your answer has problems:") && prompts[1]!.prompt.includes("not valid") && prompts[1]!.prompt.includes("Answer again with the full schema."));
   assert.ok(!prompts[1]!.prompt.includes("# Request"));
   assert.equal(store.getArtifact<InvestigationData>(out.investigationId).data.summary, "S");
+});
+
+test("an LLM output error becomes the problem for an attempt that resumes the failed run's session", async () => {
+  const { run, prompts } = setup((call: number) => {
+    if (call === 0) throw new LlmOutputError("codex returned invalid JSON: nope", "failed-run");
+    return reply();
+  });
+  await run();
+  assert.deepEqual(prompts.map((prompt) => prompt.resumeProviderSession), [undefined, "failed-run"]);
+  assert.ok(prompts[1]!.prompt.includes("codex returned invalid JSON: nope"));
+});
+
+test("an investigation propagates errors other than LLM output errors", async () => {
+  const { run } = setup(() => { throw new Error("backend unavailable"); });
+  await assert.rejects(run(), /backend unavailable/);
 });
 
 test("a reply without steps, then one with too many for a single-commit profile, is retried through the session chain", async () => {
