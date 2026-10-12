@@ -192,3 +192,52 @@ test("failed phases retry in place and succeeded phases cannot retry", async () 
   assert.deepEqual(retried.input, { value: "saved" });
   assert.throws(() => rt.retryPhase(session.id), /Latest epoch did not fail/);
 });
+
+test("cancelEpoch aborts the tasks the running phase started and resolves once the phase stopped; other tasks of the session keep running", async () => {
+  const store = new Store(":memory:");
+  const phase: Phase<null> = { id: "work", async run(rt, sessionId) { await rt.run(sessionId, "slow", null); } };
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [slow], phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  await assert.rejects(rt.cancelEpoch(session.id), /no running epoch/);
+  const running = rt.runPhase(session.id, "work", null);
+  const background = rt.start(session.id, "slow", null);
+  const backgroundEnd = background.done.then(() => "finished", (e: unknown) => e instanceof TaskCancelledError ? "cancelled" : "failed");
+  await new Promise((resolve) => setImmediate(resolve));
+  const { epoch, taskIds } = await rt.cancelEpoch(session.id);
+  assert.equal(epoch.status, "cancelled");
+  assert.equal(taskIds.length, 1);
+  assert.notEqual(taskIds[0], background.taskId);
+  assert.equal(store.getTask(taskIds[0]!).status, "cancelled");
+  assert.equal((await running).status, "cancelled");
+  assert.equal(store.getTask(background.taskId).status, "running");
+  rt.cancel(background.taskId);
+  assert.equal(await backgroundEnd, "cancelled");
+});
+
+test("cancelEpoch refuses an epoch whose phase has no running task", async () => {
+  const store = new Store(":memory:");
+  let finish!: () => void;
+  const phase: Phase<null> = { id: "idle", run: () => new Promise<void>((resolve) => { finish = resolve; }) };
+  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const pending = rt.runPhase(session.id, "idle", null);
+  await assert.rejects(rt.cancelEpoch(session.id), /has no running task/);
+  finish();
+  await pending;
+});
+
+test("task contexts carry their epoch, the session's repoDir and the recent progress of a task", async () => {
+  const store = new Store(":memory:");
+  const probe = defineTask<null, unknown>({ kind: "probe", async run(ctx) {
+    ctx.progress({ kind: "indeterminate", message: "one" });
+    ctx.progress({ kind: "indeterminate", message: "two" });
+    ctx.progress({ kind: "steps", step: "build", index: 1, count: 2 });
+    return { epoch: ctx.epoch, repoDir: ctx.repoDir, recent: ctx.events.recent(ctx.taskId, 2), other: ctx.events.recent("nope", 5) };
+  } });
+  const phase: Phase<null> = { id: "probing", async run(rt, sessionId) { await rt.run(sessionId, "probe", null); } };
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [probe], phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  assert.equal((await rt.run<{ epoch: number | null }>(session.id, "probe", null)).epoch, null);
+  await rt.runPhase(session.id, "probing", null);
+  assert.deepEqual(store.listTasks(session.id).at(-1)!.output, { epoch: 1, repoDir: "/repo/.git", recent: ["two", "build (1/2)"], other: [] });
+});

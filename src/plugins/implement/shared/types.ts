@@ -9,6 +9,8 @@ export type CommentAction = "address" | "reply" | "ignore";
 export interface CommentInterpretationData { comment: Id; phid: string; asks: string; proposal: string; action: CommentAction; reply: string | null }
 /** User's mark on a comment, linked `about → comment`; latest per phid wins. */
 export interface CommentTriageData { comment: Id; phid: string; action: CommentAction; text: string | null }
+/** What the user said when stopping a running phase (artifact `Steer`, verified, linked `about →` the WorkflowStart); stamped with the epoch that was stopped. */
+export interface SteerData { text: string; epoch: number; phase: string }
 
 /** Recorded (verified) by the start: where the work lives; `baseSha` is the commit the branch started from, or the fork point of the current branch from main for `current-branch`. */
 export interface ImplementBranchData { branch: string; baseSha: string; baseRef: string | null; profile: string; checkout: "new-branch" | "current-branch" }

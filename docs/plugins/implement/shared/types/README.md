@@ -20,6 +20,7 @@
 - [InvestigationStep](interfaces/InvestigationStep.md)
 - [ReviewerCommentsInput](interfaces/ReviewerCommentsInput.md)
 - [StackRewriteData](interfaces/StackRewriteData.md)
+- [SteerData](interfaces/SteerData.md)
 
 ## Type Aliases
 

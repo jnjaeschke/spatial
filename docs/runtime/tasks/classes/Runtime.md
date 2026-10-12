@@ -134,6 +134,24 @@ Runs the steps `nextStep` returns until it returns null. A run step is `runPhase
 
 ***
 
+### cancelEpoch()
+
+> **cancelEpoch**(`sessionId`): `Promise`\<\{ `epoch`: [`Epoch`](../../../shared/types/interfaces/Epoch.md); `taskIds`: `string`[]; \}\>
+
+Cancels the top-level tasks the running epoch's phase started (their children go with them) and resolves with the epoch and those task ids once its phase has stopped. The epoch is `cancelled`, or has ended otherwise when the phase finished first. Rejects when no epoch runs or its phase has no running task.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `epoch`: [`Epoch`](../../../shared/types/interfaces/Epoch.md); `taskIds`: `string`[]; \}\>
+
+***
+
 ### emit()
 
 > **emit**(`sessionId`, `actor`, `type`, `payload`): [`RuntimeEvent`](../../../shared/types/interfaces/RuntimeEvent.md)

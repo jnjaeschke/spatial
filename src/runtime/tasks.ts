@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection,
 } from "../shared/types.ts";
@@ -87,6 +88,10 @@ export interface GitCapability {
 export interface TaskContext {
   sessionId: Id;
   taskId: Id;
+  /** The epoch the task started in; null outside a phase run. */
+  epoch: number | null;
+  /** Identity of the session's repository (`Session.repoDir`): the scope of per-repo knowledge. */
+  repoDir: string;
   repo: string;
   signal: AbortSignal;
   git: GitCapability;
@@ -121,6 +126,10 @@ export interface TaskContext {
   chat: { context(view: SessionView): string[]; replyFields: PluginRegistry["chatReplyFields"] };
   links: { put(from: Ref, to: Ref, kind: LinkKind): Link };
   progress(p: Progress): void;
+  events: {
+    /** The last `limit` progress lines task `taskId` of this session reported, oldest first. */
+    recent(taskId: Id, limit: number): string[];
+  };
 }
 
 export interface TaskDefinition<I, O> {
@@ -177,6 +186,11 @@ export interface RuntimeOptions {
 }
 
 export type Listener = (e: RuntimeEvent) => void;
+/** The top-level tasks a running epoch's phase started; `Runtime.cancelEpoch` aborts them. */
+interface EpochRun { sessionId: Id; tasks: Map<Id, AbortController>; settled: Promise<void> }
+/** Carries the running epoch to every task its phase starts, however deep in async calls: a task started from a route during the epoch is not the epoch's. */
+const epochRun = new AsyncLocalStorage<EpochRun>();
+const progressText = (p: Progress): string | null => p.kind === "steps" ? `${p.step} (${p.index}/${p.count})` : p.message ?? null;
 
 export class Runtime {
   #store: Store;
@@ -193,6 +207,7 @@ export class Runtime {
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
   #repoContext: (repo: string) => RepoContext;
   #running = new Map<Id, AbortController>();
+  #epochRuns = new Map<Id, EpochRun>();
   #listeners = new Set<Listener>();
 
   constructor(opts: RuntimeOptions) {
@@ -270,12 +285,17 @@ export class Runtime {
     const abort = () => controller.abort();
     parent?.signal.addEventListener("abort", abort, { once: true });
     this.#running.set(task.id, controller);
+    const scope = parent === null ? epochRun.getStore() : undefined;
+    const owner = scope?.sessionId === sessionId ? scope : undefined;
+    owner?.tasks.set(task.id, controller);
     const actor: Actor = `task:${task.id}`;
     const emit = (type: string, payload: unknown) => this.emit(sessionId, actor, type, payload);
 
     const ctx: TaskContext = {
       sessionId,
       taskId: task.id,
+      epoch: task.epoch,
+      repoDir: session.repoDir,
       repo: session.worktree,
       signal: controller.signal,
       git: this.#git(session.worktree),
@@ -332,6 +352,7 @@ export class Runtime {
         },
       },
       progress: (p) => emit("task.progress", { taskId: task.id, progress: p }),
+      events: { recent: (recentTaskId, limit) => this.#store.listTaskProgress(sessionId, recentTaskId, limit).flatMap((p) => progressText(p) ?? []) },
     };
 
     this.#store.updateTask(task.id, { status: "running" });
@@ -362,6 +383,7 @@ export class Runtime {
       } finally {
         parent?.signal.removeEventListener("abort", abort);
         this.#running.delete(task.id);
+        owner?.tasks.delete(task.id);
       }
     })();
     return { taskId: task.id, done };
@@ -379,7 +401,7 @@ export class Runtime {
     if (running) throw new PhaseBusyError(sessionId, running);
     const epoch = this.#store.createEpoch(sessionId, phaseId, input);
     this.emit(sessionId, "runtime", "epoch.started", { n: epoch.n, phase: epoch.phase });
-    return this.#executePhase(phase, sessionId, input, epoch);
+    return this.#launch(phase, sessionId, input, epoch);
   }
 
   /** Reruns the latest epoch, which must have failed or been cancelled, in place with its stored input; otherwise like `runPhase`. */
@@ -392,7 +414,7 @@ export class Runtime {
     if (running) throw new PhaseBusyError(sessionId, running);
     const retry = this.#store.updateEpoch(sessionId, epoch.n, { status: "running", error: null });
     this.emit(sessionId, "runtime", "epoch.started", { n: retry.n, phase: retry.phase });
-    return this.#executePhase(phase, sessionId, retry.input, retry);
+    return this.#launch(phase, sessionId, retry.input, retry);
   }
 
   /** The step `advance` would take now: the follow-up of the latest epoch's phase when that epoch succeeded, else the workflow's `next`; null when neither has one. */
@@ -428,6 +450,26 @@ export class Runtime {
 
   runningEpoch(sessionId: Id): Epoch | null {
     return this.#store.listEpochs(sessionId).filter((epoch) => epoch.status === "running").at(-1) ?? null;
+  }
+
+  #launch(phase: Phase<unknown>, sessionId: Id, input: unknown, epoch: Epoch): Promise<Epoch> {
+    const run: EpochRun = { sessionId, tasks: new Map(), settled: Promise.resolve() };
+    this.#epochRuns.set(sessionId, run);
+    const result = epochRun.run(run, () => this.#executePhase(phase, sessionId, input, epoch));
+    run.settled = result.then(() => undefined, () => undefined);
+    void run.settled.then(() => { if (this.#epochRuns.get(sessionId) === run) this.#epochRuns.delete(sessionId); });
+    return result;
+  }
+
+  /** Cancels the top-level tasks the running epoch's phase started (their children go with them) and resolves with the epoch and those task ids once its phase has stopped. The epoch is `cancelled`, or has ended otherwise when the phase finished first. Rejects when no epoch runs or its phase has no running task. */
+  async cancelEpoch(sessionId: Id): Promise<{ epoch: Epoch; taskIds: Id[] }> {
+    const epoch = this.runningEpoch(sessionId), run = this.#epochRuns.get(sessionId);
+    if (!epoch || !run) throw new Error(`Session ${sessionId} has no running epoch`);
+    if (run.tasks.size === 0) throw new Error(`Epoch ${epoch.n} (${epoch.phase}) has no running task`);
+    const taskIds = [...run.tasks.keys()];
+    for (const controller of run.tasks.values()) controller.abort();
+    await run.settled;
+    return { epoch: this.#store.getEpoch(sessionId, epoch.n), taskIds };
   }
 
   async #executePhase(phase: Phase<unknown>, sessionId: Id, input: unknown, epoch: Epoch): Promise<Epoch> {
