@@ -1,4 +1,4 @@
-import { PhaseBusyError, workflowView, type Artifact, type Epoch, type Id, type Runtime, type WorkflowStartData } from "../../../plugin-api.ts";
+import { PhaseBusyError, latestArtifact, workflowView, type Artifact, type Epoch, type Id, type Runtime, type WorkflowStartData } from "../../../plugin-api.ts";
 import type { PhabCommentData } from "../../review/api.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 
@@ -38,7 +38,7 @@ export class CommentWatcher {
     const view = workflowView(rt.store, sessionId);
     const comments = newReviewerComments(view);
     if (!comments.length) return;
-    const llm = (view.artifacts.findLast((a) => a.type === "WorkflowStart")?.data as WorkflowStartData | undefined)?.llm;
+    const llm = latestArtifact<WorkflowStartData>(view.artifacts, "WorkflowStart")?.data.llm;
     try {
       await rt.runPhase(sessionId, "reviewerComments", { comments, ...(llm ? { llm } : {}) } satisfies ReviewerCommentsInput);
       await rt.advance(sessionId);

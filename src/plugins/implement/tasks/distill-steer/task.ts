@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type Artifact, type CommandRunData, type Id, type JsonSchema, defineTask, runStructured } from "../../../../plugin-api.ts";
+import { type Artifact, type CommandRunData, type Id, type JsonSchema, defineTask, latestArtifact, runStructured } from "../../../../plugin-api.ts";
 import type { InvestigationData, SteerData } from "../../shared/types.ts";
 import { currentMemories, distillProblems, type DistillReply } from "../../runtime/memories.ts";
 
@@ -17,7 +17,7 @@ export const distillSteer = defineTask<DistillInput, DistillReply>({
     const steer = view.artifacts.find((a) => a.id === steerId) as Artifact<SteerData> | undefined;
     if (!steer) throw new Error(`Unknown steer ${steerId}`);
     const before = view.artifacts.slice(0, view.artifacts.indexOf(steer));
-    const kind = (before.findLast((a) => a.type === "Investigation")?.data as InvestigationData | undefined)?.kind;
+    const kind = latestArtifact<InvestigationData>(before, "Investigation")?.data.kind;
     const commands = (before.filter((a) => a.type === "CommandRun" && a.epoch === steer.data.epoch) as Artifact<CommandRunData>[]).slice(-20);
     const progress = taskId ? ctx.events.recent(taskId, 30) : [];
     const existing = currentMemories(ctx.knowledge, ctx.repoDir);

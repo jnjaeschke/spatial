@@ -6,7 +6,7 @@ import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 import { commentsFeedback } from "../runtime/comments-feedback.ts";
-import { chosenDecision, workflowView } from "../../../plugin-api.ts";
+import { chosenDecision, latestArtifact, workflowView } from "../../../plugin-api.ts";
 
 export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
@@ -15,7 +15,6 @@ const planInvalidQuestion = (reason: string) => `The implement agent reports tha
 const fixQuestion = (count: number) => `Fix ${count} high finding${count === 1 ? "" : "s"}`;
 const REVIEW_KEYS = new Set(["review-fix", "reviewed"]);
 
-const latest = <T>(view: WorkflowView, type: string) => view.artifacts.findLast((a) => a.type === type) as Artifact<T> | undefined;
 const decisionsOf = (view: WorkflowView) => view.artifacts.filter((a) => a.type === "Decision") as Artifact<DecisionData>[];
 
 function ruleRounds(decisions: Artifact<DecisionData>[]): number {
@@ -71,7 +70,7 @@ const ownPhases = (profile: RepoProfile) => new Set([profile.investigatePhase ??
 
 /** Chooses the next implement workflow phase or decision from stored session state. */
 export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | null {
-  const start = latest<WorkflowStartData>(view, "WorkflowStart"), branch = latest<ImplementBranchData>(view, "ImplementBranch");
+  const start = latestArtifact<WorkflowStartData>(view.artifacts, "WorkflowStart"), branch = latestArtifact<ImplementBranchData>(view.artifacts, "ImplementBranch");
   if (!start || !branch) return null;
   const profile = ctx.repoProfiles.get(branch.data.profile);
   if (!profile) throw new Error(`Unknown repo profile: ${branch.data.profile}`);
@@ -81,7 +80,7 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   if (!last) return investigateStep(start, branch, profile, start.data.llm);
   if (last.status !== "succeeded") return null;
 
-  const decisions = decisionsOf(view), investigation = latest<InvestigationData>(view, "Investigation"), result = latest<ImplementResultData>(view, "ImplementResult");
+  const decisions = decisionsOf(view), investigation = latestArtifact<InvestigationData>(view.artifacts, "Investigation"), result = latestArtifact<ImplementResultData>(view.artifacts, "ImplementResult");
   const open = openHighFindings(view);
   const decisionStep = (key: string, question: string, options: DecisionOption[], chosen?: { option: string; reason: string }): Step => ({ decide: { key, question, options }, ...(chosen ? { chosen } : {}), epoch: last.n });
   const llm = (selection: LlmSelection | undefined) => selection ? { llm: selection } : {};
@@ -155,7 +154,7 @@ export function isActive(rt: Runtime, sessionId: Id): boolean {
   if (rt.store.listArtifacts(sessionId, "Abandoned").length > 0) return false;
   if (rt.runningEpoch(sessionId) !== null || rt.nextStep(sessionId) !== null) return true;
   const view = workflowView(rt.store, sessionId);
-  const branch = latest<ImplementBranchData>(view, "ImplementBranch");
+  const branch = latestArtifact<ImplementBranchData>(view.artifacts, "ImplementBranch");
   const profile = branch && rt.plugins.repoProfiles.get(branch.data.profile);
   if (!profile) return false;
   const own = ownPhases(profile);

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { defineTask, prependRepoContext, type Artifact, type Id } from "../../../../plugin-api.ts";
+import { defineTask, latestArtifact, prependRepoContext, type Artifact, type Id } from "../../../../plugin-api.ts";
 import type { PhabCommentData } from "../../../review/api.ts";
 import type { CommentInterpretationData, InvestigationData, ReviewerCommentsInput } from "../../shared/types.ts";
 import { memorySections } from "../../runtime/memories.ts";
@@ -25,7 +25,7 @@ export const interpretComments = defineTask<ReviewerCommentsInput, { interpretat
     for (const a of all) latest.set(a.data.phid, a);
     const byPhid = new Map([...latest].map(([phid, a]) => [phid, a.data]));
     const targets = comments.map((phid) => { const a = latest.get(phid); if (!a) throw new Error(`Unknown comment ${phid}`); return a; });
-    const kind = (ctx.artifacts.view().artifacts.findLast((a) => a.type === "Investigation")?.data as InvestigationData | undefined)?.kind ?? null;
+    const kind = latestArtifact<InvestigationData>(ctx.artifacts.view().artifacts, "Investigation")?.data.kind ?? null;
     const prompt = [...memorySections(ctx, "reviewerComments", kind), "# Reviewer comments", ...targets.map((a) => describe(a.data, byPhid))].join("\n\n");
     const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const json = r.json;
