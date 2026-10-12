@@ -11,7 +11,7 @@ import type { Artifact, CommandRunData, LlmSelection } from "../../../src/shared
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import type { ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
+import type { AcceptanceCheck, ImplementResultData, InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
 import type { ImplementInput } from "../../../src/plugins/implement/tasks/implement/task.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 
@@ -126,6 +126,50 @@ test("notes and chat threads since the last implement run reach the agent", asyn
   store.putLink({ sessionId: session.id, from: message.id, to: thread.id, kind: "reply" });
   await run();
   assert.ok(prompts[0]!.prompt.includes("remember the edge case") && prompts[0]!.prompt.includes("what about empty input?"));
+});
+
+const withChecks = (...checks: AcceptanceCheck[]): InvestigationData => ({ ...investigation, steps: [{ ...investigation.steps[0]!, checks }] });
+const event = (command: string, exitCode: number) => ({ kind: "command" as const, command, exitCode, durationMs: 1, output: exitCode ? "FAIL" : "ok" });
+
+test("the first implement run needs a failing, then a passing run of the new test", async () => {
+  const { prompts, run } = setup((call, prompt, r) => {
+    if (call === 0) r.commit({ "b.txt": "b\n" }, "Add b");
+    else { prompt.onEvent?.(event("t node t/a.js", 1)); prompt.onEvent?.(event("t node t/a.js", 0)); }
+    return ok;
+  }, "tp", withChecks({ kind: "new-test", path: "t/a.js" }));
+  await run();
+  assert.equal(prompts.length, 2);
+  assert.ok(prompts[1]!.prompt.includes("no run of a test command naming the test"));
+});
+
+test("a web-platform failing-test needs only a passing run", async () => {
+  const path = "testing/web-platform/tests/dom/a.html";
+  const { prompts, run } = setup((_, prompt, r) => { prompt.onEvent?.(event(`t wpt ${path}`, 0)); r.commit({ "b.txt": "b\n" }, "Add b"); return ok; }, "tp", withChecks({ kind: "failing-test", path, subtests: ["s"] }));
+  await run();
+  assert.equal(prompts.length, 1);
+});
+
+test("a measure check never blocks the run", async () => {
+  const measure = withChecks({ kind: "measure", command: "bench", goal: "faster" });
+  const good = setup((_, prompt, r) => {
+    prompt.onEvent?.(event("bench", 0));
+    prompt.onEvent?.({ kind: "progress", message: "editing b.txt" });
+    r.commit({ "b.txt": "b\n" }, "Add b");
+    prompt.onEvent?.(event("bench", 0));
+    return ok;
+  }, "tp", measure);
+  await good.run();
+  assert.equal(good.prompts.length, 1);
+  const none = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; }, "tp", measure);
+  await none.run();
+  assert.equal(none.prompts.length, 1);
+});
+
+test("a later implement run needs test evidence only for tests it ran", async () => {
+  const { base, prompts, put, run } = setup((_, __, r) => { r.commit({ "b.txt": "b\n" }, "Add b"); return ok; }, "tp", withChecks({ kind: "new-test", path: "t/a.js" }, { kind: "covering-test", path: "t/c.js" }));
+  put("ImplementResult", { head: base, branch: "spatial/x", summary: "", planChange: null, planInvalid: null });
+  await run();
+  assert.equal(prompts.length, 1);
 });
 
 test("a profile that requires a bug needs one", async () => {

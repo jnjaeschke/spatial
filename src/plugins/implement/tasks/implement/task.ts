@@ -4,6 +4,7 @@ import type { AgentSessionData, ImplementBranchData, ImplementResultData, Invest
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
 import { verifyStack } from "../../runtime/verify-stack.ts";
+import { checkEvidence, type CommandEvidence } from "../../runtime/check-evidence.ts";
 import { runEditsOnly } from "../../runtime/edits-only.ts";
 import type { ReviewFindingData } from "../../../review/api.ts";
 
@@ -65,18 +66,24 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     ].join("\n\n");
 
     const selection = input.llm ?? ctx.llm.defaultSelection;
+    const evidence: CommandEvidence[] = [];
+    let edited = false;
     let recorded: string | undefined;
     let session: string | undefined;
     let firstCall = true;
     const onEvent = (event: LlmEvent) => {
-      if (event.kind === "progress") ctx.progress({ kind: "indeterminate", message: event.message });
+      if (event.kind === "progress") {
+        if (event.message.startsWith("editing ")) edited = true;
+        ctx.progress({ kind: "indeterminate", message: event.message });
+      }
       else if (event.kind === "session") {
         if (event.providerSessionId === recorded) return;
         recorded = event.providerSessionId;
         ctx.artifacts.put<AgentSessionData>("AgentSession", "verified", { providerSessionId: event.providerSessionId, backend: selection.backend, model: selection.model });
       }
       else if (event.kind === "command") {
-        ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
+        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", { command: event.command, exitCode: event.exitCode, durationMs: event.durationMs, output: event.output, test: profile.isTestCommand?.(event.command) ?? false });
+        evidence.push({ id: run.id, command: event.command, exitCode: event.exitCode, edited });
       }
     };
     /** The first call starts a session with `fresh`; every later call resumes the session of the call before it with only `followUp`. */
@@ -124,7 +131,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const reply = await call(attempt === 0 ? prompt : [prompt, problemsSection(problems)].join("\n\n"), problemsSection(problems));
       if (reply.planInvalid && !input.ignorePlanInvalid) return done(await ctx.git.resolve("HEAD"), reply, null, reply.planInvalid);
       const checked = await verifyStack(ctx.git, await writer.currentBranch(), { baseSha: branch.baseSha, branch: branch.branch, plan: branch.checkout === "new-branch" ? planned : null, planChange: reply.planChange, profile });
-      const found = checked.problems;
+      const found = [...checked.problems, ...checkEvidence(investigation.steps, evidence, { first: !previous, profile }).problems];
       if (found.length === 0) return done(checked.head, reply, reply.planChange, null);
       problems = found;
     }

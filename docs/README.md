@@ -13,6 +13,7 @@
 - [plugins/gecko/runtime/try-watcher](plugins/gecko/runtime/try-watcher/README.md)
 - [plugins/gecko/shared/types](plugins/gecko/shared/types/README.md)
 - [plugins/implement/api](plugins/implement/api/README.md)
+- [plugins/implement/runtime/check-evidence](plugins/implement/runtime/check-evidence/README.md)
 - [plugins/implement/runtime/checks](plugins/implement/runtime/checks/README.md)
 - [plugins/implement/runtime/verify-stack](plugins/implement/runtime/verify-stack/README.md)
 - [plugins/implement/shared/acceptance](plugins/implement/shared/acceptance/README.md)
