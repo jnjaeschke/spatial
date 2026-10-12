@@ -14,6 +14,12 @@ export interface CommentTriageData { comment: Id; phid: string; action: CommentA
 export interface ImplementBranchData { branch: string; baseSha: string; baseRef: string | null; profile: string; checkout: "new-branch" | "current-branch" }
 /** A source location cited by an investigation. */
 export interface InvestigationLocation { path: string; line: number; quote: string; why: string }
+/** What shows that a plan step works. `new-test`: a test file the plan adds (absent at the base; fails before the fix, passes after). `failing-test`: an existing test that fails at the base and passes after; `baseEvidence` is set by the runtime for a web-platform test from its metadata. `covering-test`: an existing test that must still pass; a later step may name a file an earlier step adds. `measure`: a command run before and after; the user judges the numbers against `goal`. */
+export type AcceptanceCheck =
+  | { kind: "new-test"; path: string }
+  | { kind: "failing-test"; path: string; subtests: string[]; baseEvidence?: string }
+  | { kind: "covering-test"; path: string }
+  | { kind: "measure"; command: string; goal: string };
 /** One planned implementation step. */
 export interface InvestigationStep { title: string; message: string; intent: string; tests: string[] }
 /** The contract any investigate phase must produce (artifact `Investigation`, status proposed). `exploration` is the handoff to the implement agent, which starts without the investigator's context. `diagram` and `specRefs` are optional; `droppedLocations` and `diagramError` are set by the runtime. */

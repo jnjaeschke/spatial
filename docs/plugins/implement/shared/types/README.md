@@ -21,4 +21,5 @@
 
 ## Type Aliases
 
+- [AcceptanceCheck](type-aliases/AcceptanceCheck.md)
 - [CommentAction](type-aliases/CommentAction.md)
