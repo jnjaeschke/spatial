@@ -21,6 +21,12 @@ test("there is no graph before the investigation", () => {
   assert.equal(investigationGraph(state([start()]), []), null);
 });
 
+test("locations link at the session's link revision, else at Searchfox's tip", () => {
+  const s = start(), inv = art("Investigation", data);
+  const rev = (linkRev: string | null) => (investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "tip", linkRev }), [])!.nodes.find((n) => n.data.kind === "location")!.data as unknown as { searchfox: { rev: string } }).searchfox.rev;
+  assert.deepEqual([rev("base"), rev(null)], ["base", "tip"]);
+});
+
 test("the investigation is split into a header, a chain of step nodes and satellites", () => {
   const s = start(), inv = art("Investigation", { ...data, testCases: [{ description: "d", expected: "e" }], openQuestions: ["Q?"] });
   const g = investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "abc", linkRev: null }), [])!;

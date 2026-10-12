@@ -27,7 +27,7 @@ export function investigationGraph(state: SessionState, drafts: Draft[]): Graph 
   data.locations.forEach((location, index) => {
     const locationId = `${id}#loc${index}`;
     const on = location.step === null ? id : `${id}#step${location.step}`;
-    nodes.push({ id: locationId, anchors: [on], data: { kind: "location", anchor: locationId, location, searchfox: state.searchfox ? { repoBase: state.searchfox.repoBase, rev: state.searchfox.tipRev } : null } satisfies LocationNodeData });
+    nodes.push({ id: locationId, anchors: [on], data: { kind: "location", anchor: locationId, location, searchfox: state.searchfox ? { repoBase: state.searchfox.repoBase, rev: state.searchfox.linkRev ?? state.searchfox.tipRev } : null } satisfies LocationNodeData });
     link(locationId, on);
   });
   if (data.testCases.length) {
