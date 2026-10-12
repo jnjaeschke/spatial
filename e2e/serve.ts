@@ -19,6 +19,7 @@ const MOZ_PORT = Number(process.env.E2E_MOZ_PORT ?? 4180);
 const STUB = fileURLToPath(new URL("../test/stubs/fake-llm.mjs", import.meta.url));
 const WEBSPEC = fileURLToPath(new URL("../test/stubs/fake-webspec.mjs", import.meta.url));
 const SEARCHFOX = fileURLToPath(new URL("../test/stubs/fake-searchfox.mjs", import.meta.url));
+const CHROMIUM = fileURLToPath(new URL("../test/stubs/fake-chromium-search.mjs", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "e2e-"));
 const repo = makeRepo();
 const baseLines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
@@ -263,7 +264,7 @@ const moz = createServer(async (req, res) => {
 });
 await new Promise<void>((resolve) => moz.listen(MOZ_PORT, "127.0.0.1", resolve));
 
-const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC, searchfoxBin: SEARCHFOX });
+const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC, searchfoxBin: SEARCHFOX, chromiumSearchBin: CHROMIUM });
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);
 const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
 await runWorkflow(rt, fixture.id, fixtureStart.id);

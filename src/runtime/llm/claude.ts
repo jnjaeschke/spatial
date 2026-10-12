@@ -4,8 +4,8 @@ import { claudeEventReader } from "./events.ts";
 import type { LlmBackend, LlmRequest, LlmResult } from "./types.ts";
 
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
-/** What a read-only run may execute: searchfox-cli, and webspec-index's query subcommands (not `update`, `reparse` or `clear-db`, which rewrite its index). */
-const READ_ONLY_COMMANDS = ["searchfox-cli", ...["query", "search", "refs", "anchors", "idl", "trace", "effects", "exists"].map((sub) => `webspec-index ${sub}`)].map((command) => `Bash(${command}:*)`);
+/** What a read-only run may execute: searchfox-cli, chromium-search (every subcommand reads), and webspec-index's query subcommands (not `update`, `reparse` or `clear-db`, which rewrite its index). */
+const READ_ONLY_COMMANDS = ["searchfox-cli", "chromium-search", ...["query", "search", "refs", "anchors", "idl", "trace", "effects", "exists"].map((sub) => `webspec-index ${sub}`)].map((command) => `Bash(${command}:*)`);
 
 export class ClaudeBackend implements LlmBackend {
   readonly id = "claude" as const;

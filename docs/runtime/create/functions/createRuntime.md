@@ -12,6 +12,10 @@
 
 ### opts
 
+#### chromiumSearchBin?
+
+`string`
+
 #### claudeBin?
 
 `string`

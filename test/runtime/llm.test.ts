@@ -32,7 +32,7 @@ const req = (over: Partial<LlmRequest> = {}): LlmRequest => ({
   prompt: "PROMPT", model: "m1", effort: "high", tools: "none", signal: new AbortController().signal, ...over,
 });
 const SCHEMA = { type: "object", additionalProperties: false, required: ["n"], properties: { n: { type: "integer" } } };
-const READ_ONLY = "Bash(searchfox-cli:*) Bash(webspec-index query:*) Bash(webspec-index search:*) Bash(webspec-index refs:*) Bash(webspec-index anchors:*) Bash(webspec-index idl:*) Bash(webspec-index trace:*) Bash(webspec-index effects:*) Bash(webspec-index exists:*)";
+const READ_ONLY = "Bash(searchfox-cli:*) Bash(chromium-search:*) Bash(webspec-index query:*) Bash(webspec-index search:*) Bash(webspec-index refs:*) Bash(webspec-index anchors:*) Bash(webspec-index idl:*) Bash(webspec-index trace:*) Bash(webspec-index effects:*) Bash(webspec-index exists:*)";
 
 test("runProcess: abort kills the child and rejects", async () => {
   process.env.FAKE_LLM_SLEEP_MS = "10000";

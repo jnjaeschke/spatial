@@ -5,7 +5,8 @@ import { searchfoxCodeSearch } from "../../src/runtime/searchfox.ts";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import { corePlugin } from "../../src/runtime/create.ts";
+import { corePlugin, createRuntime } from "../../src/runtime/create.ts";
+import { ENGINES } from "../../src/runtime/code-search.ts";
 
 const signal = new AbortController().signal;
 
@@ -50,4 +51,9 @@ test("Runtime: Gecko code search wraps searchfox by default, engines without a t
   await assert.rejects(rt.codeSearch.blink.tip(), /No blink code search configured/);
   const blink = { ...missingCodeSearch("blink") };
   assert.equal(new Runtime({ ...options, store: new Store(":memory:"), codeSearch: { blink } }).codeSearch.blink, blink);
+});
+
+test("createRuntime wires every engine", () => {
+  const rt = createRuntime({ dbPath: ":memory:", chromiumSearchBin: "/x/chromium-search" });
+  assert.deepEqual(ENGINES.map((engine) => [rt.codeSearch[engine].engine, rt.codeSearch[engine].pinned, rt.codeSearch[engine].heuristicScopes]), [["gecko", true, false], ["blink", false, true], ["webkit", true, false]]);
 });

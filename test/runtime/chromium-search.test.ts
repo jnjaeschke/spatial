@@ -62,3 +62,11 @@ test("functionAt is the brace scan's function; the tip is main", async () => {
   assert.deepEqual(await chromium.tip(), { repoBase: "https://source.chromium.org/chromium/chromium/src/", rev: "main" });
   assert.deepEqual([chromium.engine, chromium.pinned, chromium.heuristicScopes], ["blink", false, true]);
 });
+
+const FAKE = fileURLToPath(new URL("../stubs/fake-chromium-search.mjs", import.meta.url));
+test("fake chromium-search: no spec links, frame_loader.cc readable, other files missing", async () => {
+  const fake = makeChromiumSearch({ bin: FAKE });
+  assert.deepEqual(await fake.specRefs("https://html.spec.whatwg.org/#navigate", signal), []);
+  assert.equal((await fake.file(FL, signal))!.split("\n").length, 1985);
+  assert.equal(await fake.file("x.cc", signal), null);
+});

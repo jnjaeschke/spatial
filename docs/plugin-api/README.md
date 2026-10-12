@@ -35,7 +35,7 @@ Everything a user works on is a plugin; review and chat are the standard library
   kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
   pick one per session; any plugin can add one.
 - The **knowledge store** (`Runtime.knowledge`, `Knowledge`) keeps plugin data across sessions in its own SQLite file (`knowledge.db` next to the session database): versioned entries by scope, namespace and key. A `null` value is a tombstone; nothing is deleted through any API. Tasks read it through `TaskContext.knowledge` (read-only); plugin runtime code writes.
-- **Code search** (`Runtime.codeSearch`, `TaskContext.codeSearch`, `CodeSearch`): spec links, enclosing functions, file reads and the revision per engine (Gecko through searchfox).
+- **Code search** (`Runtime.codeSearch`, `TaskContext.codeSearch`, `CodeSearch`): spec links, enclosing functions, file reads and the revision per engine (Gecko and WebKit through searchfox, Blink through chromium-search and a brace scan).
 
 The web side of a plugin registers phase views and canvas node kinds through
 `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
