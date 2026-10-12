@@ -18,6 +18,7 @@ export const isComplete = (counts: Record<string, number>) => (counts.completed 
 /** A push is polled on its own for this long after it was created; later states come from a manual refresh. */
 export const WATCH_LIMIT_MS = 24 * 60 * 60 * 1000;
 export const STOPPED_ERROR = "Stopped watching after 24 hours; refresh to check again";
+const REFRESH = "try-refresh";
 
 const plural = (n: number) => `${n} failing job${n === 1 ? "" : "s"}`;
 const same = (a: TryRunData, b: TryRunData) => JSON.stringify([a.counts, a.failures, a.error, a.complete]) === JSON.stringify([b.counts, b.failures, b.error, b.complete]);
@@ -76,6 +77,13 @@ export class TryWatcher {
     this.#timer = undefined;
   }
 
+  /** Polls one push now, whatever its age or state, and returns its latest `TryRun`. */
+  async refresh(sessionId: Id, push: Artifact<TryPushData>): Promise<Artifact<TryRunData>> {
+    const latest = () => (this.#rt.store.listArtifacts(sessionId, "TryRun") as Artifact<TryRunData>[]).findLast((run) => run.data.push === push.id);
+    await this.#poll(sessionId, push, latest()?.data ?? null, REFRESH);
+    return latest()!;
+  }
+
   async #observe(push: Artifact<TryPushData>, last: TryRunData | null): Promise<TryRunData> {
     const base = { push: push.id, url: push.data.url };
     try {
@@ -97,10 +105,10 @@ export class TryWatcher {
     return run;
   }
 
-  async #poll(sessionId: Id, push: Artifact<TryPushData>, last: TryRunData | null): Promise<void> {
+  async #poll(sessionId: Id, push: Artifact<TryPushData>, last: TryRunData | null, taskId = "try-watcher"): Promise<void> {
     const next = await this.#observe(push, last);
     if (last && same(last, next)) return;
-    this.#store(sessionId, push, next, "try-watcher");
+    this.#store(sessionId, push, next, taskId);
     const failed = next.failures.length;
     const notice: NotifyPayload | null = next.complete
       ? { id: `try-${push.id}`, title: failed ? `Try finished: ${plural(failed)}` : "Try finished: all jobs passed", body: push.data.command }

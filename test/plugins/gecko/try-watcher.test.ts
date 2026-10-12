@@ -99,6 +99,45 @@ test("a TryRun belongs to its push's epoch, so the push's epoch view shows it af
   assert.equal(store.listArtifacts(push.sessionId, "TryRun").find((a) => (a.data as TryRunData).push === pushed.id)!.epoch, 1);
 });
 
+test("refresh polls an expired push once, stores a changed state and returns the latest TryRun; the next tick does not store the 24-hour error over it", async () => {
+  const { watcher, runs, push, clock, polls, store } = setup({
+    out: [{ code: 0, stdout: failingJson(1) }, { code: 0, stdout: failingJson(2) }],
+    status: [{ completed: 1, running: 1 }, { completed: 2, running: 1 }],
+  });
+  await watcher.tick();
+  clock.t = Date.parse(push.createdAt) + 2 * WATCH_LIMIT_MS;
+  await watcher.tick();
+  assert.equal(runs().at(-1)!.error, STOPPED_ERROR);
+  const refreshed = await watcher.refresh(push.sessionId, push);
+  assert.equal(polls(), 2);
+  assert.equal(refreshed.type, "TryRun");
+  assert.equal(refreshed.data.error, null);
+  assert.equal(refreshed.data.failures.length, 2);
+  assert.equal(refreshed.provenance.taskId, "try-refresh");
+  assert.equal(store.listArtifacts(push.sessionId, "TryRun").at(-1)!.id, refreshed.id);
+  await watcher.tick();
+  assert.equal(runs().length, 3, "tick leaves a refreshed expired push alone");
+  assert.equal(polls(), 2);
+});
+
+test("refresh of an unchanged push stores nothing and returns the latest TryRun; a complete push can be refreshed", async () => {
+  const { watcher, runs, push } = setup({ out: [{ code: 0, stdout: failingJson(0) }], status: [{ completed: 4, running: 0, pending: 0 }] });
+  await watcher.tick();
+  await watcher.tick();
+  assert.equal(runs().at(-1)!.complete, true);
+  const stored = runs().length;
+  const latest = await watcher.refresh(push.sessionId, push);
+  assert.equal(runs().length, stored);
+  assert.equal(latest.data.complete, true);
+});
+
+test("refresh of a push that was never polled stores its first TryRun", async () => {
+  const { watcher, runs, push } = setup({ out: [{ code: 0, stdout: failingJson(1) }], status: [{ completed: 1, running: 1 }] });
+  const run = await watcher.refresh(push.sessionId, push);
+  assert.equal(runs().length, 1);
+  assert.equal(run.data.pushId, 7);
+});
+
 test("a push is polled only while younger than 24 hours; passing 24 hours stores one final TryRun that keeps the last state", async () => {
   const { watcher, runs, push, clock, polls } = setup({ out: [{ code: 0, stdout: failingJson(1) }], status: [{ completed: 1, running: 1 }] });
   const created = Date.parse(push.createdAt);

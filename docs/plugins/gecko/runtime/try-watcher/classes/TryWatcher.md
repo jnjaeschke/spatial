@@ -44,6 +44,28 @@ Polls Treeherder for every try push whose last observed state is not complete an
 
 ## Methods
 
+### refresh()
+
+> **refresh**(`sessionId`, `push`): `Promise`\<[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`TryRunData`](../../../shared/types/interfaces/TryRunData.md)\>\>
+
+Polls one push now, whatever its age or state, and returns its latest `TryRun`.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+##### push
+
+[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`TryPushData`](../../../shared/types/interfaces/TryPushData.md)\>
+
+#### Returns
+
+`Promise`\<[`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`TryRunData`](../../../shared/types/interfaces/TryRunData.md)\>\>
+
+***
+
 ### start()
 
 > **start**(): `void`
