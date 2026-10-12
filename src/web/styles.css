@@ -219,6 +219,8 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .minimap-mark.kind-spec { stroke: var(--kind-spec); }
 .session-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; }
 .session-body > .canvas { min-width: 0; }
+.phase-shell { grid-template-rows: auto minmax(0, 1fr); }
+.phase-shell-head { grid-column: 1 / -1; }
 .reviewer-comments-panel { position: relative; grid-column: 1 / -1; min-height: 0; overflow: auto; padding: 0 12px 12px; }
 .reviewer-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
 .reviewer-comment { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }

@@ -3,6 +3,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
+import { revealNode } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 test.afterEach(() => { for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -99,7 +100,9 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   await expect.poll(async () => ((await (await page.request.get(`http://127.0.0.1:4178/api/sessions/${sessionId}/state`)).json()) as { artifacts: { type: string }[] }).artifacts.some((a) => a.type === "AgentSession"), { timeout: 20_000 }).toBe(true);
   const conversation = page.getByTestId("conversation");
   await conversation.getByLabel("message").fill("STEER-ME name the helper");
-  await conversation.getByRole("button", { name: "Stop & steer" }).click();
+  const steer = conversation.getByRole("button", { name: "Stop & steer" });
+  await revealNode(page, steer);
+  await steer.click();
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
   await page.getByTestId("epoch-chip-2").click();
   await expect(page.getByTestId("steer-outcome")).toContainText(/resumed with your steer/i);
@@ -110,6 +113,7 @@ test("steering a running implement epoch restarts it, resumed with the steer, an
   const notice = conversation.getByTestId("memory-notice");
   await expect(notice).toContainText("Remembered for this repo");
   await expect(notice).toContainText("Name helpers after what they return");
+  await revealNode(page, notice);
   await notice.getByRole("button", { name: "Forget this" }).click();
   await expect(notice).toContainText("Forgotten");
   await expect(notice.getByRole("button", { name: "Forget this" })).toHaveCount(0);
