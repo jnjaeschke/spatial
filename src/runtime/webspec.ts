@@ -3,13 +3,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecIdlMember, SpecSite, SpecSearchResult } from "../shared/types.ts";
 import { runChecked, runProcess } from "./process.ts";
-import type { StepCommentCheck, WebspecCapability } from "./tasks.ts";
+import type { StepCommentCheck, WebspecCapability, WebspecLookup } from "./tasks.ts";
 
 interface AnalyzeOutput { scopes: { url: string; validations: { line: number; step: number[]; comment_text: string; result: StepCommentCheck["result"] }[] }[] }
 interface QueryOutput { spec: string; anchor: string; title: string; type: string; url: string; content: string; outgoing_refs?: { total: number }; effects?: SpecEffect[]; effects_status?: SpecEffectsStatus; sha?: string }
 type RawSite = SpecSite & Record<string, unknown>;
 interface EffectsOutput { effects: SpecEffect[]; explanations: { effect_id: string; witnesses: { hops: { from: RawSite; to: RawSite; site: { subject: RawSite } }[] }[] }[] }
 const site = (s: RawSite): SpecSite => ({ spec: s.spec, anchor: s.anchor, ...(s.step_path ? { step_path: s.step_path } : {}) });
+
+function lookupArgs(request: WebspecLookup): string[] {
+  switch (request.command) {
+    case "query": return ["query", ...(request.steps ? ["--steps", request.steps] : []), "--format", "markdown", "--", request.ref];
+    case "refs": return ["refs", "-d", request.direction, "-l", String(request.limit), "--", request.ref];
+    case "effects": return ["effects", ...(request.step ? ["--step", request.step] : []), "--compact", "--", request.ref];
+    case "flow": return ["flow", "--flow-format", "mermaid", "--", request.ref];
+    case "state": return ["state", "--format", "markdown", "--", request.selector];
+  }
+}
 
 export function makeWebspec(opts: { bin?: string } = {}): WebspecCapability {
   const bin = opts.bin ?? "webspec-index";
@@ -21,6 +31,7 @@ export function makeWebspec(opts: { bin?: string } = {}): WebspecCapability {
   };
   return {
     effect: "read-only",
+    async lookup(request, signal) { return (await runChecked(bin, lookupArgs(request), { stdin: "", signal, label: `webspec-index ${request.command}` })).stdout; },
     async resolve(url, signal) {
       const r = await runQuery(url, signal);
       if (!r.found) return r;

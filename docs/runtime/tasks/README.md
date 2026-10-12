@@ -28,6 +28,7 @@
 ## Type Aliases
 
 - [Listener](type-aliases/Listener.md)
+- [WebspecLookup](type-aliases/WebspecLookup.md)
 
 ## Functions
 

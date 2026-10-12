@@ -13,8 +13,18 @@ import { searchfoxCodeSearch } from "./searchfox.ts";
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
 
+/** A read-only webspec-index lookup whose text output goes to an LLM tool. */
+export type WebspecLookup =
+  | { command: "query"; ref: string; steps: string | null }
+  | { command: "refs"; ref: string; direction: "incoming" | "outgoing"; limit: number }
+  | { command: "effects"; ref: string; step: string | null }
+  | { command: "flow"; ref: string }
+  | { command: "state"; selector: string };
+
 export interface WebspecCapability {
   readonly effect: "read-only";
+  /** Text output of a read-only lookup for LLM tools: markdown for `query` and `state`, JSON for `refs` and `effects` (compact), a mermaid chart for `flow`. */
+  lookup(request: WebspecLookup, signal: AbortSignal): Promise<string>;
   resolve(url: string, signal: AbortSignal): Promise<{ found: true; spec: ResolvedSpec } | { found: false; reason: string }>;
   /** One section (`webspec-index query <ref>`); `ref` is a `SPEC#anchor` or a spec URL. */
   query(ref: string, signal: AbortSignal): Promise<{ found: true; section: SpecSection } | { found: false; reason: string }>;

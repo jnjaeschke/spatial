@@ -970,7 +970,7 @@ test("mapping a spec's steps needs a narrative and a spec with steps supporting 
 test("spec ref lookup reuses existing sections and caches newly linked sections", async () => {
   const routeStore = new Store(":memory:");
   const routeWebspec: WebspecCapability = {
-    effect: "read-only", async analyze() { return []; },
+    effect: "read-only", async analyze() { return []; }, async lookup() { throw new Error("not used"); },
     async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async idl() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
     async resolve(ref) { const anchor = ref.split("#").at(-1)!; return { found: true, spec: { spec: "HTML", anchor, title: anchor, type: "section", url: `https://html.spec.whatwg.org/#${anchor}`, content: "Section." } }; },
   };

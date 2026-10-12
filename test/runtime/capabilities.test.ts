@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeWebspec } from "../../src/runtime/webspec.ts";
+import type { WebspecLookup } from "../../src/runtime/tasks.ts";
 import { isGeckoRepo, makeSearchfox, parseFunctionAt, parseSpecRefs } from "../../src/runtime/searchfox.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
@@ -115,6 +116,30 @@ test("webspec: found", async () => {
   const r = await makeWebspec({ bin: STUB }).resolve("https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate", signal);
   assert.deepEqual(r, { found: true, spec: { spec: "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: "https://html.spec.whatwg.org/#navigate", content: "To **navigate**..." } });
   assert.deepEqual(argv()[0], ["query", "--format", "json", "--", "https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate"]);
+});
+
+test("webspec: lookup runs the read-only commands LLM tools use and returns their output", async () => {
+  const webspec = makeWebspec({ bin: STUB });
+  const requests: WebspecLookup[] = [
+    { command: "query", ref: "HTML#navigate", steps: "8" }, { command: "query", ref: "HTML#navigate", steps: null },
+    { command: "refs", ref: "HTML#navigate", direction: "incoming", limit: 20 },
+    { command: "effects", ref: "HTML#navigate", step: "24.9" }, { command: "effects", ref: "HTML#navigate", step: null },
+    { command: "flow", ref: "HTML#navigate" }, { command: "state", selector: "HTML#ongoing-navigation" },
+  ];
+  stdout("lookup output");
+  for (const request of requests) assert.equal(await webspec.lookup(request, signal), "lookup output");
+  assert.deepEqual(argv(), [
+    ["query", "--steps", "8", "--format", "markdown", "--", "HTML#navigate"], ["query", "--format", "markdown", "--", "HTML#navigate"],
+    ["refs", "-d", "incoming", "-l", "20", "--", "HTML#navigate"],
+    ["effects", "--step", "24.9", "--compact", "--", "HTML#navigate"], ["effects", "--compact", "--", "HTML#navigate"],
+    ["flow", "--flow-format", "mermaid", "--", "HTML#navigate"], ["state", "--format", "markdown", "--", "HTML#ongoing-navigation"],
+  ]);
+});
+
+test("webspec: a failing lookup throws with the command and stderr", async () => {
+  process.env.FAKE_LLM_EXIT = "1";
+  process.env.FAKE_LLM_STDERR = "Error: Unknown spec: FOO\n";
+  await assert.rejects(makeWebspec({ bin: STUB }).lookup({ command: "refs", ref: "FOO#x", direction: "outgoing", limit: 5 }, signal), { message: "webspec-index refs exited with code 1: Error: Unknown spec: FOO" });
 });
 
 test("webspec: not found is a value, other failures throw", async () => {

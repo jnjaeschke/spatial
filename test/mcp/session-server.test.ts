@@ -37,7 +37,7 @@ test("session MCP exposes live read-only overview, get, and search", async () =>
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["get", "read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["get", "read_skill", "scm_blame", "scm_branches", "scm_diff", "scm_file", "scm_log", "scm_merge_base", "scm_show", "scm_status", "search", "session_overview", "spec_effects", "spec_flow", "spec_query", "spec_refs", "spec_state"]);
   assert.ok(tools.every((tool) => tool.annotations?.readOnlyHint === true));
   const got = await client.callTool({ name: "get", arguments: { ref: `${narrative.id}#c1` } });
   assert.match(text(got), /Useful explanation/);

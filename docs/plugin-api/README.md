@@ -883,6 +883,12 @@ Re-exports [WebspecCapability](../runtime/tasks/interfaces/WebspecCapability.md)
 
 ***
 
+### WebspecLookup
+
+Re-exports [WebspecLookup](../runtime/tasks/type-aliases/WebspecLookup.md)
+
+***
+
 ### Workflow
 
 Re-exports [Workflow](../runtime/plugins/interfaces/Workflow.md)

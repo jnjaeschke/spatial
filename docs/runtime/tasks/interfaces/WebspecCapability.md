@@ -88,6 +88,28 @@ IDL members matching a query, `SPEC#anchor` or URL (`webspec-index idl`); empty 
 
 ***
 
+### lookup()
+
+> **lookup**(`request`, `signal`): `Promise`\<`string`\>
+
+Text output of a read-only lookup for LLM tools: markdown for `query` and `state`, JSON for `refs` and `effects` (compact), a mermaid chart for `flow`.
+
+#### Parameters
+
+##### request
+
+[`WebspecLookup`](../type-aliases/WebspecLookup.md)
+
+##### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
 ### query()
 
 > **query**(`ref`, `signal`): `Promise`\<\{ `found`: `true`; `section`: [`SpecSection`](../../../shared/types/interfaces/SpecSection.md); \} \| \{ `found`: `false`; `reason`: `string`; \}\>
