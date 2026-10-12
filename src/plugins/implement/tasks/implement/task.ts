@@ -84,7 +84,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
         ctx.artifacts.put<AgentSessionData>("AgentSession", "verified", { providerSessionId: event.providerSessionId, backend: selection.backend, model: selection.model, resumed: session !== undefined });
       }
       else if (event.kind === "command") {
-        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(event.command, event.exitCode, event.durationMs, event.output, profile.isTestCommand?.(event.command) ?? false));
+        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(event.command, event.exitCode, event.durationMs, event.output, profile.isTestCommand?.(event.command) ?? false, event.callId));
         evidence.push({ id: run.id, command: event.command, exitCode: event.exitCode, edited });
       }
     };

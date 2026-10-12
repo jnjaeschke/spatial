@@ -1,6 +1,8 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import type { Progress, TaskRecord } from "../shared/types.ts";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Artifact, CommandRunData, Progress, TaskRecord } from "../shared/types.ts";
 import { isActive } from "../shared/task-state.ts";
+import { activityRows } from "./activity-rows.ts";
+import type { ActivityLogTarget } from "./activity-log-context.ts";
 import { api, useTaskActivity } from "./api.ts";
 import { IconButton } from "./IconButton.tsx";
 
@@ -9,15 +11,15 @@ const describe = (p: Progress | undefined) =>
 
 const label = (kind: string) => kind === "narrate" ? "analyze" : kind === "importDiff" ? "read patch" : kind === "importRevision" ? "fetch revision" : kind;
 
-/** Running tasks plus the three most recent finished ones; failures show their error. A task's name opens its LLM activity log. */
-export function ActivityStrip({ sessionId, tasks, progress }: { sessionId: string; tasks: TaskRecord[]; progress: Record<string, Progress> }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+/** Running tasks plus the three most recent finished ones; failures show their error. A task's name opens its LLM activity log; `log` and `onLog` let the session open it from elsewhere. */
+export function ActivityStrip({ sessionId, tasks, artifacts, progress, log, onLog }: { sessionId: string; tasks: TaskRecord[]; artifacts: Artifact[]; progress: Record<string, Progress>; log: ActivityLogTarget | null; onLog(log: ActivityLogTarget | null): void }) {
+  const openId = log?.taskId ?? null;
   const running = tasks.filter(isActive);
   const finished = tasks.filter((t) => !running.includes(t)).slice(-3).reverse();
   const open = tasks.find((t) => t.id === openId);
   return <div className="activity">
     {[...running, ...finished].map((t) => <span key={t.id} className={`task ${t.status}`} data-testid={`task-${t.kind}`} data-status={t.status}>
-      <button type="button" className="task-name" aria-expanded={t.id === openId} title="Show what the LLM is doing" onClick={() => setOpenId(t.id === openId ? null : t.id)}>{label(t.kind)}</button> {t.status}
+      <button type="button" className="task-name" aria-expanded={t.id === openId} title="Show what the LLM is doing" onClick={() => onLog(t.id === openId ? null : { taskId: t.id })}>{label(t.kind)}</button> {t.status}
       {t.status === "running" && <> {describe(progress[t.id])} <button onClick={() => api.cancel(t.id).catch(console.error)}>Cancel</button></>}
       {t.status === "failed" && <> {t.error}</>}
       {t.kind === "review" && t.status === "succeeded" && (() => {
@@ -25,23 +27,41 @@ export function ActivityStrip({ sessionId, tasks, progress }: { sessionId: strin
         return errors.length > 0 ? <span className="dropped" title={errors.join("\n")}> · {errors.length} findings dropped</span> : null;
       })()}
     </span>)}
-    {open && <ActivityLog sessionId={sessionId} task={open} onClose={() => setOpenId(null)} />}
+    {open && log && <ActivityLog sessionId={sessionId} task={open} target={log} artifacts={artifacts} onClose={() => onLog(null)} />}
   </div>;
 }
 
-/** The text, reasoning and tool calls of a task's LLM runs, following new activity while scrolled to the end. */
-function ActivityLog({ sessionId, task, onClose }: { sessionId: string; task: TaskRecord; onClose(): void }) {
+/** The text, reasoning and tool calls of a task's LLM runs, following new activity while scrolled to the end. A tool call with its result is one row that expands to the output; the row of `target.callId` starts expanded and scrolled to. */
+function ActivityLog({ sessionId, task, target, artifacts, onClose }: { sessionId: string; task: TaskRecord; target: ActivityLogTarget; artifacts: Artifact[]; onClose(): void }) {
   const { activity, error } = useTaskActivity(sessionId, task.id);
   const list = useRef<HTMLOListElement>(null);
   const atEnd = useRef(true);
-  useLayoutEffect(() => { if (atEnd.current && list.current) list.current.scrollTop = list.current.scrollHeight; }, [activity]);
+  const scrolledTo = useRef<ActivityLogTarget | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(target.callId ? [target.callId] : []));
+  useEffect(() => { if (target.callId) setExpanded((open) => new Set(open).add(target.callId!)); }, [target]);
+  useLayoutEffect(() => {
+    const el = list.current;
+    if (!el) return;
+    const row = target.callId && scrolledTo.current !== target ? el.querySelector(`[data-call-id="${CSS.escape(target.callId)}"]`) : null;
+    if (row) { scrolledTo.current = target; atEnd.current = false; row.scrollIntoView({ block: "nearest" }); }
+    else if (atEnd.current) el.scrollTop = el.scrollHeight;
+  }, [activity, target]);
+  const toggle = (callId: string) => setExpanded((open) => { const next = new Set(open); if (!next.delete(callId)) next.add(callId); return next; });
+  const fullOutput = (callId: string, captured: string) => (artifacts.find((a) => a.type === "CommandRun" && (a.data as CommandRunData).callId === callId)?.data as CommandRunData | undefined)?.output ?? captured;
   return <section className="activity-log" role="dialog" aria-label={`${label(task.kind)} activity`} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
     <header><b>{label(task.kind)}</b> {task.status}<IconButton label="Close activity" onClick={onClose}>×</IconButton></header>
     {error ? <p className="failed">{error}</p>
       : !activity ? <p className="empty">Loading…</p>
       : !activity.length ? <p className="empty">No LLM activity{isActive(task) ? " yet" : ""}.</p>
       : <ol ref={list} onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
-        {activity.map((a, i) => <li key={i} className={`activity-${a.kind}`}>{a.kind === "tool" ? <><code>{a.name}</code> {a.detail}</> : a.text}</li>)}
+        {activityRows(activity).map((row, i) => row.kind !== "tool" ? <li key={i} className={`activity-${row.kind}`}>{row.text}</li>
+          : !row.result || !row.call.callId ? <li key={i} className="activity-tool"><code>{row.call.name}</code> {row.call.detail}</li>
+          : <li key={i} className="activity-tool" data-testid="activity-tool" data-call-id={row.call.callId}>
+            <button type="button" className="tool-row" aria-expanded={expanded.has(row.call.callId)} onClick={() => toggle(row.call.callId!)}>
+              <code>{row.call.name}</code> {row.call.detail} <span className={row.result.exitCode ? "exit-failed" : undefined}>{row.result.exitCode === null ? "" : row.result.exitCode === 0 ? "✓" : `✗ ${row.result.exitCode}`}</span> <span className="duration">{row.result.durationMs} ms</span>
+            </button>
+            {expanded.has(row.call.callId) && <pre className="tool-output" data-testid="tool-output">{fullOutput(row.call.callId, row.result.output)}</pre>}
+          </li>)}
       </ol>}
   </section>;
 }

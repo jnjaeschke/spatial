@@ -75,7 +75,7 @@ test("memories relevant to the implement phase and the investigation kind are in
 test("shell commands become CommandRun artifacts and progress lines", async () => {
   const { store, session, run } = setup((_, prompt, r) => {
     prompt.onEvent?.({ kind: "progress", message: "editing b.txt" });
-    prompt.onEvent?.({ kind: "command", command: "t suite", exitCode: 1, durationMs: 12, output: "FAIL" });
+    prompt.onEvent?.({ kind: "command", command: "t suite", exitCode: 1, durationMs: 12, output: "FAIL", callId: "c1" });
     prompt.onEvent?.({ kind: "command", command: "ls", exitCode: 0, durationMs: 3, output: "a.txt" });
     r.commit({ "b.txt": "b\n" }, "Add b");
     return ok;
@@ -83,7 +83,7 @@ test("shell commands become CommandRun artifacts and progress lines", async () =
   await run();
   const runs = store.listArtifacts(session.id, "CommandRun") as Artifact<CommandRunData>[];
   assert.deepEqual(runs.map((a) => a.data), [
-    { command: "t suite", exitCode: 1, durationMs: 12, output: "FAIL", test: true },
+    { command: "t suite", exitCode: 1, durationMs: 12, output: "FAIL", test: true, callId: "c1" },
     { command: "ls", exitCode: 0, durationMs: 3, output: "a.txt", test: false },
   ]);
   assert.ok(runs.every((a) => a.status === "verified" && a.epoch === null));

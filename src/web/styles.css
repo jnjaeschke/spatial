@@ -649,6 +649,10 @@ button.ask:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 
 .activity-log .activity-thinking { font-style: italic; color: var(--text-3); }
 .activity-log .activity-tool { font-family: var(--font-mono); }
 .activity-log .activity-tool code { color: var(--link); }
+.activity-log .tool-row { display: block; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; cursor: pointer; }
+.activity-log .tool-row .exit-failed { color: var(--danger); }
+.activity-log .tool-row .duration { color: var(--text-3); }
+.activity-log .tool-output { margin: 4px 0 0; padding: 6px 8px; max-height: 240px; overflow: auto; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
 .activity .failed { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, var(--border)); }
 .activity .failed::before { background: var(--danger); }
 .activity .running { color: var(--link); border-color: color-mix(in oklab, var(--accent) 35%, var(--border)); }
@@ -866,21 +870,13 @@ li.step-focus { background: color-mix(in oklab, var(--kind-spec) 14%, transparen
 .epoch-chip { font-size: 12px; white-space: nowrap; }
 .epoch-chip[aria-pressed="true"] { outline: 2px solid var(--accent); }
 .epoch-chip.failed { color: var(--danger); }
-.command-strip { padding: 6px 12px; }
-.command-chip { font-family: var(--font-mono); font-size: 12px; margin: 0 4px 4px 0; }
-.command-chip.pass { border-color: var(--success); }
-.command-chip.fail { border-color: var(--danger); }
-.command-chip.test { font-weight: 600; }
-.terminal { background: #111; color: #ddd; border-radius: 6px; padding: 8px; }
-.terminal pre { margin: 4px 0 0; max-height: 240px; overflow: auto; white-space: pre-wrap; }
 .try-proposal, .try-run { padding: 6px 12px; }
 .try-proposal code { white-space: pre-wrap; }
 .try-headline { display: flex; gap: 8px; align-items: baseline; }
 .try-run[data-complete="false"] .try-headline { font-style: italic; }
 .try-failures { margin: 4px 0 0; padding-left: 18px; }
 .try-failures ul { margin: 2px 0 4px; padding-left: 16px; font-family: var(--font-mono); font-size: 0.9em; }
-.terminal-title { color: #9ad; font-family: var(--font-mono); font-size: 12px; }
-.implement-summary, .steer-outcome, .running { padding: 0 12px; margin: 4px 0; }
+.implement-summary, .steer-outcome, .running, .command-summary { padding: 0 12px; margin: 4px 0; }
 .session-views { margin-left: 8px; }
 .plan-checks { margin: 4px 0 0; padding-left: 1.2em; font-size: 12px; }
 .check-evidence { color: var(--text-2); }

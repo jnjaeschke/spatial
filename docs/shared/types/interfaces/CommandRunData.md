@@ -10,6 +10,12 @@ A shell command an agent ran (source fact; artifact `CommandRun`, verified). `te
 
 ## Properties
 
+### callId?
+
+> `optional` **callId?**: `string`
+
+***
+
 ### command
 
 > **command**: `string`

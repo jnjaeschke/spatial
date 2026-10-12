@@ -13,6 +13,7 @@
 
 ## Interfaces
 
+- [ActivityLogTarget](interfaces/ActivityLogTarget.md)
 - [BoxProps](interfaces/BoxProps.md)
 - [CanvasModel](interfaces/CanvasModel.md)
 - [CanvasProps](interfaces/CanvasProps.md)
@@ -78,6 +79,7 @@
 - [InlineStatesContext](variables/InlineStatesContext.md)
 - [NODE\_WIDTH](variables/NODE_WIDTH.md)
 - [NodeKindsContext](variables/NodeKindsContext.md)
+- [OpenActivityLogContext](variables/OpenActivityLogContext.md)
 - [SATELLITE\_WIDTH](variables/SATELLITE_WIDTH.md)
 - [SearchfoxContext](variables/SearchfoxContext.md)
 - [StackContext](variables/StackContext.md)

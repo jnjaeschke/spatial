@@ -68,8 +68,12 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(page.getByTestId("epoch-chip-3")).toContainText("Fix (rule)", { timeout: 60_000 });
 
   await page.getByTestId("epoch-chip-2").click();
-  await page.getByTestId("command-chip").filter({ hasText: "echo hello-from-agent" }).click();
-  await expect(page.getByTestId("terminal-output")).toContainText("hello-from-agent");
+  await page.getByTestId("command-summary").click();
+  const log = page.getByRole("dialog", { name: "implement activity" });
+  await expect(log.getByTestId("tool-output")).toHaveCount(0);
+  await log.getByRole("button", { name: /echo hello-from-agent/ }).click();
+  await expect(log.getByTestId("tool-output")).toContainText("hello-from-agent");
+  await log.getByRole("button", { name: "Close activity" }).click();
   await page.getByTestId("epoch-chip-5").click();
 
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
@@ -241,8 +245,9 @@ test("gecko: after Accept try and Phabricator submit run only on click", async (
   await expect(checkResult).toHaveCount(1);
   await expect(checkResult).toContainText("covering-test a.txt");
   await expect(checkResult).toHaveAttribute("data-ok", "true");
+  await expect(page.getByTestId("command-summary")).toHaveText("1 command, 0 failed");
   await checkResult.getByTestId("check-run").click();
-  await expect(page.getByTestId("terminal-output")).toContainText("tests-ran-ok");
+  await expect(page.getByRole("dialog", { name: "implement activity" }).getByTestId("tool-output")).toContainText("tests-ran-ok");
   await page.getByTestId("epoch-chip-3").click();
   await bar.getByRole("button", { name: "Accept" }).click();
   await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });

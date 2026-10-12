@@ -96,7 +96,10 @@ test("a task's name in the activity strip opens what its LLM run said and did", 
   await expect(page.getByTestId("conversation")).toContainText("Found it.", { timeout: 10_000 });
   await page.getByTestId("task-chatTurn").getByRole("button", { name: "chatTurn" }).click();
   const log = page.getByRole("dialog", { name: "chatTurn activity" });
-  await expect(log.locator("li")).toHaveText(["Find the caller first.", "Grep CallerOfThings", "The caller lives in c.txt."]);
+  await expect(log.locator("li")).toHaveText(["Find the caller first.", /^Grep CallerOfThings\s+\d+ ms$/, "The caller lives in c.txt."]);
+  await expect(log.getByTestId("tool-output")).toHaveCount(0);
+  await log.getByRole("button", { name: /Grep CallerOfThings/ }).click();
+  await expect(log.getByTestId("tool-output")).toHaveText("c.txt:3: CallerOfThings()");
   await log.getByRole("button", { name: "Close activity" }).click();
   await expect(log).toHaveCount(0);
 });

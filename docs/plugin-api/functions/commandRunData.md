@@ -6,7 +6,7 @@
 
 # Function: commandRunData()
 
-> **commandRunData**(`command`, `exitCode`, `durationMs`, `output`, `test`): [`CommandRunData`](../../shared/types/interfaces/CommandRunData.md)
+> **commandRunData**(`command`, `exitCode`, `durationMs`, `output`, `test`, `callId?`): [`CommandRunData`](../../shared/types/interfaces/CommandRunData.md)
 
 A `CommandRun` record with the output capped at 256 KB.
 
@@ -31,6 +31,10 @@ A `CommandRun` record with the output capped at 256 KB.
 ### test
 
 `boolean`
+
+### callId?
+
+`string`
 
 ## Returns
 

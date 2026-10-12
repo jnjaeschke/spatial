@@ -8,7 +8,7 @@
 
 > **PhaseShell**(`__namedParameters`): `Element`
 
-The frame of an implement-style phase view: run status, a running line, `head` (lines spanning the view's width), the check results, the command strip, then the body. A check result opens its proving command in the strip.
+The frame of an implement-style phase view: run status, a running line, `head` (lines spanning the view's width), the check results, the command summary line, then the body. The summary and a check result's proving command open in the task's activity log.
 
 ## Parameters
 

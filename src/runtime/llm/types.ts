@@ -31,7 +31,7 @@ export interface LlmPrompt {
 /** Progress, finished shell commands, activity and the provider session id of a run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. */
 export type LlmEvent =
   | { kind: "progress"; message: string }
-  | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string }
+  | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string; callId?: string }
   | { kind: "activity"; activity: LlmActivity }
   | { kind: "session"; providerSessionId: string };
 

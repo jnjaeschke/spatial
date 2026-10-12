@@ -2,15 +2,19 @@ import type { CommandRunData } from "../../../web/plugin-api.ts";
 import type { ImplementResultData } from "../shared/types.ts";
 import type { Artifact, SessionState } from "../../../web/plugin-api.ts";
 
-/** A `CommandRun` as the implement view shows it. */
-export interface CommandChip extends CommandRunData { id: string }
-
-/** The command runs stamped with `epoch`, oldest first. */
-export function commandChips(state: SessionState, epoch: number | null): CommandChip[] {
-  return state.artifacts.filter((a) => a.type === "CommandRun" && a.epoch === epoch).map((a) => ({ id: a.id, ...(a.data as CommandRunData) }));
+/** The command runs stamped with `epoch` and the task whose activity log holds them; null when there are none. */
+export function commandSummary(state: SessionState, epoch: number | null): { count: number; failed: number; taskId: string } | null {
+  const runs = state.artifacts.filter((a) => a.type === "CommandRun" && a.epoch === epoch) as Artifact<CommandRunData>[];
+  const last = runs.at(-1);
+  return last ? { count: runs.length, failed: runs.filter((a) => a.data.exitCode !== 0).length, taskId: last.provenance.taskId } : null;
 }
-export const chipStatus = (chip: CommandChip): "pass" | "fail" => chip.exitCode === 0 ? "pass" : "fail";
-export const chipLabel = (chip: CommandChip): string => chip.command.length > 40 ? `${chip.command.slice(0, 39)}…` : chip.command;
+export const commandSummaryLabel = (s: { count: number; failed: number }): string => `${s.count} ${s.count === 1 ? "command" : "commands"}, ${s.failed} failed`;
+
+/** Where the activity log shows the command run `runId`: its task and tool call; no call for a command the runtime ran itself. */
+export function commandRunLog(state: SessionState, runId: string): { taskId: string; callId?: string } | null {
+  const run = state.artifacts.find((a) => a.id === runId && a.type === "CommandRun") as Artifact<CommandRunData> | undefined;
+  return run ? { taskId: run.provenance.taskId, ...(run.data.callId ? { callId: run.data.callId } : {}) } : null;
+}
 
 /** What the agent reported in `epoch`: its summary, or that the plan does not hold; null when it left no result. */
 export function implementSummary(state: SessionState, epoch: number | null): string | null {

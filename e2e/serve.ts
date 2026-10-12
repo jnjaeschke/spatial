@@ -44,6 +44,7 @@ const activityChatOut = join(dir, "activity-chat.jsonl");
 writeFileSync(activityChatOut, [
   { type: "system", subtype: "init", session_id: "stub-activity" },
   { type: "assistant", message: { content: [{ type: "thinking", thinking: "Find the caller first." }, { type: "tool_use", id: "t1", name: "Grep", input: { pattern: "CallerOfThings" } }] } },
+  { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "c.txt:3: CallerOfThings()", is_error: false }] } },
   { type: "assistant", message: { content: [{ type: "text", text: "The caller lives in c.txt." }] } },
   { type: "result", is_error: false, result: "Found it.", structured_output: { answer: "Found it.", questions: [], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-activity", usage: { input_tokens: 1, output_tokens: 1 } },
 ].map((line) => JSON.stringify(line)).join("\n"));

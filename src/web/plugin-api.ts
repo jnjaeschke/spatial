@@ -43,6 +43,8 @@ export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
 /** A location in a diff to show; with `row` the view jumps to that row where the diff is shown, without it the view opens the file. */
+export { OpenActivityLogContext } from "./activity-log-context.ts";
+export type { ActivityLogTarget } from "./activity-log-context.ts";
 export { FileViewContext } from "./file-view-context.ts";
 export type { FileViewRequest } from "./file-view-context.ts";
 export function TopbarExtras({ children }: { children: ReactNode }): ReactPortal | null {

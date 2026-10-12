@@ -10,7 +10,7 @@ export type WorkflowId = string;
 export type WriteMode = "auto" | "full" | "editsOnly";
 
 /** A shell command an agent ran (source fact; artifact `CommandRun`, verified). `test` is true when the profile's `isTestCommand` matches. `output` is capped at 256 KB. */
-export interface CommandRunData { command: string; exitCode: number; durationMs: number; output: string; test: boolean }
+export interface CommandRunData { command: string; exitCode: number; durationMs: number; output: string; test: boolean; /** The `callId` of the activity log's tool call that ran it; absent for commands the runtime ran itself. */ callId?: string }
 
 /** A question the start box shows before a session exists: the workflow selector's (answered in text) or the chosen workflow's precheck (`options`; an option with `cancel` abandons the start). Answer with `POST /api/start` `{ question: id, answer }`, the answer being the text or the option's index. */
 export interface StartQuestion { id: string; question: string; options?: { label: string; cancel?: true }[] }
@@ -72,7 +72,8 @@ export interface LlmSelection {
 }
 
 /** One step of an LLM run as its output streams: text it wrote, its reasoning, or a tool call with the argument that names what it works on. Payload of `task.activity` events. */
-export type LlmActivity = { kind: "text"; text: string } | { kind: "thinking"; text: string } | { kind: "tool"; name: string; detail: string };
+export type LlmActivity = { kind: "text"; text: string } | { kind: "thinking"; text: string } | { kind: "tool"; name: string; detail: string; callId?: string }
+  | { kind: "tool-result"; callId: string; exitCode: number | null; durationMs: number; output: string };
 
 /** A task's activity so far; later activity comes as `task.activity` events after `lastEventId`. */
 export interface TaskActivityResponse { activity: LlmActivity[]; lastEventId: number }
