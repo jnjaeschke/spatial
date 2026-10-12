@@ -51,6 +51,7 @@
 - [SequenceLane](interfaces/SequenceLane.md)
 - [SequenceStep](interfaces/SequenceStep.md)
 - [Session](interfaces/Session.md)
+- [SessionListing](interfaces/SessionListing.md)
 - [SessionState](interfaces/SessionState.md)
 - [SpecEffect](interfaces/SpecEffect.md)
 - [SpecEffectPaths](interfaces/SpecEffectPaths.md)

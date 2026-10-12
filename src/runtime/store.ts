@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type {
   Actor, Artifact, ArtifactStatus, Epoch, EpochStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
-  LlmActivity, Progress, RuntimeEvent, Session, TaskRecord, TaskStatus,
+  LlmActivity, Progress, RuntimeEvent, Session, SessionListing, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
 import type { SearchDoc } from "./render-ref.ts";
 
@@ -85,6 +85,26 @@ export class Store {
 
   listSessions(): Session[] {
     return (this.#db.prepare("SELECT * FROM sessions ORDER BY created_at, rowid").all() as Row[]).map(toSession);
+  }
+
+  /** `listSessions` with each session's last activity: its newest event's time, else its creation. */
+  listSessionListings(): SessionListing[] {
+    return (this.#db.prepare("SELECT s.*, COALESCE((SELECT ts FROM events e WHERE e.session_id = s.id ORDER BY e.id DESC LIMIT 1), s.created_at) AS last_active FROM sessions s ORDER BY s.created_at, s.rowid").all() as Row[])
+      .map((r) => ({ ...toSession(r), lastActive: r.last_active as string }));
+  }
+
+  /** Deletes the session and everything stored for it. */
+  deleteSession(id: Id): void {
+    this.getSession(id);
+    this.#db.exec("BEGIN");
+    try {
+      for (const table of ["search_index", "events", "links", "artifacts", "tasks", "epochs"]) this.#db.prepare(`DELETE FROM ${table} WHERE session_id = ?`).run(id);
+      this.#db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+      this.#db.exec("COMMIT");
+    } catch (e) {
+      this.#db.exec("ROLLBACK");
+      throw e;
+    }
   }
 
   createEpoch(sessionId: Id, phase: string, input: unknown): Epoch {

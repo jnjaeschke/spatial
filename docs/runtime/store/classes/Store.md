@@ -156,6 +156,24 @@ Dumb persistence. Emits no events; the Runtime does that.
 
 ***
 
+### deleteSession()
+
+> **deleteSession**(`id`): `void`
+
+Deletes the session and everything stored for it.
+
+#### Parameters
+
+##### id
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
 ### failInterrupted()
 
 > **failInterrupted**(`reason`): `void`
@@ -369,6 +387,18 @@ Every session's events of `type`, oldest first.
 #### Returns
 
 [`Link`](../../../shared/types/interfaces/Link.md)[]
+
+***
+
+### listSessionListings()
+
+> **listSessionListings**(): [`SessionListing`](../../../shared/types/interfaces/SessionListing.md)[]
+
+`listSessions` with each session's last activity: its newest event's time, else its creation.
+
+#### Returns
+
+[`SessionListing`](../../../shared/types/interfaces/SessionListing.md)[]
 
 ***
 

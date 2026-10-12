@@ -34,6 +34,34 @@ async function createSession(page: Page, repo: string, title: string) {
   return response.json();
 }
 
+test("sessions are listed by last activity, and a session can be deleted after confirming", async ({ page }) => {
+  const dir = makeRepo();
+  const started = await page.request.post("http://127.0.0.1:4178/api/start", { data: { path: dir, text: "/chat Older session" } });
+  expect(started.ok()).toBeTruthy();
+  const older = await started.json() as { id: string };
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await createSession(page, dir, "Newer session");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  expect((await page.request.post(`http://127.0.0.1:4178/api/sessions/${older.id}/notes`, { data: { body: "Touch it" } })).ok()).toBeTruthy();
+
+  await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
+  const items = page.locator(".session-list li");
+  await expect(items).toHaveCount(2);
+  await expect(items.first()).toContainText("Older session");
+
+  await items.filter({ hasText: "Newer session" }).getByRole("button", { name: "Delete session Newer session" }).click();
+  const dialog = page.getByTestId("delete-session-dialog");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(items).toHaveCount(2);
+  await items.filter({ hasText: "Newer session" }).getByRole("button", { name: "Delete session Newer session" }).click();
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(items).toHaveCount(1);
+  await page.reload();
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText("Older session");
+});
+
 test("start screen lists the repo's sessions newest first and creates a review session", async ({ page }) => {
   const dir = makeRepo();
   await createSession(page, dir, "Session A");

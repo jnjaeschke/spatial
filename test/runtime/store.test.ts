@@ -19,6 +19,33 @@ test("sessions round-trip and list newest last", () => {
   assert.deepEqual(store.listSessions().map((s) => s.id), [session.id, s2.id]);
 });
 
+test("a session's last activity is its newest event, else its creation", () => {
+  const { store, session } = fresh();
+  const quiet = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "q" });
+  const event = store.appendEvent({ sessionId: session.id, actor: "runtime", type: "x", payload: null });
+  assert.deepEqual(store.listSessionListings().map((s) => [s.id, s.lastActive]), [[session.id, event.ts], [quiet.id, quiet.createdAt]]);
+});
+
+test("deleting a session removes everything stored for it and nothing of other sessions", () => {
+  const { store, session } = fresh();
+  const other = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "o" });
+  for (const id of [session.id, other.id]) {
+    const artifact = store.putArtifact({ sessionId: id, type: "Note", status: "verified", data: { text: "x" }, provenance: { taskId: "user" } });
+    store.putSearchDocs(id, artifact.id, [{ ref: "#n", kind: "note", body: "searchable words" }]);
+    store.putLink({ sessionId: id, from: artifact.id, to: "b", kind: "about" });
+    store.createTask({ sessionId: id, kind: "k", input: null });
+    store.createEpoch(id, "p", null);
+    store.appendEvent({ sessionId: id, actor: "runtime", type: "x", payload: null });
+  }
+  store.deleteSession(session.id);
+  assert.deepEqual(store.listSessions().map((s) => s.id), [other.id]);
+  assert.throws(() => store.getSession(session.id), /Unknown session/);
+  for (const id of [session.id, other.id]) {
+    const present = id === other.id ? 1 : 0;
+    assert.deepEqual([store.listArtifacts(id).length, store.listLinks(id).length, store.listTasks(id).length, store.listEpochs(id).length, store.listEvents(id).length, store.search(id, "searchable").length], Array(6).fill(present), id);
+  }
+});
+
 test("sessions store a nullable workflow and set the chosen workflow and title", () => {
   const { store, session } = fresh();
   assert.equal(session.workflow, null);

@@ -180,6 +180,20 @@
 
 `Promise`\<\{ `artifactId`: `string`; \}\>
 
+### deleteSession
+
+> **deleteSession**: (`sessionId`) => `Promise`\<`void`\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
 ### dirs
 
 > **dirs**: (`path?`) => `Promise`\<[`DirectoryListing`](../../../shared/types/interfaces/DirectoryListing.md)\>
@@ -504,11 +518,11 @@
 
 ### sessions
 
-> **sessions**: () => `Promise`\<[`Session`](../../../shared/types/interfaces/Session.md)[]\>
+> **sessions**: () => `Promise`\<[`SessionListing`](../../../shared/types/interfaces/SessionListing.md)[]\>
 
 #### Returns
 
-`Promise`\<[`Session`](../../../shared/types/interfaces/Session.md)[]\>
+`Promise`\<[`SessionListing`](../../../shared/types/interfaces/SessionListing.md)[]\>
 
 ### setReviewed
 

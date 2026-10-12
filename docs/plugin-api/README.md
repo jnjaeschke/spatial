@@ -806,6 +806,12 @@ Re-exports [Session](../shared/types/interfaces/Session.md)
 
 ***
 
+### SessionListing
+
+Re-exports [SessionListing](../shared/types/interfaces/SessionListing.md)
+
+***
+
 ### SessionState
 
 Re-exports [SessionState](../shared/types/interfaces/SessionState.md)

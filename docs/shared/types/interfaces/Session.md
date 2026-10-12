@@ -8,6 +8,10 @@
 
 The user's durable unit of work. Grouped by repo (`repoDir`); runs in one worktree of it.
 
+## Extended by
+
+- [`SessionListing`](SessionListing.md)
+
 ## Properties
 
 ### createdAt

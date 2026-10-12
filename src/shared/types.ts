@@ -53,7 +53,10 @@ export interface Session {
 export interface HealthResponse { app: "spatial"; ui: boolean; pid: number; commit: string | null; runningTasks: number }
 
 /** `GET /api/repo?path=`: the repo containing `path` and all its sessions (any worktree), newest first. */
-export interface RepoInfo { worktree: string; repoDir: string; name: string; sessions: Session[] }
+export interface RepoInfo { worktree: string; repoDir: string; name: string; sessions: SessionListing[] }
+
+/** A session as the session lists show it, with the time of its last activity. */
+export interface SessionListing extends Session { lastActive: string }
 
 /** A repository with at least one session worktree that still exists. */
 export interface RecentRepo { repoDir: string; name: string; worktree: string; sessions: number; lastActive: string }

@@ -8,13 +8,13 @@
 
 > **groupByRepo**(`sessions`): `object`[]
 
-Sessions per repo, sessions newest first, groups ordered by their newest session.
+Sessions per repo, most recently active first, groups ordered by their most recently active session.
 
 ## Parameters
 
 ### sessions
 
-[`Session`](../../types/interfaces/Session.md)[]
+[`SessionListing`](../../types/interfaces/SessionListing.md)[]
 
 ## Returns
 

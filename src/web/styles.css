@@ -300,6 +300,10 @@ textarea:focus, input:not([type="checkbox"]):focus, select:focus { outline: none
 .session-list a:hover { color: var(--accent); }
 .session-list code { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
 .session-list time { color: var(--text-3); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.session-list .delete-session { opacity: 0; transition: opacity 120ms; }
+.session-list li:hover .delete-session, .session-list .delete-session:focus-visible { opacity: 1; }
+.session-list .delete-session:hover:not(:disabled) { color: var(--danger); }
+button.danger { color: var(--accent-fg); background: var(--danger); border-color: var(--danger); }
 .repo-group { margin: 20px 0; }
 .repo-group h3 { margin: 0 0 6px; font-size: 18px; }
 .repo-group > code, .repo-paths { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }

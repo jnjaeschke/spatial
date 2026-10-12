@@ -1,4 +1,4 @@
-import type { Session } from "./types.ts";
+import type { SessionListing } from "./types.ts";
 
 /** Display name of a repo: the directory holding `.git`, or a bare repo's directory name without `.git`. */
 export function repoName(repoDir: string): string {
@@ -7,14 +7,14 @@ export function repoName(repoDir: string): string {
   return last === ".git" ? parts.at(-2) ?? repoDir : last.replace(/\.git$/, "");
 }
 
-/** Newest first by `createdAt`; ties keep input order. */
-export function newestFirst(sessions: Session[]): Session[] {
-  return [...sessions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+/** Most recently active first; ties keep input order. */
+export function recentFirst(sessions: SessionListing[]): SessionListing[] {
+  return [...sessions].sort((a, b) => b.lastActive.localeCompare(a.lastActive));
 }
 
-/** Sessions per repo, sessions newest first, groups ordered by their newest session. */
-export function groupByRepo(sessions: Session[]): { repoDir: string; name: string; sessions: Session[] }[] {
-  const groups = new Map<string, Session[]>();
-  for (const session of newestFirst(sessions)) groups.set(session.repoDir, [...(groups.get(session.repoDir) ?? []), session]);
+/** Sessions per repo, most recently active first, groups ordered by their most recently active session. */
+export function groupByRepo(sessions: SessionListing[]): { repoDir: string; name: string; sessions: SessionListing[] }[] {
+  const groups = new Map<string, SessionListing[]>();
+  for (const session of recentFirst(sessions)) groups.set(session.repoDir, [...(groups.get(session.repoDir) ?? []), session]);
   return [...groups].map(([repoDir, items]) => ({ repoDir, name: repoName(repoDir), sessions: items }));
 }

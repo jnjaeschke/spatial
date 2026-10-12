@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
-import { Runtime, defineTask, TaskFailedError, TaskCancelledError, PhaseBusyError, type Phase, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
+import { BusyError, Runtime, defineTask, TaskFailedError, TaskCancelledError, PhaseBusyError, type Phase, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { RuntimeEvent } from "../../src/shared/types.ts";
 
@@ -63,6 +63,16 @@ test("successful task: lifecycle, artifact provenance, links, events", async () 
   assert.deepEqual(events.map((e) => e.type), ["task.started", "task.progress", "llm.usage", "artifact.created", "link.created", "task.succeeded"]);
   assert.ok(events.every((e) => e.actor === `task:${taskId}`));
   assert.deepEqual(store.listEvents(session.id).map((e) => e.id), events.map((e) => e.id));
+});
+
+test("a session with running work cannot be deleted until the work ends", async () => {
+  const { store, rt, session } = setup();
+  const { taskId, done } = rt.start(session.id, "slow", null);
+  assert.throws(() => rt.deleteSession(session.id), BusyError);
+  rt.cancel(taskId);
+  await done.catch(() => {});
+  rt.deleteSession(session.id);
+  assert.deepEqual(store.listSessions(), []);
 });
 
 test("LLM activity becomes task.activity events, listed per task; the task's own onEvent still gets every event", async () => {

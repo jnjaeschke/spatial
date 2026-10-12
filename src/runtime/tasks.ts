@@ -12,6 +12,7 @@ import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, typ
 import { KnowledgeStore, type Knowledge } from "./knowledge.ts";
 import { missingCodeSearch, type CodeSearch } from "./code-search.ts";
 import { searchfoxCodeSearch } from "./searchfox.ts";
+import { isActive } from "../shared/task-state.ts";
 
 /** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
 export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
@@ -483,6 +484,12 @@ export class Runtime {
   /** The pending or running task of `kind`, in any session, whose input `matches`; null when there is none. Checked synchronously before `start`, it makes the task the guard for work that runs once at a time across sessions. */
   activeTask(kind: string, matches: (input: unknown) => boolean): TaskRecord | null {
     return this.#store.listActiveTasks(kind).find((task) => matches(task.input)) ?? null;
+  }
+
+  /** Deletes the session and everything stored for it; refused while one of its tasks is pending or running. Its git branches and commits stay. */
+  deleteSession(sessionId: Id): void {
+    if (this.store.listTasks(sessionId).some(isActive)) throw new BusyError(`Session ${sessionId} has running work; cancel it first`);
+    this.store.deleteSession(sessionId);
   }
 
   runningEpoch(sessionId: Id): Epoch | null {

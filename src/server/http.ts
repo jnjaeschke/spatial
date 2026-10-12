@@ -2,13 +2,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
-import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { Artifact, ChatMessageData, CodeLinksData, DecisionData, DirectoryListing, DiffData, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, SessionListing, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo, runGit } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
 import { sessionView, workflowView } from "../runtime/render-ref.ts";
 import { loadRepoContext } from "../runtime/repo-context.ts";
-import { groupByRepo, newestFirst, repoName } from "../shared/repos.ts";
+import { groupByRepo, recentFirst, repoName } from "../shared/repos.ts";
 import { isActive } from "../shared/task-state.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { startSession, type PendingStart, type StartRequest } from "../workflows/start.ts";
@@ -178,7 +178,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       let repo: { worktree: string; repoDir: string };
       try { repo = await resolveRepo(path); }
       catch (e) { throw new HttpError(400, (e as Error).message); }
-      return { ...repo, name: repoName(repo.repoDir), sessions: newestFirst(rt.store.listSessions().filter((s) => s.repoDir === repo.repoDir)) };
+      return { ...repo, name: repoName(repo.repoDir), sessions: recentFirst(rt.store.listSessionListings().filter((s) => s.repoDir === repo.repoDir)) };
     }],
     ["GET", /^\/api\/dirs$/, async ({ url }): Promise<DirectoryListing> => {
       const requested = url.searchParams.get("path");
@@ -206,12 +206,12 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const truncated = entries.length > 2000;
       return { path, parent: dirname(path) === path ? null : dirname(path), entries: entries.slice(0, 2000), ...(truncated ? { truncated: true as const } : {}) };
     }],
-    ["GET", /^\/api\/sessions$/, async () => rt.store.listSessions()],
+    ["GET", /^\/api\/sessions$/, async (): Promise<SessionListing[]> => rt.store.listSessionListings()],
     ["GET", /^\/api\/usage$/, async (): Promise<UsageRun[]> => meteredRuns(rt.store.listEventsOfType("llm.usage"))],
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
       const result: RecentRepo[] = [];
       const live = new Map<string, Promise<boolean>>();
-      for (const group of groupByRepo(rt.store.listSessions())) {
+      for (const group of groupByRepo(rt.store.listSessionListings())) {
         const byWorktree = new Map<string, RecentRepo>();
         for (const session of group.sessions) {
           const { worktree } = session;
@@ -220,11 +220,16 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
           if (!await live.get(worktree)) continue; // A stale worktree; the repository's other checkouts may still be live.
           const known = byWorktree.get(worktree);
           if (known) known.sessions++;
-          else byWorktree.set(worktree, { repoDir: group.repoDir, name: group.name, worktree, sessions: 1, lastActive: session.createdAt });
+          else byWorktree.set(worktree, { repoDir: group.repoDir, name: group.name, worktree, sessions: 1, lastActive: session.lastActive });
         }
         result.push(...byWorktree.values());
       }
       return result;
+    }],
+    ["DELETE", /^\/api\/sessions\/([^/]+)$/, async ({ res, params }) => {
+      requireSession(rt, params[0]);
+      rt.deleteSession(params[0]!);
+      send(res, 204);
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);

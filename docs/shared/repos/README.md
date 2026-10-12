@@ -9,5 +9,5 @@
 ## Functions
 
 - [groupByRepo](functions/groupByRepo.md)
-- [newestFirst](functions/newestFirst.md)
+- [recentFirst](functions/recentFirst.md)
 - [repoName](functions/repoName.md)

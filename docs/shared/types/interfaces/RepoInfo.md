@@ -24,7 +24,7 @@
 
 ### sessions
 
-> **sessions**: [`Session`](Session.md)[]
+> **sessions**: [`SessionListing`](SessionListing.md)[]
 
 ***
 

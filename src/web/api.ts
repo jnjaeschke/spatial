@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { ChatThreadData, DirectoryListing, LlmActivity, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
+import type { ChatThreadData, DirectoryListing, LlmActivity, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionListing, SessionState, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 import { readLastUsed, subscribeLastUsed, withLastUsed } from "./llm-choice.ts";
 
@@ -30,7 +30,8 @@ export const del = <T>(path: string, body: unknown) =>
   fetch(path, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
 
 export const api = {
-  sessions: () => get<Session[]>("/api/sessions"),
+  sessions: () => get<SessionListing[]>("/api/sessions"),
+  deleteSession: (sessionId: string) => del<void>(`/api/sessions/${encodeURIComponent(sessionId)}`, {}),
   repos: () => get<RecentRepo[]>("/api/repos"),
   usage: () => get<UsageRun[]>("/api/usage"),
   dirs: (path?: string) => get<DirectoryListing>(`/api/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`),

@@ -174,6 +174,24 @@ Cancels the top-level tasks the running epoch's phase started (their children go
 
 ***
 
+### deleteSession()
+
+> **deleteSession**(`sessionId`): `void`
+
+Deletes the session and everything stored for it; refused while one of its tasks is pending or running. Its git branches and commits stay.
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
 ### emit()
 
 > **emit**(`sessionId`, `actor`, `type`, `payload`): [`RuntimeEvent`](../../../shared/types/interfaces/RuntimeEvent.md)
