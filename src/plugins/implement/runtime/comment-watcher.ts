@@ -1,17 +1,11 @@
 import { PhaseBusyError, latestArtifact, workflowView, type Artifact, type Epoch, type Id, type Runtime, type WorkflowStartData } from "../../../plugin-api.ts";
-import type { PhabCommentData } from "../../review/api.ts";
+import { latestByPhid } from "../../review/api.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 
 /** Reviewer comments not yet interpreted: latest version per phid, not by the user or done, and in no earlier comments epoch. */
 export function newReviewerComments(view: { artifacts: Artifact[]; epochs: Epoch[] }): string[] {
   const seen = new Set(view.epochs.filter((e) => e.phase === "reviewerComments").flatMap((e) => (e.input as ReviewerCommentsInput).comments));
-  const latest = new Map<string, PhabCommentData>();
-  for (const a of view.artifacts) if (a.type === "PhabComment") {
-    const comment = a.data as PhabCommentData;
-    latest.delete(comment.phid);
-    latest.set(comment.phid, comment);
-  }
-  return [...latest.values()].filter((c) => !c.byMe && !c.done && !seen.has(c.phid)).map((c) => c.phid);
+  return [...latestByPhid(view.artifacts).values()].map((a) => a.data).filter((c) => !c.byMe && !c.done && !seen.has(c.phid)).map((c) => c.phid);
 }
 
 /** Starts comment interpretation when a watched implement session becomes idle with new comments. */

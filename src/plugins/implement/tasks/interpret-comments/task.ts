@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { defineTask, latestArtifact, prependRepoContext, runStructured, type JsonSchema, type Artifact, type Id } from "../../../../plugin-api.ts";
-import type { PhabCommentData } from "../../../review/api.ts";
+import { latestByPhid, type PhabCommentData } from "../../../review/api.ts";
 import type { CommentInterpretationData, InvestigationData, ReviewerCommentsInput } from "../../shared/types.ts";
 import { memorySections } from "../../runtime/memories.ts";
 
@@ -19,9 +19,7 @@ const describe = (c: PhabCommentData, byPhid: Map<string, PhabCommentData>) => [
 export const interpretComments = defineTask<ReviewerCommentsInput, { interpretationIds: Id[] }>({
   kind: "interpretComments",
   async run(ctx, { comments, llm }) {
-    const all = ctx.artifacts.view().artifacts.filter((a) => a.type === "PhabComment") as Artifact<PhabCommentData>[];
-    const latest = new Map<string, Artifact<PhabCommentData>>();
-    for (const a of all) latest.set(a.data.phid, a);
+    const latest = latestByPhid(ctx.artifacts.view().artifacts);
     const byPhid = new Map([...latest].map(([phid, a]) => [phid, a.data]));
     const targets = comments.map((phid) => { const a = latest.get(phid); if (!a) throw new Error(`Unknown comment ${phid}`); return a; });
     const kind = latestArtifact<InvestigationData>(ctx.artifacts.view().artifacts, "Investigation")?.data.kind ?? null;
