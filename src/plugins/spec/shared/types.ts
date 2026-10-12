@@ -31,6 +31,16 @@ export interface EngineTest { group: string; path: string; line: number }
 /** Knowledge value under `spec` / `impl|<engine>|<SPEC#anchor>`: an algorithm's sites and tests in one engine at revision `rev` of `repoBase`; `rejected` are proposals the user rejected, never proposed again. */
 export interface EngineMapping { engine: Engine; repoBase: string; rev: string; sites: EngineSite[]; tests: EngineTest[]; rejected: Pick<EngineSite, "path" | "line" | "symbol" | "signature">[]; checkedAt: string }
 
+export type DifferenceKind = "order" | "missing" | "extra" | "condition" | "other";
+/** A cited code line: `quote` is the text the LLM says is at `line`. */
+export interface CodeCitation { path: string; line: number; quote: string }
+export interface EngineDifference { kind: DifferenceKind; steps: string[]; summary: string; claims: { engine: Engine; text: string; code: CodeCitation[] }[] }
+export interface EngineComparison { differences: EngineDifference[] }
+/** A verified comparison and a digest per engine of the sites it used. */
+export interface StoredComparison { comparison: EngineComparison; dropped: number; basedOn: Partial<Record<Engine, string>> }
+/** What the overview shows of a comparison. */
+export type ComparisonView = { state: "absent" } | { state: "ready"; entryId: string; differences: (EngineDifference & { index: number })[]; dropped: number; flagged: number; outdated: boolean };
+
 /** Data of a `SpecReference` artifact. `resolved` null means webspec-index could not resolve `url`. */
 export interface SpecReferenceData {
   url: string;

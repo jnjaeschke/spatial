@@ -9,6 +9,7 @@ import { pathOpens } from "../shared/effect-path.ts";
 import { decideProposal, searchRunning, startSearch, storedMapping, storedMappings } from "../runtime/mappings.ts";
 import { siteKey, usedSites } from "../shared/engine.ts";
 import { alignRunning, startAlign } from "../runtime/align.ts";
+import { compareRunning, flagDifference, startCompare } from "../runtime/compare.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -125,6 +126,23 @@ export function specRoutes(rt: Runtime): Route[] {
       if (!usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).some((site) => siteKey(site) === key)) throw new HttpError(404, `No site ${key} in ${algorithm.data.ref}`);
       if (alignRunning(rt, engine, algorithm.data.ref)) throw new HttpError(409, `A ${engine} alignment for ${algorithm.data.ref} is running`);
       send(res, 202, { taskId: startAlign(rt, session.id, engine, algorithm, key).taskId });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/compare$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const algorithm = requireAlgorithm(rt, session.id, text(await readJson(req), "ref"));
+      if (ENGINES.filter((engine) => usedSites(storedMapping(rt.knowledge, engine, algorithm.data.ref)).length).length < 2) throw new HttpError(409, "Compare needs sites in at least two engines");
+      if (compareRunning(rt, algorithm.data.ref)) throw new HttpError(409, `A comparison of ${algorithm.data.ref} is running`);
+      let run;
+      try { run = await startCompare(rt, session.id, algorithm); } catch (error) { throw new HttpError(502, (error as Error).message); }
+      send(res, 202, { taskId: run.taskId });
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/spec\/mappings\/compare\/flag$/, async ({ req, res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      const body = await readJson(req), ref = requireAlgorithm(rt, session.id, text(body, "ref")).data.ref;
+      try { flagDifference(rt, session.id, ref, text(body, "entryId"), body.index as number); }
+      catch (error) { throw new HttpError(error instanceof RangeError ? 400 : 409, (error as Error).message); }
+      rt.emit(session.id, "user", "spec.compare", { ref });
+      send(res, 201, {});
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/summaries\/flag$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
