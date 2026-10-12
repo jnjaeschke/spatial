@@ -1,9 +1,9 @@
-import { chosenDecision, type Artifact, type Epoch, type Phase, type Step, type WorkflowView } from "../../../plugin-api.ts";
+import { chosenDecision, plural, type Artifact, type Epoch, type Phase, type Step, type WorkflowView } from "../../../plugin-api.ts";
 import type { PhabSubmissionData, PhabSubmitInput, ReviewerSuggestionData, SubmitInput } from "../shared/types.ts";
 import { REVIEWERS_PATTERN } from "../runtime/submit-command.ts";
 
 /** The Submit decision's question; it names the tip, because a submit started from chat sends whatever HEAD was then. */
-export const submitQuestion = (commits: number, head: string) => `Submit ${commits} commit${commits === 1 ? "" : "s"} (${head.slice(0, 12)}) to Phabricator?`;
+export const submitQuestion = (commits: number, head: string) => `Submit ${plural(commits, "commit")} (${head.slice(0, 12)}) to Phabricator?`;
 
 /** After a `submit` epoch: ask Submit / Submit as WIP (reviewers editable) / Not yet; a submit runs `phabSubmit` once. */
 export function submitNext(view: WorkflowView, epoch: Epoch): Step | null {
