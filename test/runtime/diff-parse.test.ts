@@ -38,3 +38,11 @@ test("empty input yields no files; garbage before a header throws", () => {
   assert.deepEqual(parseUnifiedDiff(""), []);
   assert.throws(() => parseUnifiedDiff("hello\n"), /before file header/);
 });
+
+test("paths with spaces lose the tab git appends to their ---/+++ lines", () => {
+  const files = parseUnifiedDiff([
+    "diff --git a/a b.txt b/a b.txt", "index 1..2 100644", "--- a/a b.txt\t", "+++ b/a b.txt\t", "@@ -1 +1 @@", "-a", "+b",
+    "diff --git a/gone file.txt b/gone file.txt", "deleted file mode 100644", "--- a/gone file.txt\t", "+++ /dev/null", "@@ -1 +0,0 @@", "-a",
+  ].join("\n"));
+  assert.deepEqual(files.map((f) => [f.path, f.status]), [["a b.txt", "modified"], ["gone file.txt", "deleted"]]);
+});

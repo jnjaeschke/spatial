@@ -44,8 +44,9 @@ export function parseUnifiedDiff(text: string): DiffFile[] {
       file.status = "renamed";
     } else if (line.startsWith("rename to ")) file.path = line.slice("rename to ".length);
     else if (line.startsWith("Binary files ")) file.binary = true;
-    else if (line.startsWith("+++ b/")) file.path = line.slice("+++ b/".length);
-    else if (line.startsWith("--- a/") && file.status === "deleted") file.path = line.slice("--- a/".length);
+    // git ends these lines with a tab when the path contains a space.
+    else if (line.startsWith("+++ b/")) file.path = line.slice("+++ b/".length).replace(/\t$/, "");
+    else if (line.startsWith("--- a/") && file.status === "deleted") file.path = line.slice("--- a/".length).replace(/\t$/, "");
   }
   return files;
 }
