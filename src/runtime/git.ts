@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -228,6 +228,9 @@ export function makeGitWriter(repo: string): GitWriter {
         const env = { GIT_INDEX_FILE: join(dir, "index"), GIT_NO_LAZY_FETCH: "1" };
         const realIndex = (await git(repo, ["rev-parse", "--path-format=absolute", "--git-path", "index"])).trim();
         await copyFile(realIndex, env.GIT_INDEX_FILE);
+        // Git re-reads entries not older than the index file; a fresh mtime on the copy would make it trust stale stat data.
+        const { atime, mtime } = await stat(realIndex);
+        await utimes(env.GIT_INDEX_FILE, atime, mtime);
         const head = (await git(repo, ["rev-parse", "--verify", "HEAD^{commit}"])).trim();
         await git(repo, ["add", "-A"], env);
         const tree = (await git(repo, ["write-tree"], env)).trim();

@@ -62,9 +62,15 @@ test("snapshotWorktree returns null for an unchanged tree, including a reverted 
   r.commit({ "a.txt": "old\n" }, "base");
   const writer = makeGitWriter(r.dir);
   assert.equal(await writer.snapshotWorktree(identity), null);
+  // The revert keeps size and mtime, and the index was written in the same tick: only git's racy-clean check sees it.
+  r.git("config", "core.trustctime", "false");
+  const tick = new Date((Math.floor(Date.now() / 1000) - 10) * 1000);
   writeFileSync(join(r.dir, "a.txt"), "new\n");
+  utimesSync(join(r.dir, "a.txt"), tick, tick);
   r.git("add", "a.txt");
   writeFileSync(join(r.dir, "a.txt"), "old\n");
+  utimesSync(join(r.dir, "a.txt"), tick, tick);
+  utimesSync(join(r.dir, ".git", "index"), tick, tick);
   assert.equal(await makeGit(r.dir).isDirty(), true);
   assert.equal(await writer.snapshotWorktree(identity), null);
 });
