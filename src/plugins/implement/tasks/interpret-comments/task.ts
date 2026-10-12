@@ -1,16 +1,16 @@
 import { readFileSync } from "node:fs";
-import { defineTask, latestArtifact, prependRepoContext, runStructured, type JsonSchema, type Artifact, type Id } from "../../../../plugin-api.ts";
+import { defineTask, latestArtifact, prependRepoContext, runStructured, type JsonSchema, type Id } from "../../../../plugin-api.ts";
 import { latestByPhid, type PhabCommentData } from "../../../review/api.ts";
 import type { CommentInterpretationData, InvestigationData, ReviewerCommentsInput } from "../../shared/types.ts";
 import { memorySections } from "../../runtime/memories.ts";
+import { commentIntro } from "../../runtime/comments-feedback.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema;
 type Reply = { comments: { phid: string; asks: string; proposal: string; action: "address" | "reply" | "ignore"; reply: string | null }[] };
 
 const describe = (c: PhabCommentData, byPhid: Map<string, PhabCommentData>) => [
-  `## ${c.phid} by ${c.author} on D${c.revision}${c.path !== undefined && c.line !== undefined ? `, ${c.path}:${c.line}` : " (general comment)"}`,
-  ...(c.quote !== undefined ? [`Commented line: \`${c.quote}\``] : []),
+  ...commentIntro(c, true),
   ...(c.replyTo && byPhid.get(c.replyTo) ? [`In reply to ${byPhid.get(c.replyTo)!.author}: ${byPhid.get(c.replyTo)!.body}`] : []),
   c.body,
 ].join("\n");
