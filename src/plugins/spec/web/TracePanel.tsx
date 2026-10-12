@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, ErrorText, IconButton, SidePanel, useAction, type TaskRecord } from "../../../web/plugin-api.ts";
+import { Dialog, ErrorText, IconButton, Markdown, SidePanel, useAction, type TaskRecord } from "../../../web/plugin-api.ts";
 import type { SpecTraceData } from "../shared/types.ts";
 import { currentCheck, hopOf, traceMarkdown, type TraceStatus } from "../shared/traces.ts";
 import type { TraceWriter } from "./trace-writer.ts";
@@ -34,6 +34,6 @@ export function TracePanel({ writer, traces, active, algorithms, readOnly, onSel
       <button type="button" disabled={!active.entries.length} onClick={() => void action.run(async () => { const markdown = traceMarkdown(active, algorithms); setExported(markdown); await navigator.clipboard.writeText(markdown).catch((error: Error) => action.fail(`Could not copy: ${error.message}`)); })}>Export</button>
     </>}
     <ErrorText error={action.error} />
-    {exported !== null && <Dialog title="Trace markdown" testId="trace-export" onClose={() => setExported(null)} footer={<button type="button" onClick={() => setExported(null)}>Done</button>}><textarea readOnly aria-label="Trace markdown" rows={10} value={exported} /></Dialog>}
+    {exported !== null && <Dialog title="Trace markdown" testId="trace-export" className="trace-export" onClose={() => setExported(null)} footer={<button type="button" onClick={() => setExported(null)}>Done</button>}><textarea readOnly aria-label="Trace markdown" value={exported} /><div className="trace-export-preview" data-testid="trace-export-preview"><Markdown text={exported} /></div></Dialog>}
   </SidePanel>;
 }

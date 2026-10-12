@@ -62,7 +62,9 @@ test("steps go into a trace, export as markdown, and show as a sequence diagram"
   const panel = page.getByTestId("trace-panel");
   await expect(panel.getByTestId(/^trace-entry-/)).toHaveCount(3);
   await panel.getByRole("button", { name: "Export" }).click();
-  await expect(page.getByTestId("trace-export").getByLabel("Trace markdown")).toHaveValue("[navigate step 2](https://html.spec.whatwg.org/#navigate)\n→ [snapshotting-source-snapshot-params step 1](https://html.spec.whatwg.org/#snapshotting-source-snapshot-params)\n→ [navigate step 3](https://html.spec.whatwg.org/#navigate)");
+  await expect(page.getByTestId("trace-export").getByLabel("Trace markdown")).toHaveValue("1. [navigate step 2](https://html.spec.whatwg.org/#navigate)\n2. [snapshotting-source-snapshot-params step 1](https://html.spec.whatwg.org/#snapshotting-source-snapshot-params)\n3. [navigate step 3](https://html.spec.whatwg.org/#navigate)");
+  await expect(page.getByTestId("trace-export-preview").getByRole("listitem")).toHaveText(["navigate step 2", "snapshotting-source-snapshot-params step 1", "navigate step 3"]);
+  await expect(page.getByTestId("trace-export-preview").getByRole("link", { name: "navigate step 2" })).toHaveAttribute("href", "https://html.spec.whatwg.org/#navigate");
   await page.getByTestId("trace-export").getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: "Trace sequence" }).click();
   const sequence = page.getByTestId("trace-sequence");

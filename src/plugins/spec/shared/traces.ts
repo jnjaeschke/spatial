@@ -9,14 +9,14 @@ export function latestTraces(artifacts: Artifact[]): SpecTraceData[] {
   return [...traces.values()];
 }
 
-/** A trace as markdown without app links: one line per entry, `[<title> step <path>](<url>)`, later lines prefixed `→ `, each note indented under its entry. */
+/** A trace as markdown without app links: a numbered list of `[<title> step <path>](<url>)`, each note a quote inside its item. */
 export function traceMarkdown(trace: SpecTraceData, algorithms: ReadonlyMap<string, { title: string; url: string }>): string {
   return trace.entries.flatMap((entry, index) => {
     const algorithm = algorithms.get(entry.anchor);
     if (!algorithm) throw new Error(`${entry.anchor} is not loaded`);
-    const line = `${index ? "→ " : ""}[${algorithm.title} step ${entry.step}](${algorithm.url})`;
+    const marker = `${index + 1}. `;
     const note = entry.note.trim();
-    return note ? [line, ...note.split("\n").map((part) => `  ${part}`)] : [line];
+    return [`${marker}[${algorithm.title} step ${entry.step}](${algorithm.url})`, ...(note ? note.split("\n").map((part) => `${" ".repeat(marker.length)}> ${part}`) : [])];
   }).join("\n");
 }
 

@@ -14,10 +14,12 @@ test("latestTraces keeps the latest version of each trace in creation order", ()
   assert.deepEqual(latestTraces([a("1", "one"), a("2", "two"), { type: "Other", data: {} } as never, a("1", "one renamed")]).map((t) => t.title), ["one renamed", "two"]);
 });
 
-test("traceMarkdown writes revisits as separate entries with notes indented", () => {
+test("traceMarkdown writes a numbered list, revisits as separate items, notes quoted inside their item", () => {
   assert.equal(traceMarkdown(trace, algorithms), [
-    "[navigate step 5](https://h/#navigate)", "  starts here", "  and here", "→ [foo step 3](https://h/#foo)", "→ [bar step 2](https://h/#bar)", "→ [foo step 7](https://h/#foo)", "  back", "→ [baz step 1](https://h/#baz)", "→ [baz step 4](https://h/#baz)",
+    "1. [navigate step 5](https://h/#navigate)", "   > starts here", "   > and here", "2. [foo step 3](https://h/#foo)", "3. [bar step 2](https://h/#bar)", "4. [foo step 7](https://h/#foo)", "   > back", "5. [baz step 1](https://h/#baz)", "6. [baz step 4](https://h/#baz)",
   ].join("\n"));
+  const long = { ...trace, entries: [...Array<SpecTraceEntry>(9).fill(entry("HTML#foo", "1")), entry("HTML#bar", "2", "tenth")] };
+  assert.deepEqual(traceMarkdown(long, algorithms).split("\n").slice(-2), ["10. [bar step 2](https://h/#bar)", "    > tenth"]);
   assert.throws(() => traceMarkdown({ ...trace, entries: [entry("HTML#gone", "1")] }, algorithms), /HTML#gone is not loaded/);
 });
 
