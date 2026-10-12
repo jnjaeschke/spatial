@@ -24,14 +24,16 @@ import { CANDIDATE, INTERNAL_LOAD, NAVIGATE, NAVIGATE_SITE, mapping, searchfox }
 
 const signal = new AbortController().signal;
 const A_CPP = ["// A", "void A::Abort() {", "  if (!mDoc) return;", "  mDoc->Abort();", "}"].join("\n");
-const code: Pick<CodeSearch, "file" | "functionAt"> = {
-  async file(path) { return path === "dom/A.cpp" ? A_CPP : path === "dom/A.h" ? "class A {\n  void Abort();\n};" : null; },
+const code: Pick<CodeSearch, "file" | "functionAt" | "search"> = {
+  async file(path) { return path === "dom/A.cpp" ? A_CPP : path === "dom/A.h" ? "class A {\n  void Abort();\n};" : path === "dom/B.h" ? "class B {\n  void Stop();\n};" : null; },
+  async search() { return []; },
   async functionAt(path, line) { return path === "dom/A.cpp" && line >= 2 && line <= 5 ? [{ symbol: "_ZN1A5AbortEv", signature: "void A::Abort() {" }] : []; },
 };
 
-test("a candidate passes when its line reads the quote; the site is the function there, or a declaration outside functions", async () => {
+test("a candidate passes when its line reads the quote; the site is the function there, the definition of a header declaration, or the declaration when none is found", async () => {
   assert.deepEqual(await verifyCandidate(code, { path: "dom/A.cpp", line: 4, quote: "mDoc->Abort();", why: "Aborts." }, signal), { ok: true, site: { path: "dom/A.cpp", line: 2, symbol: "_ZN1A5AbortEv", signature: "void A::Abort() {", quote: "void A::Abort() {", method: "llm", refs: [], steps: [], why: "Aborts." } });
-  assert.deepEqual(await verifyCandidate(code, { path: "dom/A.h", line: 2, quote: "void Abort();", why: "Declared." }, signal), { ok: true, site: { path: "dom/A.h", line: 2, symbol: "", signature: "void Abort();", quote: "void Abort();", method: "llm", refs: [], steps: [], why: "Declared." } });
+  assert.deepEqual(await verifyCandidate(code, { path: "dom/A.h", line: 2, quote: "void Abort();", why: "Declared." }, signal), { ok: true, site: { path: "dom/A.cpp", line: 2, symbol: "A::Abort()", signature: "void A::Abort() {", quote: "void A::Abort() {", method: "llm", refs: [], steps: [], why: "Declared.", declaration: { path: "dom/A.h", line: 2 } } });
+  assert.deepEqual(await verifyCandidate(code, { path: "dom/B.h", line: 2, quote: "void Stop();", why: "Declared." }, signal), { ok: true, site: { path: "dom/B.h", line: 2, symbol: "", signature: "void Stop();", quote: "void Stop();", method: "llm", refs: [], steps: [], why: "Declared." } });
 });
 
 test("a candidate fails with an empty quote, a quote not at its line, a missing file or a line past the end", async () => {

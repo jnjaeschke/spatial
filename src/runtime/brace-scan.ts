@@ -86,3 +86,43 @@ export function functionsIn(lines: string[]): ScannedFunction[] {
 export function enclosingFunction(lines: string[], line: number): ScannedFunction | null {
   return functionsIn(lines).filter((fn) => fn.line <= line && line <= fn.end).sort((a, b) => b.line - a.line || a.end - b.end)[0] ?? null;
 }
+
+const OWNER = /\b(?:class|struct)\s+(?:[A-Z_][A-Z0-9_]*\s+)*([A-Za-z_]\w*)/;
+
+/**
+ * The function declared at `line` (1-based) of C-like source, read through its `;`: a declaration without a body. Its name, the class or
+ * struct it is declared in (null outside one) and its parameter list as `functionsIn` writes it, default values dropped (definitions
+ * repeat no defaults). Null when `line` starts no such declaration.
+ */
+export function declarationAt(lines: string[], line: number): { name: string; owner: string | null; parameters: string } | null {
+  const code = codeOnly(lines).split("\n");
+  if (!code[line - 1]?.trim()) return null;
+  let text = "";
+  for (let at = line - 1; at < Math.min(code.length, line + 7); at++) {
+    text += code[at]! + "\n";
+    if (/[;{}]/.test(code[at]!)) break;
+  }
+  if (!/\)[^;{}()]*;\s*$/.test(text) || /[{}]/.test(text) || /^\s*(return|typedef|using|friend)\b/.test(text)) return null;
+  const name = NAME.exec(text);
+  if (!name || CONTROL.has(name[1]!.split("::").at(-1)!)) return null;
+  const list = withoutDefaults(parameters(text.slice(name.index + name[0].length - 1)));
+  // The innermost unclosed brace above the declaration says what it is declared in.
+  let depth = 0;
+  for (let at = line - 2; at >= 0; at--) {
+    const row = code[at]!;
+    for (let i = row.length - 1; i >= 0; i--) {
+      if (row[i] === "}") depth++;
+      else if (row[i] === "{" && depth-- === 0) {
+        const head = code.slice(Math.max(0, at - 3), at).join(" ") + " " + row.slice(0, i);
+        const owner = OWNER.exec(head.slice(Math.max(head.lastIndexOf(";"), head.lastIndexOf("}")) + 1));
+        return { name: name[1]!.split("::").at(-1)!, owner: owner?.[1] ?? null, parameters: list };
+      }
+    }
+  }
+  return { name: name[1]!.split("::").at(-1)!, owner: null, parameters: list };
+}
+
+/** A parameter list without default values. */
+function withoutDefaults(list: string): string {
+  return list.replace(/\s*=\s*[^,()]*(?:\([^()]*\))?[^,()]*/g, "");
+}

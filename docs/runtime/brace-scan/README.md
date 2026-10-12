@@ -12,5 +12,6 @@
 
 ## Functions
 
+- [declarationAt](functions/declarationAt.md)
 - [enclosingFunction](functions/enclosingFunction.md)
 - [functionsIn](functions/functionsIn.md)

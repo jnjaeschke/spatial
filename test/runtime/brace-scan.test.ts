@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { enclosingFunction, functionsIn } from "../../src/runtime/brace-scan.ts";
+import { declarationAt, enclosingFunction, functionsIn } from "../../src/runtime/brace-scan.ts";
 
 const SOURCE = `namespace blink {
 
@@ -79,4 +79,15 @@ int Bar::operator()(int x) const {
   ]);
   assert.equal(enclosingFunction(source, 8)!.symbol, "F(struct stat* s)");
   assert.equal(enclosingFunction(source, 17)!.symbol, "Foo::Foo(int a)");
+});
+
+test("declarationAt reads a function declaration without a body: its name, the class it is declared in, and its parameters without default values", () => {
+  const header = ["namespace blink {", "", "class CORE_EXPORT Document final : public ContainerNode {", " public:", "  // https://html.spec.whatwg.org/#abort-a-document", "  void Abort();", "  bool Navigate(const KURL& url,", "                int depth = 0) const;", "  struct Entry {", "    void Clear();", "  };", "  void Inline() { Clear(); }", "};", "", "CORE_EXPORT void FreeFunction(int);", "", "}  // namespace blink"];
+  assert.deepEqual(declarationAt(header, 6), { name: "Abort", owner: "Document", parameters: "()" });
+  assert.deepEqual(declarationAt(header, 7), { name: "Navigate", owner: "Document", parameters: "(const KURL& url, int depth)" });
+  assert.deepEqual(declarationAt(header, 10), { name: "Clear", owner: "Entry", parameters: "()" });
+  assert.deepEqual(declarationAt(header, 15), { name: "FreeFunction", owner: null, parameters: "(int)" });
+  assert.equal(declarationAt(header, 12), null);
+  assert.equal(declarationAt(header, 5), null);
+  assert.equal(declarationAt(header, 3), null);
 });

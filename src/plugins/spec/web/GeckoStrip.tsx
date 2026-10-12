@@ -7,7 +7,7 @@ import { describedStep } from "../shared/step-comments.ts";
 import { CodePeek } from "./CodePeek.tsx";
 
 /** A site's tooltip: its place, how it was found, and whether its code is gone. */
-export const siteTitle = (site: EngineSite) => [`${site.path}:${site.line}`, site.method === "spec-link" ? `Spec-link comment on line ${site.refs.join(", ")}` : site.method === "spec-link-heuristic" ? `Spec-link comment on line ${site.refs.join(", ")}, function found by brace scan` : site.method === "llm" ? "Proposed by the LLM" : "Confirmed by you", site.stale ? "This code is gone at the current revision" : ""].filter(Boolean).join("\n");
+export const siteTitle = (site: EngineSite) => [`${site.path}:${site.line}`, site.method === "spec-link" ? `Spec-link comment on line ${site.refs.join(", ")}` : site.method === "spec-link-heuristic" ? `Spec-link comment on ${site.declaration ? `${site.declaration.path} ` : ""}line ${site.refs.join(", ")}, function found by brace scan` : site.method === "llm" ? "Proposed by the LLM" : "Confirmed by you", site.declaration ? `Defines the declaration at ${site.declaration.path}:${site.declaration.line}` : "", site.stale ? "This code is gone at the current revision" : ""].filter(Boolean).join("\n");
 
 type GeckoActions = { find(stale: string | null): Promise<void>; decide(key: string, decision: "confirm" | "reject"): Promise<void> };
 

@@ -43,7 +43,7 @@ export interface EngineStep { step: string; line: number; end?: number; verdict:
  * its definition) or, for concepts, a declaration (`symbol` ""). `quote` is the code at `line` when stored. `method`: found through spec-link
  * comments (on lines `refs`), with `spec-link-heuristic` naming a function found by brace scan, proposed by the LLM (`why`), or confirmed by the user. `stale`: the quote is gone at the mapping's revision.
  */
-export interface EngineSite { path: string; line: number; symbol: string; signature: string; quote: string; method: "spec-link" | "spec-link-heuristic" | "llm" | "user"; refs: number[]; steps: EngineStep[]; why?: string; stale?: true }
+export interface EngineSite { path: string; line: number; symbol: string; signature: string; quote: string; method: "spec-link" | "spec-link-heuristic" | "llm" | "user"; /** Lines of the spec-link comments, in `declaration.path` when set. */ refs: number[]; steps: EngineStep[]; why?: string; stale?: true; /** The C/C++ header declaration this definition was found from: the spec-link comment or the LLM pointed there. */ declaration?: { path: string; line: number } }
 /** A test line linking the algorithm; `group` as code search reports it (`Web-Platform Test`, `Test`, …). */
 export interface EngineTest { group: string; path: string; line: number }
 /** Knowledge value under `spec` / `impl|<engine>|<SPEC#anchor>`: an algorithm's sites and tests in one engine at revision `rev` of `repoBase`; `rejected` are proposals the user rejected, never proposed again. */

@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { enclosingFunction, type CodeScope, type CodeSearch, type GeckoSpecRef, type WebspecCapability } from "../../../plugin-api.ts";
+import { declarationAt, enclosingFunction, escapeRegex, functionsIn, type CodeScope, type CodeSearch, type GeckoSpecRef, type WebspecCapability } from "../../../plugin-api.ts";
 import type { EngineSite, EngineStep, EngineTest } from "../shared/types.ts";
 import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodePath, linksAnchor, quoteProblem, shiftSteps, siteKey } from "../shared/engine.ts";
 
@@ -10,17 +10,57 @@ export async function siteAtTip(search: Pick<CodeSearch, "file">, site: Pick<Eng
   return at === null ? null : { lines: lines!, at, fn: enclosingFunction(lines!, at) };
 }
 
+const HEADER = /\.(?:h|hh|hpp|hxx)$/;
+const SOURCES = [".cc", ".cpp", ".cxx", ".mm"];
+const SOURCE = /\.(?:cc|cpp|cxx|mm)$/;
+
+/**
+ * Where a function declared at `line` of a C/C++ header is defined: the definition by brace scan in the header's sibling source file, else
+ * in the source files a code search for `Owner::name(` finds. Among overloads the one with the same parameter list wins; with several and
+ * none matching, or none found, null (the declaration stays the site). Only headers: a declaration elsewhere has no separate definition.
+ */
+export async function definitionOf(search: Pick<CodeSearch, "file" | "search">, path: string, lines: string[], line: number, signal: AbortSignal): Promise<{ site: Pick<EngineSite, "path" | "line" | "symbol" | "signature" | "quote">; lines: string[] } | null> {
+  if (!HEADER.test(path)) return null;
+  const declared = declarationAt(lines, line);
+  if (!declared) return null;
+  const qualified = declared.owner ? `${declared.owner}::${declared.name}` : declared.name;
+  const named = new RegExp(`(?:^|::)${escapeRegex(qualified)}\\(`);
+  const tried = new Set<string>();
+  const inFile = async (candidate: string) => {
+    if (tried.has(candidate)) return null;
+    tried.add(candidate);
+    const text = (await search.file(candidate, signal))?.split("\n");
+    if (!text) return null;
+    const found = functionsIn(text).filter((fn) => named.test(fn.symbol));
+    const fn = found.find((item) => item.symbol.slice(item.symbol.indexOf("(")) === declared.parameters) ?? (found.length === 1 ? found[0]! : null);
+    return fn ? { site: { path: candidate, line: fn.line, symbol: fn.symbol, signature: fn.signature, quote: fn.signature }, lines: text } : null;
+  };
+  for (const ext of SOURCES) {
+    const found = await inFile(path.replace(HEADER, ext));
+    if (found) return found;
+  }
+  // The search only improves a site the declaration already is: a failing search keeps the declaration rather than failing the mapping.
+  const hits = await search.search(`${qualified}(`, signal, 20).catch(() => []);
+  for (const candidate of new Set(hits.map((hit) => hit.path).filter((hit) => SOURCE.test(hit)))) {
+    const found = await inFile(candidate);
+    if (found) return found;
+  }
+  return null;
+}
+
 /** A place the LLM search proposes, unverified: a line it read and that line's exact text. */
 export interface ImplementationCandidate { path: string; line: number; quote: string; why: string }
 
-/** Checks an LLM candidate: a code path (`isCodePath`) whose file at the current revision has the quote as its line (`quoteProblem`). A passing candidate becomes an `llm` site at the first line of the function it is in, or a declaration site at its line outside functions. */
-export async function verifyCandidate(search: Pick<CodeSearch, "file" | "functionAt">, candidate: ImplementationCandidate, signal: AbortSignal): Promise<{ ok: true; site: EngineSite } | { ok: false; reason: string }> {
+/** Checks an LLM candidate: a code path (`isCodePath`) whose file at the current revision has the quote as its line (`quoteProblem`). A passing candidate becomes an `llm` site at the first line of the function it is in, at the definition of a header declaration (`definitionOf`), or a declaration site at its line outside functions. */
+export async function verifyCandidate(search: Pick<CodeSearch, "file" | "functionAt" | "search">, candidate: ImplementationCandidate, signal: AbortSignal): Promise<{ ok: true; site: EngineSite } | { ok: false; reason: string }> {
   if (!isCodePath(candidate.path)) return { ok: false, reason: `${candidate.path} is not a code file` };
   const text = await search.file(candidate.path, signal);
   const problem = quoteProblem(text, candidate);
   if (problem) return { ok: false, reason: problem };
   const lines = text!.split("\n");
   const scope = innermostFunction(await search.functionAt(candidate.path, candidate.line, signal));
+  const definition = scope ? null : await definitionOf(search, candidate.path, lines, candidate.line, signal);
+  if (definition) return { ok: true, site: { ...definition.site, method: "llm", refs: [], steps: [], why: candidate.why, declaration: { path: candidate.path, line: candidate.line } } };
   const line = scope ? definitionLine(lines, candidate.line, scope.signature) : candidate.line;
   return { ok: true, site: { path: candidate.path, line, symbol: scope?.symbol ?? "", signature: scope?.signature ?? lines[candidate.line - 1]!.trim(), quote: (lines[line - 1] ?? "").trim(), method: "llm", refs: [], steps: [], why: candidate.why } };
 }
@@ -34,9 +74,10 @@ const COMPLETE = /[;}]\s*$/;
 
 /**
  * Tier 1: the functions whose spec-link comments link the algorithm, one site per function with the comment lines in `refs`; a comment
- * outside any function belongs to the definition directly below it, or is a declaration site of its own. Also the tests that link it.
+ * outside any function belongs to the definition directly below it, to the definition of the C/C++ header declaration below it
+ * (`definitionOf`, its file joining `files`), or is a declaration site of its own. Also the tests that link it.
  */
-export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "functionAt" | "file" | "heuristicScopes">, algorithm: { url: string; anchor: string }, signal: AbortSignal): Promise<{ sites: EngineSite[]; tests: EngineTest[]; files: Map<string, string[]> }> {
+export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "functionAt" | "file" | "search" | "heuristicScopes">, algorithm: { url: string; anchor: string }, signal: AbortSignal): Promise<{ sites: EngineSite[]; tests: EngineTest[]; files: Map<string, string[]> }> {
   const refs = (await search.specRefs(algorithm.url, signal, REF_LIMIT)).filter((ref) => ref.group !== "Code" || isCodePath(ref.path));
   const texts = await Promise.all([...new Set(refs.map((ref) => ref.path))].map(async (path) => [path, await search.file(path, signal)] as const));
   const files = new Map(texts.flatMap(([path, text]): [string, string[]][] => text === null ? [] : [[path, text.split("\n")]]));
@@ -45,8 +86,10 @@ export async function specLinkSites(search: Pick<CodeSearch, "specRefs" | "funct
   for (const ref of linked.filter((r) => r.group === "Code")) {
     const lines = files.get(ref.path)!;
     const { scope, at } = await enclosing(search, ref, lines, signal);
+    const definition = scope ? null : await definitionOf(search, ref.path, lines, at, signal);
+    if (definition) files.set(definition.site.path, definition.lines);
     const line = scope ? definitionLine(lines, at, scope.signature) : at;
-    const site: EngineSite = { path: ref.path, line, symbol: scope?.symbol ?? "", signature: scope?.signature ?? (lines[at - 1] ?? "").trim(), quote: (lines[line - 1] ?? "").trim(), method: scope && search.heuristicScopes ? "spec-link-heuristic" : "spec-link", refs: [], steps: [] };
+    const site: EngineSite = definition ? { ...definition.site, method: "spec-link-heuristic", refs: [], steps: [], declaration: { path: ref.path, line: at } } : { path: ref.path, line, symbol: scope?.symbol ?? "", signature: scope?.signature ?? (lines[at - 1] ?? "").trim(), quote: (lines[line - 1] ?? "").trim(), method: scope && search.heuristicScopes ? "spec-link-heuristic" : "spec-link", refs: [], steps: [] };
     const key = siteKey(site);
     if (!sites.has(key)) sites.set(key, site);
     sites.get(key)!.refs.push(ref.line);

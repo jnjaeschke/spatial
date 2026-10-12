@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseNumbered } from "../../../src/runtime/chromium-search.ts";
-import { addSteps, carryOver, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
+import { addSteps, definitionOf, carryOver, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
 import { fakeCode } from "../../helpers/fake-code.ts";
 import type { EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
@@ -57,8 +57,9 @@ const ref = (group: string, path: string, line: number): GeckoSpecRef => ({ grou
 
 function fakeSearch(refs: GeckoSpecRef[]) {
   const calls: string[] = [];
-  const search: Pick<CodeSearch, "specRefs" | "functionAt" | "file" | "heuristicScopes"> = {
+  const search: Pick<CodeSearch, "specRefs" | "functionAt" | "file" | "search" | "heuristicScopes"> = {
     heuristicScopes: false,
+    async search(query) { calls.push(`search ${query}`); return []; },
     async specRefs(url, _signal, limit) { calls.push(`specRefs ${url} ${limit}`); return refs; },
     async functionAt(path, line) { calls.push(`functionAt ${path}:${line}`); return SCOPES[path]?.(line) ?? []; },
     async file(path) { calls.push(`file ${path}`); return FILES[path]?.join("\n") ?? null; },
@@ -175,4 +176,20 @@ test("carryOver shifts a moved site's steps with it", async () => {
   const moved: EngineSite = { path: "a.cpp", line: 1, symbol: "_ZA", signature: "void A() {", quote: "void A() {", method: "user", refs: [], steps: [{ step: "1", line: 2, end: 3, quote: "x", verdict: "proposed", detail: "w", origin: "align" }] };
   const [out] = await carryOver(async () => ["", "", "void A() {", "x", "y"], [moved], []);
   assert.deepEqual([out!.line, out!.steps[0]!.line, out!.steps[0]!.end], [3, 4, 5]);
+});
+
+test("a spec-link comment above a header declaration maps to the definition: in the sibling source, else where a search finds it", async () => {
+  const header = ["class CORE_EXPORT Document {", " public:", "  // https://html.spec.whatwg.org/#navigate", "  void Abort();", "  void Load(int depth = 0);", "  void Load(const KURL& url);", "};"].join("\n");
+  const source = ["#include \"document.h\"", "", "void Document::Abort() {", "  Stop();", "}"].join("\n");
+  const { code } = fakeCode({ "core/document.h": header, "core/document.cc": source }, [ref("Code", "core/document.h", 3)]);
+  const { sites, files } = await specLinkSites(code, { url: "https://html.spec.whatwg.org/#navigate", anchor: "navigate" }, signal);
+  assert.deepEqual(sites, [{ path: "core/document.cc", line: 3, symbol: "Document::Abort()", signature: "void Document::Abort() {", quote: "void Document::Abort() {", method: "spec-link-heuristic", refs: [3], steps: [], declaration: { path: "core/document.h", line: 4 } }]);
+  assert.ok(files.has("core/document.cc"));
+  const elsewhere = ["#include \"core/document.h\"", "void Document::Load(const KURL& url) {", "}", "void Document::Load(int depth) {", "}"].join("\n");
+  const found = fakeCode({ "core/document.h": header, "core/loader/document_loading.cc": elsewhere }, []);
+  assert.equal((await definitionOf(found.code, "core/document.h", header.split("\n"), 5, signal))?.site.line, 4);
+  assert.equal((await definitionOf(found.code, "core/document.h", header.split("\n"), 6, signal))?.site.line, 2);
+  assert.ok(found.calls.includes("search Document::Load("));
+  assert.equal(await definitionOf(found.code, "core/document.h", header.split("\n"), 4, signal), null);
+  assert.equal(await definitionOf(found.code, "core/document.cc", source.split("\n"), 3, signal), null);
 });

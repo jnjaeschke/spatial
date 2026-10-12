@@ -12,6 +12,20 @@ comments (on lines `refs`), with `spec-link-heuristic` naming a function found b
 
 ## Properties
 
+### declaration?
+
+> `optional` **declaration?**: `object`
+
+#### line
+
+> **line**: `number`
+
+#### path
+
+> **path**: `string`
+
+***
+
 ### line
 
 > **line**: `number`

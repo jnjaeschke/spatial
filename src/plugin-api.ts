@@ -63,7 +63,7 @@ export { ENGINES, specUrlParts } from "./runtime/code-search.ts";
 export { escapeRegex } from "./shared/regex.ts";
 export type { CodeSearch } from "./runtime/code-search.ts";
 export { makeChromiumSearch } from "./runtime/chromium-search.ts";
-export { enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";
+export { declarationAt, enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";
 export type { ScannedFunction } from "./runtime/brace-scan.ts";
 export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";
 export { HttpError, send, readJson, str, text, llmField, startTask, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";

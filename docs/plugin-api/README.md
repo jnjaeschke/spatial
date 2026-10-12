@@ -187,6 +187,12 @@ Re-exports [DecisionOption](../shared/types/interfaces/DecisionOption.md)
 
 ***
 
+### declarationAt
+
+Re-exports [declarationAt](../runtime/brace-scan/functions/declarationAt.md)
+
+***
+
 ### defineMcpTool
 
 Re-exports [defineMcpTool](../runtime/plugins/functions/defineMcpTool.md)
