@@ -1,4 +1,4 @@
-import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES, HttpError, startTask, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
 import type { SpecHop } from "../../../plugin-api.ts";
 import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData, TraceCodeRef } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
@@ -76,7 +76,7 @@ const lookupStatus = (error: unknown) => (error as Error).cause instanceof SpecN
 
 /** An engine named in a request. */
 export function parseEngine(value: unknown): Engine {
-  if (typeof value !== "string" || !(ENGINES as readonly string[]).includes(value)) throw new HttpError(400, "engine must be gecko, blink or webkit");
+  if (typeof value !== "string" || !(ENGINES as readonly string[]).includes(value)) throw new HttpError(400, `engine must be one of ${ENGINES.join(", ")}`);
   return value as Engine;
 }
 
@@ -100,7 +100,7 @@ export function specRoutes(rt: Runtime): Route[] {
       const session = requireSession(rt, params[0]!);
       const { trace } = requireTrace(rt, session.id, params[1]!);
       if (traceCheckRunning(rt, session.id, trace.data.traceId)) throw new HttpError(409, `A check of trace ${trace.data.traceId} is running`);
-      void rt.run(session.id, "checkTrace", { traceId: trace.data.traceId, traceArtifactId: trace.id }).catch(log(`check of trace ${trace.data.traceId}`));
+      startTask(rt, session.id, "checkTrace", { traceId: trace.data.traceId, traceArtifactId: trace.id });
       send(res, 202, { traceArtifactId: trace.id });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/traces\/([^/]+)\/open$/, async ({ res, params }) => {
@@ -253,11 +253,10 @@ export function specRoutes(rt: Runtime): Route[] {
     ["POST", /^\/api\/sessions\/([^/]+)\/spec\/summaries\/flag$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
       const ref = text(await readJson(req), "ref");
-      const algorithm = rt.store.listArtifacts(session.id, "SpecAlgorithm").findLast((a) => (a.data as SpecAlgorithmData).ref === ref);
-      if (!algorithm) throw new HttpError(404, `Unknown algorithm: ${ref}`);
-      const read = rt.knowledge.get("global", "spec", summaryKey(algorithm.data as SpecAlgorithmData));
+      const algorithm = requireAlgorithm(rt, session.id, ref);
+      const read = rt.knowledge.get("global", "spec", summaryKey(algorithm.data));
       if (read.state !== "current") throw new HttpError(409, `${ref} has no current summary`);
-      const entry = rt.knowledge.put("global", "spec", summaryKey(algorithm.data as SpecAlgorithmData), null, { by: "user", sessionId: session.id });
+      const entry = rt.knowledge.put("global", "spec", summaryKey(algorithm.data), null, { by: "user", sessionId: session.id });
       rt.emit(session.id, "user", "spec.summary", { ref });
       send(res, 201, { entryId: entry.id });
     }],

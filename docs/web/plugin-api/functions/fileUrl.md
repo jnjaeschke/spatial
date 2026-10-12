@@ -8,11 +8,19 @@
 
 > **fileUrl**(`sf`, `path`, `line?`): `string`
 
+A searchfox permalink: `path` at revision `rev` of the repository at `repoBase`, at `line` when given.
+
 ## Parameters
 
 ### sf
 
-[`SearchfoxLinks`](../interfaces/SearchfoxLinks.md)
+#### repoBase
+
+`string`
+
+#### rev
+
+`string`
 
 ### path
 

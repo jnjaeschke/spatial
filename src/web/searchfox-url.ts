@@ -28,9 +28,7 @@ export function searchfoxLinks(state: SessionState, diff: DiffData, request: Sea
   };
 }
 
-export function fileUrl(sf: SearchfoxLinks, path: string, line?: number): string {
-  return `${sf.repoBase}rev/${sf.rev}/${path}${line === undefined ? "" : `#${line}`}`;
-}
+export { fileUrl } from "../shared/searchfox-url.ts";
 
 export function linkTitle(sf: SearchfoxLinks): string {
   return sf.exact ? "Searchfox at the patch's base" : "Searchfox at current mozilla-central; line numbers may differ";

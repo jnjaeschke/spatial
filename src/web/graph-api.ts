@@ -6,6 +6,8 @@ export type { Draft } from "./chat-context.ts";
 /** Markdown as one line of plain text. */
 export { plainText } from "../shared/plain-text.ts";
 export { escapeRegex } from "../shared/regex.ts";
+export { ENGINE_LABEL, ENGINES } from "../shared/engines.ts";
+export { fileUrl } from "../shared/searchfox-url.ts";
 export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DecisionNodeData, DiagramNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
 /** Width of cards and of satellites. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";

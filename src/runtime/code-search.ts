@@ -1,7 +1,6 @@
 import type { CodeScope, Engine, GeckoSpecRef } from "../shared/types.ts";
 
 /** Every engine, in display order. */
-export const ENGINES: readonly Engine[] = ["gecko", "blink", "webkit"];
 
 /** Read-only code search over one engine's source tree at its current revision: the calls an engine mapping makes. `pinned`: `tip().rev` fixes the files' contents (false for a branch name). `heuristicScopes`: `functionAt` is a brace scan, not a code index. */
 export interface CodeSearch {

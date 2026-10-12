@@ -1,3 +1,4 @@
+import { fileUrl } from "../shared/searchfox-url.ts";
 import type { SearchfoxCapability } from "./tasks.ts";
 
 const SYMBOL = /^[A-Za-z_~][\w~]*(?:(?:::|\.)[A-Za-z_~][\w~]*)*(?:\(\))?$/;
@@ -21,7 +22,7 @@ export async function resolveCodeLinks(deps: {
   rev: string;
   diffPaths: string[];
 }, tokens: string[]): Promise<Record<string, string | null>> {
-  const url = (path: string, line?: number) => `${deps.repoBase}rev/${deps.rev}/${path}${line === undefined ? "" : `#${line}`}`;
+  const url = (path: string, line?: number) => fileUrl(deps, path, line);
   const exists = async (path: string) => {
     try { await deps.git(["cat-file", "-e", `${deps.rev}:${path}`]); return true; } catch { return false; }
   };

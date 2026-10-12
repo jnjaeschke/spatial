@@ -2,16 +2,24 @@ import { useEffect, useState } from "react";
 import type { ChatThreadData, DirectoryListing, LlmSelection, ModelsResponse, NotifyPayload, Progress, RecentRepo, RepoInfo, RuntimeEvent, Session, SessionState, StartQuestion, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { showDesktop } from "./notifications.ts";
 
+/** A failed request to the runtime: the server's error message and the HTTP status. */
+export class RequestError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) { super(message); this.status = status; }
+}
+
 async function parse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `${res.status} ${res.statusText}`);
+    throw new RequestError(body.error ?? `${res.status} ${res.statusText}`, res.status);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-const get = <T>(path: string) => fetch(path).then((r) => parse<T>(r));
-const post = <T>(path: string, body: unknown) =>
+/** GET a runtime route as JSON; rejects with `RequestError`. */
+export const get = <T>(path: string) => fetch(path).then((r) => parse<T>(r));
+/** POST JSON to a runtime route; rejects with `RequestError`. */
+export const post = <T>(path: string, body: unknown) =>
   fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));
 const put = <T>(path: string, body: unknown) =>
   fetch(path, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => parse<T>(r));

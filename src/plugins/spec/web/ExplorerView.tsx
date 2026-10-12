@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow, InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
+import { Canvas, ENGINES, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow, InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
 import type { Engine, TaskRecord } from "../../../plugin-api.ts";
 import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../shared/types.ts";
 import { engineTasks } from "../shared/engine.ts";
@@ -12,7 +12,6 @@ import { TracePanel } from "./TracePanel.tsx";
 import type { SummaryView } from "../runtime/summaries.ts";
 
 /** The engines whose mappings the explorer shows. */
-const MAPPED_ENGINES: Engine[] = ["gecko", "blink", "webkit"];
 
 function ExplorerProvider({ graph, readOnly, reveal, children }: CanvasProviderProps) {
   const view = useContext(ExplorerViewContext)!;
@@ -68,7 +67,7 @@ export function ExplorerView({ state, models, drafts, readOnly = false, onSent, 
   const focusTaken = useRef(0);
   const [summaries, setSummaries] = useState<Record<string, SummaryView>>({});
   const [mappings, setMappings] = useState<Partial<Record<Engine, Record<string, EngineMapping | null>>>>({});
-  useEffect(() => { let cancelled = false; for (const engine of MAPPED_ENGINES) specClient.mappings(state.session.id, engine).then((byRef) => { if (!cancelled) setMappings((current) => JSON.stringify(current[engine]) === JSON.stringify(byRef) ? current : { ...current, [engine]: byRef }); }, (error: Error) => console.error(error)); return () => { cancelled = true; }; }, [state.session.id, state.lastEventId]);
+  useEffect(() => { let cancelled = false; for (const engine of ENGINES) specClient.mappings(state.session.id, engine).then((byRef) => { if (!cancelled) setMappings((current) => JSON.stringify(current[engine]) === JSON.stringify(byRef) ? current : { ...current, [engine]: byRef }); }, (error: Error) => console.error(error)); return () => { cancelled = true; }; }, [state.session.id, state.lastEventId]);
   const engineTaskList = engineTasks(state.tasks);
   const engineTaskKey = engineTaskList.map((task) => `${task.id}:${task.status}`).join(",");
   const stableEngineTasks = useMemo(() => engineTaskList, [engineTaskKey]);

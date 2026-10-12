@@ -1,24 +1,9 @@
+import { getJson as get, postJson as post } from "../../../web/plugin-api.ts";
 import type { SpecOpenedData, SpecTraceData, TraceCodeRef, TraceQuestion } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
 import type { EngineMapping } from "../shared/types.ts";
 import type { Engine } from "../../../plugin-api.ts";
 import type { ImplementationsData } from "../shared/types.ts";
-
-/** A failed spec request with its HTTP status. */
-export class SpecRequestError extends Error {
-  readonly status: number;
-  constructor(message: string, status: number) { super(message); this.status = status; }
-}
-
-async function parse<T>(res: Response): Promise<T> {
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new SpecRequestError((json as { error?: string }).error ?? `${res.status} ${res.statusText}`, res.status);
-  return json as T;
-}
-
-const get = <T>(path: string) => fetch(path).then((res) => parse<T>(res));
-
-const post = <T>(path: string, body: unknown) => fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((res) => parse<T>(res));
 
 /** HTTP calls of the spec explorer. */
 export const specClient = {

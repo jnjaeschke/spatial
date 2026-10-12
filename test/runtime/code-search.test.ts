@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { missingCodeSearch, specUrlParts } from "../../src/runtime/code-search.ts";
+import { ENGINES } from "../../src/shared/engines.ts";
 import { escapeRegex } from "../../src/shared/regex.ts";
 import { searchfoxCodeSearch } from "../../src/runtime/searchfox.ts";
 import { Store } from "../../src/runtime/store.ts";
 import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import { corePlugin, createRuntime } from "../../src/runtime/create.ts";
-import { ENGINES } from "../../src/runtime/code-search.ts";
 
 const signal = new AbortController().signal;
 

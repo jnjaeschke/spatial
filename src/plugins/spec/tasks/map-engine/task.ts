@@ -1,7 +1,8 @@
 import { defineTask, type Engine, type Id } from "../../../../plugin-api.ts";
 import type { EngineMapping, SpecAlgorithmData } from "../../shared/types.ts";
 import { parseSteps } from "../../shared/steps.ts";
-import { byPlace, engineMapping, keepAlignedSteps, mappingKey } from "../../shared/engine.ts";
+import { byPlace, keepAlignedSteps } from "../../shared/engine.ts";
+import { storedMapping } from "../../runtime/mappings.ts";
 import { addSteps, carryOver, specLinkSites } from "../../runtime/engine-map.ts";
 
 /** Maps an algorithm to an engine at its code search's current revision: spec-link comments to sites (tier 1), Step comments to steps (tier 2); the previous mapping's proposals, confirmations and rejections carry over. */
@@ -10,8 +11,7 @@ export const mapEngine = defineTask<{ algorithmId: Id; engine: Engine }, EngineM
   async run(ctx, { algorithmId, engine }) {
     const algorithm = ctx.artifacts.get<SpecAlgorithmData>(algorithmId).data;
     const search = ctx.codeSearch[engine];
-    const read = ctx.knowledge.get("global", "spec", mappingKey(engine, algorithm.ref));
-    const previous = read.state === "current" ? engineMapping(read.entry.value) : null;
+    const previous = storedMapping(ctx.knowledge, engine, algorithm.ref);
     const { repoBase, rev } = await search.tip();
     const tier1 = await specLinkSites(search, algorithm, ctx.signal);
     const sites = parseSteps(algorithm.content).length ? await addSteps(search, (name, text, signal) => ctx.webspec.analyze(name, text, signal), algorithm.anchor, tier1.sites, tier1.files, ctx.signal) : tier1.sites;

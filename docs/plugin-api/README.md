@@ -66,6 +66,11 @@ composition roots.
 
 - [Row](type-aliases/Row.md)
 
+## Variables
+
+- [ENGINE\_LABEL](variables/ENGINE_LABEL.md)
+- [ENGINES](variables/ENGINES.md)
+
 ## Functions
 
 - [commandRunData](functions/commandRunData.md)
@@ -256,12 +261,6 @@ Re-exports [enclosingFunction](../runtime/brace-scan/functions/enclosingFunction
 ### Engine
 
 Re-exports [Engine](../shared/types/type-aliases/Engine.md)
-
-***
-
-### ENGINES
-
-Re-exports [ENGINES](../runtime/code-search/variables/ENGINES.md)
 
 ***
 

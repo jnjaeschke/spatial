@@ -8,6 +8,7 @@
 
 ## Classes
 
+- [RequestError](classes/RequestError.md)
 - [RowPainter](classes/RowPainter.md)
 
 ## Interfaces
@@ -107,6 +108,7 @@
 - [ErrorText](functions/ErrorText.md)
 - [FilePanel](functions/FilePanel.md)
 - [fileUrl](functions/fileUrl.md)
+- [getJson](functions/getJson.md)
 - [HoverCard](functions/HoverCard.md)
 - [IconButton](functions/IconButton.md)
 - [InlineItem](functions/InlineItem.md)
@@ -121,6 +123,7 @@
 - [Markdown](functions/Markdown.md)
 - [mergedCodeLinks](functions/mergedCodeLinks.md)
 - [placeSatellites](functions/placeSatellites.md)
+- [postJson](functions/postJson.md)
 - [ReopenClosed](functions/ReopenClosed.md)
 - [rootGraph](functions/rootGraph.md)
 - [rootThread](functions/rootThread.md)
@@ -261,6 +264,18 @@ Re-exports [DirectoryListing](../../shared/types/interfaces/DirectoryListing.md)
 ### Engine
 
 Re-exports [Engine](../../shared/types/type-aliases/Engine.md)
+
+***
+
+### ENGINE\_LABEL
+
+Re-exports [ENGINE_LABEL](../../plugin-api/variables/ENGINE_LABEL.md)
+
+***
+
+### ENGINES
+
+Re-exports [ENGINES](../../plugin-api/variables/ENGINES.md)
 
 ***
 

@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import { ErrorText, IconButton, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { ENGINE_LABEL, ENGINES, ErrorText, IconButton, showSessionView, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
 import type { Engine } from "../../../plugin-api.ts";
 import type { EngineDifference, EngineMapping, EngineSite, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
 import { codeUrl, isDeclaration, mappedSteps, nothingFound, siteKey, siteName } from "../shared/engine.ts";
@@ -8,8 +8,6 @@ import { siteTitle } from "./GeckoStrip.tsx";
 import { DifferencesList } from "./DifferencesList.tsx";
 import { specClient } from "./client.ts";
 
-const ENGINES: Engine[] = ["gecko", "blink", "webkit"];
-const LABEL: Record<Engine, string> = { gecko: "Gecko", blink: "Blink", webkit: "WebKit" };
 
 function SiteEntry({ sessionId, data, engine, mapping, site, readOnly }: { sessionId: string; data: ImplementationsData; engine: Engine; mapping: EngineMapping; site: EngineSite; readOnly: boolean }) {
   const action = useAction();
@@ -35,9 +33,9 @@ function EngineHeader({ sessionId, data, engine, state, notFound, readOnly }: { 
   const mapping = data.mappings[engine];
   const placed = mapping?.sites.some((site) => !site.stale) ?? false;
   return <div className="impl-col-head">
-    <span className="impl-engine">{LABEL[engine]}</span>{mapping && mapping.tests.length > 0 && <span className="impl-note">{mapping.tests.length} {mapping.tests.length === 1 ? "test" : "tests"}</span>}
+    <span className="impl-engine">{ENGINE_LABEL[engine]}</span>{mapping && mapping.tests.length > 0 && <span className="impl-note">{mapping.tests.length} {mapping.tests.length === 1 ? "test" : "tests"}</span>}
     {mapping ? <ul className="impl-sites">{mapping.sites.map((site) => <SiteEntry key={siteKey(site)} sessionId={sessionId} data={data} engine={engine} mapping={mapping} site={site} readOnly={readOnly} />)}</ul> : !state.busy && !state.failed && <span className="impl-note">not mapped</span>}
-    {!readOnly && mapping && !placed && !state.busy && <button type="button" disabled={action.busy} onClick={() => void action.run(() => specClient.findImplementation(sessionId, data.ref, engine, null))}>Find in {LABEL[engine]}</button>}
+    {!readOnly && mapping && !placed && !state.busy && <button type="button" disabled={action.busy} onClick={() => void action.run(() => specClient.findImplementation(sessionId, data.ref, engine, null))}>Find in {ENGINE_LABEL[engine]}</button>}
     {!state.busy && notFound && !placed && <span className="impl-note" data-testid={`impl-not-found-${engine}`} title={notFound.reasons.join("\n")}>{notFound.note}</span>}
     {state.busy && <span className="impl-note">working…</span>}
     <ErrorText error={action.error ?? state.failed} />

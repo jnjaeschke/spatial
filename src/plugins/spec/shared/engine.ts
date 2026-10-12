@@ -1,4 +1,5 @@
 import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
+import { ENGINE_LABEL, fileUrl } from "../../../web/graph-api.ts";
 import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */
@@ -13,11 +14,6 @@ export const usedSites = (mapping: EngineMapping | null): EngineSite[] => (mappi
 /** Lines `from` to `to` (1-based, inclusive), each prefixed with its number. */
 export const numbered = (lines: string[], from: number, to: number) => lines.slice(from - 1, to).map((text, index) => `${from + index}: ${text}`).join("\n");
 
-/** `text` as a fenced block whose fence is longer than any backtick run inside it. */
-export function fence(text: string): string {
-  const ticks = "`".repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((run) => run[0].length + 1)));
-  return `${ticks}\n${text}\n${ticks}`;
-}
 
 /** Site order: by path, then line. */
 export const byPlace = (a: Pick<EngineSite, "path" | "line">, b: Pick<EngineSite, "path" | "line">) => a.path.localeCompare(b.path) || a.line - b.line;
@@ -78,7 +74,7 @@ export function siteName(site: Pick<EngineSite, "signature" | "path" | "line">):
 }
 
 /** Permalink of a line at a mapping's revision. */
-export const codeUrl = (mapping: Pick<EngineMapping, "engine" | "repoBase" | "rev">, path: string, line: number) => mapping.engine === "blink" ? `${mapping.repoBase}+/${mapping.rev}:${path};l=${line}` : `${mapping.repoBase}rev/${mapping.rev}/${path}#${line}`;
+export const codeUrl = (mapping: Pick<EngineMapping, "engine" | "repoBase" | "rev">, path: string, line: number) => mapping.engine === "blink" ? `${mapping.repoBase}+/${mapping.rev}:${path};l=${line}` : fileUrl(mapping, path, line);
 
 /** Where `quote` is in `lines` (1-based): `line` while it is still there, else the one nearest line with the same trimmed text; null when it is gone or two copies are equally near. */
 export function followQuote(lines: string[], line: number, quote: string): number | null {
@@ -121,15 +117,13 @@ export function engineActivity(tasks: Pick<TaskRecord, "kind" | "status" | "inpu
 /** A site at a declaration outside any function (a spec-link comment above it): it has no body to align steps with. */
 export const isDeclaration = (site: Pick<EngineSite, "symbol">) => !site.symbol;
 
-const ENGINE_NAME: Record<Engine, string> = { gecko: "Gecko", blink: "Blink", webkit: "WebKit" };
-
 /** What the latest LLM search for the algorithm in `engine` reports when it found nothing: the note, and the reasons its candidates were dropped. Null while one runs or when the latest found something or failed. */
 export function nothingFound(tasks: Pick<TaskRecord, "kind" | "status" | "input" | "output">[], algorithmId: string, engine: Engine): { note: string; reasons: string[] } | null {
   const last = tasks.findLast((task) => task.kind === "findImplementation" && (task.input as { algorithmId?: string } | null)?.algorithmId === algorithmId && (task.input as { engine?: string } | null)?.engine === engine);
   const output = last?.status === "succeeded" ? last.output as { sites: unknown[]; dropped: { reason: string }[] } : null;
   if (!output || output.sites.length) return null;
   const dropped = output.dropped.length;
-  return { note: `No ${ENGINE_NAME[engine]} match found${dropped ? `; ${dropped} ${dropped === 1 ? "candidate" : "candidates"} failed the check` : ""}`, reasons: output.dropped.map((item) => item.reason) };
+  return { note: `No ${ENGINE_LABEL[engine]} match found${dropped ? `; ${dropped} ${dropped === 1 ? "candidate" : "candidates"} failed the check` : ""}`, reasons: output.dropped.map((item) => item.reason) };
 }
 
 /** A stored value as an `EngineMapping`; throws when it does not have the shape. */
