@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import type { DecisionData, DecisionOption, Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
 import type { Runtime, TaskContext, TaskDefinition, Phase } from "./tasks.ts";
-import type { Artifact, Ref, TextLink } from "../shared/types.ts";
+import type { Artifact, Ref, Session, TextLink } from "../shared/types.ts";
 import type { SearchDoc, SessionView, WorkflowView } from "./render-ref.ts";
 import type { Route } from "../server/http.ts";
 import type { Knowledge } from "./knowledge.ts";
@@ -117,8 +117,8 @@ export interface Plugin {
   chatContext?(view: SessionView): string | null;
   /** Extra fields of the structured chat reply. */
   chatReplyFields?: ChatReplyField[];
-  /** The upstream revision this plugin's session content is based on for code links, or null when it has none. */
-  linkRev?(view: SessionView): string | null;
+  /** Data for the session snapshot (`SessionState.plugins[id]`); undefined when this plugin has nothing for the session. A throwing hook is logged and leaves no entry. */
+  sessionState?(rt: Runtime, session: Session, view: SessionView): Promise<unknown>;
   /** Rules linking text (such as bug references) to the tracker of the repository at `repo`; empty when this plugin has none for it. */
   textLinks?(repo: string): TextLink[];
   /** Builds this plugin's service object (capabilities such as tool binaries) from the process environment; called once per process. Tasks and MCP tools read it as `services[id]`. */
@@ -139,7 +139,6 @@ export interface PluginRegistry {
   searchKinds: string[];
   chatContext: ((view: SessionView) => string | null)[];
   chatReplyFields: ChatReplyField[];
-  linkRevs: ((view: SessionView) => string | null)[];
   textLinks: ((repo: string) => TextLink[])[];
   mcpTools: McpTool[];
   repoProfiles: Map<string, RepoProfile>;
@@ -192,5 +191,5 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     done.add(id);
   };
   for (const plugin of plugins) visit(plugin.id, []);
-  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], linkRevs: plugins.flatMap((plugin) => plugin.linkRev ? [plugin.linkRev] : []), textLinks: plugins.flatMap((plugin) => plugin.textLinks ? [plugin.textLinks] : []), mcpTools: [...mcpTools.values()], repoProfiles, readOnlyCommands: plugins.flatMap((plugin) => plugin.readOnlyCommands ?? []) };
+  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], textLinks: plugins.flatMap((plugin) => plugin.textLinks ? [plugin.textLinks] : []), mcpTools: [...mcpTools.values()], repoProfiles, readOnlyCommands: plugins.flatMap((plugin) => plugin.readOnlyCommands ?? []) };
 }

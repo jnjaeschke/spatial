@@ -11,8 +11,8 @@ const data: InvestigationData = {
   steps: [{ title: "T", message: "M", intent: "I", checks: [] }, { title: "U", message: "N", intent: "J", checks: [] }],
   locations: [{ path: "a.cpp", line: 3, quote: "x", why: "w", step: 1 }, { path: "b.cpp", line: 9, quote: "y", why: "v", step: null }],
 };
-const state = (artifacts: Artifact[], links: SessionState["links"] = [], searchfox: SessionState["searchfox"] = null): SessionState => ({
-  session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "Title", createdAt: "", workflow: "implement" }, artifacts, links, tasks: [], epochs: [], lastEventId: 0, textLinks: [], searchfox,
+const state = (artifacts: Artifact[], links: SessionState["links"] = []): SessionState => ({
+  session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "Title", createdAt: "", workflow: "implement" }, artifacts, links, tasks: [], epochs: [], lastEventId: 0, textLinks: [], plugins: {},
 });
 const start = () => art("WorkflowStart", { via: "command", workflow: "implement", params: { request: "r" }, title: "Title", prompt: "do it" });
 
@@ -21,15 +21,9 @@ test("there is no graph before the investigation", () => {
   assert.equal(investigationGraph(state([start()]), []), null);
 });
 
-test("locations link at the session's link revision, else at Searchfox's tip", () => {
-  const s = start(), inv = art("Investigation", data);
-  const rev = (linkRev: string | null) => (investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "tip", linkRev }), [])!.nodes.find((n) => n.data.kind === "location")!.data as unknown as { searchfox: { rev: string } }).searchfox.rev;
-  assert.deepEqual([rev("base"), rev(null)], ["base", "tip"]);
-});
-
 test("the investigation is split into a header, a chain of step nodes and satellites", () => {
   const s = start(), inv = art("Investigation", { ...data, testCases: [{ description: "d", expected: "e" }], openQuestions: ["Q?"] });
-  const g = investigationGraph(state([s, inv], [], { repoBase: "https://sf/", tipRev: "abc", linkRev: null }), [])!;
+  const g = investigationGraph(state([s, inv]), [])!;
   const node = (id: string) => g.nodes.find((n) => n.id === id)!;
   assert.deepEqual(g.nodes.map((n) => n.data.kind), ["investigation", "investigation-step", "investigation-step", "location", "location", "investigation-tests", "investigation-questions"]);
   assert.equal(g.nodes[0]!.id, inv.id);
@@ -40,7 +34,6 @@ test("the investigation is split into a header, a chain of step nodes and satell
   assert.deepEqual(node(`${inv.id}#loc1`).anchors, [inv.id]);
   assert.deepEqual(node(`${inv.id}#tests`).anchors, [inv.id]);
   assert.deepEqual(node(`${inv.id}#questions`).anchors, [inv.id]);
-  assert.deepEqual((node(`${inv.id}#loc0`).data as unknown as { searchfox: unknown }).searchfox, { repoBase: "https://sf/", rev: "abc" });
   const edges = g.edges.map((e) => `${e.source}>${e.target}`);
   for (const edge of [`${inv.id}>${inv.id}#step0`, `${inv.id}#step0>${inv.id}#step1`, `${inv.id}#loc0>${inv.id}#step1`, `${inv.id}#loc1>${inv.id}`, `${inv.id}#tests>${inv.id}`, `${inv.id}#questions>${inv.id}`]) assert.ok(edges.includes(edge), edge);
   assert.equal(latestInvestigation(state([s, inv]))?.id, inv.id);
@@ -85,6 +78,6 @@ test("each node has its own size; the header does not grow with the plan", () =>
   assert.ok(tests(3).height > tests(1).height);
   const questions = (count: number) => sizeOf({ kind: "investigation-questions", questions: Array.from({ length: count }, () => "q") });
   assert.ok(questions(3).height > questions(1).height);
-  assert.ok(sizeOf({ kind: "location", anchor: "a", location: data.locations[0]!, searchfox: null }).width > 0);
+  assert.ok(sizeOf({ kind: "location", anchor: "a", location: data.locations[0]! }).width > 0);
   assert.throws(() => investigationSize({ kind: "other" }), /No size/);
 });

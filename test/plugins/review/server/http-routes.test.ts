@@ -56,7 +56,7 @@ test("narrate runs in background and state reflects the result", async () => {
   assert.ok(state.artifacts.some((artifact) => artifact.type === "PatchNarrative"));
   assert.deepEqual(state.tasks.map((task) => [task.kind, task.status]), [["importDiff", "succeeded"], ["introducedSymbols", "succeeded"], ["narrate", "succeeded"], ["resolveSpecRefs", "succeeded"], ["review", "succeeded"]]);
   assert.ok(state.lastEventId > 0);
-  assert.equal(state.searchfox, null);
+  assert.deepEqual(state.plugins, {});
   const repeated = await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   assert.equal(repeated.status, 409);
   assert.deepEqual(await repeated.json(), { error: "Session already has a narrative" });

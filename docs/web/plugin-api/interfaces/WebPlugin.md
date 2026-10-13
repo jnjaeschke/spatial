@@ -56,6 +56,12 @@
 
 ***
 
+### sessionProviders?
+
+> `optional` **sessionProviders?**: `ComponentType`\<\{ `children`: `ReactNode`; `readOnly`: `boolean`; `state`: [`SessionState`](../../../shared/types/interfaces/SessionState.md); \}\>[]
+
+***
+
 ### sessionViews?
 
 > `optional` **sessionViews?**: [`PluginSessionView`](PluginSessionView.md)[]

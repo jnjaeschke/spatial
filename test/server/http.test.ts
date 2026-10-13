@@ -10,11 +10,10 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime } from "../../src/runtime/tasks.ts";
 import { makeGit } from "../../src/runtime/git.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
-import { specServices } from "../../src/plugins/spec/runtime/services.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { DiffData, RecentRepo, Session, SessionState } from "../../src/shared/types.ts";
+import type { RecentRepo, Session, SessionState } from "../../src/shared/types.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 import { CHAT_REPLY, NARRATIVE, base, llm, newSession, post, repo, replyFor, rt, staticDir, state, waitFor } from "../helpers/http-server.ts";
 
@@ -29,56 +28,6 @@ test("sessions: create, list, validation", async () => {
 });
 
 // REQUIRES_REAL_GIT
-
-test("code-links validates requests, requires an upstream Gecko Diff, and caches resolved tokens", async () => {
-  const session = await newSession();
-  assert.equal((await post(`/api/sessions/${session.id}/code-links`, { tokens: [] })).status, 400);
-  assert.equal((await post(`/api/sessions/${session.id}/code-links`, { tokens: ["x".repeat(201)] })).status, 400);
-  assert.equal((await post(`/api/sessions/${session.id}/code-links`, { tokens: ["Foo::Bar"] })).status, 409);
-  writeFileSync(join(repo.dir, "mach"), "");
-  writeFileSync(join(repo.dir, "moz.build"), "");
-  const rev = repo.git("rev-parse", "HEAD");
-  rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { upstreamRev: rev, baseSha: rev, headSha: rev, commits: [], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [] }] } satisfies DiffData, provenance: { taskId: "test" } });
-  let definitions = 0;
-  const searchfox = specServices(rt).searchfox as unknown as {
-    tip: () => Promise<{ repoBase: string; rev: string }>;
-    define: () => Promise<{ path: string; line: number; text: string }>;
-  };
-  const originalTip = searchfox.tip;
-  const originalDefine = searchfox.define;
-  try {
-    searchfox.tip = async () => ({ repoBase: "https://searchfox.org/firefox-main/", rev });
-    searchfox.define = async () => { definitions++; return { path: "a.txt", line: 1, text: "1" }; };
-    const first = await post(`/api/sessions/${session.id}/code-links`, { tokens: ["Foo::Bar"] });
-    assert.equal(first.status, 200);
-    const second = await post(`/api/sessions/${session.id}/code-links`, { tokens: ["Foo::Bar"] });
-    assert.equal(second.status, 200);
-    assert.equal(definitions, 1);
-  } finally {
-    searchfox.tip = originalTip;
-    searchfox.define = originalDefine;
-  }
-});
-
-test("code-links of an implement session without a Diff resolve at the branch base and state carries that linkRev", async () => {
-  const session = await newSession();
-  writeFileSync(join(repo.dir, "mach"), "");
-  writeFileSync(join(repo.dir, "moz.build"), "");
-  const rev = repo.git("rev-parse", "HEAD");
-  rt.store.putArtifact({ sessionId: session.id, type: "ImplementBranch", status: "verified", data: { branch: "b", baseSha: rev, baseRef: null, profile: "plain-git", checkout: "new-branch" }, provenance: { taskId: "test" } });
-  const searchfox = specServices(rt).searchfox as unknown as { tip: () => Promise<{ repoBase: string; rev: string }> };
-  const originalTip = searchfox.tip;
-  try {
-    searchfox.tip = async () => ({ repoBase: "https://searchfox.org/firefox-main/", rev: "tip" });
-    const state: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    assert.deepEqual(state.searchfox, { repoBase: "https://searchfox.org/firefox-main/", tipRev: "tip", linkRev: rev });
-    const res = await post(`/api/sessions/${session.id}/code-links`, { tokens: ["a.txt:1"] });
-    assert.equal(res.status, 200);
-    assert.deepEqual((await res.json()).links, { "a.txt:1": `https://searchfox.org/firefox-main/rev/${rev}/a.txt#1` });
-  } finally {
-    searchfox.tip = originalTip;
-  }
-});
 
 test("dirs lists directories, marks git roots, validates paths, and defaults to injected home", async () => {
   const home = mkdtempSync(join(tmpdir(), "dirs-home-"));
@@ -109,6 +58,8 @@ test("dirs lists directories, marks git roots, validates paths, and defaults to 
 });
 
 test("workflow start routes support slash commands, selection, and validation", async () => {
+  writeFileSync(join(repo.dir, "mach"), "");
+  writeFileSync(join(repo.dir, "moz.build"), "");
   const infos = await (await fetch(`${base}/api/workflows`)).json();
   assert.deepEqual(infos.map((info: { id: string }) => info.id), ["review", "chat", "implement", "explore"]);
   assert.ok(infos.every((info: { argHint?: string }) => info.argHint));

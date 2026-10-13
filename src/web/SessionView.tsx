@@ -22,7 +22,7 @@ import { Segmented } from "./Segmented.tsx";
 import { ReplyActionsContext, derivedArtifacts } from "./reply-actions.ts";
 import { webConversationItems, webConversationTasks, webReplyActions } from "../plugins/web.ts";
 import { ConversationItemsContext, steerFor } from "./conversation-items.ts";
-import { SearchfoxProvider } from "./SearchfoxProvider.tsx";
+import { SessionProviders } from "./SessionProviders.tsx";
 import { TaskProgressContext } from "./TaskControls.tsx";
 import { OpenActivityLogContext, type OpenLog } from "./activity-log-context.ts";
 
@@ -82,7 +82,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><UsageWidget /><TextSizeControl /><ThemeToggle /></div>
     {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
-    <OpenActivityLogContext.Provider value={setLog}><TaskProgressContext.Provider value={progress}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}><SearchfoxProvider state={shown} readOnly={past !== null}>{body}<AskOnSelect /><ActivityStrip state={state} view={view ?? null} progress={progress} conversationKinds={webConversationTasks} taskLabels={webTaskLabels} taskBadges={webTaskBadges} log={log} onLog={setLog} /></SearchfoxProvider></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></TaskProgressContext.Provider></OpenActivityLogContext.Provider>
+    <OpenActivityLogContext.Provider value={setLog}><TaskProgressContext.Provider value={progress}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}><SessionProviders state={shown} readOnly={past !== null}>{body}<AskOnSelect /><ActivityStrip state={state} view={view ?? null} progress={progress} conversationKinds={webConversationTasks} taskLabels={webTaskLabels} taskBadges={webTaskBadges} log={log} onLog={setLog} /></SessionProviders></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></TaskProgressContext.Provider></OpenActivityLogContext.Provider>
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} exportTask={view?.exportTasks} summary={view?.exportSummary?.(state) ?? []} onClose={() => setExporting(false)} />}
   </div></RouteContext.Provider>;

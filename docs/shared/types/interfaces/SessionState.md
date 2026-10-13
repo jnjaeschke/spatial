@@ -36,11 +36,11 @@ Subscribe to events after this id to miss nothing.
 
 ***
 
-### searchfox
+### plugins
 
-> **searchfox**: \{ `linkRev`: `string` \| `null`; `repoBase`: `string`; `tipRev`: `string`; \} \| `null`
+> **plugins**: `Record`\<`string`, `unknown`\>
 
-`linkRev` is the revision code links point at (null when unknown); `tipRev` is Searchfox's current tip.
+What plugins add to the snapshot (`Plugin.sessionState`), by plugin id; a plugin with nothing for the session has no entry.
 
 ***
 

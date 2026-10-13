@@ -1,7 +1,11 @@
 import type { ArtifactKind } from "../../../plugin-api.ts";
-import type { PhabSubmissionData, ReviewerSuggestionData, TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
+import type { CodeLinksData, PhabSubmissionData, ReviewerSuggestionData, TryProposalData, TryPushData, TryRunData } from "../shared/types.ts";
 
 export const artifactKinds: Record<string, ArtifactKind> = {
+  CodeLinks: { render: (_view, artifact, subId) => {
+    if (subId !== undefined) return null;
+    return "# Code links\n\n" + Object.entries((artifact.data as CodeLinksData).links).map(([token, url]) => `- ${token} → ${url ?? "none"}`).join("\n");
+  } },
   ReviewerSuggestion: { render: (_view, artifact, subId) => {
     if (subId !== undefined) return null;
     const d = artifact.data as ReviewerSuggestionData;

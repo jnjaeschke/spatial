@@ -1,4 +1,4 @@
-import { definePlugin, type Runtime, type Id, type SessionView, type DiffData } from "../../plugin-api.ts";
+import { definePlugin, type Runtime, type Id, type SessionView } from "../../plugin-api.ts";
 import { reviewPhase, reviewWorkflow } from "./workflow/review.ts";
 import { artifactKinds, searchKinds } from "./runtime/review-kinds.ts";
 import { importDiff } from "./tasks/import-diff/task.ts";
@@ -28,12 +28,9 @@ function chatContext(view: SessionView): string | null {
   const data = diff.data as { commits: { sha: string; subject: string }[] };
   return ["# Commits in the reviewed range", ...data.commits.map((commit, i) => `${i + 1}. ${commit.sha.slice(0, 12)} ${commit.subject}`)].join("\n");
 }
-function linkRev(view: SessionView): string | null {
-  return (view.artifacts.findLast((artifact) => artifact.type === "Diff")?.data as DiffData | undefined)?.upstreamRev ?? null;
-}
 function server(rt: Runtime, opts: { intervalMs?: number }) {
   const watcher = new RevisionWatcher(rt, { intervalMs: opts.intervalMs });
   const syncer = new PhabricatorSyncer(rt, watcher, { intervalMs: opts.intervalMs });
   return { routes: reviewRoutes(rt), watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
 }
-export const reviewPlugin = definePlugin({ id: "review", dependsOn: ["spec"], workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, linkRev, chatReplyFields: [diagramField], server });
+export const reviewPlugin = definePlugin({ id: "review", dependsOn: ["spec"], workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });

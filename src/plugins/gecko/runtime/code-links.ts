@@ -1,16 +1,5 @@
+import type { SearchfoxCapability } from "../../spec/api.ts";
 import { fileUrl } from "../shared/searchfox-url.ts";
-
-/** The Searchfox calls code links make. */
-export interface CodeLinkSource {
-  define(symbol: string, signal: AbortSignal): Promise<{ path: string; line: number; text: string } | null>;
-  tip(): Promise<{ repoBase: string; rev: string }>;
-}
-
-/** The runtime's Searchfox, looked up in the spec plugin's services at each call. */
-export function searchfoxOf(rt: { services: Readonly<Record<string, unknown>> }): CodeLinkSource {
-  const source = () => (rt.services.spec as { searchfox: CodeLinkSource } | undefined)?.searchfox ?? (() => { throw new Error("Searchfox is not available"); })();
-  return { define: (symbol, signal) => source().define(symbol, signal), tip: () => source().tip() };
-}
 
 const SYMBOL = /^[A-Za-z_~][\w~]*(?:(?:::|\.)[A-Za-z_~][\w~]*)*(?:\(\))?$/;
 
@@ -28,7 +17,7 @@ const CONCURRENCY = 6;
 /** Resolves tokens to Searchfox permalinks at `rev`; `null` when a token has no link. Tokens whose lookup failed are left out, so a later request retries them. */
 export async function resolveCodeLinks(deps: {
   git: (args: string[]) => Promise<string>;
-  searchfox: Pick<CodeLinkSource, "define">;
+  searchfox: Pick<SearchfoxCapability, "define">;
   repoBase: string;
   rev: string;
   diffPaths: string[];

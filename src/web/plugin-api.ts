@@ -49,7 +49,7 @@ export interface RepoPanelProps { repoDir: string }
 export interface RepoViewProps { worktree: string; repoDir: string; name: string }
 /** A repository page outside any session, linked from the repo page. */
 export interface PluginRepoView { id: string; label: string; Body: ComponentType<RepoViewProps> }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Display names for task kinds. */ taskLabels?: Record<string, string>; /** Extra task result text shown after task status. */ taskBadges?: Record<string, ComponentType<{ task: TaskRecord }>>; /** Handles steering input for the named workflow. */ steer?: Record<string, (sessionId: string, text: string, live: boolean) => Promise<unknown>>; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; /** Repository pages, linked from the repo page. */ repoViews?: PluginRepoView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Display names for task kinds. */ taskLabels?: Record<string, string>; /** Extra task result text shown after task status. */ taskBadges?: Record<string, ComponentType<{ task: TaskRecord }>>; /** Handles steering input for the named workflow. */ steer?: Record<string, (sessionId: string, text: string, live: boolean) => Promise<unknown>>; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; /** Repository pages, linked from the repo page. */ repoViews?: PluginRepoView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind>; /** Wrap every session and export view, outermost first; a provider fills a context from the session state (`readOnly` for past epochs and exports). */ sessionProviders?: ComponentType<{ state: SessionState; readOnly: boolean; children: ReactNode }>[] }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -95,7 +95,7 @@ export type { ConversationItemProps } from "./conversation-items.ts";
 export type { CanvasModel, GuideStep, FocusedRow, CanvasProviderProps } from "./Canvas.tsx";
 export type { SelectionData } from "./chat-context.ts";
 export { RowPainter, rowSegments } from "./syntax.ts";
-export { SearchfoxContext, searchfoxLinks, mergedCodeLinks, linkTitle } from "./searchfox-url.ts";
+export { CodeLinksContext } from "./code-links.ts";
 export { AnswerMarkdown } from "./AnswerMarkdown.tsx";
 export { SequenceDiagram } from "./SequenceDiagram.tsx";
 export type { SequenceArrow } from "./SequenceDiagram.tsx";
@@ -119,6 +119,6 @@ export * from "../shared/types.ts";
 export type { CanvasProps } from "./Canvas.tsx";
 export type { ConversationProps } from "./nodes/ChatNode.tsx";
 export type { ChatActions } from "./chat-context.ts";
-export type { SearchfoxLinks } from "./searchfox-url.ts";
+export type { CodeLinks } from "./code-links.ts";
 export type { Segment, CodeRow } from "./syntax.ts";
 export type { ClosedItem } from "./graph.ts";

@@ -4,7 +4,7 @@ import type { DiffFile, Hunk } from "../../shared/types.ts";
 import type { HostedThread } from "../graph-api.ts";
 import { loadFileLines } from "../file-lines.ts";
 import { AskContext } from "../chat-context.ts";
-import { fileUrl, linkTitle, SearchfoxContext } from "../searchfox-url.ts";
+import { CodeLinksContext } from "../code-links.ts";
 import { FileViewContext } from "../file-view-context.ts";
 import { fileRows, numberLines, type Row } from "../../shared/diff-lines.ts";
 import { DiffRows } from "./DiffRows.tsx";
@@ -19,9 +19,10 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
   const [error, setError] = useState<string | null>(null);
   const openFile = useContext(FileViewContext);
   const ask = useContext(AskContext);
-  const sf = useContext(SearchfoxContext);
+  const codeLinks = useContext(CodeLinksContext);
   const path = file.oldPath ?? file.path;
-  const linkable = sf && file.status !== "added";
+  const linkable = codeLinks && file.status !== "added";
+  const hunkUrl = linkable ? codeLinks.fileUrl(path, hunk.oldStart, "old") : null;
   const canExpand = file.status === "modified" || file.status === "renamed";
   const expand = async (side: "above" | "below") => {
     try {
@@ -56,11 +57,11 @@ export function DiffView({ sessionId, diffId, file, hunk, threads, renderThread,
   const canShowBelow = canExpand && (expanded ? start + rows.length < fileRows(file, lines).length : true);
   return (
     <div className="diff nodrag nopan" data-testid={`hunk-${hunk.id}`}>
-      <div className="diff-head">{openFile ? <button className="link-button file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{linkable && <> <a className="sf-link" href={fileUrl(sf, path, hunk.oldStart)} title={linkTitle(sf)} target="_blank" rel="noreferrer">Searchfox</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <IconButton label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</IconButton>}</div>
+      <div className="diff-head">{openFile ? <button className="link-button file-link" onClick={() => openFile({ diffId, path: file.path, hunkId: hunk.id })}>{file.path}</button> : file.path}{hunkUrl && <> <a className="sf-link" href={hunkUrl} title={codeLinks!.title} target="_blank" rel="noreferrer">{codeLinks!.label}</a></>} <span className="hunk-header">{hunk.header}</span>{ask && <IconButton label={`Ask about ${hunk.id}`} className="ask" onClick={() => ask.ask(`${diffId}#${hunk.id}`)}>Ask</IconButton>}</div>
       {hunk.rewrites?.map(({ by, of, lines }) => <div className="rewrite-flag" data-testid="rewrite-flag" key={`${by}-${of}`}>C{by + 1} rewrites {lines} line{lines === 1 ? "" : "s"} added in C{of + 1}</div>)}
       <table><tbody>
         {canShowAbove && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("above")}>↑ 20 lines</button></td></tr>}
-        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => fileUrl(sf, path, line) : undefined} rowClass={rowClass} marks={marks} onMark={onMark} onMarkHover={onMarkHover} afterRow={(threads?.length || afterRow) ? (row, index) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}{afterRow?.(row, index)}</> : undefined} />
+        <DiffRows rows={rows} hunkId={hunk.id} diffId={diffId} path={file.path} oldHref={linkable ? (line) => codeLinks.fileUrl(path, line, "old") : undefined} rowClass={rowClass} marks={marks} onMark={onMark} onMarkHover={onMarkHover} afterRow={(threads?.length || afterRow) ? (row, index) => <>{[...insertAt].filter(([, target]) => target === index).map(([thread]) => <tr className="thread-row" key={thread.threadId ?? thread.draftId}><td colSpan={4}>{renderThread?.(thread)}</td></tr>)}{afterRow?.(row, index)}</> : undefined} />
         {canShowBelow && <tr className="expand"><td colSpan={4}><button className="link-button" onClick={() => void expand("below")}>↓ 20 lines</button></td></tr>}
         {error && <tr className="diff-error"><td colSpan={4}>{error}</td></tr>}
       </tbody></table>

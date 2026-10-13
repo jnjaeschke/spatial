@@ -21,6 +21,7 @@
 - [ChatActions](interfaces/ChatActions.md)
 - [ChatNodeData](interfaces/ChatNodeData.md)
 - [ClosedItem](interfaces/ClosedItem.md)
+- [CodeLinks](interfaces/CodeLinks.md)
 - [CodeRow](interfaces/CodeRow.md)
 - [ComposerProps](interfaces/ComposerProps.md)
 - [ConversationItemProps](interfaces/ConversationItemProps.md)
@@ -47,7 +48,6 @@
 - [RepoViewProps](interfaces/RepoViewProps.md)
 - [RootGraphParts](interfaces/RootGraphParts.md)
 - [RowMark](interfaces/RowMark.md)
-- [SearchfoxLinks](interfaces/SearchfoxLinks.md)
 - [Segment](interfaces/Segment.md)
 - [SequenceArrow](interfaces/SequenceArrow.md)
 - [WebPlugin](interfaces/WebPlugin.md)
@@ -72,6 +72,7 @@
 - [AskContext](variables/AskContext.md)
 - [ChatActionsContext](variables/ChatActionsContext.md)
 - [ClosedContext](variables/ClosedContext.md)
+- [CodeLinksContext](variables/CodeLinksContext.md)
 - [CollapseContext](variables/CollapseContext.md)
 - [COMPOSER\_HINT](variables/COMPOSER_HINT.md)
 - [DiagramStepContext](variables/DiagramStepContext.md)
@@ -82,7 +83,6 @@
 - [NodeKindsContext](variables/NodeKindsContext.md)
 - [OpenActivityLogContext](variables/OpenActivityLogContext.md)
 - [SATELLITE\_WIDTH](variables/SATELLITE_WIDTH.md)
-- [SearchfoxContext](variables/SearchfoxContext.md)
 - [StackContext](variables/StackContext.md)
 - [TopbarSlot](variables/TopbarSlot.md)
 
@@ -114,7 +114,6 @@
 - [ErrorText](functions/ErrorText.md)
 - [FileDiff](functions/FileDiff.md)
 - [FilePanel](functions/FilePanel.md)
-- [fileUrl](functions/fileUrl.md)
 - [getJson](functions/getJson.md)
 - [HoverCard](functions/HoverCard.md)
 - [IconButton](functions/IconButton.md)
@@ -125,10 +124,8 @@
 - [latestStart](functions/latestStart.md)
 - [layout](functions/layout.md)
 - [lines](functions/lines.md)
-- [linkTitle](functions/linkTitle.md)
 - [loadFileLines](functions/loadFileLines.md)
 - [Markdown](functions/Markdown.md)
-- [mergedCodeLinks](functions/mergedCodeLinks.md)
 - [placeSatellites](functions/placeSatellites.md)
 - [postJson](functions/postJson.md)
 - [promiseCache](functions/promiseCache.md)
@@ -136,7 +133,6 @@
 - [rootGraph](functions/rootGraph.md)
 - [rootThread](functions/rootThread.md)
 - [rowSegments](functions/rowSegments.md)
-- [searchfoxLinks](functions/searchfoxLinks.md)
 - [Segmented](functions/Segmented.md)
 - [SequenceDiagram](functions/SequenceDiagram.md)
 - [SidePanel](functions/SidePanel.md)
@@ -188,12 +184,6 @@ Re-exports [ChatMessageData](../../shared/types/interfaces/ChatMessageData.md)
 ### ChatThreadData
 
 Re-exports [ChatThreadData](../../shared/types/interfaces/ChatThreadData.md)
-
-***
-
-### CodeLinksData
-
-Re-exports [CodeLinksData](../../shared/types/interfaces/CodeLinksData.md)
 
 ***
 

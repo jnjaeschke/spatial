@@ -7,4 +7,5 @@ export { storedMapping } from "./runtime/mappings.ts";
 export type { EngineMapping, EngineSite, EngineStep, EngineTest } from "./shared/types.ts";
 export { specServices, type SpecServices } from "./runtime/services.ts";
 export type { ResolvedSpec } from "./shared/types.ts";
+export type { SearchfoxCapability } from "./runtime/searchfox.ts";
 export type { StepCommentCheck, WebspecCapability } from "./runtime/webspec.ts";

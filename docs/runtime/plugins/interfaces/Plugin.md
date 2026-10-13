@@ -104,24 +104,6 @@ Extra chat context after the session overview; null when it has none for this se
 
 ***
 
-### linkRev()?
-
-> `optional` **linkRev**(`view`): `string` \| `null`
-
-The upstream revision this plugin's session content is based on for code links, or null when it has none.
-
-#### Parameters
-
-##### view
-
-[`SessionView`](../../render-ref/interfaces/SessionView.md)
-
-#### Returns
-
-`string` \| `null`
-
-***
-
 ### server()?
 
 > `optional` **server**(`rt`, `opts`): [`PluginServer`](PluginServer.md)
@@ -159,6 +141,32 @@ Builds this plugin's service object (capabilities such as tool binaries) from th
 #### Returns
 
 `unknown`
+
+***
+
+### sessionState()?
+
+> `optional` **sessionState**(`rt`, `session`, `view`): `Promise`\<`unknown`\>
+
+Data for the session snapshot (`SessionState.plugins[id]`); undefined when this plugin has nothing for the session. A throwing hook is logged and leaves no entry.
+
+#### Parameters
+
+##### rt
+
+[`Runtime`](../../tasks/classes/Runtime.md)
+
+##### session
+
+[`Session`](../../../shared/types/interfaces/Session.md)
+
+##### view
+
+[`SessionView`](../../render-ref/interfaces/SessionView.md)
+
+#### Returns
+
+`Promise`\<`unknown`\>
 
 ***
 

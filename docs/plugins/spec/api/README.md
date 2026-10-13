@@ -66,6 +66,12 @@ Re-exports [ResolvedSpec](../shared/types/interfaces/ResolvedSpec.md)
 
 ***
 
+### SearchfoxCapability
+
+Re-exports [SearchfoxCapability](../runtime/searchfox/interfaces/SearchfoxCapability.md)
+
+***
+
 ### SpecReferenceData
 
 Re-exports [SpecReferenceData](../shared/types/interfaces/SpecReferenceData.md)

@@ -20,3 +20,8 @@ export interface ReviewerSuggestionData { files: string[]; commits: number; sugg
 export interface PhabSubmitInput { base: string; head: string; reviewers: string; wip: boolean }
 /** A submission to Phabricator (artifact `PhabSubmission`, verified): the command that ran, the tip after moz-phab amended the commits, and each commit's revision. */
 export interface PhabSubmissionData { command: string; head: string; revisions: { sha: string; subject: string; url: string }[] }
+
+/** Resolved code links pinned to one upstream revision (artifact `CodeLinks`, verified): token to Searchfox permalink, null when it has none. */
+export interface CodeLinksData { rev: string; links: Record<string, string | null> }
+/** Gecko's entry in the session snapshot: the Searchfox repository base, its indexed tip, and the revision code links point at (null when unknown). */
+export interface GeckoSessionState { repoBase: string; tipRev: string; linkRev: string | null }

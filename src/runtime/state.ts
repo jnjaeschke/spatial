@@ -1,17 +1,18 @@
 import type { Id, SessionState } from "../shared/types.ts";
-import type { Store } from "./store.ts";
-import { sessionProfile } from "./profiles.ts";
-import { selectLinkRev } from "./link-rev.ts";
 import { sessionView } from "./render-ref.ts";
-import type { PluginRegistry } from "./plugins.ts";
+import type { Runtime } from "./tasks.ts";
 
-export async function buildSessionState(store: Store, searchfoxCapability: { tip(): Promise<{ repoBase: string; rev: string }> }, hooks: Pick<PluginRegistry, "linkRevs" | "textLinks" | "repoProfiles">, sessionId: Id): Promise<SessionState> {
+export async function buildSessionState(rt: Runtime, sessionId: Id): Promise<SessionState> {
+  const { store } = rt;
   const session = store.getSession(sessionId);
   const view = sessionView(store, sessionId);
-  let searchfox: SessionState["searchfox"] = null;
-  if ((await sessionProfile(hooks.repoProfiles, view, session.worktree)).upstreamBranch) {
-    try { const tip = await searchfoxCapability.tip(); searchfox = { repoBase: tip.repoBase, tipRev: tip.rev, linkRev: selectLinkRev(view, hooks.linkRevs) }; }
-    catch (e) { console.error(`Searchfox unavailable: ${(e as Error).message}`); }
+  const plugins: Record<string, unknown> = {};
+  for (const plugin of rt.plugins.plugins) {
+    if (!plugin.sessionState) continue;
+    try {
+      const entry = await plugin.sessionState(rt, session, view);
+      if (entry !== undefined) plugins[plugin.id] = entry;
+    } catch (e) { console.error(`${plugin.id} session state unavailable: ${(e as Error).message}`); }
   }
   return {
     session,
@@ -20,7 +21,7 @@ export async function buildSessionState(store: Store, searchfoxCapability: { tip
     tasks: store.listTasks(sessionId),
     epochs: store.listEpochs(sessionId),
     lastEventId: store.lastEventId(sessionId),
-    searchfox,
-    textLinks: hooks.textLinks.flatMap((hook) => hook(session.worktree)),
+    plugins,
+    textLinks: rt.plugins.textLinks.flatMap((hook) => hook(session.worktree)),
   };
 }

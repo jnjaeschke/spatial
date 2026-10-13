@@ -8,8 +8,6 @@
 
 > **DiffRows**(`__namedParameters`): `Element`
 
-Renders numbered diff rows and optional content inserted after each row.
-
 ## Parameters
 
 ### \_\_namedParameters
@@ -32,7 +30,7 @@ Renders numbered diff rows and optional content inserted after each row.
 
 #### oldHref?
 
-(`line`) => `string`
+(`line`) => `string` \| `null`
 
 #### onMark?
 

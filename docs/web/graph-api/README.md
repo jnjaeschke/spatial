@@ -86,12 +86,6 @@ Re-exports [escapeRegex](../../plugin-api/functions/escapeRegex.md)
 
 ***
 
-### fileUrl
-
-Re-exports [fileUrl](../plugin-api/functions/fileUrl.md)
-
-***
-
 ### FreePosition
 
 Re-exports [FreePosition](../plugin-api/interfaces/FreePosition.md)

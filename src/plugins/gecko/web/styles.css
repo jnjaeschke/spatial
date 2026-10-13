@@ -3,3 +3,4 @@
 .bug-summary > summary { cursor: pointer; }
 .bug-summary > summary a { color: var(--accent); }
 .bug-summary .bug-error { color: var(--danger); }
+a.code-link::after { background: url("./icons/searchfox.png") center / contain no-repeat; }

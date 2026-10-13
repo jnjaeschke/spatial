@@ -50,7 +50,6 @@ export const api = {
   note: (sessionId: string, body: string) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/notes`, { body }),
   enableMcpServer: (sessionId: string, threadId: string, server: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
-  codeLinks: (sessionId: string, tokens: string[]) => post<{ links: Record<string, string | null> }>(`/api/sessions/${sessionId}/code-links`, { tokens }),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
   taskActivity: (sessionId: string, taskId: string) => get<TaskActivityResponse>(`/api/sessions/${sessionId}/tasks/${taskId}/activity`),
   decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>

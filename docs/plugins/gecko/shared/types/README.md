@@ -8,6 +8,8 @@
 
 ## Interfaces
 
+- [CodeLinksData](interfaces/CodeLinksData.md)
+- [GeckoSessionState](interfaces/GeckoSessionState.md)
 - [PhabSubmissionData](interfaces/PhabSubmissionData.md)
 - [PhabSubmitInput](interfaces/PhabSubmitInput.md)
 - [ReviewerSuggestionData](interfaces/ReviewerSuggestionData.md)

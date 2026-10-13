@@ -5,7 +5,7 @@ import { checkResults } from "../../../../src/plugins/implement/web/check-result
 
 let k = 0;
 const art = (data: unknown, epoch: number | null): Artifact => ({ id: `CheckResults${++k}`, sessionId: "s", type: "CheckResults", status: "verified", data, provenance: { taskId: "t" }, epoch, createdAt: "" });
-const state = (artifacts: Artifact[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "implement" }, artifacts, links: [], tasks: [], epochs: [], lastEventId: 0, textLinks: [], searchfox: null });
+const state = (artifacts: Artifact[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "implement" }, artifacts, links: [], tasks: [], epochs: [], lastEventId: 0, textLinks: [], plugins: {} });
 const result = (ok: boolean) => ({ step: 0, check: 0, label: "covering-test a.js", ok, message: ok ? "1 run, the last passed" : "no run", runs: ok ? ["r1"] : [] });
 
 test("the check results of an epoch are those of its latest attempt", () => {

@@ -1,5 +1,4 @@
-import { definePlugin, type Runtime, type SessionView } from "../../plugin-api.ts";
-import type { ImplementBranchData } from "./shared/types.ts";
+import { definePlugin, type Runtime } from "../../plugin-api.ts";
 import { implementStart } from "./tasks/start/task.ts";
 import { investigate } from "./tasks/investigate/task.ts";
 import { implement } from "./tasks/implement/task.ts";
@@ -16,9 +15,5 @@ function server(rt: Runtime) {
   return { routes: implementRoutes(rt), start() { watcher.start(); } };
 }
 
-function linkRev(view: SessionView): string | null {
-  return (view.artifacts.findLast((artifact) => artifact.type === "ImplementBranch")?.data as ImplementBranchData | undefined)?.baseSha ?? null;
-}
-
 /** Implementation workflow plugin. */
-export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments, distillSteer], artifactKinds, linkRev, server });
+export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments, distillSteer], artifactKinds, server });

@@ -6,21 +6,13 @@
 
 # Function: buildSessionState()
 
-> **buildSessionState**(`store`, `searchfoxCapability`, `hooks`, `sessionId`): `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
+> **buildSessionState**(`rt`, `sessionId`): `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
 
 ## Parameters
 
-### store
+### rt
 
-[`Store`](../../store/classes/Store.md)
-
-### searchfoxCapability
-
-#### tip
-
-### hooks
-
-`Pick`\<[`PluginRegistry`](../../plugins/interfaces/PluginRegistry.md), `"linkRevs"` \| `"textLinks"` \| `"repoProfiles"`\>
+[`Runtime`](../../tasks/classes/Runtime.md)
 
 ### sessionId
 

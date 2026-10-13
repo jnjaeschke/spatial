@@ -7,7 +7,7 @@ export interface InvestigationNodeData { kind: "investigation"; investigationId:
 export interface InvestigationStepNodeData { kind: "investigation-step"; investigationId: string; index: number; step: InvestigationStep }
 export interface InvestigationTestsNodeData { kind: "investigation-tests"; investigationId: string; testCases: InvestigationData["testCases"] }
 export interface InvestigationQuestionsNodeData { kind: "investigation-questions"; investigationId: string; questions: string[] }
-export interface LocationNodeData { kind: "location"; anchor: string; location: InvestigationLocation; searchfox: { repoBase: string; rev: string } | null }
+export interface LocationNodeData { kind: "location"; anchor: string; location: InvestigationLocation }
 
 export const latestInvestigation = (state: SessionState) => state.artifacts.findLast((a) => a.type === "Investigation") as Artifact<InvestigationData> | undefined;
 
@@ -27,7 +27,7 @@ export function investigationGraph(state: SessionState, drafts: Draft[]): Graph 
   data.locations.forEach((location, index) => {
     const locationId = `${id}#loc${index}`;
     const on = location.step === null ? id : `${id}#step${location.step}`;
-    nodes.push({ id: locationId, anchors: [on], data: { kind: "location", anchor: locationId, location, searchfox: state.searchfox ? { repoBase: state.searchfox.repoBase, rev: state.searchfox.linkRev ?? state.searchfox.tipRev } : null } satisfies LocationNodeData });
+    nodes.push({ id: locationId, anchors: [on], data: { kind: "location", anchor: locationId, location } satisfies LocationNodeData });
     link(locationId, on);
   });
   if (data.testCases.length) {

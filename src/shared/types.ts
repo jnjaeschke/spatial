@@ -106,9 +106,6 @@ export interface ModelsResponse {
   backends: Record<LlmBackendId, BackendModels>;
 }
 
-/** Resolved inline code links pinned to a patch's upstream revision. */
-export interface CodeLinksData { rev: string; links: Record<string, string | null> }
-
 export type SequenceStatus = "new" | "changed" | "existing" | "removed";
 /** A cited line: 1-based `line` of `path` in the commit's tree (in its parent's tree for `before` steps). */
 export interface DiagramCite { path: string; line: number }
@@ -132,9 +129,8 @@ export interface SessionState {
   epochs: Epoch[];
   /** Subscribe to events after this id to miss nothing. */
   lastEventId: number;
-  /** Searchfox repository base and indexed tip for Gecko repos, else null. */
-  /** `linkRev` is the revision code links point at (null when unknown); `tipRev` is Searchfox's current tip. */
-  searchfox: { repoBase: string; tipRev: string; linkRev: string | null } | null;
+  /** What plugins add to the snapshot (`Plugin.sessionState`), by plugin id; a plugin with nothing for the session has no entry. */
+  plugins: Record<string, unknown>;
   /** Rules that turn text such as bug references into links, from the repository's plugins. */
   textLinks: TextLink[];
 }
@@ -289,7 +285,7 @@ export interface DiffFile {
 
 /** Data of a `Diff` artifact. */
 export interface DiffData {
-  /** Upstream commit the patch applies to (merge-base of base with `main`); Searchfox links pin to it. Absent when unknown. */
+  /** Upstream commit the patch applies to (merge-base of base with `main`); code links pin to it. Absent when unknown. */
   upstreamRev?: string;
   baseSha: string;
   headSha: string;

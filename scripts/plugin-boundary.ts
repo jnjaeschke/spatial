@@ -5,7 +5,6 @@ import { pathToFileURL } from "node:url";
 const ROOT = process.cwd();
 const PLUGIN_KIND_ALLOWLIST: { file: string; name: string; reason: string }[] = [
   { file: "src/runtime/plugins.ts", name: "investigate", reason: "Workflow's default phase id is consumed by the core runtime contract." },
-  { file: "src/server/http.ts", name: "Diff", reason: "The code-links route reads review's upstream revision; a later boundary plan must move this lookup." },
   { file: "src/shared/types.ts", name: "Diff", reason: "The Diff data shape is currently shared with core runtime and UI." },
   { file: "src/web/SessionView.tsx", name: "comment", reason: "The shared canvas represents comment drafts with this draft kind." },
   { file: "src/web/chat-context.ts", name: "comment", reason: "The shared chat context exposes review comment drafts." },
@@ -13,7 +12,7 @@ const PLUGIN_KIND_ALLOWLIST: { file: string; name: string; reason: string }[] = 
 ];
 /** The registries list the plugins; only they import plugin manifests. */
 const REGISTRIES = new Set(["src/plugins/index", "src/plugins/web"]);
-const COMPOSITION_ROOTS = new Set(["src/runtime/create.ts", "src/server/main.ts", "src/mcp/session-server.ts", "src/cli.ts", "src/web/App.tsx", "src/web/SessionView.tsx", "src/web/ExportView.tsx", "src/web/main.tsx"]);
+const COMPOSITION_ROOTS = new Set(["src/runtime/create.ts", "src/server/main.ts", "src/mcp/session-server.ts", "src/cli.ts", "src/web/App.tsx", "src/web/SessionView.tsx", "src/web/ExportView.tsx", "src/web/SessionProviders.tsx", "src/web/main.tsx"]);
 
 export function resolveImport(file: string, specifier: string): string {
   return normalize(join(dirname(file), specifier)).replaceAll("\\", "/");

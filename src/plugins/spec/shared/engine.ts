@@ -1,6 +1,6 @@
 import type { TaskRecord } from "../../../plugin-api.ts";
 import type { CodeScope, Engine } from "./types.ts";
-import { fileUrl, isActive, plural } from "../../../web/graph-api.ts";
+import { isActive, plural } from "../../../web/graph-api.ts";
 import { ENGINE_LABEL } from "./engines.ts";
 import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
@@ -76,7 +76,7 @@ export function siteName(site: Pick<EngineSite, "signature" | "path" | "line">):
 }
 
 /** Permalink of a line at a mapping's revision. */
-export const codeUrl = (mapping: Pick<EngineMapping, "engine" | "repoBase" | "rev">, path: string, line: number) => mapping.engine === "blink" ? `${mapping.repoBase}+/${mapping.rev}:${path};l=${line}` : fileUrl(mapping, path, line);
+export const codeUrl = (mapping: Pick<EngineMapping, "engine" | "repoBase" | "rev">, path: string, line: number) => mapping.engine === "blink" ? `${mapping.repoBase}+/${mapping.rev}:${path};l=${line}` : `${mapping.repoBase}rev/${mapping.rev}/${path}#${line}`;
 
 /** Where `quote` is in `lines` (1-based): `line` while it is still there, else the one nearest line with the same trimmed text; null when it is gone or two copies are equally near. */
 export function followQuote(lines: string[], line: number, quote: string): number | null {

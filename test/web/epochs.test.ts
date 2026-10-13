@@ -7,7 +7,7 @@ const epoch = (n: number, phase: string, status: Epoch["status"] = "succeeded"):
 let k = 0;
 const art = (type: string, data: unknown, at: number | null): Artifact => ({ id: `a${++k}`, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch: at, createdAt: "" });
 const decision = (chosen: DecisionData["chosen"], at: number) => art("Decision", { key: "q", question: "Q", options: [{ id: "fix", label: "Fix" }, { id: "accept", label: "Accept" }], chosen } satisfies DecisionData, at);
-const state = (artifacts: Artifact[], epochs: Epoch[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "w" }, artifacts, links: [], tasks: [], epochs, lastEventId: 0, textLinks: [], searchfox: null });
+const state = (artifacts: Artifact[], epochs: Epoch[]): SessionState => ({ session: { id: "s", worktree: "/r", repoDir: "/r/.git", title: "t", createdAt: "", workflow: "w" }, artifacts, links: [], tasks: [], epochs, lastEventId: 0, textLinks: [], plugins: {} });
 
 test("decision labels say who decided", () => {
   assert.equal(decisionLabel({ key: "q", question: "Q", options: [{ id: "fix", label: "Fix" }], chosen: null }), "?");

@@ -1,8 +1,8 @@
 // REQUIRES_REAL_GIT
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeRepo } from "../helpers/git-fixture.ts";
-import { classifyToken, resolveCodeLinks } from "../../src/runtime/code-links.ts";
+import { makeRepo } from "../../helpers/git-fixture.ts";
+import { classifyToken, resolveCodeLinks } from "../../../src/plugins/gecko/runtime/code-links.ts";
 
 test("classifyCodeToken accepts paths and symbols but rejects prose and expressions", () => {
   for (const [token, expected] of [

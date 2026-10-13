@@ -38,22 +38,6 @@ Contributions of a plugin list merged by `pluginRegistry`, which throws on dupli
 
 ***
 
-### linkRevs
-
-> **linkRevs**: (`view`) => `string` \| `null`[]
-
-#### Parameters
-
-##### view
-
-[`SessionView`](../../render-ref/interfaces/SessionView.md)
-
-#### Returns
-
-`string` \| `null`
-
-***
-
 ### mcpTools
 
 > **mcpTools**: [`McpTool`](McpTool.md)\<`Readonly`\<\{\[`k`: `string`\]: `$ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}\>\>[]
