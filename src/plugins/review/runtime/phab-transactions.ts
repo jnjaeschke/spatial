@@ -87,7 +87,8 @@ export function storeRemoteComments(rt: Pick<Runtime, "store" | "putArtifact" | 
       ...(comment.isNewFile !== undefined ? { isNewFile: comment.isNewFile } : {}), ...(comment.quote !== undefined ? { quote: comment.quote } : {}), ...(comment.replyTo ? { replyTo: comment.replyTo } : {}),
       own: isOwn, done, txId: comment.txId, dateCreated: comment.dateCreated,
     };
-    const artifact = rt.putArtifact<PhabCommentData>("runtime", { sessionId, type: "PhabComment", status: "verified", data, provenance: { taskId: "runtime" } });
+    // A remote fact, not an epoch's output: past epochs show comments synced after them, anchored by diff.
+    const artifact = rt.putArtifact<PhabCommentData>("runtime", { sessionId, type: "PhabComment", status: "verified", data, provenance: { taskId: "runtime" }, epoch: null });
     if (previous) rt.putLink("runtime", { sessionId, from: artifact.id, to: previous.id, kind: "revises" });
     created.push(artifact);
     latest.set(comment.phid, artifact);

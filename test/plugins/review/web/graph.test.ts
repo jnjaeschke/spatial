@@ -94,6 +94,7 @@ test("latestNarrative can project an unnarrated diff into one change per commit"
   assert.equal(narrativeGraph(projected!.narrative, stackDiff, []).nodes.filter((n) => n.data.kind === "change").length, 2);
   const narrated = latestNarrative(state([stackDiff, { ...narrative("N"), data: { ...narrative("N").data, diffId: "D" } }]), { project: true });
   assert.equal(narrated?.projected, false);
+  assert.equal(reviewGraph(st, [], { project: true })?.nodes.filter((n) => n.data.kind === "change").length, 2, "a projection owns no findings to look up");
 });
 
 test("latestNarrative and sessionGraph hide an older narrative when latest Diff is unnarrated", () => {
@@ -906,4 +907,14 @@ test("layerGraph recounts a commit card's active findings from the visible layer
   const count = (hidden: ("spec" | "review")[]) => { const card = layerGraph(g, new Set(hidden)).nodes[0]!.data; return isReviewKind(card, "commit") ? card.findingCount : -1; };
   assert.equal(count(["review"]), 1);
   assert.equal(count(["spec"]), 1);
+});
+
+test("a projected round hosts the Phabricator comments of the diff it matches", () => {
+  const withRevision = { ...diff, data: { ...diff.data, commits: [{ sha: "1", subject: "Bug 1", body: "Differential Revision: https://phab.example.com/D1" }] } };
+  const remote = { id: "PC", sessionId: "S", type: "PhabComment", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, body: "remote", path: "a.cpp", line: 1, length: 1, diffId: 7, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 }, epoch: null };
+  const sync = { id: "PS", sessionId: "S", type: "PhabSync", status: "verified" as const, createdAt: "3", provenance: { taskId: "runtime" }, data: { revision: 1, matchingDiffId: 7, latestDiffId: 7, localDiff: "D" }, epoch: null };
+  const g = reviewGraph(state([withRevision, sync, remote]), [], { project: true })!;
+  const change = g.nodes.find((n) => n.data.kind === "change");
+  assert.ok(change && isReviewKind(change.data, "change"));
+  assert.deepEqual(change.data.phabThreads.map((thread) => thread.anchorId), ["PC"]);
 });

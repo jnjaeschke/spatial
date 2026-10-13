@@ -21,13 +21,15 @@ function knownHeads(view: WorkflowView): Set<string> {
   return heads;
 }
 
-/** Where the session's branch is now compared with what the session knows. */
+/** Where the session's branch is now compared with what the session knows. Before the session records a head there is nothing to diverge from: its first implement round takes the branch as it is. */
 export async function branchState(git: GitCapability, view: WorkflowView): Promise<BranchState | null> {
   const branch = latestArtifact<ImplementBranchData>(view.artifacts, "ImplementBranch")?.data;
   if (!branch) return null;
+  const heads = knownHeads(view);
+  if (heads.size === 0) return { kind: "same" };
   let tip: string | null = null;
   try { tip = await git.resolve(`refs/heads/${branch.branch}`); } catch { tip = null; }
-  if (tip !== null) return knownHeads(view).has(tip) ? { kind: "same" } : { kind: "moved", tip };
+  if (tip !== null) return heads.has(tip) ? { kind: "same" } : { kind: "moved", tip };
   const known = new Set<string>();
   for (const a of view.artifacts.filter((a) => a.type === "Diff")) {
     const diff = a.data as DiffData;

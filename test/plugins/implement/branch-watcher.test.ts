@@ -86,3 +86,12 @@ test("watcher polls only watched idle implement sessions", async () => {
   assert.equal(calls, 0);
   assert.equal(await branchState(makeGit(repo.dir), { artifacts: [], epochs: [] } as any), null);
 });
+
+test("a session that recorded no head yet has nothing the branch could have moved from", async () => {
+  const repo = makeRepo();
+  const base = repo.commit({ "a.txt": "base\n" }, "base");
+  repo.git("switch", "-q", "-c", "topic");
+  repo.commit({ "a.txt": "existing\n" }, "existing work the session continues on");
+  const branch = { id: "b", sessionId: "s", type: "ImplementBranch", status: "verified", data: { branch: "topic", baseSha: base, baseRef: null, checkout: "current-branch" }, provenance: { taskId: "t" }, epoch: null, createdAt: "" } as const;
+  assert.deepEqual(await branchState(makeGit(repo.dir), { artifacts: [branch], epochs: [], links: [] }), { kind: "same" });
+});

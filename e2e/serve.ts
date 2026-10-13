@@ -207,13 +207,13 @@ writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": 
 process.env.SPATIAL_ARCRC_PATH = arcrc;
 type ConduitInline = { revisionID: number; diffID: number; filePath: string; isNewFile: number; lineNumber: number; lineLength: number; content: string };
 type ConduitSubmission = { revision_id: number; message: string; action: "none" | "accept" | "reject"; attach_inlines: boolean };
-type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; inlines: ConduitInline[]; submissions: ConduitSubmission[]; title?: string; base?: string; parents?: number[]; closed?: boolean };
-const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {}, inlines: [], submissions: [] }]]);
+type ConduitState = { diffs: number[]; transactions: object[]; rawDiffs: Record<number, string>; diffDates: Record<number, number>; inlines: ConduitInline[]; submissions: ConduitSubmission[]; title?: string; base?: string; parents?: number[]; closed?: boolean };
+const conduitStates = new Map<number, ConduitState>([[1, { diffs: [1], transactions: [], rawDiffs: {}, diffDates: {}, inlines: [], submissions: [] }]]);
 const phidOf = (revision: number) => `PHID-DREV-${revision}`;
 const state = (revision: number) => {
   const existing = conduitStates.get(revision);
   if (existing) return existing;
-  const created: ConduitState = { diffs: [1], transactions: [], rawDiffs: {}, inlines: [], submissions: [] };
+  const created: ConduitState = { diffs: [1], transactions: [], rawDiffs: {}, diffDates: {}, inlines: [], submissions: [] };
   conduitStates.set(revision, created);
   return created;
 };
@@ -234,6 +234,7 @@ const conduit = createServer(async (req, res) => {
     if (update.diffs) current.diffs = update.diffs;
     if (update.transactions) current.transactions = update.transactions;
     if (update.rawDiffs) current.rawDiffs = update.rawDiffs;
+    if (update.diffDates) current.diffDates = update.diffDates;
     if (update.title !== undefined) current.title = update.title;
     if (update.base !== undefined) current.base = update.base;
     if (update.parents !== undefined) current.parents = update.parents;
@@ -269,7 +270,7 @@ const conduit = createServer(async (req, res) => {
       return { id, phid: phidOf(id), fields: { title: revisionState.title ?? `Revision ${id}`, status: { value: revisionState.closed ? "published" : "needs-review", closed: revisionState.closed ?? false }, stackGraph: stackGraph(id) } };
     }) };
   })()
-    : method === "differential.diff.search" ? { data: conduitState.diffs.map((id) => ({ id, phid: `PHID-DIFF-${id}`, fields: { revisionPHID: phidOf(revisionId), dateCreated: 1_700_000_000, refs: conduitState.base ? [{ type: "base", identifier: conduitState.base }] : [] } })) }
+    : method === "differential.diff.search" ? { data: [...conduitState.diffs].sort((a, b) => (conduitState.diffDates[b] ?? 1_700_000_000 + b * 1_000) - (conduitState.diffDates[a] ?? 1_700_000_000 + a * 1_000) || b - a).map((id) => ({ id, phid: `PHID-DIFF-${id}`, fields: { revisionPHID: phidOf(revisionId), dateCreated: conduitState.diffDates[id] ?? 1_700_000_000 + id * 1_000, refs: conduitState.base ? [{ type: "base", identifier: conduitState.base }] : [] } })) }
       // `getrawdiff` names no revision; diff ids are unique across revisions, as on Phabricator.
       : method === "differential.getrawdiff" ? [...conduitStates.values()].find((state) => state.rawDiffs[params.diffID])?.rawDiffs[params.diffID] ?? (params.diffID === 1 ? defaultRawDiff : defaultRawDiff.replace("THIRTY", "THIRTY-X"))
           : method === "differential.createinline" ? (() => {

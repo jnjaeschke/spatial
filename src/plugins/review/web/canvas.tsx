@@ -56,3 +56,6 @@ export const reviewCanvas: CanvasModel = {
   PanelExtras: CompactToggle,
   Provider: ReviewCanvasProvider,
 };
+
+/** A round's canvas: a Diff nobody narrated shows as one change per commit. */
+export const roundCanvas: CanvasModel = { ...reviewCanvas, graph: (state, drafts) => reviewGraph(state, drafts, { project: true }) };

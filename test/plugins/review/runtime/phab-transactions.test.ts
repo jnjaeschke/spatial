@@ -97,3 +97,13 @@ test("storeRemoteComments marks bot authors by username", () => {
   assert.deepEqual(stored.map((a) => a.data.bot), [true, true, true, false, false, false]);
   store.close();
 });
+
+test("remote comments belong to the session, not to the epoch that synced them, so earlier rounds show them", () => {
+  const store = new Store(":memory:");
+  const rt = runtime(store);
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
+  store.createEpoch(session.id, "round", null);
+  const [comment] = storeRemoteComments(rt, session.id, 7, [remote()], new Map(), { phid: "ME", posted: [] });
+  assert.equal(comment?.epoch, null);
+  store.close();
+});

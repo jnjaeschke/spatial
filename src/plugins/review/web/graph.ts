@@ -338,7 +338,7 @@ export function latestNarrative(state: SessionState, opts?: { project?: boolean 
   const narrative = narrativeOf(state.artifacts, diff.id);
   if (!narrative) {
     if (!opts?.project) return null;
-    return { diff, projected: true, narrative: { id: diff.id, sessionId: diff.sessionId, epoch: diff.epoch, createdAt: diff.createdAt, type: "PatchNarrative", status: "verified", provenance: { taskId: "projection" }, data: { diffId: diff.id, summary: "", changes: commitChanges(diff.data) } } };
+    return { diff, projected: true, narrative: { id: `projection:${diff.id}`, sessionId: diff.sessionId, epoch: diff.epoch, createdAt: diff.createdAt, type: "PatchNarrative", status: "verified", provenance: { taskId: "projection" }, data: { diffId: diff.id, summary: "", changes: commitChanges(diff.data) } } };
   }
   return { narrative, diff, projected: false };
 }
@@ -442,7 +442,7 @@ function buildSummarySection(state: SessionState, latest: ReviewBuild, summary: 
     summary: state.artifacts.filter((a): a is Artifact<BugSummaryData> => a.type === "BugSummary" && (a.data as BugSummaryData).bug === report.data.bug).at(-1) ?? null,
     summarizing: state.tasks.some((task) => task.kind === "summarizeBug" && task.status === "running" && (task.input as { reportId?: string }).reportId === report.id),
   }));
-  const plan = postPlan(latest.diff.data, postableComments(state, latest.narrative.id));
+  const plan = postPlan(latest.diff.data, latest.projected ? [] : postableComments(state, latest.narrative.id));
   summary.drafts = plan.revisions.map((group) => ({ commit: group.commit, revision: group.revision.id, count: group.items.length }));
   summary.skipped = plan.skipped.length;
   const submissions = state.artifacts.filter((artifact): artifact is Artifact<ReviewSubmissionData> => artifact.type === "ReviewSubmission");
@@ -604,7 +604,7 @@ export function reviewGraph(state: SessionState, drafts: Draft[], opts?: { proje
   // Summaries are keyed by the thread as the runtime groups it (`phabThreads`), which follows reply chains.
   const replies = currentUserComments(state.artifacts).filter((comment) => comment.data.diffId === latest.diff.id && comment.data.replyTo);
   buildPhabSection(g, state, latest, summary, phab, threads, hostOf, nodeIds, allHunks, diagramsByMessage, replies, resolve);
-  buildFindingSection(g, state, latest, threads, hostOf, nodeIds, allHunks, diagramsByMessage, resolve);
+  if (!latest.projected) buildFindingSection(g, state, latest, threads, hostOf, nodeIds, allHunks, diagramsByMessage, resolve);
   return rootGraph(state, drafts, { nodes: g.nodes, edges: g.edges, hosts: hostOf, resolveSub: (anchor, ids) => anchorNodeId(anchor, latest.narrative.id, narrativeData, latest.diff.id, ids, state.links), diffId: latest.diff.id, hunks: allHunks });
 }
 

@@ -2,7 +2,7 @@ import { reviewClient } from "./client.ts";
 import { useMemo, useRef, useState } from "react";
 import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, useClosed } from "../../../web/plugin-api.ts";
 import { latestNarrative, reviewGraph } from "./graph.ts";
-import { JumpContext, RevealContext, reviewCanvas } from "./canvas.tsx";
+import { JumpContext, RevealContext, reviewCanvas, roundCanvas } from "./canvas.tsx";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
 import { AnalysisStatus } from "./AnalysisStatus.tsx";
 import { RevisionView } from "./RevisionView.tsx";
@@ -41,7 +41,7 @@ export function ReviewView({ state, models, drafts, epoch: viewedEpoch, readOnly
   const resolves = (detail: Detail) => detail.kind === "chat" ? chatThread(detail.id) !== null : detail.kind === "comment" ? findComment(graph, detail.id) !== null : detail.kind === "finding" ? findFinding(graph, detail.id) !== null : detail.kind === "phab" ? findPhabThread(graph, detail.anchorId) !== null : detail.kind === "symbol" ? findSymbol(state, diff, detail.name, detail.site) !== null : detail.kind === "spec" ? state.artifacts.some((artifact) => artifact.id === detail.specId) : true;
   const back = canGoBack(details, resolves) ? () => setDetails((current) => backDetail(current, resolves)) : undefined;
   const closePanel = () => setDetails(closeDetails());
-  const body = narrative ? <RevealContext.Provider value={revealer}><JumpContext.Provider value={jump}><Canvas model={reviewCanvas} closed={closed} state={state} models={models} readOnly={readOnly || projected} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider></RevealContext.Provider>
+  const body = narrative ? <RevealContext.Provider value={revealer}><JumpContext.Provider value={jump}><Canvas model={projectUnnarrated ? roundCanvas : reviewCanvas} closed={closed} state={state} models={models} readOnly={readOnly || projected} drafts={drafts} onSent={onSent} onOpenAside={onOpenAside} onDiscard={onDiscard} /></JumpContext.Provider></RevealContext.Provider>
     : diff && epoch !== null ? <RevisionView sessionId={state.session.id} diff={diff as Artifact<DiffData>} epoch={epoch} state={state} models={models} />
       : <AnalysisStatus state={state} models={models} />;
   const focusSpecRange = (range: LineRange) => {

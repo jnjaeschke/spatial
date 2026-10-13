@@ -2,6 +2,7 @@ import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 import { git, inlineTx, makeRepo as createRepo } from "./repo.ts";
 import { test, expect } from "@playwright/test";
+import { openChange } from "./canvas.ts";
 
 const repoDirs: string[] = [];
 test.afterEach(() => { for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -378,6 +379,61 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
   expect(readFileSync(join(dir, "c.txt"), "utf8")).toContain("kept");
   expect(git(dir, "log", "-1", "--format=%B")).toContain("Differential Revision: https://phab.example.com/D4242");
+});
+
+test("implement: adopts a moved submitted branch and browses its review rounds", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const dir = makeGeckoRepo();
+  const base = git(dir, "rev-parse", "HEAD");
+  await page.goto(open(dir));
+  await page.getByLabel("start").fill("/implement TRY-E2E Bug 4242 make c.txt exist");
+  await page.getByLabel("start").press("Enter");
+  const bar = page.getByTestId("session-decision");
+  await expect(bar).toContainText("Approve the investigation plan?", { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Approve" }).click();
+  await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
+  await bar.getByRole("button", { name: "Accept" }).click();
+  await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
+  await bar.getByRole("button", { name: "Skip" }).click();
+  await expect(bar).toContainText(/Submit 1 commit \([0-9a-f]{12}\) to Phabricator\?/, { timeout: 20_000 });
+  await page.getByTestId("session-popover").getByLabel("message").fill("#dom-core");
+  await bar.getByRole("button", { name: "Submit", exact: true }).click();
+  await expect(page.getByTestId("epoch-chip-6")).toBeVisible({ timeout: 20_000 });
+
+  const branch = git(dir, "branch", "--show-current");
+  const submitted = `${git(dir, "diff", base, "HEAD")}\n`;
+  // A moz-phab round outside spatial: the submitted commit amended in place.
+  writeFileSync(join(dir, "c.txt"), `${readFileSync(join(dir, "c.txt"), "utf8")}reviewed\n`);
+  git(dir, "commit", "-a", "--amend", "--no-edit");
+  await request.post("http://127.0.0.1:4179/control", { data: {
+    revision: 4242,
+    title: "Bug 4242 - Add c",
+    base,
+    diffs: [42421, 42422],
+    diffDates: { 42421: 1_700_000_000, 42422: 1_700_001_000 },
+    rawDiffs: { 42421: submitted },
+    transactions: [],
+  } });
+  const notice = page.getByTestId("toasts");
+  await expect(notice).toContainText(`Branch ${branch} moved outside spatial`, { timeout: 30_000 });
+  await notice.getByRole("button", { name: "Adopt" }).click();
+
+  const strip = page.getByTestId("epoch-strip");
+  const oldRound = strip.getByRole("button", { name: /Round · D4242 #42421 ✓/ });
+  const localRound = strip.getByRole("button", { name: /Round · D4242 #42422 \(local\) ✓/ });
+  await expect(oldRound).toBeVisible({ timeout: 60_000 });
+  await expect(localRound).toBeVisible({ timeout: 60_000 });
+  // Posted after the adopt, the comment predates the latest round's diff, so it is history and not interpreted.
+  const roundComment = inlineTx(4401, "c.txt", 1, "This round's inline comment", { revision: 4242, diffId: 42421 });
+  roundComment.dateCreated = roundComment.dateModified = 1_700_000_001;
+  roundComment.comments[0]!.dateCreated = 1_700_000_000;
+  roundComment.comments[0]!.dateModified = 1_700_000_001;
+  await request.post("http://127.0.0.1:4179/control", { data: { revision: 4242, transactions: [roundComment] } });
+  await oldRound.click();
+  await openChange(page, "change-C1");
+  await expect(page.locator(".inline-item.kind-phab").filter({ hasText: "This round's inline comment" })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Interdiff" }).click();
+  await expect(page.getByTestId("interdiff-panel")).toBeVisible();
 });
 
 test("gecko: chat answers link local files to Searchfox at the branch base in a session without a Diff", async ({ page }) => {
