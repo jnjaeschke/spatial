@@ -43,6 +43,17 @@ export const STORE_MIGRATIONS: readonly Migration[] = [
     const columns = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((r) => r.name).join(",");
     if (columns("sessions") !== SESSION_COLUMNS || columns("artifacts") !== "id,session_id,type,status,data,provenance,created_at,epoch" || columns("tasks") !== "id,session_id,kind,status,input,output,error,created_at,updated_at,epoch,parent_id") throw new Error("Database was created by an older development version; delete it and restart");
   },
+  // `WorkflowStart.profile` predates versioned databases: starts without it take the profile their params or their session's implement branch named.
+  (db) => {
+    const starts = db.prepare("SELECT id, session_id, data FROM artifacts WHERE type = 'WorkflowStart' AND json_extract(data, '$.profile') IS NULL").all() as Row[];
+    const branchProfile = db.prepare("SELECT json_extract(data, '$.profile') AS profile FROM artifacts WHERE session_id = ? AND type = 'ImplementBranch' AND json_extract(data, '$.profile') IS NOT NULL ORDER BY rowid DESC LIMIT 1");
+    const update = db.prepare("UPDATE artifacts SET data = ? WHERE id = ?");
+    for (const row of starts) {
+      const data = JSON.parse(row.data as string) as { params?: { profile?: string | null }; profile?: string };
+      const profile = data.params?.profile ?? (branchProfile.get(row.session_id as string) as Row | undefined)?.profile as string | undefined;
+      if (profile) update.run(JSON.stringify({ ...data, profile }), row.id as string);
+    }
+  },
 ];
 
 type Row = Record<string, unknown>;

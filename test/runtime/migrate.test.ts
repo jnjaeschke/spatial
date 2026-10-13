@@ -149,3 +149,22 @@ test("a read-only knowledge store refuses a database whose version differs", () 
   setVersion(path, 0);
   assert.throws(() => new KnowledgeStore(path, { readOnly: true }), /schema version/);
 });
+
+test("migration 2 gives a workflow start without a profile the one its params or its implement branch named", () => {
+  const path = tmp("runtime.sqlite");
+  withDb(path, (db) => {
+    STORE_MIGRATIONS[0]!(db);
+    db.exec("PRAGMA user_version = 1");
+    const put = (id: string, session: string, type: string, data: object) => db.prepare("INSERT INTO artifacts VALUES (?, ?, ?, 'verified', ?, '{}', '', NULL)").run(id, session, type, JSON.stringify(data));
+    for (const s of ["params", "branch", "neither", "has"]) db.prepare("INSERT INTO sessions VALUES (?, '/w', '/r', 't', '', 'implement')").run(s);
+    put("a", "params", "WorkflowStart", { workflow: "implement", params: { request: "x", profile: "gecko" } });
+    put("b", "branch", "WorkflowStart", { workflow: "implement", params: { request: "x", profile: null } });
+    put("b-branch", "branch", "ImplementBranch", { branch: "x", baseSha: "s", baseRef: null, checkout: "new-branch", profile: "gecko" });
+    put("c", "neither", "WorkflowStart", { workflow: "review", params: {} });
+    put("d", "has", "WorkflowStart", { workflow: "implement", params: { profile: "gecko" }, profile: "plain-git" });
+  });
+  const store = new Store(path);
+  const profile = (id: string) => (store.getArtifact<{ profile?: string }>(id).data).profile;
+  assert.deepEqual(["a", "b", "c", "d"].map(profile), ["gecko", "gecko", undefined, "plain-git"]);
+  store.close();
+});
