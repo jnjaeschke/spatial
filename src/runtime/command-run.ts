@@ -1,7 +1,7 @@
 import type { Artifact, CommandRunData } from "../shared/types.ts";
 import type { ArtifactKind } from "./plugins.ts";
-import { capOutput } from "./process.ts";
-import { runProcess } from "./process.ts";
+import type { TaskContext } from "./tasks.ts";
+import { capOutput, runProcess } from "./process.ts";
 
 type ProcessResult = Awaited<ReturnType<typeof runProcess>>;
 
@@ -13,7 +13,7 @@ export function commandRunData(command: string, exitCode: number, durationMs: nu
 }
 
 /** Runs a command and records its result; callers retain their own progress and activity reporting. */
-export async function runRecordedCommand(ctx: Pick<import("./tasks.ts").TaskContext, "repo" | "signal" | "artifacts">, options: {
+export async function runRecordedCommand(ctx: Pick<TaskContext, "repo" | "signal" | "artifacts">, options: {
   command: string; bin: string; args: string[]; test: boolean; callId?: string; env?: Record<string, string>;
   onStdoutLine?: (line: string) => void; onResult?: (result: ProcessResult, durationMs: number, output: string) => void;
 }): Promise<{ result: ProcessResult; durationMs: number; output: string; artifact: Artifact<CommandRunData> }> {
