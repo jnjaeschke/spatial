@@ -1,25 +1,26 @@
 #!/usr/bin/env node
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import type { Artifact, LlmBackendId, PatchNarrativeData, WorkflowStartData } from "./shared/types.ts";
+import type { LlmBackendId } from "./shared/types.ts";
 import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
-import { createSession, resolveRepo } from "./runtime/git.ts";
+import { resolveRepo } from "./runtime/git.ts";
 import { parseCommand } from "./workflows/registry.ts";
-import { runWorkflow } from "./workflows/start.ts";
+import { begin } from "./workflows/start.ts";
+import { sessionOverview, sessionView } from "./runtime/render-ref.ts";
 import { DEFAULT_PORT, ensureServer, openBrowser, spawnServer, startScreenUrl, staleServerMessage, stopServer } from "./cli/launch.ts";
 
 const USAGE = `usage:
   spatial [open [path]] [--port N] [--db PATH]   open the start screen of the repo at path (default: .), starting the server if needed
   spatial stop [--port N] [--force]              stop the server on the port
   spatial restart [--port N] [--db PATH] [--force] restart the server without opening a browser
-  spatial review <repo> [<base>..<head> | D123 | <revision-url>] [--backend claude|codex] [--model M] [--effort E] [--db PATH]
+  spatial run <repo> <workflow command…> [--backend claude|codex] [--model M] [--effort E] [--db PATH]
   spatial models [--db PATH]`;
 
 function fail(msg: string): never {
-  console.error(msg);
+  writeSync(2, `${msg}\n`);
   process.exit(1);
 }
 
@@ -85,21 +86,20 @@ try {
   } else if (cmd === "models") {
     const rt = runtime();
     console.log(JSON.stringify(await rt.llm.listModels(), null, 2));
-  } else if (cmd === "review") {
+  } else if (cmd === "run") {
     const rt = runtime();
-    const [repo, target = ""] = rest;
-    if (!repo) fail(USAGE);
-    const command = parseCommand(rt.workflows.values(), "/review " + target);
-    const parsed = command.ok ? { ok: true as const, params: command.params } : command;
-    if (!parsed.ok) fail(`Expected <base>..<head>, a revision (D123 or its URL) or nothing, got "${target}"\n${USAGE}`);
+    const [repo, ...commandParts] = rest;
+    if (!repo || !commandParts.length) fail(USAGE);
+    const commandText = commandParts.join(" ");
+    const parsed = parseCommand(rt.workflows.values(), commandText);
+    if (!parsed.ok) fail(parsed.error);
     const backend = (values.backend ?? DEFAULT_LLM.backend) as LlmBackendId;
     if (backend !== "claude" && backend !== "codex") fail(`Unknown backend: ${backend}`);
     const llm = values.backend || values.model || values.effort
       ? { backend, model: values.model ?? (backend === DEFAULT_LLM.backend ? DEFAULT_LLM.model : fail("--model is required with --backend codex")), effort: values.effort ?? DEFAULT_LLM.effort }
       : undefined;
 
-    const title = `/review ${target}`.trim();
-    const session = await createSession(rt.store, repo, title, null);
+    const { worktree } = await resolveRepo(resolve(repo));
     rt.onEvent((e) => {
       if (e.type === "task.started" || e.type === "task.progress" || e.type === "task.failed") {
         console.error(`[${e.type}] ${JSON.stringify(e.payload)}`);
@@ -118,14 +118,9 @@ try {
       }
     });
 
-    const start = rt.putArtifact<WorkflowStartData>("user", {
-      sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" },
-      data: { via: "command", workflow: "review", params: parsed.params, title, prompt: target },
-    });
-    await runWorkflow(rt, session.id, start.id, llm);
-    const narrative = rt.store.listArtifacts(session.id, "PatchNarrative").at(-1) as Artifact<PatchNarrativeData> | undefined;
-    if (!narrative) throw new Error("Review completed without analysis");
-    console.log(JSON.stringify({ sessionId: session.id, diffId: narrative.data.diffId, narrativeId: narrative.id, narrative: narrative.data }, null, 2));
+    const title = commandText.slice(0, 80);
+    const session = await begin(rt, { path: worktree, worktree, ...(llm ? { llm } : {}) }, { via: "command", workflow: parsed.workflow, params: parsed.params, title, prompt: parsed.prompt }, undefined, true);
+    console.log(sessionOverview(rt.plugins, sessionView(rt.store, session.id)).join("\n\n"));
   } else {
     fail(USAGE);
   }

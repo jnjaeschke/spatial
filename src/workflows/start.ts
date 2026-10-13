@@ -80,13 +80,16 @@ async function answer(rt: Runtime, pending: Map<string, PendingStart>, id: strin
   catch (e) { pending.set(id, entry); throw e; }
 }
 
-async function begin(rt: Runtime, base: StartBase, start: Chosen, selection?: LlmSelection): Promise<Session> {
+/** Creates a workflow session; callers can wait for the workflow instead of running it in the background. */
+export async function begin(rt: Runtime, base: StartBase, start: Chosen, selection?: LlmSelection, waitForWorkflow = false): Promise<Session> {
   const session = await createSession(rt.store, base.path, start.title, start.workflow);
   const artifact = rt.putArtifact<WorkflowStartData>(selection ? "runtime" : "user", {
     sessionId: session.id, type: "WorkflowStart", status: start.via === "command" ? "verified" : "proposed",
     provenance: selection ? { taskId: "runtime", llm: selection } : { taskId: "user" },
     data: { ...start, ...(base.llm ? { llm: base.llm } : {}), ...(base.writeMode ? { writeMode: base.writeMode } : {}) },
   });
-  inBackground(session.id, runWorkflow(rt, session.id, artifact.id, base.llm));
+  const work = runWorkflow(rt, session.id, artifact.id, base.llm);
+  if (waitForWorkflow) await work;
+  else inBackground(session.id, work);
   return session;
 }

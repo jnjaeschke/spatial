@@ -1,8 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { CommitDetail, CommitFileStat, DiffFile, FileStatus, LogRow, LogScope, RefRow } from "../shared/types.ts";
-import { parseUnifiedDiff } from "./diff-parse.ts";
-import { resolveRepo, runGit, safeRepoPath, safeRevision } from "./git.ts";
+import { parseUnifiedDiff, resolveRepo, runGit, safeRepoPath, safeRevision, type CommitDetail, type CommitFileStat, type DiffFile, type FileStatus, type LogRow, type LogScope, type RefRow } from "../../../plugin-api.ts";
 
 const LOG_FORMAT = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x1e";
 

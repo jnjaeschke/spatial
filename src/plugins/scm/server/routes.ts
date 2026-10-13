@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
-import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, HttpError, logPage, refs, resolveRepo, type LogScope, type Route } from "../../../plugin-api.ts";
+import { HttpError, resolveRepo, type LogScope, type Route } from "../../../plugin-api.ts";
+import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../runtime/scm.ts";
 
 function param(url: URL, name: string): string {
   const value = url.searchParams.get(name);

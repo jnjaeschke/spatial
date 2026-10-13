@@ -109,7 +109,7 @@ export interface Plugin {
   chatContext?(view: SessionView): string | null;
   /** Extra fields of the structured chat reply. */
   chatReplyFields?: ChatReplyField[];
-  /** The upstream revision this plugin's session content is based on, for code links when no Diff has an `upstreamRev`; null when it has none. */
+  /** The upstream revision this plugin's session content is based on for code links, or null when it has none. */
   linkRev?(view: SessionView): string | null;
   /** Rules linking text (such as bug references) to the tracker of the repository at `repo`; empty when this plugin has none for it. */
   textLinks?(repo: string): TextLink[];

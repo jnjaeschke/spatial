@@ -72,6 +72,7 @@ composition roots.
 
 - [ENGINE\_LABEL](variables/ENGINE_LABEL.md)
 - [ENGINES](variables/ENGINES.md)
+- [runGit](variables/runGit.md)
 
 ## Functions
 
@@ -94,6 +95,8 @@ composition roots.
 - [revisedText](functions/revisedText.md)
 - [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
+- [safeRepoPath](functions/safeRepoPath.md)
+- [safeRevision](functions/safeRevision.md)
 - [taskState](functions/taskState.md)
 
 ## References
@@ -137,12 +140,6 @@ Re-exports [BlameEntry](../runtime/tasks/interfaces/BlameEntry.md)
 ### BusyError
 
 Re-exports [BusyError](../runtime/tasks/classes/BusyError.md)
-
-***
-
-### changedFiles
-
-Re-exports [changedFiles](../runtime/scm/functions/changedFiles.md)
 
 ***
 
@@ -197,12 +194,6 @@ Re-exports [CommandRunData](../shared/types/interfaces/CommandRunData.md)
 ### Commit
 
 Re-exports [Commit](../shared/types/interfaces/Commit.md)
-
-***
-
-### commitDetail
-
-Re-exports [commitDetail](../runtime/scm/functions/commitDetail.md)
 
 ***
 
@@ -278,12 +269,6 @@ Re-exports [DiffFile](../shared/types/interfaces/DiffFile.md)
 
 ***
 
-### diffFiles
-
-Re-exports [diffFiles](../runtime/scm/functions/diffFiles.md)
-
-***
-
 ### DiffLine
 
 Re-exports [DiffLine](../shared/types/interfaces/DiffLine.md)
@@ -320,12 +305,6 @@ Re-exports [EpochStatus](../shared/types/type-aliases/EpochStatus.md)
 
 ***
 
-### fileAt
-
-Re-exports [fileAt](../runtime/scm/functions/fileAt.md)
-
-***
-
 ### FileStatus
 
 Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
@@ -347,12 +326,6 @@ Re-exports [GeckoSpecRef](../shared/types/interfaces/GeckoSpecRef.md)
 ### GitCapability
 
 Re-exports [GitCapability](../runtime/tasks/interfaces/GitCapability.md)
-
-***
-
-### hasCommitGraph
-
-Re-exports [hasCommitGraph](../runtime/scm/functions/hasCommitGraph.md)
 
 ***
 
@@ -473,12 +446,6 @@ Re-exports [LlmPrompt](../runtime/llm/types/interfaces/LlmPrompt.md)
 ### LlmSelection
 
 Re-exports [LlmSelection](../shared/types/interfaces/LlmSelection.md)
-
-***
-
-### logPage
-
-Re-exports [logPage](../runtime/scm/functions/logPage.md)
 
 ***
 
@@ -653,12 +620,6 @@ Re-exports [Ref](../shared/types/type-aliases/Ref.md)
 ### RefRow
 
 Re-exports [RefRow](../shared/types/interfaces/RefRow.md)
-
-***
-
-### refs
-
-Re-exports [refs](../runtime/scm/functions/refs.md)
 
 ***
 

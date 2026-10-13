@@ -1,8 +1,8 @@
-[**spatial**](../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial](../../../README.md) / [runtime/scm](../README.md) / hasCommitGraph
+[spatial](../../../../../README.md) / [plugins/scm/runtime/scm](../README.md) / hasCommitGraph
 
 # Function: hasCommitGraph()
 

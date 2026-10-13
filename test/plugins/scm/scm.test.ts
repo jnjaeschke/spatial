@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../../src/runtime/scm.ts";
-import { makeRepo } from "../helpers/git-fixture.ts";
+import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../../../src/plugins/scm/runtime/scm.ts";
+import { makeRepo } from "../../helpers/git-fixture.ts";
 
 function history() {
   const r = makeRepo();

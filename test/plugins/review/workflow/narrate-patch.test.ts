@@ -4,7 +4,6 @@ import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
 import { createRuntime } from "../../../../src/runtime/create.ts";
 import { createSession } from "../../../../src/runtime/git.ts";
 import type { Runtime } from "../../../../src/runtime/tasks.ts";
@@ -13,7 +12,6 @@ import { narrativeOf } from "../../../../src/plugins/review/shared/diffs.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
 
 const STUB = fileURLToPath(new URL("../../../stubs/fake-llm.mjs", import.meta.url));
-const CLI = fileURLToPath(new URL("../../../../src/cli.ts", import.meta.url));
 
 /** Runs the review phase; returns the Diff it narrated (the latest) and its narrative. */
 async function runReview(rt: Runtime, sessionId: string, input: { base: string; head: string; diffId?: string }) {
@@ -116,47 +114,4 @@ test("review phase maps the steps of cited specs alongside the review; a failed 
   const [map] = rt.store.listArtifacts(session.id, "SpecStepMap");
   assert.deepEqual((map!.data as { links: unknown[] }).links, [{ step: "1", kind: "implements", ranges: [{ path: "a.txt", side: "new", start: 2, end: 2 }], note: "Edits it." }]);
   assert.equal(rt.store.listTasks(session.id).find((task) => task.kind === "review")?.status, "succeeded");
-});
-
-test("CLI review prints the narrative JSON", () => {
-  const { dir, r, narrative } = fixture();
-  const stdout = execFileSync(process.execPath, [CLI, "review", r.dir, "HEAD~1..HEAD", "--db", join(dir, "cli.sqlite")], {
-    encoding: "utf8",
-    env: { ...process.env, SPATIAL_CLAUDE_BIN: STUB },
-  });
-  const out = JSON.parse(stdout);
-  assert.deepEqual(out.narrative.changes.map((c: { id: string }) => c.id), ["c1", "c2"]);
-  assert.equal(out.narrative.summary, narrative.summary);
-  assert.equal(typeof out.sessionId, "string");
-});
-
-test("CLI reports bad usage, revision host failures and task failures on stderr with exit 1", () => {
-  const { dir, r } = fixture();
-  const run = (args: string[]) => {
-    try {
-      execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", stdio: "pipe", env: { ...process.env, SPATIAL_CLAUDE_BIN: STUB } });
-      return { code: 0, stderr: "" };
-    } catch (e) {
-      const err = e as { status: number; stderr: string };
-      return { code: err.status, stderr: err.stderr };
-    }
-  };
-  const bad = run(["review", r.dir, "HEAD", "--db", join(dir, "bad-usage.sqlite")]);
-  assert.equal(bad.code, 1);
-  assert.match(bad.stderr, /Expected <base>\.\.<head>/);
-  const phab = run(["review", r.dir, "D123", "--db", join(dir, "phab.sqlite")]);
-  assert.equal(phab.code, 1);
-  assert.ok(phab.stderr.trim());
-  const fail = run(["review", r.dir, "HEAD..HEAD~1", "--db", join(dir, "x.sqlite")]);
-  assert.equal(fail.code, 1);
-  assert.match(fail.stderr, /is not an ancestor of/);
-});
-
-test("CLI review with no target reviews the latest commit", () => {
-  const { dir, r } = fixture();
-  const stdout = execFileSync(process.execPath, [CLI, "review", r.dir, "--db", join(dir, "default.sqlite")], {
-    encoding: "utf8",
-    env: { ...process.env, SPATIAL_CLAUDE_BIN: STUB },
-  });
-  assert.deepEqual(JSON.parse(stdout).narrative.changes.map((c: { id: string }) => c.id), ["c1", "c2"]);
 });

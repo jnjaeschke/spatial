@@ -100,7 +100,7 @@ Extra chat context after the session overview; null when it has none for this se
 
 > `optional` **linkRev**(`view`): `string` \| `null`
 
-The upstream revision this plugin's session content is based on, for code links when no Diff has an `upstreamRev`; null when it has none.
+The upstream revision this plugin's session content is based on for code links, or null when it has none.
 
 #### Parameters
 
