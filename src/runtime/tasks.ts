@@ -225,6 +225,11 @@ export class Runtime {
     return this.#knowledge;
   }
 
+  /** The repo context (MCP servers, skills, instructions) of `repo`. */
+  repoContext(repo: string): RepoContext {
+    return this.#repoContext(repo);
+  }
+
   /** What LLM work in `repo` gets before any session exists: the repo context and MCP servers that need no session. */
   repoLlmContext(repo: string): { context: RepoContext; mcpServers: Record<string, McpServerSpec> } {
     const context = this.#repoContext(repo);

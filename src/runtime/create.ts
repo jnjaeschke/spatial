@@ -42,13 +42,14 @@ export function createRuntime(opts: {
   codexHome?: string;
 }): Runtime {
   const allPlugins = [corePlugin, ...plugins];
+  const registry = pluginRegistry(allPlugins);
   const llm = new LlmManager(
-    [new ClaudeBackend({ bin: opts.claudeBin, readOnlyCommands: pluginRegistry(allPlugins).readOnlyCommands }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
+    [new ClaudeBackend({ bin: opts.claudeBin, readOnlyCommands: registry.readOnlyCommands }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
     opts.defaultLlm ?? DEFAULT_LLM,
   );
   return new Runtime({
     store: new Store(opts.dbPath), plugins: allPlugins, llm, git: makeGit,
-    repoContext: loadRepoContext,
+    repoContext: (repo) => loadRepoContext(repo, registry.deniedMcpServers),
     knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId) }),
     repoMcp: (repo) => ({ spatial: repoServerSpec(repo) }),

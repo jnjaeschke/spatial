@@ -14,6 +14,7 @@ import { plugins } from "../../src/plugins/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { Session } from "../../src/shared/types.ts";
+import { loadRepoContext } from "../../src/runtime/repo-context.ts";
 import { makeRepo } from "./git-fixture.ts";
 
 export const NARRATIVE = { summary: "S", changes: [{ id: "c1", title: "t", explanation: "e", rationale: "r", hunkIds: ["f0h0", "f1h0"], dependsOn: [], specUrls: [] }] };
@@ -38,7 +39,7 @@ const task6Plugin = definePlugin({ id: "http-task6-test", chatReplyFields: [runR
   { id: "p", async run() {} },
   { id: "blocking", async run() { await new Promise<void>((resolve) => { state.unblockPhase = resolve; }); } },
 ] });
-export const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit });
+export const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit, repoContext: (repo) => loadRepoContext(repo, ["firefox-devtools"]) });
 export const server = createHttpServer(rt, { staticDir });
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 export const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

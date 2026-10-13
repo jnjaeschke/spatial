@@ -338,6 +338,24 @@ The only link write path outside the store; keeps revised artifact search docs a
 
 ***
 
+### repoContext()
+
+> **repoContext**(`repo`): [`RepoContext`](../../repo-context/interfaces/RepoContext.md)
+
+The repo context (MCP servers, skills, instructions) of `repo`.
+
+#### Parameters
+
+##### repo
+
+`string`
+
+#### Returns
+
+[`RepoContext`](../../repo-context/interfaces/RepoContext.md)
+
+***
+
 ### repoLlmContext()
 
 > **repoLlmContext**(`repo`): `object`

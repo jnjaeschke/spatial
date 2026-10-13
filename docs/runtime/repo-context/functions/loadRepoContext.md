@@ -6,16 +6,20 @@
 
 # Function: loadRepoContext()
 
-> **loadRepoContext**(`repoRoot`): [`RepoContext`](../interfaces/RepoContext.md)
+> **loadRepoContext**(`repoRoot`, `denied?`): [`RepoContext`](../interfaces/RepoContext.md)
 
 Loads MCP servers, skills, and instructions from a repository root.
-Malformed files and unresolved instruction includes throw instead of being skipped.
+Servers named in `denied` are only requestable. Malformed files and unresolved instruction includes throw instead of being skipped.
 
 ## Parameters
 
 ### repoRoot
 
 `string`
+
+### denied?
+
+readonly `string`[] = `[]`
 
 ## Returns
 

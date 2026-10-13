@@ -14,17 +14,14 @@ export interface RepoContext {
   instructions: string | null;
 }
 
-/** Names of MCP servers that are always excluded from repo context. */
-const DENYLIST = new Set(["firefox-devtools"]);
-
 /**
  * Loads MCP servers, skills, and instructions from a repository root.
- * Malformed files and unresolved instruction includes throw instead of being skipped.
+ * Servers named in `denied` are only requestable. Malformed files and unresolved instruction includes throw instead of being skipped.
  */
-export function loadRepoContext(repoRoot: string): RepoContext {
+export function loadRepoContext(repoRoot: string, denied: readonly string[] = []): RepoContext {
   const all = loadMcpServers(repoRoot);
-  const mcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => !DENYLIST.has(name)));
-  const requestableMcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => DENYLIST.has(name)));
+  const mcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => !denied.includes(name)));
+  const requestableMcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => denied.includes(name)));
   return {
     mcpServers,
     requestableMcpServers,

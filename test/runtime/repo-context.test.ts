@@ -46,17 +46,17 @@ test("loadRepoContext: parses legacy stdio specs without a type as stdio", (t) =
   });
 });
 
-test("loadRepoContext: excludes firefox-devtools", (t) => {
+test("loadRepoContext: denied servers are only requestable", (t) => {
   const root = tempRepo(t);
   write(root, ".mcp.json", JSON.stringify({ mcpServers: {
-    "firefox-devtools": { type: "stdio", command: "node", args: [] },
+    "denied-server": { type: "stdio", command: "node", args: [] },
     allowed: { type: "stdio", command: "node", args: [] },
   } }));
-  assert.deepEqual(loadRepoContext(root).mcpServers, {
+  assert.deepEqual(loadRepoContext(root, ["denied-server"]).mcpServers, {
     allowed: { type: "stdio", command: "node", args: [] },
   });
-  assert.deepEqual(loadRepoContext(root).requestableMcpServers, {
-    "firefox-devtools": { type: "stdio", command: "node", args: [] },
+  assert.deepEqual(loadRepoContext(root, ["denied-server"]).requestableMcpServers, {
+    "denied-server": { type: "stdio", command: "node", args: [] },
   });
 });
 
@@ -80,7 +80,7 @@ test("loadRepoContext: expands stdio vars and defaults", (t) => {
       command: "${SET_VAR:-x}",
       args: ["${UNSET:-python3}", "${UNSET}"],
     },
-    "firefox-devtools": {
+    "denied-server": {
       type: "stdio",
       command: "${SET_VAR}",
       args: ["${UNSET:-devtools.js}"],
@@ -91,7 +91,7 @@ test("loadRepoContext: expands stdio vars and defaults", (t) => {
     command: "configured-value",
     args: ["python3", ""],
   });
-  assert.deepEqual(loadRepoContext(root).requestableMcpServers["firefox-devtools"], {
+  assert.deepEqual(loadRepoContext(root, ["denied-server"]).requestableMcpServers["denied-server"], {
     type: "stdio",
     command: "configured-value",
     args: ["devtools.js"],

@@ -7,7 +7,6 @@ import { resolveRepo } from "../runtime/git.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
 import { workflowView } from "../runtime/render-ref.ts";
-import { loadRepoContext } from "../runtime/repo-context.ts";
 import { groupByRepo, recentFirst, repoName } from "../shared/repos.ts";
 import { isActive } from "../shared/task-state.ts";
 import { workflowInfo } from "../workflows/registry.ts";
@@ -234,7 +233,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const body = await readJson(req);
       const server = str(body.server, "server");
       requireArtifact(rt, session.id, threadId, "ChatThread", "thread");
-      if (!loadRepoContext(session.worktree).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
+      if (!rt.repoContext(session.worktree).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
       const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server } satisfies McpServerData, threadId);
       send(res, 201, { artifactId: artifact.id });
     }],

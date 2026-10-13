@@ -10,6 +10,10 @@ const PLUGIN_KIND_ALLOWLIST: { file: string; name: string; reason: string }[] = 
   { file: "src/web/chat-context.ts", name: "comment", reason: "The shared chat context exposes review comment drafts." },
   { file: "src/web/graph.ts", name: "comment", reason: "The shared graph omits comment drafts from chat nodes." },
 ];
+const CORE_NAMES = ["gecko", "mozilla", "searchfox", "bugzilla", "webspec", "chromium", "firefox", "mach "];
+const CORE_NAME_ALLOWLIST: { file: string; word: string; reason: string }[] = [
+  { file: "src/web/syntax.ts", word: "gecko", reason: "Documents a rendering-engine performance behavior of the CSS Custom Highlight API, not Mozilla tooling." },
+];
 /** The registries list the plugins; only they import plugin manifests. */
 const REGISTRIES = new Set(["src/plugins/index", "src/plugins/web"]);
 const COMPOSITION_ROOTS = new Set(["src/runtime/create.ts", "src/server/main.ts", "src/mcp/session-server.ts", "src/cli.ts", "src/web/App.tsx", "src/web/SessionView.tsx", "src/web/ExportView.tsx", "src/web/SessionProviders.tsx", "src/web/main.tsx"]);
@@ -61,24 +65,38 @@ export function checkPluginKindReferences(files: Map<string, string>, kinds: { n
   return errors.sort();
 }
 
+/** Core source (outside plugins; `.ts`, `.tsx`, `.md`, `.css`) must not name Mozilla tooling; one error per word and line. */
+export function checkCoreNames(files: Map<string, string>, allowlist: { file: string; word: string; reason: string }[] = CORE_NAME_ALLOWLIST): string[] {
+  const errors: string[] = [];
+  for (const [file, source] of files) {
+    if (file.startsWith("src/plugins/") || !/\.(?:tsx?|md|css)$/.test(file)) continue;
+    source.split("\n").forEach((text, index) => {
+      const lower = text.toLowerCase();
+      for (const word of CORE_NAMES) if (lower.includes(word) && !allowlist.some((entry) => entry.file === file && entry.word === word)) errors.push(`${file}:${index + 1} → "${word}"`);
+    });
+  }
+  return errors.sort();
+}
+
 async function walk(dir: string): Promise<string[]> {
   const entries = await readdir(join(ROOT, dir), { withFileTypes: true });
   return (await Promise.all(entries.map(async (entry) => {
     const path = `${dir}/${entry.name}`;
     if (entry.isDirectory()) return walk(path);
-    return /\.tsx?$/.test(entry.name) ? [path] : [];
+    return /\.(?:tsx?|md|css)$/.test(entry.name) ? [path] : [];
   }))).flat();
 }
 
 export async function checkFilesystem(): Promise<string[]> {
   const paths = await walk("src");
   const files = new Map(await Promise.all(paths.map(async (path) => [path, await readFile(join(ROOT, path), "utf8")] as const)));
+  const sources = new Map([...files].filter(([path]) => /\.tsx?$/.test(path)));
   const { plugins } = await import("../src/plugins/index.ts");
   const kinds = plugins.flatMap((plugin) => [
     ...Object.keys(plugin.artifactKinds ?? {}).map((name) => ({ name, plugin: plugin.id })),
     ...(plugin.tasks ?? []).map((task) => ({ name: task.kind, plugin: plugin.id })),
   ]);
-  return [...checkPluginBoundary(files), ...checkPluginKindReferences(files, kinds)];
+  return [...checkPluginBoundary(sources), ...checkPluginKindReferences(sources, kinds), ...checkCoreNames(files)];
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

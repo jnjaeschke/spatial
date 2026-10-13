@@ -38,6 +38,12 @@ Contributions of a plugin list merged by `pluginRegistry`, which throws on dupli
 
 ***
 
+### deniedMcpServers
+
+> **deniedMcpServers**: `string`[]
+
+***
+
 ### mcpTools
 
 > **mcpTools**: [`McpTool`](McpTool.md)\<`Readonly`\<\{\[`k`: `string`\]: `$ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}\>\>[]

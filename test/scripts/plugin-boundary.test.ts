@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkPluginBoundary, checkPluginKindReferences, declaredDependencies, resolveImport } from "../../scripts/plugin-boundary.ts";
+import { checkCoreNames, checkPluginBoundary, checkPluginKindReferences, declaredDependencies, resolveImport } from "../../scripts/plugin-boundary.ts";
 
 test("resolves relative imports against an in-memory source map", () => {
   assert.equal(resolveImport("src/plugins/review/index.ts", "./tasks/task.ts"), "src/plugins/review/tasks/task.ts");
@@ -71,4 +71,32 @@ test("plugin kind allowlist suppresses only the named file and literal", () => {
   assert.deepEqual(checkPluginKindReferences(files, [{ name: "Diff", plugin: "review" }], [
     { file: "src/server/http.ts", name: "Diff", reason: "A later plan moves this lookup into the review plugin." },
   ]), ['src/server/other.ts:1 → "Diff" (review)']);
+});
+
+test("core source must not name Mozilla tooling, case-insensitively, outside plugins", () => {
+  const files = new Map([
+    ["src/runtime/a.ts", 'const x = "Firefox-devtools"; // see Searchfox\nrun("./mach build");'],
+    ["src/web/styles.css", "/* Gecko quirk */"],
+    ["src/workflows/p.md", "Look at bugzilla, WebSpec and Chromium; Mozilla too."],
+    ["src/plugins/gecko/a.ts", 'const x = "firefox gecko mach build";'],
+    ["src/runtime/ok.ts", "const machine = 1; // machine, not a mach-word"],
+  ]);
+  assert.deepEqual(checkCoreNames(files, []), [
+    'src/runtime/a.ts:1 → "firefox"',
+    'src/runtime/a.ts:1 → "searchfox"',
+    'src/runtime/a.ts:2 → "mach "',
+    'src/web/styles.css:1 → "gecko"',
+    'src/workflows/p.md:1 → "bugzilla"',
+    'src/workflows/p.md:1 → "chromium"',
+    'src/workflows/p.md:1 → "mozilla"',
+    'src/workflows/p.md:1 → "webspec"',
+  ]);
+});
+
+test("core name allowlist suppresses only the named file and word", () => {
+  const files = new Map([["src/web/a.ts", "// Gecko and Firefox"], ["src/web/b.ts", "// Gecko"]]);
+  assert.deepEqual(checkCoreNames(files, [{ file: "src/web/a.ts", word: "gecko", reason: "Describes a browser engine behavior." }]), [
+    'src/web/a.ts:1 → "firefox"',
+    'src/web/b.ts:1 → "gecko"',
+  ]);
 });
