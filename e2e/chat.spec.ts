@@ -496,6 +496,30 @@ test("clicking a quoted chat's highlight expands its inline item", async ({ page
   await expect(page.getByTestId("chat-panel")).toHaveCount(0);
 });
 
+test("clicking a quoted range expands the item that owns it, even when another item quotes the same text", async ({ page, request }) => {
+  await openNarrated(page, request);
+  await openChange(page);
+  const rows = page.locator('[data-testid="hunk-f0h0"] tr[data-anchor]').filter({ has: page.locator("td.code", { hasText: /^line \d+$/ }) });
+  const items = page.getByTestId("hunk-card-f0h0").locator(".inline-item.kind-chat");
+  for (const [index, row] of [rows.first(), rows.last()].entries()) {
+    await row.locator("td.code").dblclick({ position: { x: 14, y: 8 } });
+    expect(await page.evaluate(() => getSelection()!.toString().trim()), `row ${index}`).toBe("line");
+    await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(items).toHaveCount(index + 1);
+    await items.nth(index).getByRole("button", { name: "Collapse item" }).click();
+  }
+  await expect(items.first()).toHaveAttribute("data-state", "preview");
+  await expect(items.last()).toHaveAttribute("data-state", "preview");
+  const point = await page.evaluate(() => {
+    const boxes = [...CSS.highlights.get("chat-quote")!].map((range) => (range as Range).getBoundingClientRect());
+    const box = boxes.reduce((lowest, candidate) => candidate.y > lowest.y ? candidate : lowest);
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  });
+  await page.mouse.click(point.x, point.y);
+  await expect(items.last()).toHaveAttribute("data-state", "expanded");
+  await expect(items.first()).toHaveAttribute("data-state", "preview");
+});
+
 test("a review finding is an inline item with its thread and opens in the panel on request", async ({ page, request }) => {
   await openNarrated(page, request);
   await openChange(page, "change-c2");

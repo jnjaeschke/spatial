@@ -12,33 +12,9 @@ export const JumpContext = createContext<HunkRow | null>(null);
 const LAYER_LABEL: Record<Layer, string> = { spec: "Specs", review: "AI review", phab: "Phabricator" };
 
 function ReviewCanvasProvider({ graph, reveal, focusRow, children }: CanvasProviderProps) {
-  const setInline = useContext(InlineStatesContext)?.set;
   const revealer = useContext(RevealContext);
   useEffect(() => { if (revealer) revealer.current = reveal; });
   const jump = useContext(JumpContext);
-  useEffect(() => {
-    if (!setInline) return;
-    const click = (event: MouseEvent) => {
-      const hits = CSS.highlights.highlightsFromPoint(event.clientX, event.clientY);
-      const findingRanges = hits.filter((hit) => hit.highlight === CSS.highlights.get("finding-quote")).flatMap((hit) => hit.ranges);
-      for (const range of findingRanges) {
-        for (const node of graph.nodes) {
-          const finding = findingsOf(node.data).find((item) => item.quote === range.toString());
-          if (finding) { setInline(finding.findingId, "expanded"); return; }
-        }
-      }
-      const ranges = hits.filter((hit) => hit.highlight === CSS.highlights.get("chat-quote")).flatMap((hit) => hit.ranges);
-      if (!ranges.length) return;
-      const quote = ranges.map((range) => range.toString()).join("");
-      for (const node of graph.nodes) {
-        if (!("threads" in node.data) || !Array.isArray(node.data.threads)) continue;
-        const thread = node.data.threads.find((item) => item.quote === quote);
-        if (thread) { setInline(thread.threadId ?? thread.draftId!, "expanded"); return; }
-      }
-    };
-    document.addEventListener("click", click);
-    return () => document.removeEventListener("click", click);
-  }, [setInline, graph]);
   const revealStep = (nodeId: string, hunkId: string, row: { side: "new" | "old"; line: number }) => {
     const node = graph.nodes.find((item) => item.id === nodeId);
     if (!node || !isReviewKind(node.data, "change")) return;

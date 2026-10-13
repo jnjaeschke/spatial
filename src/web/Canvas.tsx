@@ -21,7 +21,7 @@ import { clampGuideStep, readViewState, saveViewState, type ViewState } from "./
 import { parseHistoryView, pushJump, replaceUrl, saveHistoryView, useViewHistory, type HistoryView } from "./view-history.ts";
 import { RouteContext, parseRoute, routeUrl } from "./routes.ts";
 import { RecentPlaces } from "./RecentPlaces.tsx";
-import { IconButton, NodeKindsContext } from "./plugin-api.ts";
+import { IconButton, InlineStatesContext, NodeKindsContext } from "./plugin-api.ts";
 import { OpenPlaceContext } from "./open-place.ts";
 
 /** A step of the guide bar's reading path. */
@@ -135,6 +135,7 @@ export function Canvas(props: CanvasProps) {
 function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
   const viewKey = viewKeyProp ?? state.session.id;
   const nodeKinds = useContext(NodeKindsContext);
+  const inlineStates = useContext(InlineStatesContext);
   const routeContext = useContext(RouteContext);
   const nodeTypes = useMemo(() => Object.fromEntries(Object.keys(nodeKinds).map((type) => [type, ResizableNode])), [nodeKinds]);
   const textScale = useTextScale();
@@ -236,6 +237,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     if (added && shown.nodes.some((n) => n.id === added)) anchor.current = added;
   }, [revealedIds, shown]);
   const rangeOwner = useRef(new Map<AbstractRange, string>());
+  const quoteHighlightNames = useRef<string[]>([]);
   const quoted = useMemo(() => {
     const entries: { id: string; anchors: string[]; data: { kind: string; anchor: string; quote: string; lines?: ChatNodeData["lines"] } }[] = [];
     for (const node of graph.nodes) {
@@ -537,7 +539,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
 
   const quoteAt = (x: number, y: number) => {
     for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
-      if (hit.highlight !== CSS.highlights.get("chat-quote") && hit.highlight !== CSS.highlights.get("finding-quote")) continue;
+      if (!quoteHighlightNames.current.some((name) => name.endsWith("-quote") && CSS.highlights.get(name) === hit.highlight)) continue;
       for (const range of hit.ranges) {
         const id = rangeOwner.current.get(range);
         if (id) return id;
@@ -571,7 +573,11 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     const click = (event: MouseEvent) => {
       if (!getSelection()?.isCollapsed) return;
       const id = quoteAt(event.clientX, event.clientY);
-      if (!id || !collapsed.has(id)) return;
+      if (!id) return;
+      if (!collapsed.has(id)) {
+        if (!graph.nodes.some((node) => node.id === id)) inlineStates?.set(id, "expanded");
+        return;
+      }
       const host = graph.nodes.find((node) => hostedThreads(node.data)?.some((thread) => (thread.threadId ?? thread.draftId) === id));
       if (host) reveal(host.id, id);
       else {
@@ -607,7 +613,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
       cancelAnimationFrame(frame);
       el.classList.remove("over-collapsed-quote");
     };
-  }, [collapsed, toggle]);
+  }, [collapsed, toggle, inlineStates, graph]);
 
   useEffect(() => {
     const el = container.current;
@@ -653,21 +659,27 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     if (!el) return;
     let frame = 0;
     const build = () => {
-      const chat: Range[] = [], finding: Range[] = [], chatActive: Range[] = [], findingActive: Range[] = [];
+      const byKind = new Map<string, { ranges: Range[]; active: Range[] }>();
       rangeOwner.current.clear();
       for (const n of quoted) {
+        const group = byKind.get(n.data.kind) ?? { ranges: [], active: [] };
+        byKind.set(n.data.kind, group);
         const range = rangeOf(n);
         if (!range) continue;
-        (n.data.kind === "chat" ? chat : finding).push(range);
+        group.ranges.push(range);
         rangeOwner.current.set(range, n.id);
-        if (n.id === activeQuote) (n.data.kind === "chat" ? chatActive : findingActive).push(range);
+        if (n.id === activeQuote) group.active.push(range);
       }
-      CSS.highlights.set("chat-quote", new Highlight(...chat));
-      CSS.highlights.set("finding-quote", new Highlight(...finding));
-      const chatStrong = new Highlight(...chatActive), findingStrong = new Highlight(...findingActive);
-      chatStrong.priority = findingStrong.priority = 1;
-      CSS.highlights.set("chat-quote-active", chatStrong);
-      CSS.highlights.set("finding-quote-active", findingStrong);
+      const names: string[] = [];
+      for (const [kind, group] of byKind) {
+        const name = `${kind}-quote`, activeName = `${kind}-quote-active`;
+        CSS.highlights.set(name, new Highlight(...group.ranges));
+        const active = new Highlight(...group.active);
+        active.priority = 1;
+        CSS.highlights.set(activeName, active);
+        names.push(name, activeName);
+      }
+      quoteHighlightNames.current = names;
     };
     // Synchronous: the previous run's cleanup deleted the highlights, and a click in this frame must still hit them.
     build();
@@ -679,10 +691,8 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
-      CSS.highlights.delete("chat-quote");
-      CSS.highlights.delete("finding-quote");
-      CSS.highlights.delete("chat-quote-active");
-      CSS.highlights.delete("finding-quote-active");
+      for (const name of quoteHighlightNames.current) CSS.highlights.delete(name);
+      quoteHighlightNames.current = [];
     };
   }, [quoted, activeQuote]);
 
