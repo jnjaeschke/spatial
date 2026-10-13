@@ -12,5 +12,7 @@
 
 ## Functions
 
+- [commitStack](functions/commitStack.md)
 - [importRevision](functions/importRevision.md)
 - [importRevisionInto](functions/importRevisionInto.md)
+- [revisionConduit](functions/revisionConduit.md)

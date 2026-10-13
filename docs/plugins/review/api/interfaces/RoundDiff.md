@@ -8,6 +8,10 @@
 
 One Phabricator diff of a stack revision: `base` is the commit it applies on, `dateCreated` Unix seconds.
 
+## Extended by
+
+- [`RoundEntry`](RoundEntry.md)
+
 ## Properties
 
 ### base

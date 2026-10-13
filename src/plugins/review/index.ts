@@ -21,6 +21,8 @@ import { diagramField } from "./runtime/diagram-chat.ts";
 import { RevisionWatcher } from "./runtime/revision-watcher.ts";
 import { PhabricatorSyncer } from "./runtime/phabricator-sync.ts";
 import { reviewRoutes } from "./server/routes.ts";
+import { importRound } from "./tasks/import-round/task.ts";
+import { roundPhase } from "./workflow/round.ts";
 
 function chatContext(view: SessionView): string | null {
   const diff = [...view.artifacts].reverse().find((a) => a.type === "Diff");
@@ -33,4 +35,4 @@ function server(rt: Runtime, opts: { intervalMs?: number }) {
   const syncer = new PhabricatorSyncer(rt, watcher, { intervalMs: opts.intervalMs });
   return { routes: reviewRoutes(rt), watch: (sessionId: Id) => watcher.watch(sessionId), start() { watcher.start(); syncer.start(); } };
 }
-export const reviewPlugin = definePlugin({ id: "review", dependsOn: ["spec"], workflows: [reviewWorkflow], phases: [reviewPhase], tasks: [importDiff, importRevision, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });
+export const reviewPlugin = definePlugin({ id: "review", dependsOn: ["spec"], workflows: [reviewWorkflow], phases: [reviewPhase, roundPhase], tasks: [importDiff, importRevision, importRound, reviewRange, narrate, resolveSpecRefs, lookupSpecRef, review, comment, interdiff, carryFindings, mapSpecSteps, fetchBugs, summarizeBug, summarizePhabThread, draftPhabReply, introducedSymbols], artifactKinds, searchKinds, chatContext, chatReplyFields: [diagramField], server });

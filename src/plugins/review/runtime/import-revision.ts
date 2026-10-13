@@ -16,14 +16,35 @@ export class ImportRevisionError extends Error {
   }
 }
 
-function defaultConduit(host: string): Conduit {
+/** A read-only Conduit client for `host` with the arcrc token; a missing token is an `ImportRevisionError` precondition. */
+export function revisionConduit(host: string): Conduit {
   let token: string;
   try {
     token = readArcToken(host);
   } catch (e) {
     throw new ImportRevisionError((e as Error).message, "precondition");
   }
-  return new ConduitClient(process.env.SPATIAL_CONDUIT_BASE_URL ?? host, token);
+  return readOnly(new ConduitClient(process.env.SPATIAL_CONDUIT_BASE_URL ?? host, token));
+}
+
+/** Commits each patch on the previous one starting at `base`, with a revision trailer and spatial ref; returns the last commit. */
+export async function commitStack(repo: string, host: string, base: string, patches: { revision: { id: number; title: string }; diff: { id: number; dateCreated: number }; raw: string }[]): Promise<string> {
+  const writer = makeGitWriter(repo);
+  const refs: [string, string][] = [];
+  let parent = base;
+  for (const { revision, diff, raw } of patches) {
+    const message = `${revision.title}\n\nDifferential Revision: ${host}/D${revision.id}`;
+    let sha: string;
+    try {
+      sha = await writer.commitPatch(parent, raw, message, { ...IDENTITY, time: diff.dateCreated });
+    } catch (e) {
+      throw new ImportRevisionError(`D${revision.id} (diff ${diff.id}): ${(e as Error).message}`, "precondition");
+    }
+    refs.push([`refs/spatial/D${revision.id}/${diff.id}-${sha.slice(0, 12)}`, sha]);
+    parent = sha;
+  }
+  for (const [ref, sha] of refs) await writer.updateRef(ref, sha);
+  return parent;
 }
 
 /**
@@ -49,7 +70,7 @@ export async function importRevisionInto(
   opts: { conduit?: Conduit } = {},
 ): Promise<{ base: string; head: string }> {
   const host = rev.host.replace(/\/+$/, "");
-  const conduit = readOnly(opts.conduit ?? defaultConduit(host));
+  const conduit = readOnly(opts.conduit ?? revisionConduit(host));
   let stack: StackEntry[];
   const raws: string[] = [];
   try {
@@ -70,20 +91,6 @@ export async function importRevisionInto(
     );
   }
 
-  const writer = makeGitWriter(repo);
-  const refs: [string, string][] = [];
-  let parent = base;
-  for (const [i, { revision, diff }] of stack.entries()) {
-    const message = `${revision.title}\n\nDifferential Revision: ${host}/D${revision.id}`;
-    let sha: string;
-    try {
-      sha = await writer.commitPatch(parent, raws[i]!, message, { ...IDENTITY, time: diff.dateCreated });
-    } catch (e) {
-      throw new ImportRevisionError(`D${revision.id} (diff ${diff.id}): ${(e as Error).message}`, "precondition");
-    }
-    refs.push([`refs/spatial/D${revision.id}/${diff.id}-${sha.slice(0, 12)}`, sha]);
-    parent = sha;
-  }
-  for (const [ref, sha] of refs) await writer.updateRef(ref, sha);
-  return { base, head: parent };
+  const patches = stack.map(({ revision, diff }, i) => ({ revision, diff, raw: raws[i]! }));
+  return { base, head: await commitStack(repo, host, base, patches) };
 }

@@ -10,6 +10,16 @@
 
 - [ReviewPhaseInput](interfaces/ReviewPhaseInput.md)
 - [RoundDiff](interfaces/RoundDiff.md)
+- [RoundEntry](interfaces/RoundEntry.md)
+- [RoundPhaseInput](interfaces/RoundPhaseInput.md)
+
+## Type Aliases
+
+- [RoundSource](type-aliases/RoundSource.md)
+
+## Variables
+
+- [roundPhase](variables/roundPhase.md)
 
 ## Functions
 
@@ -130,6 +140,12 @@ Re-exports [readOnly](../runtime/phab-revision/functions/readOnly.md)
 ### ReviewFindingData
 
 Re-exports [ReviewFindingData](../shared/types/interfaces/ReviewFindingData.md)
+
+***
+
+### revisionConduit
+
+Re-exports [revisionConduit](../runtime/import-revision/functions/revisionConduit.md)
 
 ***
 

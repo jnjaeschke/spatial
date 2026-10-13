@@ -14,7 +14,7 @@ import type { SpecReferenceData } from "../../spec/api.ts";
 
 import {createSession, HttpError, isActive, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, text, llmField, startTask, type Artifact, type DiffData, type Runtime, type Route, putUserArtifact} from "../../../plugin-api.ts";
 
-const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
+const HEAVY_TASKS = new Set(["importDiff", "importRevision", "importRound", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();
 
 export function reviewRoutes(rt: Runtime): Route[] {
