@@ -68,16 +68,18 @@ export { isActive, taskState } from "./shared/task-state.ts";
 export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";
 export { HttpError, send, readJson, str, text, llmField, startTask, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
 /** Creates a session after resolving its repository path. */
-export { createSession } from "./runtime/git.ts";
+export { createSession } from "./workflows/start.ts";
 /** Runs the workflow selected by a WorkflowStart artifact. */
 export { runWorkflow } from "./workflows/start.ts";
 export type { Route, HttpRouteContext } from "./server/http.ts";
 export * from "./shared/types.ts";
 export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
-export { makeGitWriter, makeGit } from "./runtime/git.ts";
-export { resolveRepo } from "./runtime/git.ts";
-export { runGit, safeRepoPath, safeRevision } from "./runtime/git.ts";
+export { makeGit } from "./runtime/git/read.ts";
+export { makeGitWriter } from "./runtime/git/writer.ts";
+export { resolveRepo } from "./runtime/git/read.ts";
+export { fileLines, localMainline, remoteDefaultRef } from "./runtime/git/read.ts";
+export { runGit, safeRepoPath, safeRevision } from "./runtime/git/run.ts";
 /** Runs a process, optionally streaming stdout lines. */
 export { runChecked, runProcess } from "./runtime/process.ts";
 /** Structured LLM calls checked against their schema and a domain validator, with repair re-prompts. */
@@ -94,7 +96,7 @@ export { plainText } from "./shared/plain-text.ts";
 export { numberLines, fileRows } from "./shared/diff-lines.ts";
 export { parseUnifiedDiff } from "./runtime/diff-parse.ts";
 export type { Row } from "./shared/diff-lines.ts";
-export type { GitWriter, PatchIdentity } from "./runtime/git.ts";
+export type { GitWriter, PatchIdentity } from "./runtime/git/writer.ts";
 export type { LlmPrompt, LlmEvent } from "./runtime/llm/types.ts";
 
 /** Sequence diagram proposals: schema, shape check and citation verification. */

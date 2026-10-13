@@ -59,40 +59,25 @@ directory and these API modules. A plugin may also import the public API of anot
 dependency and a cycle. Core imports no plugin code except the two registries, and only from
 composition roots.
 
-## Interfaces
-
-- [GitWriter](interfaces/GitWriter.md)
-- [PatchIdentity](interfaces/PatchIdentity.md)
-
 ## Type Aliases
 
 - [Row](type-aliases/Row.md)
-
-## Variables
-
-- [runGit](variables/runGit.md)
 
 ## Functions
 
 - [chosenDecision](functions/chosenDecision.md)
 - [commandRunData](functions/commandRunData.md)
-- [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
 - [escapeRegex](functions/escapeRegex.md)
 - [fileRows](functions/fileRows.md)
 - [isActive](functions/isActive.md)
 - [latestArtifact](functions/latestArtifact.md)
-- [makeGit](functions/makeGit.md)
-- [makeGitWriter](functions/makeGitWriter.md)
 - [numberLines](functions/numberLines.md)
 - [plainText](functions/plainText.md)
 - [plural](functions/plural.md)
-- [resolveRepo](functions/resolveRepo.md)
 - [revisedText](functions/revisedText.md)
 - [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
-- [safeRepoPath](functions/safeRepoPath.md)
-- [safeRevision](functions/safeRevision.md)
 - [sessionProfile](functions/sessionProfile.md)
 - [startProfile](functions/startProfile.md)
 - [taskState](functions/taskState.md)
@@ -183,6 +168,12 @@ Re-exports [CommitFileStat](../shared/types/interfaces/CommitFileStat.md)
 
 ***
 
+### createSession
+
+Re-exports [createSession](../workflows/start/functions/createSession.md)
+
+***
+
 ### DecisionData
 
 Re-exports [DecisionData](../shared/types/interfaces/DecisionData.md)
@@ -261,6 +252,12 @@ Re-exports [EpochStatus](../shared/types/type-aliases/EpochStatus.md)
 
 ***
 
+### fileLines
+
+Re-exports [fileLines](../runtime/git/read/functions/fileLines.md)
+
+***
+
 ### FileStatus
 
 Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
@@ -270,6 +267,12 @@ Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
 ### GitCapability
 
 Re-exports [GitCapability](../runtime/tasks/interfaces/GitCapability.md)
+
+***
+
+### GitWriter
+
+Re-exports [GitWriter](../runtime/git/writer/interfaces/GitWriter.md)
 
 ***
 
@@ -399,6 +402,12 @@ Re-exports [loadSchema](../runtime/structured/functions/loadSchema.md)
 
 ***
 
+### localMainline
+
+Re-exports [localMainline](../runtime/git/read/functions/localMainline.md)
+
+***
+
 ### LogRow
 
 Re-exports [LogRow](../shared/types/interfaces/LogRow.md)
@@ -408,6 +417,18 @@ Re-exports [LogRow](../shared/types/interfaces/LogRow.md)
 ### LogScope
 
 Re-exports [LogScope](../shared/types/type-aliases/LogScope.md)
+
+***
+
+### makeGit
+
+Re-exports [makeGit](../runtime/git/read/functions/makeGit.md)
+
+***
+
+### makeGitWriter
+
+Re-exports [makeGitWriter](../runtime/git/writer/functions/makeGitWriter.md)
 
 ***
 
@@ -462,6 +483,12 @@ Re-exports [ParseResult](../runtime/plugins/type-aliases/ParseResult.md)
 ### parseUnifiedDiff
 
 Re-exports [parseUnifiedDiff](../runtime/diff-parse/functions/parseUnifiedDiff.md)
+
+***
+
+### PatchIdentity
+
+Re-exports [PatchIdentity](../runtime/git/writer/interfaces/PatchIdentity.md)
 
 ***
 
@@ -555,6 +582,12 @@ Re-exports [RefRow](../shared/types/interfaces/RefRow.md)
 
 ***
 
+### remoteDefaultRef
+
+Re-exports [remoteDefaultRef](../runtime/git/read/functions/remoteDefaultRef.md)
+
+***
+
 ### RepoInfo
 
 Re-exports [RepoInfo](../shared/types/interfaces/RepoInfo.md)
@@ -579,6 +612,12 @@ Re-exports [requireSession](../server/http/functions/requireSession.md)
 
 ***
 
+### resolveRepo
+
+Re-exports [resolveRepo](../runtime/git/read/functions/resolveRepo.md)
+
+***
+
 ### RevisionData
 
 Re-exports [RevisionData](../shared/types/interfaces/RevisionData.md)
@@ -594,6 +633,12 @@ Re-exports [Rewrite](../shared/types/interfaces/Rewrite.md)
 ### Route
 
 Re-exports [Route](../server/http/type-aliases/Route.md)
+
+***
+
+### runGit
+
+Re-exports [runGit](../runtime/git/run/functions/runGit.md)
 
 ***
 
@@ -618,6 +663,18 @@ Re-exports [RuntimeEvent](../shared/types/interfaces/RuntimeEvent.md)
 ### runWorkflow
 
 Re-exports [runWorkflow](../workflows/start/functions/runWorkflow.md)
+
+***
+
+### safeRepoPath
+
+Re-exports [safeRepoPath](../runtime/git/run/functions/safeRepoPath.md)
+
+***
+
+### safeRevision
+
+Re-exports [safeRevision](../runtime/git/run/functions/safeRevision.md)
 
 ***
 

@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { makeGit, makeGitWriter, createSession, resolveRepo } from "../../src/runtime/git.ts";
+import { makeGit, resolveRepo } from "../../src/runtime/git/read.ts";
+import { makeGitWriter } from "../../src/runtime/git/writer.ts";
+import { createSession } from "../../src/workflows/start.ts";
+import { runGit } from "../../src/runtime/git/run.ts";
 import { Store } from "../../src/runtime/store.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
@@ -276,4 +279,15 @@ test("resolveRepo identifies linked worktrees and rejects bare repositories", as
   const bare = join(mkdtempSync(join(tmpdir(), "bare-")), "repo.git");
   r.git("clone", "--bare", r.dir, bare);
   await assert.rejects(resolveRepo(bare), /Not a git repository/);
+});
+
+test("an aborted signal rejects a git run and a capability call", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "1\n" }, "base");
+  const controller = new AbortController();
+  controller.abort(new Error("task cancelled"));
+  await assert.rejects(runGit(r.dir, ["rev-parse", "HEAD"], { signal: controller.signal }));
+  await assert.rejects(makeGit(r.dir, controller.signal).isDirty());
+  await assert.rejects(makeGit(r.dir, controller.signal).mergeBase("HEAD", "HEAD"), /task cancelled|abort/i);
+  assert.equal(await makeGit(r.dir).isDirty(), false);
 });

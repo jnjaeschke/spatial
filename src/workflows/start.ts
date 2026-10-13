@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { Id, LlmSelection, Session, StartQuestion, WorkflowStartData, WriteMode } from "../shared/types.ts";
+import type { Id, LlmSelection, Session, StartQuestion, WorkflowId, WorkflowStartData, WriteMode } from "../shared/types.ts";
 import type { PrecheckQuestion } from "../runtime/plugins.ts";
 import type { Runtime } from "../runtime/tasks.ts";
-import { createSession, resolveRepo } from "../runtime/git.ts";
+import type { Store } from "../runtime/store.ts";
+import { resolveRepo } from "../runtime/git/read.ts";
 import { selectWorkflow } from "./select.ts";
 import { parseCommand } from "./registry.ts";
 import { chooseProfile } from "../runtime/profiles.ts";
@@ -79,6 +80,11 @@ async function answer(rt: Runtime, pending: Map<string, PendingStart>, id: strin
   // A failed selection leaves the question open, so the user can answer again.
   try { return await select(rt, pending, entry.base, clarified, entry.round, signal); }
   catch (e) { pending.set(id, entry); throw e; }
+}
+
+/** Creates a session in the worktree containing `path`. */
+export async function createSession(store: Store, path: string, title: string, workflow: WorkflowId | null): Promise<Session> {
+  return store.createSession({ ...(await resolveRepo(path)), title, ...(workflow ? { workflow } : {}) });
 }
 
 /** Creates a workflow session; callers can wait for the workflow instead of running it in the background. */

@@ -19,5 +19,6 @@
 ## Functions
 
 - [begin](functions/begin.md)
+- [createSession](functions/createSession.md)
 - [runWorkflow](functions/runWorkflow.md)
 - [startSession](functions/startSession.md)

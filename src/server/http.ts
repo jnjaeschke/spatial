@@ -3,7 +3,7 @@ import { access, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
 import type { Artifact, ChatMessageData, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, SessionListing, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
-import { resolveRepo } from "../runtime/git.ts";
+import { resolveRepo } from "../runtime/git/read.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
 import { workflowView } from "../runtime/render-ref.ts";

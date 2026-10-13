@@ -1,8 +1,8 @@
-[**spatial**](../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial](../../README.md) / [plugin-api](../README.md) / GitWriter
+[spatial](../../../../README.md) / [runtime/git/writer](../README.md) / GitWriter
 
 # Interface: GitWriter
 

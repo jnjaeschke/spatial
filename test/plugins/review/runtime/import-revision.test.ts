@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Store } from "../../../../src/runtime/store.ts";
 import { Runtime } from "../../../../src/runtime/tasks.ts";
-import { makeGit } from "../../../../src/runtime/git.ts";
+import { makeGit } from "../../../../src/runtime/git/read.ts";
 import { commitRevision } from "../../../../src/plugins/review/shared/phabricator.ts";
 import { checkDrift } from "../../../../src/plugins/review/runtime/drift.ts";
 import { importRevision, ImportRevisionError } from "../../../../src/plugins/review/runtime/import-revision.ts";

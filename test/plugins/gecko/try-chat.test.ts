@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tryField } from "../../../src/plugins/gecko/runtime/try-chat.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
-import { makeGit } from "../../../src/runtime/git.ts";
+import { makeGit } from "../../../src/runtime/git/read.ts";
 import type { TaskContext } from "../../../src/plugin-api.ts";
 
 const ctxFor = (dir: string) => ({ repo: dir, git: makeGit(dir) }) as unknown as TaskContext;

@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { plugins } from "../plugins/index.ts";
 import { chatTurn } from "../tasks/chat-turn/task.ts";
 import { commandRunKind } from "./command-run.ts";
-import { makeGit } from "./git.ts";
+import { makeGit } from "./git/read.ts";
 import { ClaudeBackend } from "./llm/claude.ts";
 import { CodexBackend } from "./llm/codex.ts";
 import { LlmManager } from "./llm/manager.ts";

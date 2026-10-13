@@ -1,8 +1,8 @@
-[**spatial**](../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial](../../README.md) / [plugin-api](../README.md) / safeRepoPath
+[spatial](../../../../README.md) / [runtime/git/run](../README.md) / safeRepoPath
 
 # Function: safeRepoPath()
 

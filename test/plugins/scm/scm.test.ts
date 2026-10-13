@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../../../src/plugins/scm/runtime/scm.ts";
+import { changedFiles, commitDetail, diffFiles, hasCommitGraph, logPage, refs } from "../../../src/plugins/scm/runtime/scm.ts";
+import { fileLines } from "../../../src/runtime/git/read.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 
 function history() {
@@ -156,9 +157,9 @@ test("logPage current scope falls back to local main without a remote", async ()
 });
 
 // REQUIRES_REAL_GIT
-test("fileAt returns the lines of a file at a revision", async () => {
+test("fileLines returns the lines of a file at a revision", async () => {
   const { r, root } = history();
-  assert.deepEqual(await fileAt(r.dir, root, "old name.txt"), ["keep", "this", "file"]);
-  await assert.rejects(fileAt(r.dir, root, "missing.txt"));
-  await assert.rejects(fileAt(r.dir, root, "/etc/passwd"), /Invalid path/);
+  assert.deepEqual(await fileLines(r.dir, root, "old name.txt"), ["keep", "this", "file"]);
+  await assert.rejects(fileLines(r.dir, root, "missing.txt"));
+  await assert.rejects(fileLines(r.dir, root, "/etc/passwd"), /Invalid path/);
 });

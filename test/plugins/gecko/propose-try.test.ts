@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
 import { Runtime } from "../../../src/runtime/tasks.ts";
-import { makeGit } from "../../../src/runtime/git.ts";
+import { makeGit } from "../../../src/runtime/git/read.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";

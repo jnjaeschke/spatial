@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import { Store } from "../../../../src/runtime/store.ts";
-import { makeGit } from "../../../../src/runtime/git.ts";
+import { makeGit } from "../../../../src/runtime/git/read.ts";
 import { importDiff } from "../../../../src/plugins/review/tasks/import-diff/task.ts";
 import { reviewRange } from "../../../../src/plugins/review/tasks/review-range/task.ts";
 import { MAX_DEFAULT_COMMITS, defaultReviewRange } from "../../../../src/plugins/review/workflow/review-range.ts";

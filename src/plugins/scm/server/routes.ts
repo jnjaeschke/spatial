@@ -1,6 +1,6 @@
 import { isAbsolute } from "node:path";
-import { HttpError, resolveRepo, type LogScope, type Route } from "../../../plugin-api.ts";
-import { changedFiles, commitDetail, diffFiles, fileAt, hasCommitGraph, logPage, refs } from "../runtime/scm.ts";
+import { HttpError, fileLines, resolveRepo, type LogScope, type Route } from "../../../plugin-api.ts";
+import { changedFiles, commitDetail, diffFiles, hasCommitGraph, logPage, refs } from "../runtime/scm.ts";
 
 function param(url: URL, name: string): string {
   const value = url.searchParams.get(name);
@@ -44,6 +44,6 @@ export function scmRoutes(): Route[] {
     scmRoute("commit", (worktree, url) => commitDetail(worktree, param(url, "rev"))),
     scmRoute("diff", (worktree, url) => diffFiles(worktree, url.searchParams.get("a"), param(url, "b"), url.searchParams.getAll("path"))),
     scmRoute("files", (worktree, url) => changedFiles(worktree, url.searchParams.get("a"), param(url, "b"))),
-    scmRoute("file", async (worktree, url) => ({ lines: await fileAt(worktree, param(url, "rev"), param(url, "path")) })),
+    scmRoute("file", async (worktree, url) => ({ lines: await fileLines(worktree, param(url, "rev"), param(url, "path")) })),
   ];
 }

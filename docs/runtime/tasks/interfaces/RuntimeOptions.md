@@ -10,13 +10,19 @@
 
 ### git
 
-> **git**: (`repo`) => [`GitCapability`](GitCapability.md)
+> **git**: (`repo`, `signal?`) => [`GitCapability`](GitCapability.md)
+
+`signal` is the calling task's: aborting it stops the capability's git work.
 
 #### Parameters
 
 ##### repo
 
 `string`
+
+##### signal?
+
+`AbortSignal`
 
 #### Returns
 

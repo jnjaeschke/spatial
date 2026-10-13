@@ -5,7 +5,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
 import { Runtime } from "../../../src/runtime/tasks.ts";
-import { makeGit } from "../../../src/runtime/git.ts";
+import { makeGit } from "../../../src/runtime/git/read.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";

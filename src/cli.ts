@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import type { LlmBackendId } from "./shared/types.ts";
 import { createRuntime, defaultDbPath, DEFAULT_LLM } from "./runtime/create.ts";
-import { resolveRepo } from "./runtime/git.ts";
+import { resolveRepo } from "./runtime/git/read.ts";
 import { parseCommand } from "./workflows/registry.ts";
 import { begin } from "./workflows/start.ts";
 import { sessionOverview, sessionView } from "./runtime/render-ref.ts";

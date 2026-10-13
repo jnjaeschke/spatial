@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Commit, DiffFile } from "../../../../src/shared/types.ts";
 import type { GitCapability } from "../../../../src/runtime/tasks.ts";
 import { parseUnifiedDiff } from "../../../../src/runtime/diff-parse.ts";
-import { makeGit } from "../../../../src/runtime/git.ts";
+import { makeGit } from "../../../../src/runtime/git/read.ts";
 import { attribute } from "../../../../src/plugins/review/runtime/attribution.ts";
 import { findRewrites } from "../../../../src/plugins/review/runtime/rewrites.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";

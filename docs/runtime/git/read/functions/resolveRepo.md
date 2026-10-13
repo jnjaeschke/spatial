@@ -1,8 +1,8 @@
-[**spatial**](../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial](../../README.md) / [plugin-api](../README.md) / resolveRepo
+[spatial](../../../../README.md) / [runtime/git/read](../README.md) / resolveRepo
 
 # Function: resolveRepo()
 

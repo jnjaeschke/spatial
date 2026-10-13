@@ -8,7 +8,7 @@ import { Store } from "../../src/runtime/store.ts";
 import { Runtime } from "../../src/runtime/tasks.ts";
 import { definePlugin } from "../../src/plugin-api.ts";
 import type { ChatReplyField } from "../../src/runtime/plugins.ts";
-import { makeGit } from "../../src/runtime/git.ts";
+import { makeGit } from "../../src/runtime/git/read.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";

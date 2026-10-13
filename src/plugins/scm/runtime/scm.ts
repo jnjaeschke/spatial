@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { parseUnifiedDiff, resolveRepo, runGit, safeRepoPath, safeRevision, type CommitDetail, type CommitFileStat, type DiffFile, type FileStatus, type LogRow, type LogScope, type RefRow } from "../../../plugin-api.ts";
+import { localMainline, parseUnifiedDiff, remoteDefaultRef, resolveRepo, runGit, safeRepoPath, safeRevision, type CommitDetail, type CommitFileStat, type DiffFile, type FileStatus, type LogRow, type LogScope, type RefRow } from "../../../plugin-api.ts";
 
 const LOG_FORMAT = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x1e";
 
@@ -11,21 +11,9 @@ function logRows(out: string): LogRow[] {
   });
 }
 
-/** The remote default branch (`refs/remotes/origin/HEAD`'s target), or null when the repository has none. */
-async function remoteDefault(repo: string): Promise<string | null> {
-  try { return (await runGit(repo, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"])).trim() || null; }
-  catch { return null; }
-}
-
 /** The branch work is compared against: the remote default branch, else local `main`, else `master`; null without one. */
 async function defaultBranch(repo: string): Promise<string | null> {
-  const remote = await remoteDefault(repo);
-  if (remote) return remote;
-  for (const ref of ["refs/heads/main", "refs/heads/master"]) {
-    try { await runGit(repo, ["rev-parse", "--verify", "--quiet", ref]); return ref; }
-    catch { /* Try the next name. */ }
-  }
-  return null;
+  return (await remoteDefaultRef(repo)) ?? (await localMainline(repo))?.ref ?? null;
 }
 
 /** Where the current branch left the default branch; null on the default branch itself, behind it, or without one. */
@@ -51,7 +39,7 @@ export async function logPage(repo: string, scope: LogScope, skip: number, limit
     if (base) args.push(`${base}..HEAD`);
     else {
       args.push("--branches");
-      const remote = await remoteDefault(repo);
+      const remote = await remoteDefaultRef(repo);
       if (remote) args.push(remote);
     }
   }
@@ -155,11 +143,4 @@ export async function diffFiles(repo: string, a: string | null, b: string, paths
   const args = ["diff", "--no-color", "--no-ext-diff", "-M", "-U3", "--end-of-options", from, b];
   if (paths?.length) args.push("--", ...paths.map(safeRepoPath));
   return parseUnifiedDiff(await runGit(repo, args));
-}
-
-/** The lines of `path` at `rev`. */
-export async function fileAt(repo: string, rev: string, path: string): Promise<string[]> {
-  safeRevision(rev, "revision");
-  safeRepoPath(path);
-  return (await runGit(repo, ["show", "--end-of-options", `${rev}:${path}`])).replace(/\n$/, "").split(/\r?\n/);
 }

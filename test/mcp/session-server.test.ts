@@ -15,7 +15,7 @@ import { z } from "zod";
 import { defineMcpTool } from "../../src/runtime/plugins.ts";
 import { sessionServerSpec } from "../../src/runtime/create.ts";
 import { specTestServices } from "../helpers/spec-services.ts";
-import { MAX_TOOL_OUTPUT } from "../../src/runtime/git.ts";
+import { MAX_TOOL_OUTPUT } from "../../src/mcp/scm-tools.ts";
 import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
 import type { CodeSearch } from "../../src/plugins/spec/runtime/code-search.ts";
 

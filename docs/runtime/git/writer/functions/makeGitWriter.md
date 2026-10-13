@@ -1,8 +1,8 @@
-[**spatial**](../../README.md)
+[**spatial**](../../../../README.md)
 
 ***
 
-[spatial](../../README.md) / [plugin-api](../README.md) / makeGitWriter
+[spatial](../../../../README.md) / [runtime/git/writer](../README.md) / makeGitWriter
 
 # Function: makeGitWriter()
 

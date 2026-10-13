@@ -7,6 +7,7 @@
 ## Modules
 
 - [cli/launch](cli/launch/README.md)
+- [mcp/scm-tools](mcp/scm-tools/README.md)
 - [mcp/session-server](mcp/session-server/README.md)
 - [plugin-api](plugin-api/README.md)
 - [plugins/chat](plugins/chat/README.md)
@@ -69,6 +70,9 @@
 - [runtime/create](runtime/create/README.md)
 - [runtime/diagram](runtime/diagram/README.md)
 - [runtime/diff-parse](runtime/diff-parse/README.md)
+- [runtime/git/read](runtime/git/read/README.md)
+- [runtime/git/run](runtime/git/run/README.md)
+- [runtime/git/writer](runtime/git/writer/README.md)
 - [runtime/knowledge](runtime/knowledge/README.md)
 - [runtime/llm/events](runtime/llm/events/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)

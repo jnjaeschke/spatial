@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRuntime } from "../../../../src/runtime/create.ts";
-import { createSession } from "../../../../src/runtime/git.ts";
+import { createSession } from "../../../../src/workflows/start.ts";
 import type { Runtime } from "../../../../src/runtime/tasks.ts";
 
 import { narrativeOf } from "../../../../src/plugins/review/shared/diffs.ts";

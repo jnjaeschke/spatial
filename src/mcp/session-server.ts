@@ -9,7 +9,7 @@ import { corePlugin } from "../runtime/create.ts";
 import { plugins } from "../plugins/index.ts";
 import { Store } from "../runtime/store.ts";
 import { readRepoSkill } from "../runtime/repo-context.ts";
-import { MAX_TOOL_OUTPUT, scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmRangeDiff, scmShow, scmStatus } from "../runtime/git.ts";
+import { MAX_TOOL_OUTPUT, scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmRangeDiff, scmShow, scmStatus } from "./scm-tools.ts";
 import { capOutput } from "../runtime/process.ts";
 import type { Knowledge } from "../runtime/knowledge.ts";
 import { KnowledgeStore } from "../runtime/knowledge.ts";

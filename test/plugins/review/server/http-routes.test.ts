@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { Store } from "../../../../src/runtime/store.ts";
 import { Runtime } from "../../../../src/runtime/tasks.ts";
 import type { WebspecCapability } from "../../../../src/plugins/spec/runtime/webspec.ts";
-import { makeGit } from "../../../../src/runtime/git.ts";
+import { makeGit } from "../../../../src/runtime/git/read.ts";
 import { corePlugin } from "../../../../src/runtime/create.ts";
 import { plugins } from "../../../../src/plugins/index.ts";
 import { createHttpServer } from "../../../../src/server/http.ts";

@@ -6,6 +6,10 @@
 
 # Interface: BlameEntry
 
+## Extended by
+
+- [`BlameLine`](../../blame/interfaces/BlameLine.md)
+
 ## Properties
 
 ### line

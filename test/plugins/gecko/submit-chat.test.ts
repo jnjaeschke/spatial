@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { submitField } from "../../../src/plugins/gecko/runtime/submit-chat.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
-import { makeGit } from "../../../src/runtime/git.ts";
+import { makeGit } from "../../../src/runtime/git/read.ts";
 import type { TaskContext } from "../../../src/plugin-api.ts";
 
 const ctxFor = (dir: string, artifacts: { type: string; data: unknown }[] = []) => ({ repo: dir, git: makeGit(dir), artifacts: { view: () => ({ artifacts, links: [] }) } }) as unknown as TaskContext;

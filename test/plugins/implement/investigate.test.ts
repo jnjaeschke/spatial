@@ -6,7 +6,7 @@ import { Store } from "../../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 import { Runtime } from "../../../src/runtime/tasks.ts";
 import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
-import { makeGit } from "../../../src/runtime/git.ts";
+import { makeGit } from "../../../src/runtime/git/read.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { LlmOutputError, type Plugin } from "../../../src/plugin-api.ts";

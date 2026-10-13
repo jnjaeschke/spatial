@@ -137,7 +137,8 @@ export interface RuntimeOptions {
   store: Store;
   plugins: Plugin[];
   llm: LlmService;
-  git: (repo: string) => GitCapability;
+  /** `signal` is the calling task's: aborting it stops the capability's git work. */
+  git: (repo: string, signal?: AbortSignal) => GitCapability;
   /** Per-plugin-id service objects that replace what `Plugin.services` would build (tests). */
   services?: Record<string, unknown>;
   /** Plugin data that outlives sessions; defaults to an in-memory store. */ knowledge?: Knowledge;
@@ -162,7 +163,7 @@ export class Runtime {
   readonly plugins: PluginRegistry;
   readonly workflows: ReadonlyMap<string, Workflow<any>>;
   #llm: LlmService;
-  #git: (repo: string) => GitCapability;
+  #git: (repo: string, signal?: AbortSignal) => GitCapability;
   readonly services: Readonly<Record<string, unknown>>;
   #knowledge: Knowledge;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
@@ -282,7 +283,7 @@ export class Runtime {
       repoDir: session.repoDir,
       repo: session.worktree,
       signal: controller.signal,
-      git: this.#git(session.worktree),
+      git: this.#git(session.worktree, controller.signal),
       services: this.services,
       knowledge: {
         get: (scope, namespace, key) => this.#knowledge.get(scope, namespace, key),

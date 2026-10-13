@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { makeGitWriter } from "../../src/runtime/git.ts";
+import { makeGitWriter } from "../../src/runtime/git/writer.ts";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const run = (dir: string, ...args: string[]) => execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
