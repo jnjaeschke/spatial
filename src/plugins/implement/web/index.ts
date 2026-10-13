@@ -1,3 +1,4 @@
+import "./styles.css";
 import type { NodeKind, WebPlugin } from "../../../web/plugin-api.ts";
 import { MemoryNoticeItem, SteerItem } from "./ConversationItems.tsx";
 import { investigationSize } from "./graph.ts";

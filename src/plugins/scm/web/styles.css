@@ -1,0 +1,53 @@
+
+/* The page header stays put; a view scrolls inside the remaining height. */
+.repo-view-page { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; padding: 1rem 1.5rem 0; }
+.repo-view-page > header { display: flex; align-items: center; gap: 1rem; flex: none; }
+.repo-view-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.scm-graph { flex: 1; min-height: 0; display: flex; gap: 0; }
+.scm-sidebar { width: 260px; flex: none; overflow: auto; padding: 0 12px 12px 0; border-right: 1px solid var(--border); font-size: 0.9em; }
+.scm-sidebar h4, .scm-sidebar summary { margin: 12px 0 4px; font-size: 0.95em; }
+.scm-sidebar summary { cursor: pointer; font-weight: 600; }
+.scm-sidebar ul { list-style: none; margin: 0; padding: 0; }
+.scm-sidebar li button { display: block; width: 100%; text-align: left; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scm-sidebar input[type="search"] { width: 100%; box-sizing: border-box; margin: 4px 0; }
+.scm-sidebar .count, .scm-graph .count { color: var(--text-3); font-weight: normal; }
+.scm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; container-type: inline-size; }
+.scm-toolbar { display: flex; align-items: center; gap: 12px; padding: 6px 12px; flex: none; white-space: nowrap; }
+/* Beside the commit panel the subject keeps its room: author, then sha and date give way. */
+@container (max-width: 760px) { .scm-row .author { display: none; } }
+@container (max-width: 560px) { .scm-row .sha, .scm-row .date { display: none; } }
+.scm-rows { flex: 1; min-height: 0; overflow: auto; position: relative; outline: none; }
+.scm-rows-inner { position: relative; }
+.scm-row { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 8px; padding-right: 12px; cursor: default; white-space: nowrap; font-size: 0.9em; }
+.scm-row:hover { background: var(--surface-2); }
+.scm-row.selected { background: var(--accent-soft); }
+.scm-row.compared { outline: 1px dashed var(--accent); outline-offset: -1px; }
+.scm-row .lanes { flex: none; }
+.scm-row .lanes path { fill: none; stroke-width: 2; }
+.scm-row .subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scm-row .author { width: 140px; flex: none; overflow: hidden; text-overflow: ellipsis; color: var(--text-3); }
+.scm-row .date { width: 110px; flex: none; color: var(--text-3); }
+.scm-row .sha { flex: none; font-family: var(--font-mono); color: var(--text-3); }
+.ref-pills { display: inline-flex; gap: 4px; flex: none; }
+.ref-pill { padding: 0 6px; border-radius: 999px; border: 1px solid var(--border-strong); font-size: 0.85em; background: var(--surface); }
+.ref-pill.ref-head { border-color: var(--accent); }
+.ref-pill.ref-remote { border-style: dashed; }
+.ref-pill.ref-tag { background: var(--surface-3); }
+.ref-pill.ref-current-head, .ref-pill.current { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.ref-pill .ref-worktree { color: var(--text-3); font-weight: normal; }
+.scm-loading { padding: 4px 12px; }
+.ref-chip { margin-left: 0.4rem; padding: 0 0.4rem; border: 1px solid var(--border-strong); border-radius: 999px; font-size: 0.85em; color: var(--text-3); }
+.ref-chip.current { border-color: var(--accent); color: var(--accent); }
+.commit-graph-warning { color: var(--warning); }
+.revision-file > summary { cursor: pointer; padding: 4px 0; }
+.revision-file .counts { color: var(--text-2); font-size: 0.85em; }
+.commit-panel { flex: none; width: min(45vw, 820px); }
+.commit-panel-content { outline: none; padding: 8px 14px 16px; }
+.commit-meta p { margin: 4px 0; }
+.commit-body { white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.9em; margin: 0 0 8px; }
+.commit-actions { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.commit-files { list-style: none; padding: 0; margin: 8px 0; font-size: 0.9em; }
+.commit-files li { text-align: left; overflow-wrap: anywhere; }
+.commit-files .link-button, .commit-file h4 .link-button { text-align: left; }
+.commit-file h4 { margin: 12px 0 4px; font-size: 0.95em; font-weight: 600; }
+.commit-file .count { color: var(--text-3); font-weight: normal; }

@@ -1,3 +1,4 @@
+import "./styles.css";
 import type { WebPlugin } from "../../../web/plugin-api.ts";
 import { ScmSessionView, ScmView } from "./ScmView.tsx";
 

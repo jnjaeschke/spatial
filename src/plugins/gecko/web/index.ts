@@ -1,3 +1,4 @@
+import "./styles.css";
 import type { WebPlugin } from "../../../web/plugin-api.ts";
 import { TryProposalView, TryView } from "./TryViews.tsx";
 import { PhabSubmitView, SubmitView } from "./SubmitViews.tsx";

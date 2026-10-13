@@ -1,0 +1,34 @@
+
+.reviewer-comments-panel { position: relative; grid-column: 1 / -1; min-height: 0; overflow: auto; padding: 0 12px 12px; }
+.reviewer-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
+.reviewer-comment { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.reviewer-comment-quote { margin: 4px 0; }
+.reviewer-comment-ai { opacity: .85; border-left: 3px solid var(--accent); padding-left: 8px; }
+.reviewer-comment-controls { display: flex; gap: 6px; align-items: start; flex-wrap: wrap; }
+.reviewer-comment-controls .composer { flex: 1 1 100%; min-height: 3em; }
+.try-proposal, .try-run { padding: 6px 12px; }
+.try-proposal code { white-space: pre-wrap; }
+.try-headline { display: flex; gap: 8px; align-items: baseline; }
+.try-run[data-complete="false"] .try-headline { font-style: italic; }
+.try-failures { margin: 4px 0 0; padding-left: 18px; }
+.try-failures ul { margin: 2px 0 4px; padding-left: 16px; font-family: var(--font-mono); font-size: 0.9em; }
+.implement-summary, .steer-outcome, .running, .command-summary { padding: 0 12px; margin: 4px 0; }
+.plan-checks { margin: 4px 0 0; padding-left: 1.2em; font-size: 12px; }
+.check-evidence { color: var(--text-2); }
+.check-results { list-style: none; margin: 4px 0; padding: 0 12px; font-size: 12px; }
+.check-result.ok > span:first-child { color: var(--success); }
+.check-result.fail > span:first-child { color: var(--danger); }
+.check-message { color: var(--text-2); }
+.check-run { margin-left: 4px; font-size: 11px; }
+.steer-item .steer-label { color: var(--text-3); font-size: 0.8em; }
+.memory-notice { background: var(--surface-2); border: 1px dashed var(--border); }
+.memory-notice p { margin: 0 0 4px; }
+.memory-reactions { display: flex; gap: 6px; }
+.memories-panel { margin-top: 28px; }
+.memory { padding: 10px 12px; margin: 8px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.memory p { margin: 0 0 4px; }
+.memory-detail { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+.memory-form { display: flex; flex-direction: column; gap: 6px; }
+.memory-field { display: flex; flex-direction: column; gap: 2px; }
+.memory-field textarea, .memory-field input[type="text"], .memory-field input:not([type]) { width: 100%; }
+.memories { list-style: none; padding: 0; }

@@ -1,3 +1,4 @@
+import "./styles.css";
 import type { WebPlugin } from "../../../web/plugin-api.ts";
 import type { NodeKind } from "../../../web/plugin-api.ts";
 import { algorithmSize } from "./graph.ts";

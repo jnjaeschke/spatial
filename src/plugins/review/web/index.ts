@@ -1,3 +1,4 @@
+import "./styles.css";
 import { plural, type WebPlugin, type NodeKind, type ExportDiff, type SessionState, type TaskRecord } from "../../../web/plugin-api.ts";
 import { latestNarrative, reviewSize } from "./graph.ts";
 import { latestDiff } from "../shared/diffs.ts";
