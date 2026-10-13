@@ -54,6 +54,11 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Local agent and tool state
+.claude/
+.codex/
+.aws/
+
 # Misc
 *.tgz
 .vercel

@@ -1,6 +1,7 @@
 {
   "name": "spatial",
   "private": true,
+  "license": "MPL-2.0",
   "type": "module",
   "bin": {
     "spatial": "src/cli.ts"

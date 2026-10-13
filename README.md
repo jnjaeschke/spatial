@@ -29,14 +29,28 @@ Optional tools enable more features. spatial finds them on `PATH`.
 ### Install
 
 ```sh
-git clone <this repository> spatial
+git clone https://github.com/jnjaeschke/spatial.git
 cd spatial
 npm install
 npm run build:web
 npm link
 ```
 
-`npm link` puts the `spatial` command on your `PATH`. After pulling new changes, run `npm run build:web` again, then `spatial restart`. A running server notices when it is older than the checkout and tells you so.
+`npm link` puts the `spatial` command on your `PATH`.
+
+### Update
+
+```sh
+git pull
+npm install
+npm run build:web
+spatial restart
+```
+
+If the server is older than the checkout, `spatial` tells you to restart it. Your sessions and memories are kept across updates:
+- **Migration:** the server migrates its databases on start.
+- **Backup:** before migrating, it writes a copy next to the database (`runtime.sqlite.v<N>.bak`).
+- **Downgrade:** an older version refuses to open a database written by a newer one.
 
 ### Run
 
@@ -199,6 +213,25 @@ Views are projections of the stored artifacts and never the source of truth. The
   - Consequential actions wait for your decision.
   - A repository's command-line MCP servers run only after you approve their exact command.
 - **Write modes are not sandboxes:** builds and tests run the code the agent wrote.
+
+## Known limitations
+
+- **Early software.** Expect rough edges, and report them.
+- **Gecko-centric.** spatial is built around Firefox development. Other git repositories get review, chat, explore and a plain implement flow, but no bug tracker, try or submit steps.
+- **Phabricator only.** Reviewing a revision by number, syncing reviewer comments and posting replies only work with Phabricator. Local ranges work anywhere.
+- **No sandbox for builds.** Write modes are not sandboxes. Builds and tests run the code the agent wrote.
+- **Platforms.** spatial is developed on Linux. macOS is covered by CI but has seen little use. Windows is not supported.
+
+## Feedback
+
+Please file problems and ideas as [GitHub issues](https://github.com/jnjaeschke/spatial/issues). An issue is most useful with:
+- what you did and what you expected;
+- for a review, the file that **Export…** in the session's top bar writes;
+- the end of `~/.local/share/spatial/server.log`.
+
+## License
+
+[Mozilla Public License 2.0](LICENSE).
 
 ## Development
 
