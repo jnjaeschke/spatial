@@ -1,3 +1,5 @@
+import type { RoundSource } from "../workflow/round.ts";
+
 /** One Phabricator diff of a stack revision: `base` is the commit it applies on, `dateCreated` Unix seconds. */
 export interface RoundDiff { revision: number; diffId: number; base: string; dateCreated: number }
 
@@ -24,4 +26,11 @@ export function roundStack(rounds: RoundDiff[][], k: number, order: number[]): R
     }
     return [];
   });
+}
+
+/** The epoch chip label of a round: its Phabricator diffs, or the adopted head of a round without any. */
+export function roundLabel(round: RoundSource): string {
+  const diffs = (entries: RoundDiff[]) => entries.map((entry) => `D${entry.revision} #${entry.diffId}`).join(", ");
+  if (round.kind === "phabricator") return `Round · ${diffs(round.stack)}`;
+  return round.phab ? `Round · ${diffs(round.phab)} (local)` : `Adopted up to ${round.head.slice(0, 12)}`;
 }

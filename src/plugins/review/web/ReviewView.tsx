@@ -15,7 +15,7 @@ import { CommentDetails, findComment } from "./CommentDetails.tsx";
 import { FindingDetails, findFinding } from "./FindingDetails.tsx";
 import { PhabDetails, findPhabThread } from "./PhabDetails.tsx";
 import { SymbolDetails, findSymbol } from "./SymbolDetails.tsx";
-import { InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
+import { InlineStatesContext, isActive, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
 import { SymbolMarkContext, useSymbolCard } from "./SymbolCard.tsx";
 import { SpecLinkContext } from "../../spec/web/api.ts";
 
@@ -23,6 +23,7 @@ export function ReviewView({ state, models, drafts, epoch: viewedEpoch, readOnly
   const [details, setDetails] = useState<DetailsState>(closeDetails);
   const [jump, setJump] = useState<HunkRow | null>(null);
   const [specSelection, setSpecSelection] = useState<SpecStepSelection | null>(null);
+  const [narratingRound, setNarratingRound] = useState(false);
   const closed = useClosed(state.session.id);
   const inline = useInlineStates(state.session.id);
   const revealer = useRef<((nodeId: string, collapseId: string) => void) | null>(null);
@@ -59,6 +60,7 @@ export function ReviewView({ state, models, drafts, epoch: viewedEpoch, readOnly
   const selectedPhab = details.current?.kind === "phab" ? findPhabThread(graph, details.current.anchorId) : null;
   const selectedSymbol = details.current?.kind === "symbol" ? findSymbol(state, diff, details.current.name, details.current.site) : null;
   const chatActions = readOnly || projected ? null : { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard, onNote: () => {} };
+  const taskRunning = state.tasks.some(isActive);
   const panels = <>
     {selectedChat && <ChatDetails thread={selectedChat} actions={chatActions} closed={closed} reveal={(nodeId, collapseId) => revealer.current?.(nodeId, collapseId)} onClose={closePanel} onBack={back} />}
     {selectedComment && <CommentDetails comment={selectedComment} actions={chatActions} onClose={closePanel} onBack={back} />}
@@ -75,7 +77,7 @@ export function ReviewView({ state, models, drafts, epoch: viewedEpoch, readOnly
     setDetails((current) => openDetail(current, { kind: "spec", specId }));
   };
   return <SpecLinkContext.Provider value={{ follow: followSpecRef }}><SpecStepContext.Provider value={details.current?.kind === "spec" ? specSelection : null}>
-    <TopbarExtras>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => setDetails((current) => current.current?.kind === "interdiff" ? closeDetails() : openDetail(current, { kind: "interdiff" }))}>Interdiff</button>}</TopbarExtras>
+    <TopbarExtras>{epoch !== null && <span className="epoch" data-testid="epoch">Epoch {epoch}</span>}{diff && <span className="range" title={`${diff.data.baseSha}..${diff.data.headSha}`} data-testid="review-range">Reviewing {diff.data.commits.length} commit{diff.data.commits.length === 1 ? "" : "s"}: {diff.data.baseSha.slice(0, 12)}..{diff.data.headSha.slice(0, 12)}</span>}{interdiff && epoch !== null && <button onClick={() => setDetails((current) => current.current?.kind === "interdiff" ? closeDetails() : openDetail(current, { kind: "interdiff" }))}>Interdiff</button>}{projected && !readOnly && diff && <button disabled={taskRunning || narratingRound} onClick={() => { setNarratingRound(true); reviewClient.narrateRound(state.session.id, diff.id, models.default).catch(console.error).finally(() => setNarratingRound(false)); }}>Narrate this round</button>}</TopbarExtras>
     <InlineStatesContext.Provider value={inline}><DetailsContext.Provider value={{ current: details.current, open: (detail) => { setSpecSelection(null); setDetails((current) => openDetail(current, detail)); } }}>
       {readOnly && viewedEpoch === null ? session : <FileViewContext.Provider value={(file) => { if (file.row && narrative) setJump({ hunkId: file.hunkId, ...file.row }); else { setSpecSelection(null); setDetails((current) => openDetail(current, { kind: "file", file })); } }}>{session}</FileViewContext.Provider>}
     </DetailsContext.Provider></InlineStatesContext.Provider>

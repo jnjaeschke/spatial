@@ -3,6 +3,7 @@ import { postJson, putJson, type ChatThreadData, type LlmSelection } from "../..
 /** HTTP calls owned by the review plugin. */
 export const reviewClient = {
   narrate: (id: string, body: { llm: LlmSelection }) => postJson<{}>(`/api/sessions/${id}/narrate`, body),
+  narrateRound: (sessionId: string, diffId: string, llm: LlmSelection) => postJson<{}>(`/api/sessions/${sessionId}/rounds/${diffId}/narrate`, { llm }),
   setReviewed: (sessionId: string, narrativeId: string, changeId: string, reviewed: boolean) =>
     postJson<{ artifactId: string }>(`/api/sessions/${sessionId}/narratives/${narrativeId}/changes/${changeId}/reviewed`, { reviewed }),
   saveComment: (sessionId: string, findingId: string, body: string) => putJson<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),

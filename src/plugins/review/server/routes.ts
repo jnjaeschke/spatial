@@ -9,6 +9,7 @@ import { withUnassigned } from "../shared/review-path.ts";
 import { currentUserComments, postableComments, reviewDraft, withGeneralReply } from "../shared/postable-comments.ts";
 import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
+import { narrateRound } from "../workflow/narrate-patch.ts";
 import type {  ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData , PatchNarrativeData, PostedCommentData } from "../shared/types.ts";
 import type { SpecReferenceData } from "../../spec/api.ts";
 
@@ -303,6 +304,20 @@ export function reviewRoutes(rt: Runtime): Route[] {
       runningUpdates.add(id);
       updateRevision(rt, id, llm)
         .catch((e) => console.error(`update failed in session ${id}: ${(e as Error).message}`))
+        .finally(() => runningUpdates.delete(id));
+      send(res, 202, {});
+    }],
+    ["POST", /^\/api\/sessions\/([^/]+)\/rounds\/([^/]+)\/narrate$/, async ({ req, params, res }) => {
+      const id = requireSession(rt, params[0]!).id;
+      const body = await readJson(req);
+      const diff = requireArtifact(rt, id, params[1]!, "Diff", "diff") as Artifact<DiffData>;
+      const artifacts = rt.store.listArtifacts(id);
+      if (narrativeOf(artifacts, diff.id)) throw new HttpError(409, "Diff already has a narrative");
+      if (rt.store.listTasks(id).some((task) => HEAVY_TASKS.has(task.kind) && isActive(task))) throw new HttpError(409, "A task is already running");
+      if (runningUpdates.has(id)) throw new HttpError(409, "An update is already running");
+      runningUpdates.add(id);
+      narrateRound(rt, id, diff.id, llmField(body))
+        .catch((e) => console.error(`round narration failed in session ${id}: ${(e as Error).message}`))
         .finally(() => runningUpdates.delete(id));
       send(res, 202, {});
     }],
