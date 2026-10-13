@@ -20,6 +20,7 @@
 - [ChatActions](interfaces/ChatActions.md)
 - [ChatNodeData](interfaces/ChatNodeData.md)
 - [ClosedItem](interfaces/ClosedItem.md)
+- [CodeLinks](interfaces/CodeLinks.md)
 - [CodeRow](interfaces/CodeRow.md)
 - [ComposerProps](interfaces/ComposerProps.md)
 - [ConversationItemProps](interfaces/ConversationItemProps.md)
@@ -46,7 +47,6 @@
 - [RepoViewProps](interfaces/RepoViewProps.md)
 - [RootGraphParts](interfaces/RootGraphParts.md)
 - [RowMark](interfaces/RowMark.md)
-- [SearchfoxLinks](interfaces/SearchfoxLinks.md)
 - [Segment](interfaces/Segment.md)
 - [SequenceArrow](interfaces/SequenceArrow.md)
 - [WebPlugin](interfaces/WebPlugin.md)
@@ -71,6 +71,7 @@
 - [AskContext](variables/AskContext.md)
 - [ChatActionsContext](variables/ChatActionsContext.md)
 - [ClosedContext](variables/ClosedContext.md)
+- [CodeLinksContext](variables/CodeLinksContext.md)
 - [CollapseContext](variables/CollapseContext.md)
 - [DiagramStepContext](variables/DiagramStepContext.md)
 - [draftTexts](variables/draftTexts.md)
@@ -107,7 +108,6 @@
 - [ExternalLink](functions/ExternalLink.md)
 - [FileDiff](functions/FileDiff.md)
 - [FilePanel](functions/FilePanel.md)
-- [fileUrl](functions/fileUrl.md)
 - [getJson](functions/getJson.md)
 - [hostedThreads](functions/hostedThreads.md)
 - [HoverCard](functions/HoverCard.md)
@@ -177,18 +177,6 @@ Re-exports [ChatMessageData](../../shared/types/interfaces/ChatMessageData.md)
 ### ChatThreadData
 
 Re-exports [ChatThreadData](../../shared/types/interfaces/ChatThreadData.md)
-
-***
-
-### CodeLinksData
-
-Re-exports [CodeLinksData](../../shared/types/interfaces/CodeLinksData.md)
-
-***
-
-### CodeScope
-
-Re-exports [CodeScope](../../shared/types/interfaces/CodeScope.md)
 
 ***
 
@@ -264,24 +252,6 @@ Re-exports [DirectoryListing](../../shared/types/interfaces/DirectoryListing.md)
 
 ***
 
-### Engine
-
-Re-exports [Engine](../../shared/types/type-aliases/Engine.md)
-
-***
-
-### ENGINE\_LABEL
-
-Re-exports [ENGINE_LABEL](../../plugin-api/variables/ENGINE_LABEL.md)
-
-***
-
-### ENGINES
-
-Re-exports [ENGINES](../../plugin-api/variables/ENGINES.md)
-
-***
-
 ### Epoch
 
 Re-exports [Epoch](../../shared/types/interfaces/Epoch.md)
@@ -303,12 +273,6 @@ Re-exports [escapeRegex](../../plugin-api/functions/escapeRegex.md)
 ### FileStatus
 
 Re-exports [FileStatus](../../shared/types/type-aliases/FileStatus.md)
-
-***
-
-### GeckoSpecRef
-
-Re-exports [GeckoSpecRef](../../shared/types/interfaces/GeckoSpecRef.md)
 
 ***
 
@@ -474,12 +438,6 @@ Re-exports [repoName](../../shared/repos/functions/repoName.md)
 
 ***
 
-### ResolvedSpec
-
-Re-exports [ResolvedSpec](../../shared/types/interfaces/ResolvedSpec.md)
-
-***
-
 ### RevisionData
 
 Re-exports [RevisionData](../../shared/types/interfaces/RevisionData.md)
@@ -549,54 +507,6 @@ Re-exports [SessionState](../../shared/types/interfaces/SessionState.md)
 ### showSessionView
 
 Re-exports [showSessionView](../routes/functions/showSessionView.md)
-
-***
-
-### SpecEffect
-
-Re-exports [SpecEffect](../../shared/types/interfaces/SpecEffect.md)
-
-***
-
-### SpecEffectPaths
-
-Re-exports [SpecEffectPaths](../../shared/types/interfaces/SpecEffectPaths.md)
-
-***
-
-### SpecEffectsStatus
-
-Re-exports [SpecEffectsStatus](../../shared/types/interfaces/SpecEffectsStatus.md)
-
-***
-
-### SpecHop
-
-Re-exports [SpecHop](../../shared/types/interfaces/SpecHop.md)
-
-***
-
-### SpecIdlMember
-
-Re-exports [SpecIdlMember](../../shared/types/interfaces/SpecIdlMember.md)
-
-***
-
-### SpecSearchResult
-
-Re-exports [SpecSearchResult](../../shared/types/interfaces/SpecSearchResult.md)
-
-***
-
-### SpecSection
-
-Re-exports [SpecSection](../../shared/types/interfaces/SpecSection.md)
-
-***
-
-### SpecSite
-
-Re-exports [SpecSite](../../shared/types/interfaces/SpecSite.md)
 
 ***
 
