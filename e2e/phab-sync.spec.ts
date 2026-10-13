@@ -165,12 +165,12 @@ test("remote inline whose line is gone after an amend is listed as outdated", as
   await expect(page.getByTestId("phab-panel")).toContainText("epoch 1");
 });
 
-test("comments render as Markdown; bot comments are collapsed to a preview; long comments are clamped", async ({ page, request }) => {
+test("comments render as Markdown with images as links; bot comments are collapsed to a preview; long comments are clamped", async ({ page, request }) => {
   const ids = newRevision();
   const longBody = Array.from({ length: 40 }, (_, i) => `Long comment line ${i + 1}`).join("\n\n");
   const botBody = "The analysis task [lint](https://example.com/lint) failed.\n\n## Details\n\nMore details.";
   await openNarratedWithTrailer(page, request, ids.revision, (diff) => ({ diffs: [ids.d1], rawDiffs: { [ids.d1]: diff }, transactions: [
-    commentTx(190, botBody, "reviewbot"), commentTx(191, "This is **important** feedback"), commentTx(192, longBody),
+    commentTx(190, botBody, "reviewbot"), commentTx(191, "This is **important** feedback ![tracker](https://example.com/pixel.png)"), commentTx(192, longBody),
   ] }));
   const summary = page.getByTestId("summary");
   const phab = (text: string) => summary.locator(".inline-item.kind-phab").filter({ hasText: text });
@@ -192,6 +192,8 @@ test("comments render as Markdown; bot comments are collapsed to a preview; long
   await expandItem(importantItem);
   const important = importantItem.getByTestId("phab-comment").filter({ hasText: "important" });
   await expect(important.locator("strong").filter({ hasText: "important" })).toBeVisible();
+  await expect(important.locator("img")).toHaveCount(0);
+  await expect(important.getByRole("link", { name: "tracker" })).toHaveAttribute("href", "https://example.com/pixel.png");
   await expect(important.getByRole("button", { name: "Show more" })).toHaveCount(0);
   await importantItem.getByRole("button", { name: "Collapse item" }).click();
   const longItem = phab("Long comment line 1");

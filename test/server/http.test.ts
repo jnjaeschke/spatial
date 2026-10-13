@@ -214,9 +214,24 @@ test("POST requires JSON content type; foreign Host is rejected", async () => {
   assert.equal(status, 403);
 });
 
-// REQUIRES_REAL_GIT
+test("API requests from other sites are rejected; the app's own pages and CLI clients pass", async () => {
+  const get = (path: string, headers: Record<string, string>) => fetch(base + path, { headers });
+  assert.equal((await get("/api/workflows", { "sec-fetch-site": "cross-site" })).status, 403);
+  assert.equal((await get("/api/workflows", { "sec-fetch-site": "same-site" })).status, 403);
+  assert.equal((await get("/api/workflows", { origin: "https://evil.example" })).status, 403);
+  assert.equal((await get("/api/workflows", { "sec-fetch-site": "same-origin", origin: "http://localhost:5173" })).status, 200);
+  assert.equal((await get("/api/workflows", { "sec-fetch-site": "none" })).status, 200);
+  assert.equal((await get("/api/workflows", {})).status, 200);
+});
 
-// REQUIRES_REAL_GIT
+test("responses forbid framing and sniffing; pages carry a content security policy", async () => {
+  const api = await fetch(`${base}/api/workflows`);
+  assert.equal(api.headers.get("x-frame-options"), "DENY");
+  assert.equal(api.headers.get("x-content-type-options"), "nosniff");
+  const page = await fetch(`${base}/`);
+  assert.match(page.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
+  assert.match(page.headers.get("content-security-policy") ?? "", /img-src 'self' data:/);
+});
 
 test("turns: first turn creates thread; busy thread is 409", async () => {
   const s = await newSession();

@@ -29,6 +29,17 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".json": "application/json", ".png": "image/png", ".woff2": "font/woff2",
 };
 const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const CSP = "default-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+/** Whether a request comes from another site. The Host check stops DNS rebinding, but a page elsewhere can still send simple GETs (`<img src>`) that reach routes running git in any directory. CLI clients send neither header. */
+function crossSite(req: IncomingMessage): boolean {
+  const site = req.headers["sec-fetch-site"];
+  if (site !== undefined && site !== "same-origin" && site !== "none") return true;
+  const origin = req.headers.origin;
+  if (origin === undefined) return false;
+  try { return !ALLOWED_HOSTS.has(new URL(origin).hostname); }
+  catch { return true; }
+}
 
 export type HttpRouteContext = { req: IncomingMessage; res: ServerResponse; params: string[]; url: URL };
 export type Route = [method: string, pattern: RegExp, handler: (c: HttpRouteContext) => Promise<unknown>];
@@ -337,17 +348,20 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     try { data = await readFile(target); }
     catch {
       data = await readFile(join(root, "index.html"));
-      res.writeHead(200, { "content-type": MIME[".html"] }).end(data);
+      res.writeHead(200, { "content-type": MIME[".html"], "content-security-policy": CSP }).end(data);
       return;
     }
-    res.writeHead(200, { "content-type": MIME[extname(target)] ?? "application/octet-stream" }).end(data);
+    res.writeHead(200, { "content-type": MIME[extname(target)] ?? "application/octet-stream", ...(extname(target) === ".html" ? { "content-security-policy": CSP } : {}) }).end(data);
   }
 
   return createServer(async (req, res) => {
     try {
       const host = (req.headers.host ?? "").replace(/:\d+$/, "").toLowerCase();
       if (!ALLOWED_HOSTS.has(host)) throw new HttpError(403, "Forbidden host");
+      res.setHeader("x-frame-options", "DENY");
+      res.setHeader("x-content-type-options", "nosniff");
       const url = new URL(req.url ?? "/", "http://localhost");
+      if (url.pathname.startsWith("/api/") && crossSite(req)) throw new HttpError(403, "Cross-site request");
       if (req.method === "POST" && !(req.headers["content-type"] ?? "").toLowerCase().startsWith("application/json")) {
         throw new HttpError(415, "POST requires application/json");
       }
