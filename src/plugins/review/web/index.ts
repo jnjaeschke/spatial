@@ -4,6 +4,8 @@ import { latestNarrative, reviewSize } from "./graph.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { isStaleNotice } from "./notices.ts";
 import { ReviewView } from "./ReviewView.tsx";
+import { RoundView } from "./RoundView.tsx";
+import type { RoundPhaseInput } from "../api.ts";
 import { ChangeNode } from "./nodes/ChangeNode.tsx";
 import { ChangeHeaderNode } from "./nodes/ChangeHeaderNode.tsx";
 import { HunkNode } from "./nodes/HunkNode.tsx";
@@ -37,7 +39,12 @@ export const reviewWeb: WebPlugin = {
     const posted = new Set(state.artifacts.filter((artifact) => artifact.type === "PostedComment").map((artifact) => (artifact.data as { comment: string }).comment));
     const drafts = state.artifacts.filter((artifact) => artifact.type === "ReviewComment" && !posted.has(artifact.id)).length;
     return [`${plural(count("ReviewFinding"), "finding")}, ${plural(drafts, "unposted draft comment")}`];
-  }, isStaleNotice: (state, notice) => isStaleNotice(notice, latestDiff(state.artifacts)) } },
+  }, isStaleNotice: (state, notice) => isStaleNotice(notice, latestDiff(state.artifacts)) }, round: { Body: RoundView, commentsOnSelection: false, chipLabel: (epoch) => {
+    const { round } = epoch.input as RoundPhaseInput;
+    if (round.kind === "phabricator") return `Round · ${round.stack.map((entry) => `D${entry.revision} #${entry.diffId}`).join(", ")}`;
+    if (!round.phab) return `Adopted up to ${round.head.slice(0, 12)}`;
+    return `Round · ${round.phab.map((entry) => `D${entry.revision} #${entry.diffId}`).join(", ")} (local)`;
+  } } },
   taskLabels: { narrate: "analyze", importDiff: "read patch", importRevision: "fetch revision" },
   taskBadges: { review: ReviewTaskBadge },
   workflowPhase: { review: "review" },

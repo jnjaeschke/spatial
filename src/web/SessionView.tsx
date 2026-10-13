@@ -71,6 +71,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const shown = past ? stateAtEpoch(state, past.n) : state;
   const conversationItems = { components: webConversationItems, artifacts: shown.artifacts, sessionId, repoDir: state.session.repoDir, worktree: state.session.worktree, steer: steerFor(state.session.workflow, webPlugins) };
   const { phase, view } = activePhaseView(webPlugins, shown);
+  const epochLabels = Object.fromEntries(state.epochs.flatMap((epoch) => {
+    const owner = webPlugins.find((plugin) => Object.hasOwn(plugin.phaseViews, epoch.phase));
+    const label = owner?.phaseViews[epoch.phase]?.chipLabel?.(epoch, state);
+    return label === undefined ? [] : [[epoch.n, label]];
+  }));
   const extra = sessionViews(webPlugins, shown, viewId);
   const Body = extra.active?.Body ?? view?.Body;
   const body = Body ? <Body state={shown} models={models} drafts={drafts} epoch={past ?? latestEpoch} readOnly={past !== null} onSent={onSent} onOpenAside={onOpenAside} onDiscard={(id) => setDrafts((current) => current.filter((draft) => draft.id !== id))} />
@@ -81,7 +86,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       if (event.currentTarget.checked) void enableDesktop().then(setDesktop);
       else { disableDesktop(); setDesktop(false); }
     }} /> Desktop notifications</label><UsageWidget sessionId={sessionId} lastEventId={state.lastEventId} /><TextSizeControl /><ThemeToggle /></div>
-    {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} />}
+    {showEpochStrip(state) && <EpochStrip state={state} viewed={viewed} onView={setViewed} labels={epochLabels} />}
     <OpenActivityLogContext.Provider value={setLog}><TaskProgressContext.Provider value={progress}><ModelsContext.Provider value={models}><NodeKindsContext.Provider value={webNodeKinds}><AskContext.Provider value={askContext}><TopbarSlot.Provider value={topbarSlot}><ReplyActionsContext.Provider value={replyActions}><ConversationItemsContext.Provider value={conversationItems}><SessionProviders state={shown} readOnly={past !== null}>{body}<AskOnSelect /><ActivityStrip state={state} view={view ?? null} progress={progress} conversationKinds={webConversationTasks} taskLabels={webTaskLabels} taskBadges={webTaskBadges} log={log} onLog={setLog} /></SessionProviders></ConversationItemsContext.Provider></ReplyActionsContext.Provider></TopbarSlot.Provider></AskContext.Provider></NodeKindsContext.Provider></ModelsContext.Provider></TaskProgressContext.Provider></OpenActivityLogContext.Provider>
     <Toasts items={visible} onDismiss={dismissNotice} />
     {exporting && <ExportDialog state={state} diff={view?.exportDiff?.(state) ?? null} exportTask={view?.exportTasks} summary={view?.exportSummary?.(state) ?? []} onClose={() => setExporting(false)} />}

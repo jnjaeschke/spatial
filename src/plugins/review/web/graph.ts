@@ -10,7 +10,7 @@ import { findingStates, type FindingStatus } from "../shared/findings.ts";
 import { phabView } from "../shared/phab-anchor.ts";
 import { phabAnchorId } from "../shared/phab-comments.ts";
 import { currentSummary, phabThreads } from "../shared/phab-threads.ts";
-import { changeCommit, reviewedChanges, withUnassigned } from "../shared/review-path.ts";
+import { changeCommit, commitChanges, reviewedChanges, withUnassigned } from "../shared/review-path.ts";
 import { commitRevision } from "../shared/phabricator.ts";
 import { latestSymbols, symbolMarks } from "./symbols.ts";
 import type { IntroducedSymbolsData } from "../shared/types.ts";
@@ -332,12 +332,15 @@ export function guideEntries(g: Graph, place: string | null): GuideEntry[] {
   return changePlaceId(place) === null ? [] : changes.map((data) => ({ ...step(data), place: `change:${data.change.id}` }));
 }
 
-export function latestNarrative(state: SessionState): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData> } | null {
+export function latestNarrative(state: SessionState, opts?: { project?: boolean }): { narrative: Artifact<PatchNarrativeData>; diff: Artifact<DiffData>; projected: boolean } | null {
   const diff = latestDiff(state.artifacts);
   if (!diff) return null;
   const narrative = narrativeOf(state.artifacts, diff.id);
-  if (!narrative) return null;
-  return { narrative, diff };
+  if (!narrative) {
+    if (!opts?.project) return null;
+    return { diff, projected: true, narrative: { id: diff.id, sessionId: diff.sessionId, epoch: diff.epoch, createdAt: diff.createdAt, type: "PatchNarrative", status: "verified", provenance: { taskId: "projection" }, data: { diffId: diff.id, summary: "", changes: commitChanges(diff.data) } } };
+  }
+  return { narrative, diff, projected: false };
 }
 
 function revisionFor(diff: DiffData, lines: UserCommentData["lines"]): number | null {
@@ -557,8 +560,8 @@ function buildFindingSection(
   for (const card of g.nodes) if (isReviewKind(card.data, "commit")) card.data.findingCount = commitFindingCount(g.nodes, card.data.index);
 }
 
-export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null {
-  const latest = latestNarrative(state);
+export function reviewGraph(state: SessionState, drafts: Draft[], opts?: { project?: boolean }): Graph | null {
+  const latest = latestNarrative(state, opts);
   if (!latest) return null;
   const g = narrativeGraph(latest.narrative, latest.diff, state.artifacts, drafts);
   const symbols = latestSymbols(state, latest.diff.id)?.symbols;

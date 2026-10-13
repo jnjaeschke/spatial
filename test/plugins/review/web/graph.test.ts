@@ -78,6 +78,24 @@ test("latestNarrative picks the newest narrative and its diff", () => {
   assert.equal(r?.diff.id, "D");
 });
 
+test("latestNarrative can project an unnarrated diff into one change per commit", () => {
+  const stackDiff: Artifact<DiffData> = { ...diff, data: { ...diff.data,
+    commits: [{ sha: "1", subject: "First", body: "" }, { sha: "2", subject: "Second", body: "" }],
+    files: [{ path: "a.cpp", status: "modified", binary: false, hunks: [
+      { ...hunk("first"), lines: [{ kind: "add", text: "one", commit: 0 }] },
+      { ...hunk("second"), lines: [{ kind: "add", text: "two", commit: 1 }] },
+    ] }],
+  } };
+  const st = state([stackDiff]);
+  assert.equal(latestNarrative(st), null);
+  const projected = latestNarrative(st, { project: true });
+  assert.equal(projected?.projected, true);
+  assert.deepEqual(projected?.narrative.data.changes.map((c) => [c.title, c.hunkIds]), [["First", ["first"]], ["Second", ["second"]]]);
+  assert.equal(narrativeGraph(projected!.narrative, stackDiff, []).nodes.filter((n) => n.data.kind === "change").length, 2);
+  const narrated = latestNarrative(state([stackDiff, { ...narrative("N"), data: { ...narrative("N").data, diffId: "D" } }]), { project: true });
+  assert.equal(narrated?.projected, false);
+});
+
 test("latestNarrative and sessionGraph hide an older narrative when latest Diff is unnarrated", () => {
   const oldDiff = { ...diff, id: "D1", createdAt: "1" };
   const oldNarrative = { ...narrative("N1"), data: { ...narrative("N1").data, diffId: "D1" } };

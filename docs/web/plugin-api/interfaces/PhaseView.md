@@ -30,6 +30,28 @@ Whether the view shows the session's main conversation itself; the footer then o
 
 ## Methods
 
+### chipLabel()?
+
+> `optional` **chipLabel**(`epoch`, `state`): `string`
+
+Optional label for this phase's epoch chip.
+
+#### Parameters
+
+##### epoch
+
+[`Epoch`](../../../shared/types/interfaces/Epoch.md)
+
+##### state
+
+[`SessionState`](../../../shared/types/interfaces/SessionState.md)
+
+#### Returns
+
+`string`
+
+***
+
 ### exportable()?
 
 > `optional` **exportable**(`state`): `boolean`

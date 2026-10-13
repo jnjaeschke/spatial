@@ -7,6 +7,14 @@ export function hunkCommit(diff: DiffData, hunk: Hunk): number {
   return hunk.lines.find((line) => line.kind !== "ctx" && line.commit !== undefined)?.commit ?? diff.commits.length - 1;
 }
 
+/** Display-only changes for a Diff with no narration, grouped by the commit that owns each hunk. */
+export function commitChanges(diff: DiffData): SemanticChange[] {
+  return diff.commits.map((commit, index) => ({
+    id: `C${index + 1}`, title: commit.subject, explanation: "", rationale: "", dependsOn: [], specUrls: [],
+    hunkIds: diff.files.flatMap((file) => file.hunks).filter((hunk) => hunkCommit(diff, hunk) === index).map((hunk) => hunk.id),
+  })).filter((change) => change.hunkIds.length > 0);
+}
+
 /** Commit that owns a change: that of its first hunk (stack narration validation makes all its hunks agree); the last commit for a change without hunks. */
 export function changeCommit(diff: DiffData, change: SemanticChange): number {
   const first = change.hunkIds[0];

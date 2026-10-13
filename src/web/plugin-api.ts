@@ -18,6 +18,8 @@ export interface PhaseViewProps { state: SessionState; models: ModelsResponse; d
 export interface ExportDiff { id: string; commits: string[]; files: string[] }
 export interface PhaseView {
   Body: ComponentType<PhaseViewProps>;
+  /** Optional label for this phase's epoch chip. */
+  chipLabel?(epoch: Epoch, state: SessionState): string;
   /** Whether selected diff lines can start a local inline comment. */
   commentsOnSelection?: boolean;
   /** Whether the Export button shows; default false. */

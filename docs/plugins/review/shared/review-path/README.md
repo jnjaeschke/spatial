@@ -9,6 +9,7 @@
 ## Functions
 
 - [changeCommit](functions/changeCommit.md)
+- [commitChanges](functions/commitChanges.md)
 - [hunkCommit](functions/hunkCommit.md)
 - [reviewedChanges](functions/reviewedChanges.md)
 - [withUnassigned](functions/withUnassigned.md)
