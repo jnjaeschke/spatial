@@ -5,14 +5,37 @@ import type { PhabCommentData } from "../../review/api.ts";
 import { postInlineReplies } from "../../review/api.ts";
 import { rememberSteer } from "../runtime/distill.ts";
 import { memoryRoutes } from "./memory-routes.ts";
+import { adoptMode, branchState } from "../runtime/branch-watcher.ts";
+import type { AdoptInput } from "../shared/types.ts";
 
 /** The phases that read steers. */
 const STEERABLE = new Set(["investigate", "implement"]);
 
 export function implementRoutes(rt: Runtime): Route[] {
   const steering = new Set<string>();
+  const adopting = new Set<string>();
   return [
     ...memoryRoutes(rt),
+    ["POST", /^\/api\/sessions\/([^/]+)\/adopt$/, async ({ res, params }) => {
+      const session = requireSession(rt, params[0]!);
+      if (session.workflow !== "implement") throw new HttpError(409, "Not an implement session");
+      const running = rt.runningEpoch(session.id);
+      if (running) throw new HttpError(409, `Epoch ${running.n} (${running.phase}) is running`);
+      if (adopting.has(session.id)) throw new HttpError(409, "An adopt is already starting for this session");
+      adopting.add(session.id);
+      let started = false;
+      try {
+        const state = await branchState(rt.gitFor(session.id), workflowView(rt.store, session.id));
+        const mode = state && adoptMode(state);
+        if (!mode) throw new HttpError(409, "The branch has not moved");
+        const run = rt.runPhase(session.id, "adopt", { mode } satisfies AdoptInput);
+        started = true;
+        void run.then(() => rt.advance(session.id))
+          .catch((e: unknown) => console.error(`adopt failed in session ${session.id}: ${(e as Error).message}`))
+          .finally(() => adopting.delete(session.id));
+        send(res, 202, { mode });
+      } finally { if (!started) adopting.delete(session.id); }
+    }],
     ["POST", /^\/api\/sessions\/([^/]+)\/abandon$/, async ({ res, params }) => {
       const session = requireSession(rt, params[0]!);
       if (session.workflow !== "implement") throw new HttpError(409, "Not an implement session");

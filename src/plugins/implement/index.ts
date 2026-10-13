@@ -1,4 +1,4 @@
-import { definePlugin, type Runtime } from "../../plugin-api.ts";
+import { definePlugin, type Id, type Runtime } from "../../plugin-api.ts";
 import { implementStart } from "./tasks/start/task.ts";
 import { investigate } from "./tasks/investigate/task.ts";
 import { implement } from "./tasks/implement/task.ts";
@@ -11,10 +11,12 @@ import { implementRoutes } from "./server/routes.ts";
 import { distillSteer } from "./tasks/distill-steer/task.ts";
 import { adoptPlan } from "./tasks/adopt-plan/task.ts";
 import { adoptRange } from "./tasks/adopt-range/task.ts";
+import { BranchWatcher } from "./runtime/branch-watcher.ts";
 
 function server(rt: Runtime) {
   const watcher = new CommentWatcher(rt);
-  return { routes: implementRoutes(rt), start() { watcher.start(); } };
+  const branches = new BranchWatcher(rt);
+  return { routes: implementRoutes(rt), watch: (sessionId: Id) => branches.watch(sessionId), start() { watcher.start(); branches.start(); } };
 }
 
 /** Implementation workflow plugin. */
