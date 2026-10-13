@@ -286,6 +286,8 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const llm = llmField(body);
       if (!llm) throw new HttpError(400, "Missing field: llm");
       if (body.quote !== undefined && (typeof body.quote !== "string" || body.quote.length > 20_000)) throw new HttpError(400, "Invalid quote");
+      if (body.threadId !== undefined && typeof body.threadId !== "string") throw new HttpError(400, "Invalid threadId");
+      if (body.anchor !== undefined && typeof body.anchor !== "string") throw new HttpError(400, "Invalid anchor");
       if (body.lines !== undefined) {
         const lines = body.lines as Record<string, unknown>;
         if (typeof lines !== "object" || lines === null || typeof lines.path !== "string" ||

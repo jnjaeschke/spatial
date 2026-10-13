@@ -6,8 +6,7 @@ export const interdiff = defineTask<{ fromDiffId: string; toDiffId: string }, { 
   kind: "interdiff",
   async run(ctx, { fromDiffId, toDiffId }) {
     const getDiff = (id: string) => {
-      const artifact = ctx.artifacts.get<DiffData>(id);
-      if (artifact.type !== "Diff") throw new Error(`Artifact ${id} is not a Diff (got ${artifact.type})`);
+      const artifact = ctx.artifacts.get<DiffData>(id, "Diff");
       return artifact;
     };
     const from = getDiff(fromDiffId);

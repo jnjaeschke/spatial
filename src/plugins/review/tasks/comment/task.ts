@@ -8,8 +8,7 @@ const SCHEMA = loadSchema(import.meta.url);
 export const comment = defineTask<{ findingId: string; llm?: LlmSelection }, { commentId: string }>({
   kind: "comment",
   async run(ctx, { findingId, llm }) {
-    const finding = ctx.artifacts.get<ReviewFindingData>(findingId);
-    if (finding.type !== "ReviewFinding") throw new Error(`Artifact ${findingId} is not a ReviewFinding (got ${finding.type})`);
+    const finding = ctx.artifacts.get<ReviewFindingData>(findingId, "ReviewFinding");
     const view = ctx.artifacts.view();
     const threadLink = view.links.find((link) => link.kind === "about" && link.to === findingId &&
       view.artifacts.find((artifact) => artifact.id === link.from)?.type === "ChatThread");

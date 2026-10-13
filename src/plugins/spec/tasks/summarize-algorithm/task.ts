@@ -9,8 +9,7 @@ const SCHEMA: JsonSchema = { type: "object", additionalProperties: false, requir
 export const summarizeAlgorithm = defineTask<{ algorithmId: string }, SpecSummary>({
   kind: "summarizeAlgorithm",
   async run(ctx, { algorithmId }) {
-    const algorithm = ctx.artifacts.get<SpecAlgorithmData>(algorithmId);
-    if (algorithm.type !== "SpecAlgorithm") throw new Error(`Artifact ${algorithmId} is not a SpecAlgorithm`);
+    const algorithm = ctx.artifacts.get<SpecAlgorithmData>(algorithmId, "SpecAlgorithm");
     const steps = parseSteps(algorithm.data.content);
     const prompt = [`# ${algorithm.data.ref}: ${algorithm.data.title}`, "", stepLines(steps)].join("\n");
     return (await runStructured<SpecSummary>(ctx.llm, { prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none", label: "Summary" })).json;

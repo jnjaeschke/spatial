@@ -14,8 +14,7 @@ export const fetchBugs = defineTask<{ diffId: string }, { reportIds: string[] }>
   async run(ctx, { diffId }) {
     const { fetchBug } = await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo);
     if (!fetchBug) return { reportIds: [] };
-    const diff = ctx.artifacts.get<DiffData>(diffId);
-    if (diff.type !== "Diff") throw new Error(`Artifact ${diffId} is not a Diff (got ${diff.type})`);
+    const diff = ctx.artifacts.get<DiffData>(diffId, "Diff");
     const existing = new Set(ctx.artifacts.view().artifacts.filter((a) => a.type === "BugReport").map((a) => (a.data as BugReportData).bug));
     const bugs = [...new Set(diff.data.commits.flatMap((commit) => [...commit.subject.matchAll(/\bBug (\d+)\b/gi)].map((m) => Number(m[1]))))].filter((bug) => !existing.has(bug));
     const reportIds: string[] = [];

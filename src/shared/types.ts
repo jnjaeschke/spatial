@@ -115,8 +115,6 @@ export interface SequenceLane { id: string; label: string; note: string | null }
 /** Data of a `Diagram` artifact (status `proposed`), linked `derivedFrom → assistant ChatMessage`. `before` is the parent commit's flow, null for a new flow. */
 export interface DiagramData { kind: "sequence"; commit: string; commitIndex: number; title: string; summary: string; lanes: SequenceLane[]; steps: SequenceStep[]; before: SequenceStep[] | null }
 
-
-
 /** Turns matches of `pattern` (a regex source, matched globally) in text into links to `url`, in which `$1`, `$2`, ... stand for the match's capture groups. */
 export interface TextLink { pattern: string; url: string }
 

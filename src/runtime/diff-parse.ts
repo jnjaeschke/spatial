@@ -2,6 +2,14 @@ import type { DiffFile, Hunk } from "../shared/types.ts";
 
 const HUNK_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
+function diffPath(path: string): string {
+  if (!path.startsWith('"') || !path.endsWith('"')) return path;
+  return path.slice(1, -1).replace(/\\([0-7]{3}|.)/g, (_match, escape: string) => {
+    if (/^[0-7]{3}$/.test(escape)) return String.fromCharCode(parseInt(escape, 8));
+    return ({ t: "\t", n: "\n", r: "\r", '"': '"', "\\": "\\" } as Record<string, string>)[escape] ?? escape;
+  });
+}
+
 /** Parses `git diff` output (no color, no external diff). */
 export function parseUnifiedDiff(text: string): DiffFile[] {
   const files: DiffFile[] = [];
@@ -10,9 +18,9 @@ export function parseUnifiedDiff(text: string): DiffFile[] {
 
   for (const line of text.split("\n")) {
     if (line.startsWith("diff --git ")) {
-      const m = /^diff --git a\/(.*) b\/(.*)$/.exec(line);
+      const m = /^diff --git ("(?:\\.|[^"])*"|\S+) ("(?:\\.|[^"])*"|\S+)$/.exec(line) ?? /^diff --git a\/(.*) b\/(.*)$/.exec(line);
       if (!m) throw new Error(`Unparseable diff header: ${line}`);
-      file = { path: m[2], status: "modified", binary: false, hunks: [] };
+      file = { path: diffPath(m[2]!).replace(/^b\//, ""), status: "modified", binary: false, hunks: [] };
       files.push(file);
       hunk = undefined;
       continue;
@@ -45,8 +53,8 @@ export function parseUnifiedDiff(text: string): DiffFile[] {
     } else if (line.startsWith("rename to ")) file.path = line.slice("rename to ".length);
     else if (line.startsWith("Binary files ")) file.binary = true;
     // git ends these lines with a tab when the path contains a space.
-    else if (line.startsWith("+++ b/")) file.path = line.slice("+++ b/".length).replace(/\t$/, "");
-    else if (line.startsWith("--- a/") && file.status === "deleted") file.path = line.slice("--- a/".length).replace(/\t$/, "");
+    else if (line.startsWith("+++ ") && line !== "+++ /dev/null") file.path = diffPath(line.slice("+++ ".length).replace(/\t$/, "")).replace(/^b\//, "");
+    else if (line.startsWith("--- ") && file.status === "deleted") file.path = diffPath(line.slice("--- ".length).replace(/\t$/, "")).replace(/^a\//, "");
   }
   return files;
 }

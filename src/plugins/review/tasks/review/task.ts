@@ -15,10 +15,8 @@ interface ReplyVerdict { finding: string; verdict: FindingVerdictData["verdict"]
 export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; recheck?: Id[] }, { findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>({
   kind: "review",
   async run(ctx, { narrativeId, llm, recheck }) {
-    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
-    if (narrative.type !== "PatchNarrative") throw new Error(`Artifact ${narrativeId} is not a PatchNarrative (got ${narrative.type})`);
-    const diff = ctx.artifacts.get<DiffData>(narrative.data.diffId);
-    if (diff.type !== "Diff") throw new Error(`Artifact ${narrative.data.diffId} is not a Diff (got ${diff.type})`);
+    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId, "PatchNarrative");
+    const diff = ctx.artifacts.get<DiffData>(narrative.data.diffId, "Diff");
     const view = ctx.artifacts.view();
     const currentEpoch = diffNumber(view.artifacts, narrative.data.diffId);
     const priors = findingStates(view, narrativeId).filter((s) => s.epoch < currentEpoch);
@@ -59,7 +57,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; rech
       ...(specIds.length ? ["# Spec references", ...specIds.map((id) => ctx.artifacts.render(id))] : []),
     ].join("\n\n");
     const notes = (await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo)).promptNotes;
-    const { json, result: r } = await runStructured<{ findings: ReplyFinding[]; verdicts: ReplyVerdict[] }>(ctx.llm, { prompt, system: prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Review reply", repairs: 1 }, llm);
+    const { json, result: r } = await runStructured<{ findings: ReplyFinding[]; verdicts: ReplyVerdict[] }>(ctx.llm, { prompt, system: prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: ctx.mcpServers(), label: "Review reply", repairs: 1 }, llm);
 
     const locate = (f: ReplyFinding): Pick<ReviewFindingData, "anchor" | "quote" | "lines"> | string => {
       const change = narrative.data.changes.find((c) => c.id === f.anchor);

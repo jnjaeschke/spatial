@@ -12,8 +12,7 @@ import { readRepoSkill } from "../runtime/repo-context.ts";
 import { MAX_TOOL_OUTPUT, scmBlame, scmBranches, scmDiff, scmFile, scmLog, scmMergeBase, scmRangeDiff, scmShow, scmStatus } from "./scm-tools.ts";
 import { capOutput } from "../runtime/process.ts";
 import type { Knowledge } from "../runtime/knowledge.ts";
-import { KnowledgeStore } from "../runtime/knowledge.ts";
-import { dirname, join } from "node:path";
+import { KnowledgeStore, knowledgeDbPath } from "../runtime/knowledge.ts";
 
 // Codex refuses MCP tool calls without readOnlyHint, even with approval_policy=never.
 const annotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
@@ -94,7 +93,7 @@ async function main(args: string[]): Promise<void> {
   }
   const store = new Store(value("--db"), { readOnly: true });
   const sessionId = value("--session");
-  const knowledge = new KnowledgeStore(join(dirname(value("--db")), "knowledge.db"), { readOnly: true });
+  const knowledge = new KnowledgeStore(knowledgeDbPath(value("--db")), { readOnly: true });
   const all = [corePlugin, ...plugins];
   const server = createSessionServer(pluginRegistry(all), store, sessionId, store.getSession(sessionId).worktree, { services: pluginServices(all, process.env), knowledge });
   await server.connect(new StdioServerTransport());

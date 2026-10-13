@@ -4,6 +4,7 @@ import type { Writable } from "node:stream";
 /** `text` cut to `max` characters, marked when cut. */
 export const capOutput = (text: string, max: number) => text.length > max ? `${text.slice(0, max)}\n[output truncated]` : text;
 
+
 /** Spawns `cmd`, writes `stdin`, collects output. A function `stdin` gets the open stream and ends it itself. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
 export function runProcess(
   cmd: string,

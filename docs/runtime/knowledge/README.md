@@ -19,3 +19,7 @@
 
 - [KnowledgeProvenance](type-aliases/KnowledgeProvenance.md)
 - [KnowledgeRead](type-aliases/KnowledgeRead.md)
+
+## Functions
+
+- [knowledgeDbPath](functions/knowledgeDbPath.md)

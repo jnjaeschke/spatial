@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { loadSchema, type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, runStructured, sessionProfile } from "../../../../plugin-api.ts";
+import { loadSchema, type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runRecordedCommand, runStructured, sessionProfile } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { requireCheckoutOn } from "../../branch.ts";
 import { requireEditsOnlyReady } from "../../profiles.ts";
@@ -45,8 +45,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
     if (expected && !(await ctx.git.isAncestor(expected, tip))) throw new Error(`${branch.branch} moved away from ${expected.slice(0, 12)} since the last implement run; spatial does not move the checkout back`);
 
     const fix = input.fix.map((id) => {
-      const finding = ctx.artifacts.get<ReviewFindingData>(id);
-      if (finding.type !== "ReviewFinding") throw new Error(`Artifact ${id} is not a ReviewFinding (got ${finding.type})`);
+      const finding = ctx.artifacts.get<ReviewFindingData>(id, "ReviewFinding");
       return finding;
     });
     const since = previous?.epoch ?? -1;
@@ -94,7 +93,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const prompt = steerPrompt === null ? (firstCall ? fresh : followUp) : input.writeMode === "editsOnly" ? `${steerPrompt}\n\n${followUp}` : steerPrompt;
       steerPrompt = null;
       firstCall = false;
-      const { json, result } = await runStructured<AgentReply>(ctx.llm, { prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, liveInput: true, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Implement reply" }, input.llm);
+      const { json, result } = await runStructured<AgentReply>(ctx.llm, { prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, liveInput: true, resumeProviderSession: session, mcpServers: ctx.mcpServers(), label: "Implement reply" }, input.llm);
       session = result.providerSessionId;
       return json;
     };
@@ -111,13 +110,11 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
         : `# Edits only\n\nYou cannot run commands. Implement ONLY plan step ${index + 1} of ${planned.length}: ${investigation.steps[index]!.title} (${investigation.steps[index]!.intent}).${checksLine(index)} The runtime builds, runs the tests and commits.`)
         + (problems.length ? `\n\n${problemsSection(problems)}` : "");
       const runCheck = async (command: string) => {
-        const started = Date.now(), callId = `check-${randomUUID()}`;
+        const callId = `check-${randomUUID()}`;
         ctx.activity({ kind: "tool", name: "check", detail: command, callId });
-        const out = await runProcess("sh", ["-c", command], { stdin: "", cwd: ctx.repo, signal: ctx.signal });
-        const output = out.stdout + out.stderr, durationMs = Date.now() - started;
-        ctx.activity({ kind: "tool-result", callId, exitCode: out.code, durationMs, output });
-        const run = ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, durationMs, output, true, callId));
-        return { id: run.id, exitCode: out.code, output };
+        const { result: out, output, artifact } = await runRecordedCommand(ctx, { command, bin: "sh", args: ["-c", command], test: true, callId,
+          onResult: (result, durationMs, text) => ctx.activity({ kind: "tool-result", callId, exitCode: result.code, durationMs, output: text }) });
+        return { id: artifact.id, exitCode: out.code, output };
       };
       const outcome = await runEditsOnly({
         plan: planned, baseSha: branch.baseSha, bugfix: investigation.kind === "bugfix", maxRetries: MAX_RETRIES,

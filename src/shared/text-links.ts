@@ -1,6 +1,6 @@
 import type { TextLink } from "./types.ts";
 
-export interface TextPart { text: string; href?: string }
+interface TextPart { text: string; href?: string }
 
 /** Splits `text` into plain parts and linked parts; earlier rules win where matches overlap. */
 export function linkText(text: string, rules: TextLink[]): TextPart[] {

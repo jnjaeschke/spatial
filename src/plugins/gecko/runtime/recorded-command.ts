@@ -1,4 +1,4 @@
-import { commandRunData, runProcess, type CommandRunData, type TaskContext } from "../../../plugin-api.ts";
+import { runRecordedCommand, type TaskContext } from "../../../plugin-api.ts";
 
 /** Fails unless the checkout is at the accepted tip `head` with a clean tree; `action` completes "commit or stash them before …". */
 export async function assertAtTip(ctx: TaskContext, head: string, action: string): Promise<void> {
@@ -9,10 +9,7 @@ export async function assertAtTip(ctx: TaskContext, head: string, action: string
 
 /** Runs `bin args` in the repo, shows stdout lines as progress and stores a `CommandRun` named `command`. Throws "<name> exited N" on a non-zero exit; returns stdout joined with stderr. */
 export async function runRecorded(ctx: TaskContext, name: string, command: string, bin: string, args: string[], env?: Record<string, string>): Promise<string> {
-  const started = Date.now();
-  const out = await runProcess(bin, args, { stdin: "", cwd: ctx.repo, signal: ctx.signal, ...(env ? { env } : {}), onStdoutLine: (line) => { if (line.trim()) ctx.progress({ kind: "indeterminate", message: line.trim() }); } });
-  const output = out.stderr ? `${out.stdout}\n${out.stderr}` : out.stdout;
-  ctx.artifacts.put<CommandRunData>("CommandRun", "verified", commandRunData(command, out.code, Date.now() - started, output, false));
+  const { result: out, output } = await runRecordedCommand(ctx, { command, bin, args, test: false, ...(env ? { env } : {}), onStdoutLine: (line) => { if (line.trim()) ctx.progress({ kind: "indeterminate", message: line.trim() }); } });
   if (out.code !== 0) throw new Error(`${name} exited ${out.code}; its output is in the command run`);
   return output;
 }

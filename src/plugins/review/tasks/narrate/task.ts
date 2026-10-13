@@ -17,19 +17,15 @@ const STACK_SCHEMA = { ...schema, required: [...schema.required, "commitIntents"
 export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?: { previousNarrativeId: string; interdiffId: string } }, { narrativeId: string }>({
   kind: "narrate",
   async run(ctx, { diffId, llm, update }) {
-    const diff = ctx.artifacts.get<DiffData>(diffId);
-    if (diff.type !== "Diff") throw new Error(`Artifact ${diffId} is not a Diff (got ${diff.type})`);
+    const diff = ctx.artifacts.get<DiffData>(diffId, "Diff");
     let prompt: string;
     let systemPrompt = SYSTEM;
     let statuses: Map<string, ChangeStatus> | undefined;
     if (update) {
-      const previous = ctx.artifacts.get<PatchNarrativeData>(update.previousNarrativeId);
-      if (previous.type !== "PatchNarrative") throw new Error(`Artifact ${update.previousNarrativeId} is not a PatchNarrative (got ${previous.type})`);
-      const interdiff = ctx.artifacts.get<InterdiffData>(update.interdiffId);
-      if (interdiff.type !== "Interdiff") throw new Error(`Artifact ${update.interdiffId} is not an Interdiff (got ${interdiff.type})`);
+      const previous = ctx.artifacts.get<PatchNarrativeData>(update.previousNarrativeId, "PatchNarrative");
+      const interdiff = ctx.artifacts.get<InterdiffData>(update.interdiffId, "Interdiff");
       if (previous.data.diffId !== interdiff.data.fromDiff || interdiff.data.toDiff !== diffId) throw new Error("Interdiff does not connect the previous narrative to this diff");
-      const prev = ctx.artifacts.get<DiffData>(interdiff.data.fromDiff);
-      if (prev.type !== "Diff") throw new Error(`Artifact ${interdiff.data.fromDiff} is not a Diff (got ${prev.type})`);
+      const prev = ctx.artifacts.get<DiffData>(interdiff.data.fromDiff, "Diff");
       statuses = hunkStatuses(diff.data, prev.data, interdiff.data);
       const previousChanges = previous.data.changes.map((change) => {
         const paths = prev.data.files.filter((file) => file.hunks.some((hunk) => change.hunkIds.includes(hunk.id))).map((file) => file.path);
@@ -50,7 +46,7 @@ export const narrate = defineTask<{ diffId: string; llm?: LlmSelection; update?:
     const narrationSchema = stack ? STACK_SCHEMA : schema;
 
     ctx.progress({ kind: "steps", step: "Grouping hunks", index: 0, count: 1 });
-    const mcpServers = { ...ctx.sessionMcp, ...ctx.repoMcp };
+    const mcpServers = ctx.mcpServers();
     const system = prependRepoContext(systemPrompt, ctx);
     const { json, result: r } = await runStructured<Omit<PatchNarrativeData, "diffId">>(ctx.llm, {
       prompt, system, schema: narrationSchema as JsonSchema, cwd: ctx.repo, tools: "read-only", mcpServers, label: "Narrative", repairs: 1,

@@ -7,8 +7,7 @@ import {type DiffData, type Hunk, defineTask} from "../../../../plugin-api.ts";
 export const carryFindings = defineTask<{ narrativeId: string }, { carried: number; outdated: number }>({
   kind: "carryFindings",
   async run(ctx, { narrativeId }) {
-    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
-    if (narrative.type !== "PatchNarrative") throw new Error(`Artifact ${narrativeId} is not a PatchNarrative (got ${narrative.type})`);
+    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId, "PatchNarrative");
     const diffId = narrative.data.diffId;
     const view = ctx.artifacts.view();
     const diffs = diffsOf(view.artifacts);
@@ -17,10 +16,8 @@ export const carryFindings = defineTask<{ narrativeId: string }, { carried: numb
     const prevDiff = diffs[epoch - 2];
     const prevNarrative = narrativeOf(view.artifacts, prevDiff.id);
     if (!prevNarrative) return { carried: 0, outdated: 0 };
-    const prevDiffArtifact = ctx.artifacts.get<DiffData>(prevDiff.id);
-    const nextDiff = ctx.artifacts.get<DiffData>(diffId);
-    if (prevDiffArtifact.type !== "Diff") throw new Error(`Artifact ${prevDiff.id} is not a Diff (got ${prevDiffArtifact.type})`);
-    if (nextDiff.type !== "Diff") throw new Error(`Artifact ${diffId} is not a Diff (got ${nextDiff.type})`);
+    const prevDiffArtifact = ctx.artifacts.get<DiffData>(prevDiff.id, "Diff");
+    const nextDiff = ctx.artifacts.get<DiffData>(diffId, "Diff");
     const states = findingStates(view, prevNarrative.id);
     let outdated = 0;
     for (const state of states) {

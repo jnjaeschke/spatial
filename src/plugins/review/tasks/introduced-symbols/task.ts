@@ -6,8 +6,7 @@ import { addedIdentifiers, definitionSites } from "../../runtime/introduced-symb
 export const introducedSymbols = defineTask<{ diffId: Id }, { artifactId: Id }>({
   kind: "introducedSymbols",
   async run(ctx, { diffId }) {
-    const artifact = ctx.artifacts.get<DiffData>(diffId);
-    if (artifact.type !== "Diff") throw new Error(`Artifact ${diffId} is not a Diff (got ${artifact.type})`);
+    const artifact = ctx.artifacts.get<DiffData>(diffId, "Diff");
     const diff = artifact.data;
     // Common words make the tree-wide grep slow (tens of seconds in Gecko); the base versions of the touched files already contain most of them.
     const local = new Set<string>();

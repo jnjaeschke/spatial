@@ -70,7 +70,7 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
         let result: Awaited<ReturnType<typeof runStructured<Reply>>>;
         let problems: string[];
         try {
-          result = await runStructured<Reply>(ctx.llm, { prompt: nextPrompt, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Investigation reply", validate: (value) => problemsOf(value, profile), onInvalid: (_errors, reply) => { session = reply.providerSessionId; } }, llm);
+          result = await runStructured<Reply>(ctx.llm, { prompt: nextPrompt, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: session, mcpServers: ctx.mcpServers(), label: "Investigation reply", validate: (value) => problemsOf(value, profile), onInvalid: (_errors, reply) => { session = reply.providerSessionId; } }, llm);
           session = result.result.providerSessionId;
           problems = [];
         } catch (error) {

@@ -46,3 +46,16 @@ test("paths with spaces lose the tab git appends to their ---/+++ lines", () => 
   ].join("\n"));
   assert.deepEqual(files.map((f) => [f.path, f.status]), [["a b.txt", "modified"], ["gone file.txt", "deleted"]]);
 });
+
+test("changed files parses quoted paths with spaces", async () => {
+  const { changedFiles } = await import("../../src/plugins/gecko/runtime/changed-files.ts");
+  assert.deepEqual(changedFiles([
+    'diff --git "a/a b.txt" "b/a b.txt"',
+    'index 1..2 100644',
+    '--- "a/a b.txt"',
+    '+++ "b/a b.txt"',
+    '@@ -1 +1 @@',
+    '-a',
+    '+b',
+  ].join("\n")), ["a b.txt"]);
+});

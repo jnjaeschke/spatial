@@ -21,8 +21,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
     const view = ctx.artifacts.view();
     let thread: Artifact<ChatThreadData>;
     if (threadId) {
-      thread = ctx.artifacts.get<ChatThreadData>(threadId);
-      if (thread.type !== "ChatThread") throw new Error(`Artifact ${threadId} is not a ChatThread`);
+      thread = ctx.artifacts.get<ChatThreadData>(threadId, "ChatThread");
     } else {
       buildAnchorContext(anchor!, contextOptions());
       thread = ctx.artifacts.put<ChatThreadData>("ChatThread", "verified", { anchor: anchor!, ...(aside ? { aside: true } : {}), quote, lines });
@@ -55,7 +54,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       : "");
     const schema = structuredClone(SCHEMA) as { properties: Record<string, unknown>; required: string[] };
     for (const field of ctx.chat.replyFields) { schema.properties[field.name] = { anyOf: [field.schema, { type: "null" }] }; schema.required.push(field.name); }
-    const { json, result: r } = await runStructured<Reply>(ctx.llm, { prompt, system, schema: schema as JsonSchema, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp, ...enabledRepoMcp }, label: "Chat reply" }, llm);
+    const { json, result: r } = await runStructured<Reply>(ctx.llm, { prompt, system, schema: schema as JsonSchema, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.mcpServers(), ...enabledRepoMcp }, label: "Chat reply" }, llm);
 
     const existingRequests = new Set((ctx.artifacts.linkedTo(thread.id, "about") as Artifact<McpServerData>[])
       .filter((artifact) => artifact.type === "McpServerRequest").map((artifact) => artifact.data.server));

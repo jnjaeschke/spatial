@@ -23,11 +23,10 @@ export function mappableSpecs(state: { artifacts: Artifact[]; links: Link[] }, n
 export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmSelection }, { mapId: Id; findingIds: Id[]; stepCheckErrors: string[] }>({
   kind: "mapSpecSteps",
   async run(ctx, { narrativeId, specId, llm }) {
-    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
-    if (narrative.type !== "PatchNarrative") throw new Error(`Artifact ${narrativeId} is not a PatchNarrative (got ${narrative.type})`);
-    const spec = ctx.artifacts.get<SpecReferenceData>(specId);
-    if (spec.type !== "SpecReference" || !spec.data.resolved) throw new Error(`Artifact ${specId} is not a resolved SpecReference`);
-    const diff = ctx.artifacts.get<DiffData>(narrative.data.diffId);
+    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId, "PatchNarrative");
+    const spec = ctx.artifacts.get<SpecReferenceData>(specId, "SpecReference");
+    if (!spec.data.resolved) throw new Error(`Artifact ${specId} is not a resolved SpecReference`);
+    const diff = ctx.artifacts.get<DiffData>(narrative.data.diffId, "Diff");
     const steps = parseSteps(spec.data.resolved.content);
     if (steps.length === 0) throw new Error(`${spec.data.resolved.spec}#${spec.data.resolved.anchor} has no numbered steps`);
     const changeIds = new Set(supportedChanges(ctx.artifacts.view().links, specId, narrativeId));

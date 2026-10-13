@@ -63,6 +63,17 @@ test("successful task: lifecycle, artifact provenance, links, events", async () 
   assert.deepEqual(store.listEvents(session.id).map((e) => e.id), events.map((e) => e.id));
 });
 
+test("typed artifact lookup rejects a mismatched kind with both types", async () => {
+  const { rt, session } = setup();
+  const task = defineTask<null, null>({ kind: "typed-get", async run(ctx) {
+    const item = ctx.artifacts.put("Echo", "verified", {});
+    assert.throws(() => ctx.artifacts.get(item.id, "Other"), /Artifact .* is not a Other \(got Echo\)/);
+    return null;
+  } });
+  const runtime = new Runtime({ store: rt.store, plugins: [{ id: "typed", tasks: [task] }], llm: fakeLlm, git: () => fakeGit });
+  await runtime.start(session.id, "typed-get", null).done;
+});
+
 test("a session with running work cannot be deleted until the work ends", async () => {
   const { store, rt, session } = setup();
   const { taskId, done } = rt.start(session.id, "slow", null);

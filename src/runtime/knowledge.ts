@@ -1,6 +1,10 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Id } from "../shared/types.ts";
+import { dirname, join } from "node:path";
+
+/** Path of the knowledge database beside the session database. */
+export const knowledgeDbPath = (dbPath: string): string => dbPath === ":memory:" ? ":memory:" : join(dirname(dbPath), "knowledge.db");
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS entries (

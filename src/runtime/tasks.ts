@@ -60,6 +60,8 @@ export interface TaskContext {
   sessionMcp: Record<string, McpServerSpec>;
   /** Repo-specific MCP servers from .mcp.json, deny-filtered. Empty when no .mcp.json exists. */
   repoMcp: Record<string, McpServerSpec>;
+  /** Session MCP servers followed by repo servers, with repo names taking precedence. */
+  mcpServers(): Record<string, McpServerSpec>;
   /** Denylisted repo MCP server specs that can be requested for a chat thread. */
   repoRequestableMcp: Record<string, McpServerSpec>;
   /** Repo skills available through the session MCP server. */
@@ -69,6 +71,7 @@ export interface TaskContext {
   artifacts: {
     put<T>(type: string, status: ArtifactStatus, data: T, llm?: LlmSelection): Artifact<T>;
     get<T>(id: Id): Artifact<T>;
+    get<T>(id: Id, type: string): Artifact<T>;
     linkedTo(to: Ref, kind: LinkKind): Artifact[];
     view(): SessionView;
     render(ref: Ref): string;
@@ -307,12 +310,17 @@ export class Runtime {
       run: <C,>(childKind: string, childInput: unknown) => this.#start<C>(sessionId, childKind, childInput, { id: task.id, signal: controller.signal }).done,
       sessionMcp: this.#sessionMcp(sessionId),
       repoMcp: {},
+      mcpServers() { return { ...this.sessionMcp, ...this.repoMcp }; },
       repoRequestableMcp: {},
       repoSkills: [],
       repoInstructions: null,
       artifacts: {
         put: (type, status, data, llm) => this.putArtifact(`task:${task.id}`, { sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } }),
-        get: (id) => this.#store.getArtifact(id),
+        get: <T>(id: Id, type?: string): Artifact<T> => {
+          const artifact = this.#store.getArtifact(id);
+          if (type !== undefined && artifact.type !== type) throw new Error(`Artifact ${id} is not a ${type} (got ${artifact.type})`);
+          return artifact as Artifact<T>;
+        },
         linkedTo: (to, linkKind) =>
           this.#store.listLinks(sessionId).filter((l) => l.to === to && l.kind === linkKind).map((l) => this.#store.getArtifact(l.from)),
         view: () => sessionView(this.#store, sessionId),

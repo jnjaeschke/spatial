@@ -1,6 +1,6 @@
 import type { Id, LlmSelection } from "../shared/types.ts";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { plugins } from "../plugins/index.ts";
 import { chatTurn } from "../tasks/chat-turn/task.ts";
 import { commandRunKind } from "./command-run.ts";
@@ -12,7 +12,7 @@ import { Store } from "./store.ts";
 import { pluginRegistry } from "./plugins.ts";
 import { Runtime } from "./tasks.ts";
 import { loadRepoContext } from "./repo-context.ts";
-import { KnowledgeStore } from "./knowledge.ts";
+import { KnowledgeStore, knowledgeDbPath } from "./knowledge.ts";
 import { fileURLToPath } from "node:url";
 import type { McpServerSpec } from "./llm/types.ts";
 
@@ -30,7 +30,7 @@ export function sessionServerSpec(dbPath: string, sessionId: Id): McpServerSpec 
 }
 
 /** The `spatial` MCP server in repo mode, for LLM work before a session exists. */
-export function repoServerSpec(repo: string): McpServerSpec {
+function repoServerSpec(repo: string): McpServerSpec {
   return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--repo", repo] };
 }
 
@@ -50,7 +50,7 @@ export function createRuntime(opts: {
   return new Runtime({
     store: new Store(opts.dbPath), plugins: allPlugins, llm, git: makeGit,
     repoContext: (repo) => loadRepoContext(repo, registry.deniedMcpServers),
-    knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
+    knowledge: new KnowledgeStore(knowledgeDbPath(opts.dbPath)),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId) }),
     repoMcp: (repo) => ({ spatial: repoServerSpec(repo) }),
   });

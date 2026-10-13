@@ -16,21 +16,47 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 #### get()
 
+##### Call Signature
+
 > **get**\<`T`\>(`id`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
 
-##### Type Parameters
+###### Type Parameters
 
 ###### T
 
 `T`
 
-##### Parameters
+###### Parameters
 
 ###### id
 
 `string`
 
-##### Returns
+###### Returns
+
+[`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
+
+##### Call Signature
+
+> **get**\<`T`\>(`id`, `type`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
+
+###### Type Parameters
+
+###### T
+
+`T`
+
+###### Parameters
+
+###### id
+
+`string`
+
+###### type
+
+`string`
+
+###### Returns
 
 [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
 
@@ -349,6 +375,18 @@ Adds to the task's activity log, beside its LLM runs' activity: for work the tas
 #### Returns
 
 `void`
+
+***
+
+### mcpServers()
+
+> **mcpServers**(): `Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+Session MCP servers followed by repo servers, with repo names taking precedence.
+
+#### Returns
+
+`Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
 
 ***
 

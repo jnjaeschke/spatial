@@ -29,7 +29,7 @@ export const proposeTry = defineTask<TryInput, { proposalId: Id }>({
       ...(tests.length ? ["# Test commands run while implementing", tests.map((run) => `- \`${run.command}\` (exit ${run.exitCode})`).join("\n")] : []),
       ...(earlier.length ? ["# Earlier try pushes in this session", [...new Set(earlier)].map((command) => `- \`${command}\``).join("\n")] : []),
     ].join("\n\n");
-    const { json, result } = await runStructured<TryProposalData>(ctx.llm, { prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Try proposal reply", repairs: 1, validate: (value) => {
+    const { json, result } = await runStructured<TryProposalData>(ctx.llm, { prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: ctx.mcpServers(), label: "Try proposal reply", repairs: 1, validate: (value) => {
       const command = (value as TryProposalData).command.trim();
       const problem = tryCommandProblem(command);
       return problem ? [`The proposed try command is not usable: ${problem}: ${command}`] : [];

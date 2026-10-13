@@ -15,5 +15,4 @@
 
 - [createRuntime](functions/createRuntime.md)
 - [defaultDbPath](functions/defaultDbPath.md)
-- [repoServerSpec](functions/repoServerSpec.md)
 - [sessionServerSpec](functions/sessionServerSpec.md)

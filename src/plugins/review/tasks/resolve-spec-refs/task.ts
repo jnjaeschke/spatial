@@ -10,11 +10,9 @@ import { specUrlsNear } from "./cited.ts";
 export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[]; stepCheckErrors: string[] }>({
   kind: "resolveSpecRefs",
   async run(ctx, { narrativeId }) {
-    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId);
-    if (narrative.type !== "PatchNarrative") throw new Error(`Artifact ${narrativeId} is not a PatchNarrative (got ${narrative.type})`);
+    const narrative = ctx.artifacts.get<PatchNarrativeData>(narrativeId, "PatchNarrative");
 
-    const diffArtifact = ctx.artifacts.get<DiffData>(narrative.data.diffId);
-    if (diffArtifact.type !== "Diff") throw new Error(`Artifact ${narrative.data.diffId} is not a Diff (got ${diffArtifact.type})`);
+    const diffArtifact = ctx.artifacts.get<DiffData>(narrative.data.diffId, "Diff");
 
     const hunkChanges = new Map<string, string[]>();
     for (const change of narrative.data.changes) {

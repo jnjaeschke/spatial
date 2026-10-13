@@ -25,7 +25,7 @@ export const interpretComments = defineTask<ReviewerCommentsInput, { interpretat
     const kind = latestArtifact<InvestigationData>(ctx.artifacts.view().artifacts, "Investigation")?.data.kind ?? null;
     const prompt = [...memorySections(ctx, "reviewerComments", kind), "# Reviewer comments", ...targets.map((a) => describe(a.data, byPhid))].join("\n\n");
     const { json, result } = await runStructured<Reply>(ctx.llm, {
-      prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Comment interpretation", repairs: 1,
+      prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: ctx.mcpServers(), label: "Comment interpretation", repairs: 1,
       validate: (reply) => [
         ...(reply as Reply).comments.filter((c) => !comments.includes(c.phid)).map((c) => `The interpretation names unknown comment ${c.phid}`),
         ...comments.filter((phid) => !(reply as Reply).comments.some((c) => c.phid === phid)).map((phid) => `The model did not interpret ${phid}`),

@@ -75,7 +75,6 @@ export type { Route, HttpRouteContext } from "./server/http.ts";
 export * from "./shared/types.ts";
 export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
-export { makeGit } from "./runtime/git/read.ts";
 export { makeGitWriter } from "./runtime/git/writer.ts";
 export { resolveRepo } from "./runtime/git/read.ts";
 export { fileLines, localMainline, remoteDefaultRef } from "./runtime/git/read.ts";
@@ -87,7 +86,8 @@ export { loadSchema, runStructured, schemaErrors } from "./runtime/structured.ts
 export type { JsonSchema, StructuredPrompt } from "./runtime/structured.ts";
 export { LlmOutputError } from "./runtime/llm/types.ts";
 /** A CommandRun record with capped output. */
-export { commandRunData } from "./runtime/command-run.ts";
+export { commandRunData, runRecordedCommand } from "./runtime/command-run.ts";
+export { knowledgeDbPath } from "./runtime/knowledge.ts";
 export { prependRepoContext, readRepoSkill } from "./runtime/repo-context.ts";
 /** The session's repo profile: the one its `WorkflowStart` names, else the one detected in the work tree. */
 export { sessionProfile, startProfile } from "./runtime/profiles.ts";

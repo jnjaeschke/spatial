@@ -78,6 +78,7 @@ composition roots.
 - [revisedText](functions/revisedText.md)
 - [runChecked](functions/runChecked.md)
 - [runProcess](functions/runProcess.md)
+- [runRecordedCommand](functions/runRecordedCommand.md)
 - [sessionProfile](functions/sessionProfile.md)
 - [startProfile](functions/startProfile.md)
 - [taskState](functions/taskState.md)
@@ -324,6 +325,12 @@ Re-exports [Knowledge](../runtime/knowledge/interfaces/Knowledge.md)
 
 ***
 
+### knowledgeDbPath
+
+Re-exports [knowledgeDbPath](../runtime/knowledge/functions/knowledgeDbPath.md)
+
+***
+
 ### KnowledgeEntry
 
 Re-exports [KnowledgeEntry](../runtime/knowledge/interfaces/KnowledgeEntry.md)
@@ -417,12 +424,6 @@ Re-exports [LogRow](../shared/types/interfaces/LogRow.md)
 ### LogScope
 
 Re-exports [LogScope](../shared/types/type-aliases/LogScope.md)
-
-***
-
-### makeGit
-
-Re-exports [makeGit](../runtime/git/read/functions/makeGit.md)
 
 ***
 
