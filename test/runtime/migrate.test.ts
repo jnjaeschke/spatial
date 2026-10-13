@@ -168,3 +168,22 @@ test("migration 2 gives a workflow start without a profile the one its params or
   assert.deepEqual(["a", "b", "c", "d"].map(profile), ["gecko", "gecko", undefined, "plain-git"]);
   store.close();
 });
+
+test("migration 3 gives each rebuilt Phabricator round the time of the next submit", () => {
+  const path = tmp("runtime.sqlite");
+  const entry = (diffId: number, dateCreated: number) => ({ revision: 1, diffId, base: "b", dateCreated, title: "t", latestDiffId: 30 });
+  withDb(path, (db) => {
+    STORE_MIGRATIONS[0]!(db);
+    STORE_MIGRATIONS[1]!(db);
+    db.exec("PRAGMA user_version = 2");
+    db.prepare("INSERT INTO sessions VALUES ('s', '/w', '/r', 't', '', 'implement')").run();
+    const epoch = (n: number, phase: string, input: object) => db.prepare("INSERT INTO epochs VALUES ('s', ?, ?, 'succeeded', ?, NULL, '', NULL)").run(n, phase, JSON.stringify(input));
+    epoch(1, "adoptRange", { planId: "p", branch: "x", head: "h" });
+    epoch(2, "round", { round: { kind: "phabricator", host: "H", stack: [entry(10, 100), entry(11, 104)] }, narrate: false });
+    epoch(3, "round", { round: { kind: "phabricator", host: "H", stack: [entry(20, 200)] }, narrate: false });
+    epoch(4, "round", { round: { kind: "local", base: "b", head: "h", host: "H", phab: [entry(30, 300)] }, narrate: true });
+  });
+  const store = new Store(path);
+  assert.deepEqual(store.listEpochs("s").map((e) => (e.input as { until?: number }).until), [undefined, 200, 300, undefined]);
+  store.close();
+});

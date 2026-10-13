@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { groupRounds, roundLabel, roundStack, type RoundDiff } from "../../../../src/plugins/review/shared/rounds.ts";
+import { commentsAsOf, groupRounds, roundLabel, roundStack, type RoundDiff } from "../../../../src/plugins/review/shared/rounds.ts";
 
 const d = (revision: number, diffId: number, dateCreated: number, base = "b"): RoundDiff => ({ revision, diffId, base, dateCreated });
 
@@ -30,4 +30,11 @@ test("a round's chip names its Phabricator diffs, or the adopted head when it ha
   assert.equal(roundLabel({ kind: "phabricator", host: "H", stack: [e(1, 10), e(2, 11)] }), "Round · D1 #10, D2 #11");
   assert.equal(roundLabel({ kind: "local", base: "b", head: "h", host: "H", phab: [e(1, 20), e(2, 21)] }), "Round · D1 #20, D2 #21 (local)");
   assert.equal(roundLabel({ kind: "local", base: "b", head: "0123456789abcdef", host: null, phab: null }), "Adopted up to 0123456789ab");
+});
+
+test("a round shows the Phabricator comments created before the next submit, the latest round all of them", () => {
+  const art = (id: string, type: string, dateCreated: number) => ({ id, sessionId: "s", type, status: "verified" as const, data: { dateCreated }, provenance: { taskId: "t" }, epoch: null, createdAt: "" });
+  const artifacts = [art("early", "PhabComment", 100), art("late", "PhabComment", 200), art("diff", "Diff", 300)];
+  assert.deepEqual(commentsAsOf(artifacts, 200).map((a) => a.id), ["early", "diff"]);
+  assert.equal(commentsAsOf(artifacts, undefined), artifacts);
 });

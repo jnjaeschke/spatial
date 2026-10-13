@@ -54,6 +54,20 @@ export const STORE_MIGRATIONS: readonly Migration[] = [
       if (profile) update.run(JSON.stringify({ ...data, profile }), row.id as string);
     }
   },
+  // Round epochs rebuilt from Phabricator get `until`, the earliest diff date of the round after them, so a round shows the comments as of the next submit. Every adopt ends with a local round, so the next round epoch belongs to the same adopt.
+  (db) => {
+    type RoundInput = { round: { kind: string; stack?: { dateCreated: number }[]; phab?: { dateCreated: number }[] | null }; until?: number };
+    const epochs = db.prepare("SELECT session_id, n, input FROM epochs WHERE phase = 'round' ORDER BY session_id, n").all() as Row[];
+    const update = db.prepare("UPDATE epochs SET input = ? WHERE session_id = ? AND n = ?");
+    epochs.forEach((row, i) => {
+      const input = JSON.parse(row.input as string) as RoundInput;
+      const next = epochs[i + 1];
+      if (input.round.kind !== "phabricator" || input.until !== undefined || !next || next.session_id !== row.session_id) return;
+      const following = (JSON.parse(next.input as string) as RoundInput).round;
+      const dates = (following.stack ?? following.phab ?? []).map((entry) => entry.dateCreated);
+      if (dates.length) update.run(JSON.stringify({ ...input, until: Math.min(...dates) }), row.session_id as string, row.n as number);
+    });
+  },
 ];
 
 type Row = Record<string, unknown>;

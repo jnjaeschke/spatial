@@ -9,7 +9,8 @@ export interface RoundEntry extends RoundDiff { title: string; latestDiffId: num
 export type RoundSource =
   | { kind: "phabricator"; host: string; stack: RoundEntry[] }
   | { kind: "local"; base: string; head: string; host: string | null; phab: RoundEntry[] | null };
-export interface RoundPhaseInput { round: RoundSource; narrate: boolean; llm?: LlmSelection }
+/** `until`: Unix seconds of the next submit of these revisions; Phabricator comments created from then on belong to later rounds. Absent for the latest round. */
+export interface RoundPhaseInput { round: RoundSource; narrate: boolean; until?: number; llm?: LlmSelection }
 
 /** Imports one round as a Diff, interdiffs it with the previous Diff, and optionally narrates it. A retry reuses its imported Diff. */
 export const roundPhase: Phase<RoundPhaseInput> = {

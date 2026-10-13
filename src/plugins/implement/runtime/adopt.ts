@@ -51,7 +51,7 @@ export function adoptRounds(plan: AdoptPlanData, range: AdoptRangeInput, llm?: L
   const entry = (d: (typeof plan.diffs)[number]): RoundEntry => ({ ...d, title: meta.get(d.revision)!.title, latestDiffId: meta.get(d.revision)!.latestDiffId });
   const rounds = groupRounds(plan.diffs.filter((d) => order.includes(d.revision)));
   const stacks = rounds.map((_, k) => roundStack(rounds, k, order));
-  const history = stacks.slice(0, -1).filter((stack) => !plan.missingBases.includes(stack[0]!.base))
-    .map((stack): RoundPhaseInput => ({ round: { kind: "phabricator", host: plan.host!, stack: stack.map(entry) }, narrate: false }));
+  const history = stacks.slice(0, -1).flatMap((stack, k): RoundPhaseInput[] => plan.missingBases.includes(stack[0]!.base) ? []
+    : [{ round: { kind: "phabricator", host: plan.host!, stack: stack.map(entry) }, narrate: false, until: rounds[k + 1]![0]!.dateCreated }]);
   return [...history, { round: { kind: "local", base: branch.base, head: range.head, host: plan.host, phab: stacks.at(-1)!.map(entry) }, narrate: true, ...extra }];
 }

@@ -1,3 +1,4 @@
+import type { Artifact } from "../../../plugin-api.ts";
 import type { RoundSource } from "../workflow/round.ts";
 
 /** One Phabricator diff of a stack revision: `base` is the commit it applies on, `dateCreated` Unix seconds. */
@@ -33,4 +34,10 @@ export function roundLabel(round: RoundSource): string {
   const diffs = (entries: RoundDiff[]) => entries.map((entry) => `D${entry.revision} #${entry.diffId}`).join(", ");
   if (round.kind === "phabricator") return `Round · ${diffs(round.stack)}`;
   return round.phab ? `Round · ${diffs(round.phab)} (local)` : `Adopted up to ${round.head.slice(0, 12)}`;
+}
+
+/** The artifacts as a round saw them: Phabricator comments created before `until`, everything else unchanged; all of them without `until`. */
+export function commentsAsOf(artifacts: Artifact[], until: number | undefined): Artifact[] {
+  if (until === undefined) return artifacts;
+  return artifacts.filter((artifact) => artifact.type !== "PhabComment" || (artifact.data as { dateCreated: number }).dateCreated < until);
 }

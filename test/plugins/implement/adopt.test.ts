@@ -123,7 +123,7 @@ test("adoptRounds rebuilds earlier rounds and ends with the newest local diffs",
   assert.deepEqual(rounds[0], { round: { kind: "phabricator", host: H, stack: [
     { revision: 1, diffId: 10, base: "OLD", dateCreated: 0, title: "Part 1", latestDiffId: 20 },
     { revision: 2, diffId: 11, base: "OLD", dateCreated: 5, title: "Part 2", latestDiffId: 21 },
-  ] }, narrate: false });
+  ] }, narrate: false, until: 9000 });
   assert.deepEqual(rounds[1]!.round.kind === "local" && rounds[1]!.round.phab?.map((e) => e.diffId), [20, 21]);
   assert.equal(rounds[1]!.narrate, true);
   assert.deepEqual(rounds[1]!.round.kind === "local" && [rounds[1]!.round.base, rounds[1]!.round.head], ["BASE", "c2"]);
