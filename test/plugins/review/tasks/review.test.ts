@@ -172,7 +172,7 @@ test("zero findings succeed with empty output", async () => {
 
 test("an unparsable reply fails the task", async () => {
   const { run } = setup([{ summary: "x" }]);
-  await assert.rejects(run(), /Review reply is not valid JSON/);
+  await assert.rejects(run(), /Review reply failed validation/);
 });
 
 test("epoch two prompt includes carried prior states and only epoch two adds sections", async () => {
@@ -287,7 +287,15 @@ test("invalid verdict labels are reported and expected missing verdict is report
   assert.equal(store.listArtifacts(session.id, "FindingVerdict").length, 0);
 });
 
-test("reply without verdicts is rejected", async () => {
+test("an invalid reply is repaired before storing findings", async () => {
+  const { run, calls } = setup([{ findings: [{ anchor: 42 }], verdicts: [] }, { findings: [], verdicts: [] }]);
+  const out = await run();
+  assert.deepEqual(out.findingIds, []);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1]!.prompt.prompt, /Your previous answer was invalid/);
+});
+
+test("reply without verdicts is rejected after schema repair", async () => {
   const { run } = setup([{ findings: [] }]);
-  await assert.rejects(run(), /Review reply is not valid JSON/);
+  await assert.rejects(run(), /Review reply failed validation/);
 });

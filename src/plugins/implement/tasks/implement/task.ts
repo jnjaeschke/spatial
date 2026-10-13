@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors, sessionProfile } from "../../../../plugin-api.ts";
+import { loadSchema, type Artifact, type CommandRunData, type Id, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, runStructured, sessionProfile } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { requireCheckoutOn } from "../../branch.ts";
 import { requireEditsOnlyReady } from "../../profiles.ts";
@@ -15,7 +15,7 @@ import { memorySections } from "../../runtime/memories.ts";
 import type { ReviewFindingData } from "../../../review/api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema;
+const SCHEMA = loadSchema(import.meta.url);
 const MAX_RETRIES = 2;
 
 /** Input of the implement phase and task: the approved Investigation and what else the agent should address. `fix` lists the open high findings this round was asked to fix; the next review gives a verdict on each. */
@@ -94,11 +94,9 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
       const prompt = steerPrompt === null ? (firstCall ? fresh : followUp) : input.writeMode === "editsOnly" ? `${steerPrompt}\n\n${followUp}` : steerPrompt;
       steerPrompt = null;
       firstCall = false;
-      const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, liveInput: true, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, input.llm);
-      session = r.providerSessionId;
-      const errors = schemaErrors(SCHEMA, r.json);
-      if (errors.length) throw new Error(`Implement reply is not valid: ${errors.join("; ")}`);
-      return r.json as AgentReply;
+      const { json, result } = await runStructured<AgentReply>(ctx.llm, { prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "write", writeMode: input.writeMode, onEvent, liveInput: true, resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Implement reply" }, input.llm);
+      session = result.providerSessionId;
+      return json;
     };
     const problemsSection = (list: string[]) => `# Problems to fix\n${list.map((problem) => `- ${problem}`).join("\n")}`;
     const done = async (head: string, reply: AgentReply, planChange: string | null, planInvalid: string | null) =>

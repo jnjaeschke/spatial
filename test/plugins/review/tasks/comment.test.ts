@@ -9,14 +9,15 @@ import { comment } from "../../../../src/plugins/review/tasks/comment/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
-function setup(reply: unknown) {
+function setup(replies: unknown[]) {
   const store = new Store(":memory:");
   const calls: LlmPrompt[] = [];
+  let index = 0;
   const llm: LlmService = {
     defaultSelection: selection,
     async run(_selection, prompt) {
       calls.push(prompt);
-      return { text: "", json: reply, providerSessionId: "p", selection };
+      return { text: "", json: replies[index++], providerSessionId: "p", selection };
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
@@ -30,7 +31,7 @@ function setup(reply: unknown) {
 }
 
 test("finding with chat thread produces a proposed ReviewComment", async () => {
-  const { rt, store, session, finding, calls } = setup({ body: "Reset the flag during teardown." });
+  const { rt, store, session, finding, calls } = setup([{ body: "Reset the flag during teardown." }]);
   const thread = store.putArtifact({ sessionId: session.id, type: "ChatThread", status: "verified", data: { anchor: finding.id }, provenance: { taskId: "chatTurn" } });
   store.putLink({ sessionId: session.id, from: thread.id, to: finding.id, kind: "about" });
   for (const [role, text] of [["user", "Does teardown clear it?"], ["assistant", "No, the flag stays set."]] as const) {
@@ -51,13 +52,15 @@ test("finding with chat thread produces a proposed ReviewComment", async () => {
 });
 
 test("finding without chat uses finding body only", async () => {
-  const { rt, finding, calls } = setup({ body: "Reset the flag during teardown." });
+  const { rt, finding, calls } = setup([{ body: "Reset the flag during teardown." }]);
   await rt.run(rt.store.getSession(finding.sessionId).id, "comment", { findingId: finding.id });
   assert.ok(calls[0]!.prompt.includes("The flag remains set after teardown."));
   assert.ok(!calls[0]!.prompt.includes("# Conversation"));
 });
 
-test("invalid LLM reply fails the task", async () => {
-  const { rt, finding } = setup({ summary: "x" });
-  await assert.rejects(rt.run(finding.sessionId, "comment", { findingId: finding.id }), /Comment reply is not valid JSON/);
+test("invalid LLM reply is repaired", async () => {
+  const { rt, finding, calls } = setup([{ summary: "x" }, { body: "valid" }]);
+  await rt.run(finding.sessionId, "comment", { findingId: finding.id });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1]!.prompt, /Your previous answer was invalid/);
 });

@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
 import type { LlmSelection } from "../shared/types.ts";
 import type { LlmPrompt, LlmRunResult } from "./llm/types.ts";
 
 /** The JSON schema subset task schemas use. */
 export interface JsonSchema { type?: string | string[]; enum?: unknown[]; properties?: Record<string, JsonSchema>; required?: string[]; items?: JsonSchema; anyOf?: JsonSchema[]; minimum?: number; maximum?: number; minItems?: number; maxItems?: number; [key: string]: unknown }
+
+/** Reads the schema.json beside a module. */
+export function loadSchema(moduleUrl: string): JsonSchema {
+  return JSON.parse(readFileSync(new URL("./schema.json", moduleUrl), "utf8")) as JsonSchema;
+}
 
 const typeOf = (value: unknown) => value === null ? "null" : Array.isArray(value) ? "array" : Number.isInteger(value) ? "integer" : typeof value;
 
@@ -34,16 +40,17 @@ export function schemaErrors(schema: JsonSchema, value: unknown, path = "$"): st
 }
 
 /** A structured LLM request. `validate` runs on replies that match `schema` (`attempt` counts from 0); an invalid reply is re-prompted with its errors up to `repairs` times (default 0). `label` names the reply in the final error. */
-export interface StructuredPrompt extends LlmPrompt { schema: JsonSchema; label: string; validate?(json: unknown, attempt: number): string[]; repairs?: number; onRepair?(errors: string[]): void }
+export interface StructuredPrompt extends LlmPrompt { schema: JsonSchema; label: string; validate?(json: unknown, attempt: number): string[]; repairs?: number; onInvalid?(errors: string[], result: LlmRunResult): void; onRepair?(errors: string[]): void }
 
 /** Runs `request` and returns its checked reply; throws `<label> failed validation:` with the errors of the last attempt. */
 export async function runStructured<T>(llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult> }, request: StructuredPrompt, selection?: LlmSelection): Promise<{ json: T; result: LlmRunResult }> {
-  const { label, validate, repairs = 0, onRepair, ...prompt } = request;
+  const { label, validate, repairs = 0, onInvalid, onRepair, ...prompt } = request;
   let result = await llm.run(prompt, selection);
   for (let attempt = 0; ; attempt++) {
     const shape = schemaErrors(prompt.schema, result.json);
     const errors = shape.length ? shape : validate?.(result.json, attempt) ?? [];
     if (!errors.length) return { json: result.json as T, result };
+    onInvalid?.(errors, result);
     if (attempt >= repairs) throw new Error(`${label} failed validation:\n${errors.join("\n")}`);
     onRepair?.(errors);
     result = await llm.run({ ...prompt, prompt: [prompt.prompt, "", "Your previous answer was invalid:", ...errors.map((error) => `- ${error}`), "", "Previous answer:", JSON.stringify(result.json), "", "Return a corrected, complete answer."].join("\n") }, selection);

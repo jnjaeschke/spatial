@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
-import { type Artifact, type CommandRunData, type Id, type JsonSchema, defineTask, latestArtifact, runStructured } from "../../../../plugin-api.ts";
+import { loadSchema, type Artifact, type CommandRunData, type Id, defineTask, latestArtifact, runStructured } from "../../../../plugin-api.ts";
 import type { InvestigationData, SteerData } from "../../shared/types.ts";
 import { currentMemories, distillProblems, type DistillReply } from "../../runtime/memories.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema;
+const SCHEMA = loadSchema(import.meta.url);
 
 /** `taskId` is the stopped task whose last progress lines show what the agent was doing. */
 export interface DistillInput { steerId: Id; taskId: Id | null }

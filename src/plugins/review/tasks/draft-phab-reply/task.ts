@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import type { PhabCommentData, SuggestedReplyData } from "../../shared/types.ts";
 import { phabThreads } from "../../shared/phab-threads.ts";
-import { type Artifact, type ChatMessageData, type JsonSchema, type LlmSelection, defineTask, revisedText, runStructured } from "../../../../plugin-api.ts";
+import { loadSchema, type Artifact, type ChatMessageData, type LlmSelection, defineTask, revisedText, runStructured } from "../../../../plugin-api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema;
+const SCHEMA = loadSchema(import.meta.url);
 
 export const draftPhabReply = defineTask<{ anchorId: string; threadId: string; llm?: LlmSelection }, { replyId: string; body: string }>({
   kind: "draftPhabReply",

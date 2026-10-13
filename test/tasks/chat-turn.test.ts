@@ -9,6 +9,7 @@ import { renderRef as renderRefWith, sessionView } from "../../src/runtime/rende
 import { pluginRegistry, type ChatReplyField, type RepoProfile } from "../../src/runtime/plugins.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
+import { schemaErrors, type JsonSchema } from "../../src/runtime/structured.ts";
 const registry = pluginRegistry(plugins);
 const renderRef = (view: ReturnType<typeof sessionView>, ref: string) => renderRefWith(registry.artifactKinds, view, ref);
 
@@ -37,6 +38,10 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
       n++;
       const reply = opts.replies ? opts.replies[n - 1] : { answer: `answer ${n}`, questions: [], revisions: [], diagram: null };
       const json = reply && { requestMcpServers: [], diagram: null, ...reply };
+      if (json && prompt.schema) {
+        const schema = prompt.schema as { required?: string[]; properties?: Record<string, { anyOf?: { type?: string }[] }> };
+        for (const field of schema.required ?? []) if (!(field in json) && !["answer", "questions", "revisions", "requestMcpServers", "diagram"].includes(field)) (json as Record<string, unknown>)[field] = null;
+      }
       if (json) for (const revision of json.revisions ?? []) if (revision.message === "$USER") revision.message = store.listArtifacts(session.id, "ChatMessage").find((a) => (a.data as ChatMessageData).role === "user")!.id;
       return Promise.resolve({ text: json?.answer ?? `answer ${n}`, json, providerSessionId: `${selection!.backend}-session-${n}`, selection: selection! });
     },
@@ -112,7 +117,10 @@ test("chat system prompt includes repo instructions and skill index on every tur
     defaultSelection: SONNET,
     async run(selection, prompt) {
       calls.push(prompt);
-      return { text: "ok", json: { answer: "ok", questions: [], revisions: [], requestMcpServers: [], diagram: null }, providerSessionId: `p${calls.length}`, selection: selection! };
+      const json: Record<string, unknown> = { answer: "ok", questions: [], revisions: [], requestMcpServers: [], diagram: null };
+      const schema = prompt.schema as { required?: string[] };
+      for (const field of schema.required ?? []) if (!(field in json)) json[field] = null;
+      return { text: "ok", json, providerSessionId: `p${calls.length}`, selection: selection! };
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
@@ -177,15 +185,25 @@ test("chat verifies a proposed diagram and links it to the assistant reply", asy
   assert.ok(store.listLinks(session.id).some((link) => link.from === artifacts[0]!.id && link.to === messageId && link.kind === "derivedFrom"));
 });
 
-test("invalid diagrams are dropped with an error on the assistant message", async () => {
+test("invalid diagrams are handled by schema or reply-field validation", async () => {
   for (const diagram of [
     "not a diagram",
     { commit: 2, title: "Bad commit", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "a", to: "a", symbol: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
     { commit: 1, title: "Bad lane", summary: "", lanes: [{ id: "a", label: "A", note: null }], steps: [{ from: "missing", to: "a", symbol: "x", call: "x", what: "x", when: null, guard: null, phase: null, status: "new", cite: { path: "x", line: 1 } }], before: null },
   ]) {
-    const { store, turn, narrativeId, session } = setup({ replies: [{ answer: "Kept", revisions: [], questions: [], diagram }] });
-    const { messageId } = await turn({ anchor: `${narrativeId}#c1`, text: "Draw", llm: SONNET });
-    assert.equal(store.getArtifact<ChatMessageData>(messageId).data.replyErrors?.[0]?.label, "Diagram");
+    const { store, turn, narrativeId, session, calls } = setup({ replies: [{ answer: "Kept", revisions: [], questions: [], diagram }] });
+    const input = { anchor: `${narrativeId}#c1`, text: "Draw", llm: SONNET };
+    let result: Awaited<ReturnType<typeof turn>> | undefined;
+    let error: unknown;
+    try { result = await turn(input); } catch (caught) { error = caught; }
+    const schema = calls[0]!.prompt.schema as JsonSchema;
+    const invalidSchema = schemaErrors(schema.properties!.diagram!, diagram).length > 0;
+    if (invalidSchema) {
+      assert.match((error as Error).message, /Chat reply failed validation/);
+    } else {
+      const { messageId } = result!;
+      assert.equal(store.getArtifact<ChatMessageData>(messageId).data.replyErrors?.[0]?.label, "Diagram");
+    }
     assert.equal(store.listArtifacts(session.id, "Diagram").length, 0);
   }
 });
@@ -274,7 +292,7 @@ test("invalid revisions are reported while the chat turn succeeds", async () => 
 
 test("missing structured JSON fails after keeping the user message", async () => {
   const { store, session, turn, narrativeId } = setup({ replies: [undefined] });
-  await assert.rejects(turn({ anchor: `${narrativeId}#c1`, text: "Q", llm: SONNET }), /not valid JSON/);
+  await assert.rejects(turn({ anchor: `${narrativeId}#c1`, text: "Q", llm: SONNET }), /Chat reply failed validation/);
   const thread = store.listArtifacts(session.id, "ChatThread")[0];
   assert.deepEqual(messages(store, session.id, thread.id).map((m) => m.role), ["user"]);
 });

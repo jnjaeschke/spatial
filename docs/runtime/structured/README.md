@@ -13,5 +13,6 @@
 
 ## Functions
 
+- [loadSchema](functions/loadSchema.md)
 - [runStructured](functions/runStructured.md)
 - [schemaErrors](functions/schemaErrors.md)

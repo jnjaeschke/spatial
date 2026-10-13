@@ -1,22 +1,14 @@
 import { readFileSync } from "node:fs";
 import type {  ReviewFindingData , PatchNarrativeData } from "../../shared/types.ts";
-import type { LineRange, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../../spec/api.ts";
+import type { LineRange, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines } from "../../../spec/api.ts";
 import { lookupSpec, type SpecLookup } from "../../../spec/api.ts";
-import {type Artifact, type DiffData, type Id, type Link, type LlmSelection, defineTask} from "../../../../plugin-api.ts";
+import {type Artifact, type DiffData, type Id, type Link, type LlmSelection, defineTask, loadSchema, runStructured} from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { parseSteps, checkStepComment, commentBlock, misplacedStepComment, stepComments, specServices } from "../../../spec/api.ts";
 import { findingStates } from "../../shared/findings.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
-const KINDS = ["implements", "partial", "structural", "deviates"];
-const REASONS: UnmappedReason[] = ["plumbing", "error-path", "test", "unexplained"];
-const validRanges = (ranges: unknown): ranges is LineRange[] => Array.isArray(ranges) && ranges.every((range) => typeof range?.path === "string" && (range.side === "new" || range.side === "old") && Number.isInteger(range.start) && Number.isInteger(range.end));
-const isReply = (j: unknown): j is { links: StepLink[]; unmapped: UnmappedLines[] } => {
-  const r = j as { links?: Partial<StepLink>[]; unmapped?: Partial<UnmappedLines>[] } | undefined;
-  return Array.isArray(r?.links) && r.links.every((l) => typeof l?.step === "string" && KINDS.includes(l.kind as string) && typeof l.note === "string" && validRanges(l.ranges)) &&
-    Array.isArray(r.unmapped) && r.unmapped.every((entry) => REASONS.includes(entry.reason as UnmappedReason) && typeof entry.note === "string" && validRanges(entry.ranges));
-};
+const SCHEMA = loadSchema(import.meta.url);
 
 /** Change ids of the narrative a SpecReference supports. */
 const supportedChanges = (links: Link[], specId: Id, narrativeId: Id) => links.filter((l) => l.kind === "supports" && l.from === specId && l.to.startsWith(`${narrativeId}#`)).map((l) => l.to.slice(narrativeId.length + 1));
@@ -67,8 +59,7 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
       "# Changes", ...changes.map((c) => `- ${c.title}: ${c.explanation}`), "",
       "# Changed hunks", "", ...hunkText,
     ].join("\n");
-    const reply = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none" }, llm);
-    if (!isReply(reply.json)) throw new Error(`Step mapping reply is not valid JSON: ${JSON.stringify(reply.json)}`);
+    const { json: reply, result } = await runStructured<{ links: StepLink[]; unmapped: UnmappedLines[] }>(ctx.llm, { prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none", label: "Step mapping reply", repairs: 1 }, llm);
 
     const numbers = new Set(steps.map((step) => step.number));
     const trim = (range: LineRange): LineRange | null => {
@@ -81,7 +72,7 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
     };
     const links: StepLink[] = [];
     const dropped: string[] = [];
-    for (const link of reply.json.links) {
+    for (const link of reply.links) {
       if (!numbers.has(link.step)) { dropped.push(`step ${link.step}: not a step of the section`); continue; }
       const ranges = link.ranges.map(trim).filter((range): range is LineRange => range !== null);
       if (ranges.length < link.ranges.length) dropped.push(`step ${link.step}: ${link.ranges.length - ranges.length} range(s) outside the changes' hunks`);
@@ -89,12 +80,12 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
       links.push({ step: link.step, kind: link.kind, ranges, note: link.note });
     }
     const unmapped: UnmappedLines[] = [];
-    for (const entry of reply.json.unmapped) {
+    for (const entry of reply.unmapped) {
       const ranges = entry.ranges.map(trim).filter((range): range is LineRange => range !== null);
       if (ranges.length < entry.ranges.length) dropped.push(`unmapped ${entry.reason}: ${entry.ranges.length - ranges.length} range(s) outside the changes' hunks`);
       if (ranges.length) unmapped.push({ ranges, reason: entry.reason, note: entry.note });
     }
-    const map = ctx.artifacts.put<SpecStepMapData>("SpecStepMap", "proposed", { spec: specId, narrative: narrativeId, links, unmapped, dropped }, reply.selection);
+    const map = ctx.artifacts.put<SpecStepMapData>("SpecStepMap", "proposed", { spec: specId, narrative: narrativeId, links, unmapped, dropped }, result.selection);
     ctx.links.put(map.id, specId, "derivedFrom");
     ctx.links.put(map.id, narrativeId, "about");
     const findingIds: Id[] = [], stepCheckErrors: string[] = [];
@@ -133,7 +124,7 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
         const quote = lines[check.line - 1]!.trim();
         if (!problem || carried.has(`${problem.title}\n${quote}`)) continue;
         const anchor = `${diff.id}#${hunkId}`;
-        const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "proposed", { anchor, quote, lines: { path, side: "new", start: check.line, end: check.line }, category: "spec", ...problem }, reply.selection);
+        const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "proposed", { anchor, quote, lines: { path, side: "new", start: check.line, end: check.line }, category: "spec", ...problem }, result.selection);
         ctx.links.put(finding.id, narrativeId, "derivedFrom");
         ctx.links.put(finding.id, anchor, "about");
         findingIds.push(finding.id);

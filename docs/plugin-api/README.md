@@ -393,6 +393,12 @@ Re-exports [LlmSelection](../shared/types/interfaces/LlmSelection.md)
 
 ***
 
+### loadSchema
+
+Re-exports [loadSchema](../runtime/structured/functions/loadSchema.md)
+
+***
+
 ### LogRow
 
 Re-exports [LogRow](../shared/types/interfaces/LogRow.md)

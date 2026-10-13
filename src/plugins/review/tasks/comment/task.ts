@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import type { ReviewCommentData, ReviewFindingData } from "../../shared/types.ts";
-import { type Artifact, type ChatMessageData, type LlmSelection, defineTask, revisedText } from "../../../../plugin-api.ts";
+import { loadSchema, type Artifact, type ChatMessageData, type LlmSelection, defineTask, revisedText, runStructured } from "../../../../plugin-api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
+const SCHEMA = loadSchema(import.meta.url);
 
 export const comment = defineTask<{ findingId: string; llm?: LlmSelection }, { commentId: string }>({
   kind: "comment",
@@ -31,9 +31,7 @@ export const comment = defineTask<{ findingId: string; llm?: LlmSelection }, { c
       finding.data.body,
       ...(messages.length ? ["", "# Conversation", ...messages.map((message) => `${message.data.role === "user" ? "User" : "Assistant"}: ${revisedText(view, message)}`)] : []),
     ].join("\n");
-    const r = await ctx.llm.run({ prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none" }, llm);
-    const json = r.json as { body?: unknown } | undefined;
-    if (typeof json?.body !== "string") throw new Error(`Comment reply is not valid JSON: ${JSON.stringify(r.json)}`);
+    const { json, result: r } = await runStructured<{ body: string }>(ctx.llm, { prompt, system: SYSTEM, schema: SCHEMA, cwd: ctx.repo, tools: "none", label: "Comment reply", repairs: 1 }, llm);
     const artifact = ctx.artifacts.put<ReviewCommentData>("ReviewComment", "proposed", { finding: findingId, body: json.body }, r.selection);
     ctx.links.put(artifact.id, findingId, "about");
     return { commentId: artifact.id };

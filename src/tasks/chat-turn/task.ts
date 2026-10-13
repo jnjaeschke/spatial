@@ -5,16 +5,11 @@ import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
 import { sessionProfile } from "../../runtime/profiles.ts";
+import { loadSchema, runStructured, type JsonSchema } from "../../runtime/structured.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
+const SCHEMA = loadSchema(import.meta.url);
 interface Reply { answer: string; questions: string[]; revisions: { message: string | null; quote: string; correction: string }[]; requestMcpServers: string[]; [field: string]: unknown }
-const isReply = (j: unknown): j is Reply => {
-  const r = j as Partial<Reply> | undefined;
-  return typeof r?.answer === "string" && Array.isArray(r.questions) && r.questions.every((q) => typeof q === "string") && Array.isArray(r.revisions) &&
-    r.revisions.every((v) => (v?.message === null || typeof v?.message === "string") && typeof v.quote === "string" && typeof v.correction === "string") &&
-    Array.isArray(r.requestMcpServers) && r.requestMcpServers.every((name) => typeof name === "string");
-};
 const same = (a?: LlmSelection, b?: LlmSelection) => !!a && !!b && a.backend === b.backend && a.model === b.model && a.effort === b.effort;
 
 export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?: boolean; text: string; quote?: string; lines?: SelectedText["lines"]; llm: LlmSelection }, { threadId: string; messageId: string }>({
@@ -60,9 +55,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       : "");
     const schema = structuredClone(SCHEMA) as { properties: Record<string, unknown>; required: string[] };
     for (const field of ctx.chat.replyFields) { schema.properties[field.name] = { anyOf: [field.schema, { type: "null" }] }; schema.required.push(field.name); }
-    const r = await ctx.llm.run({ prompt, system, schema, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp, ...enabledRepoMcp } }, llm);
-    const json = r.json as Reply | undefined;
-    if (!isReply(json)) throw new Error(`Chat reply is not valid JSON: ${JSON.stringify(r.json)}`);
+    const { json, result: r } = await runStructured<Reply>(ctx.llm, { prompt, system, schema: schema as JsonSchema, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp, ...enabledRepoMcp }, label: "Chat reply" }, llm);
 
     const existingRequests = new Set((ctx.artifacts.linkedTo(thread.id, "about") as Artifact<McpServerData>[])
       .filter((artifact) => artifact.type === "McpServerRequest").map((artifact) => artifact.data.server));

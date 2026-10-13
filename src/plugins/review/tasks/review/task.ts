@@ -1,25 +1,16 @@
 import { readFileSync } from "node:fs";
 import type {  FindingVerdictData, ReviewCommentData, ReviewFindingData , PatchNarrativeData, PostedCommentData } from "../../shared/types.ts";
 
-import {type DiffData, type Id, type LlmSelection, defineTask, prependRepoContext, sessionProfile} from "../../../../plugin-api.ts";
+import {type DiffData, type Id, type LlmSelection, defineTask, loadSchema, prependRepoContext, runStructured, sessionProfile} from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { diffNumber } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { quotePattern } from "../../shared/reanchor.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
-const CATEGORIES = ["correctness", "spec", "tests", "style"];
-const SEVERITIES = ["high", "medium", "low"];
+const SCHEMA = loadSchema(import.meta.url);
 interface ReplyFinding { anchor: string; quote: string | null; category: ReviewFindingData["category"]; severity: ReviewFindingData["severity"]; title: string; body: string }
 interface ReplyVerdict { finding: string; verdict: FindingVerdictData["verdict"]; reason: string }
-const VERDICTS = ["addressed", "partially", "not_addressed"];
-const isReply = (j: unknown): j is { findings: ReplyFinding[]; verdicts: ReplyVerdict[] } => {
-  const r = j as { findings?: Partial<ReplyFinding>[]; verdicts?: Partial<ReplyVerdict>[] } | undefined;
-  return Array.isArray(r?.findings) && r.findings.every((f) => typeof f?.anchor === "string" && (f.quote === null || typeof f.quote === "string") &&
-    CATEGORIES.includes(f.category as string) && SEVERITIES.includes(f.severity as string) && typeof f.title === "string" && typeof f.body === "string") &&
-    Array.isArray(r.verdicts) && r.verdicts.every((v) => typeof v?.finding === "string" && VERDICTS.includes(v.verdict as string) && typeof v.reason === "string");
-};
 
 export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; recheck?: Id[] }, { findingIds: string[]; verdictIds: string[]; findingErrors: string[] }>({
   kind: "review",
@@ -68,8 +59,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; rech
       ...(specIds.length ? ["# Spec references", ...specIds.map((id) => ctx.artifacts.render(id))] : []),
     ].join("\n\n");
     const notes = (await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo)).promptNotes;
-    const r = await ctx.llm.run({ prompt, system: prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
-    if (!isReply(r.json)) throw new Error(`Review reply is not valid JSON: ${JSON.stringify(r.json)}`);
+    const { json, result: r } = await runStructured<{ findings: ReplyFinding[]; verdicts: ReplyVerdict[] }>(ctx.llm, { prompt, system: prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Review reply", repairs: 1 }, llm);
 
     const locate = (f: ReplyFinding): Pick<ReviewFindingData, "anchor" | "quote" | "lines"> | string => {
       const change = narrative.data.changes.find((c) => c.id === f.anchor);
@@ -95,7 +85,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; rech
     const findingIds: string[] = [], verdictIds: string[] = [], findingErrors: string[] = [];
     const expected = new Map([...priorLabels].filter(([, s]) => (s.decision === "accepted" || rechecked.has(s.finding.id)) && s.verdict?.verdict !== "addressed"));
     const seenVerdicts = new Set<string>();
-    for (const v of r.json.verdicts) {
+    for (const v of json.verdicts) {
       const state = priorLabels.get(v.finding);
       if (!state || !expected.has(v.finding)) { findingErrors.push(`verdict ${v.finding}: unknown or not expected`); continue; }
       if (seenVerdicts.has(v.finding)) { findingErrors.push(`verdict ${v.finding}: duplicate`); continue; }
@@ -106,7 +96,7 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; rech
       verdictIds.push(artifact.id);
     }
     for (const label of expected.keys()) if (!seenVerdicts.has(label)) findingErrors.push(`no verdict for ${label}`);
-    for (const f of r.json.findings) {
+    for (const f of json.findings) {
       const located = locate(f);
       if (typeof located === "string") { findingErrors.push(`${f.title}: ${located}`); continue; }
       const finding = ctx.artifacts.put<ReviewFindingData>("ReviewFinding", "proposed", { ...located, category: f.category, severity: f.severity, title: f.title, body: f.body }, r.selection);

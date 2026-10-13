@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
-import { defineTask, prependRepoContext, type CommandRunData, type Id } from "../../../../plugin-api.ts";
+import { loadSchema, defineTask, prependRepoContext, runStructured, type CommandRunData, type Id } from "../../../../plugin-api.ts";
 import type { TryInput, TryProposalData, TryPushData } from "../../shared/types.ts";
-import { isTryProposal, tryCommandProblem } from "../../runtime/try-command.ts";
+import { tryCommandProblem } from "../../runtime/try-command.ts";
 import { changedFiles } from "../../runtime/changed-files.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
+const SCHEMA = loadSchema(import.meta.url);
 const MAX_TEST_COMMANDS = 20;
 
 export const proposeTry = defineTask<TryInput, { proposalId: Id }>({
@@ -29,11 +29,12 @@ export const proposeTry = defineTask<TryInput, { proposalId: Id }>({
       ...(tests.length ? ["# Test commands run while implementing", tests.map((run) => `- \`${run.command}\` (exit ${run.exitCode})`).join("\n")] : []),
       ...(earlier.length ? ["# Earlier try pushes in this session", [...new Set(earlier)].map((command) => `- \`${command}\``).join("\n")] : []),
     ].join("\n\n");
-    const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
-    if (!isTryProposal(r.json)) throw new Error(`Try proposal reply is not valid: ${JSON.stringify(r.json)}`);
-    const command = r.json.command.trim();
-    const problem = tryCommandProblem(command);
-    if (problem) throw new Error(`The proposed try command is not usable: ${problem}: ${command}`);
-    return { proposalId: ctx.artifacts.put<TryProposalData>("TryProposal", "proposed", { command, reason: r.json.reason }, r.selection).id };
+    const { json, result } = await runStructured<TryProposalData>(ctx.llm, { prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Try proposal reply", repairs: 1, validate: (value) => {
+      const command = (value as TryProposalData).command.trim();
+      const problem = tryCommandProblem(command);
+      return problem ? [`The proposed try command is not usable: ${problem}: ${command}`] : [];
+    } }, llm);
+    const command = json.command.trim();
+    return { proposalId: ctx.artifacts.put<TryProposalData>("TryProposal", "proposed", { command, reason: json.reason }, result.selection).id };
   },
 });

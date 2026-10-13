@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runStructured, schemaErrors, type JsonSchema } from "../../src/runtime/structured.ts";
+import { loadSchema, runStructured, schemaErrors, type JsonSchema } from "../../src/runtime/structured.ts";
 import type { LlmPrompt } from "../../src/runtime/llm/types.ts";
 
 const schema: JsonSchema = { type: "object", required: ["name", "count", "kind", "tags"], properties: {
@@ -27,6 +27,10 @@ const llm = (replies: unknown[]) => {
   return { prompts, run: async (prompt: LlmPrompt) => { prompts.push(prompt); return { text: "", json: replies[prompts.length - 1], providerSessionId: "p", selection: { backend: "claude" as const, model: "m", effort: "low" } }; } };
 };
 const small: JsonSchema = { type: "object", required: ["n"], properties: { n: { type: "integer" } } };
+
+test("loadSchema reads schema.json next to the calling module", () => {
+  assert.deepEqual(loadSchema(new URL("./fixtures/schema-fixture.ts", import.meta.url).href), { type: "object", required: ["fixture"] });
+});
 
 test("runStructured returns a valid reply without repairs", async () => {
   const fake = llm([{ n: 1 }]);

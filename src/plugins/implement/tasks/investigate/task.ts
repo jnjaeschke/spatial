@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, schemaErrors, sessionProfile, verifyDiagramAtBase } from "../../../../plugin-api.ts";
+import { loadSchema, type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, runStructured, sessionProfile, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
 import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
 import { requireCheckoutOn } from "../../branch.ts";
@@ -9,7 +9,7 @@ import { steerSections, steersOf } from "../../runtime/steers.ts";
 import { memorySections } from "../../runtime/memories.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
-const BASE_SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema & { required: string[]; properties: Record<string, JsonSchema> };
+const BASE_SCHEMA = loadSchema(import.meta.url) as JsonSchema & { required: string[]; properties: Record<string, JsonSchema> };
 const SCHEMA = { ...BASE_SCHEMA, required: [...BASE_SCHEMA.required, "diagram"], properties: { ...BASE_SCHEMA.properties, diagram: { anyOf: [{ type: "null" }, diagramSchema] } } };
 const MAX_RETRIES = 2;
 
@@ -32,8 +32,6 @@ interface Reply {
   specUrls: string[]; diagram: unknown;
 }
 const problemsOf = (value: unknown, profile: { id: string; commitStyle: "stack" | "single" }): string[] => {
-  const shape = schemaErrors(BASE_SCHEMA, value);
-  if (shape.length) return shape;
   const { steps } = value as Reply;
   return [
     ...(steps.length === 0 ? ["The investigation has no steps"] : []),
@@ -64,22 +62,24 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
     ].join("\n\n");
     const notes = profile.promptNotes;
     const system = prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx);
-    const ask = (text: string, resumeProviderSession?: string) => ctx.llm.run({ prompt: text, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const r = await (async () => {
       const attempts: string[][] = [];
       let session: string | undefined;
       let nextPrompt = prompt;
       for (;;) {
-        let result: Awaited<ReturnType<typeof ask>>;
+        let result: Awaited<ReturnType<typeof runStructured<Reply>>>;
         let problems: string[];
         try {
-          result = await ask(nextPrompt, session);
-          session = result.providerSessionId;
-          problems = problemsOf(result.json, profile);
+          result = await runStructured<Reply>(ctx.llm, { prompt: nextPrompt, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession: session, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp }, label: "Investigation reply", validate: (value) => problemsOf(value, profile), onInvalid: (_errors, reply) => { session = reply.providerSessionId; } }, llm);
+          session = result.result.providerSessionId;
+          problems = [];
         } catch (error) {
-          if (!(error instanceof LlmOutputError)) throw error;
-          session = error.providerSessionId;
-          problems = [error.message];
+          if (error instanceof LlmOutputError) {
+            session = error.providerSessionId;
+            problems = [error.message];
+          } else if (error instanceof Error && error.message.startsWith("Investigation reply failed validation:\n")) {
+            problems = error.message.split("\n").slice(1);
+          } else throw error;
         }
         if (problems.length === 0) return result!;
         attempts.push(problems);
@@ -87,7 +87,7 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
         nextPrompt = `Your answer has problems:\n${listProblems(problems)}\n\nAnswer again with the full schema.`;
       }
     })();
-    const reply = r.json as Reply;
+    const reply = r.json;
     const { verified, dropped } = await verifyLocations(reply.locations, (path) => ctx.git.show(baseSha, path));
     const locations = verified.map((location) => {
       if (location.step === null || (location.step >= 0 && location.step < reply.steps.length)) return location;
@@ -122,6 +122,6 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
       ...(droppedChecks.length ? { droppedChecks } : {}),
       ...(checked && !checked.ok ? { diagramError: checked.error } : {}),
     };
-    return { investigationId: ctx.artifacts.put<InvestigationData>("Investigation", "proposed", data, r.selection).id, droppedLocations: dropped };
+    return { investigationId: ctx.artifacts.put<InvestigationData>("Investigation", "proposed", data, r.result.selection).id, droppedLocations: dropped };
   },
 });

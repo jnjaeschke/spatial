@@ -18,9 +18,10 @@ const STEPS = "To navigate:\n\n1. Fire *navigate*.\n2. If the commit is pending:
 function setup(reply: unknown, opts: { head?: string; checks?: { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }[]; analyzeFails?: boolean; otherSpec?: boolean; hunk?: DiffData["files"][number]["hunks"][number] } = {}) {
   const store = new Store(":memory:");
   const calls: LlmPrompt[] = [];
+  let replyIndex = 0;
   const llm: LlmService = {
     defaultSelection: selection,
-    async run(_selection, prompt) { calls.push(prompt); return { text: "", json: reply, providerSessionId: "p", selection }; },
+    async run(_selection, prompt) { calls.push(prompt); return { text: "", json: Array.isArray(reply) ? reply[replyIndex++] : reply, providerSessionId: "p", selection }; },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const git = { async show() { return opts.head ?? ""; } } as unknown as GitCapability;
@@ -96,9 +97,11 @@ test("links are trimmed to the hunks' lines; unknown steps and lineless links ar
   assert.deepEqual(store.listLinks(session.id).filter((l) => l.from === mapId).map((l) => [l.to, l.kind]), [[specId, "derivedFrom"], [narrativeId, "about"]]);
 });
 
-test("an invalid reply fails the task", async () => {
-  const { rt, session, narrativeId, specId } = setup({ links: [{ step: 1 }] });
-  await assert.rejects(rt.run(session.id, "mapSpecSteps", { narrativeId, specId }), /not valid JSON/);
+test("an invalid reply is repaired", async () => {
+  const { rt, session, narrativeId, specId, calls } = setup([{ links: [{ step: 1 }] }, { links: [], unmapped: [] }]);
+  await rt.run(session.id, "mapSpecSteps", { narrativeId, specId });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1]!.prompt, /Your previous answer was invalid/);
 });
 
 test("mapped Step comments on unrelated code become proposed LLM findings once", async () => {

@@ -146,6 +146,26 @@ With `tools: "write"`: `auto` lets the CLI's own approval logic allow edits and 
 
 ## Methods
 
+### onInvalid()?
+
+> `optional` **onInvalid**(`errors`, `result`): `void`
+
+#### Parameters
+
+##### errors
+
+`string`[]
+
+##### result
+
+[`LlmRunResult`](../../llm/types/interfaces/LlmRunResult.md)
+
+#### Returns
+
+`void`
+
+***
+
 ### onRepair()?
 
 > `optional` **onRepair**(`errors`): `void`

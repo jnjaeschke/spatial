@@ -81,7 +81,7 @@ export { runGit, safeRepoPath, safeRevision } from "./runtime/git.ts";
 /** Runs a process, optionally streaming stdout lines. */
 export { runChecked, runProcess } from "./runtime/process.ts";
 /** Structured LLM calls checked against their schema and a domain validator, with repair re-prompts. */
-export { runStructured, schemaErrors } from "./runtime/structured.ts";
+export { loadSchema, runStructured, schemaErrors } from "./runtime/structured.ts";
 export type { JsonSchema, StructuredPrompt } from "./runtime/structured.ts";
 export { LlmOutputError } from "./runtime/llm/types.ts";
 /** A CommandRun record with capped output. */
