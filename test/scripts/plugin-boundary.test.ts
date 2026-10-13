@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkPluginBoundary, declaredDependencies, resolveImport } from "../../scripts/plugin-boundary.ts";
+import { checkPluginBoundary, checkPluginKindReferences, declaredDependencies, resolveImport } from "../../scripts/plugin-boundary.ts";
 
 test("resolves relative imports against an in-memory source map", () => {
   assert.equal(resolveImport("src/plugins/review/index.ts", "./tasks/task.ts"), "src/plugins/review/tasks/task.ts");
@@ -53,4 +53,22 @@ test("a plugin may import only the public API modules of a declared dependency",
 test("a plugin that declares no dependency cannot import another plugin's api", () => {
   const files = new Map([manifest("implement", ""), manifest("review", ""), ["src/plugins/implement/a.ts", 'import "../review/api.ts";']]);
   assert.deepEqual(checkPluginBoundary(files), ["src/plugins/implement/a.ts → ../review/api.ts"]);
+});
+
+test("plugin kind literals in core source are reported with their registering plugin", () => {
+  const files = new Map([
+    ["src/server/http.ts", 'const kind = "Diff"; const task = \'narrate\';'],
+    ["src/plugins/review/task.ts", 'const kind = "Diff";'],
+  ]);
+  assert.deepEqual(checkPluginKindReferences(files, [{ name: "Diff", plugin: "review" }, { name: "narrate", plugin: "review" }], []), [
+    'src/server/http.ts:1 → "Diff" (review)',
+    'src/server/http.ts:1 → "narrate" (review)',
+  ]);
+});
+
+test("plugin kind allowlist suppresses only the named file and literal", () => {
+  const files = new Map([["src/server/http.ts", 'const kind = "Diff";'], ["src/server/other.ts", 'const kind = "Diff";']]);
+  assert.deepEqual(checkPluginKindReferences(files, [{ name: "Diff", plugin: "review" }], [
+    { file: "src/server/http.ts", name: "Diff", reason: "A later plan moves this lookup into the review plugin." },
+  ]), ['src/server/other.ts:1 → "Diff" (review)']);
 });

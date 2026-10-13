@@ -3,6 +3,17 @@ import { dirname, join, normalize, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
+const PLUGIN_KIND_ALLOWLIST: { file: string; name: string; reason: string }[] = [
+  { file: "src/runtime/command-run.ts", name: "CommandRun", reason: "Shared runtime helper constructs the implement command artifact." },
+  { file: "src/runtime/plugins.ts", name: "investigate", reason: "Workflow's default phase id is consumed by the core runtime contract." },
+  { file: "src/server/http.ts", name: "Diff", reason: "The code-links route reads review's upstream revision; a later boundary plan must move this lookup." },
+  { file: "src/shared/types.ts", name: "CommandRun", reason: "The command artifact data shape is currently shared with core runtime and UI." },
+  { file: "src/shared/types.ts", name: "Diff", reason: "The Diff data shape is currently shared with core runtime and UI." },
+  { file: "src/web/ActivityStrip.tsx", name: "CommandRun", reason: "The shared activity log expands command output from this artifact." },
+  { file: "src/web/SessionView.tsx", name: "comment", reason: "The shared canvas represents comment drafts with this draft kind." },
+  { file: "src/web/chat-context.ts", name: "comment", reason: "The shared chat context exposes review comment drafts." },
+  { file: "src/web/graph.ts", name: "comment", reason: "The shared graph omits comment drafts from chat nodes." },
+];
 /** The registries list the plugins; only they import plugin manifests. */
 const REGISTRIES = new Set(["src/plugins/index", "src/plugins/web"]);
 const COMPOSITION_ROOTS = new Set(["src/runtime/create.ts", "src/server/main.ts", "src/mcp/session-server.ts", "src/cli.ts", "src/web/App.tsx", "src/web/SessionView.tsx", "src/web/ExportView.tsx", "src/web/main.tsx"]);
@@ -38,6 +49,22 @@ export function checkPluginBoundary(files: Map<string, string>): string[] {
   return errors.sort();
 }
 
+export function checkPluginKindReferences(files: Map<string, string>, kinds: { name: string; plugin: string }[], allowlist: { file: string; name: string; reason: string }[] = PLUGIN_KIND_ALLOWLIST): string[] {
+  const errors: string[] = [];
+  for (const [file, source] of files) {
+    if (file.startsWith("src/plugins/")) continue;
+    for (const { name, plugin } of kinds) {
+      if (allowlist.some((entry) => entry.file === file && entry.name === name)) continue;
+      const literal = new RegExp(`(["'\\x60])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\1`, "g");
+      for (const match of source.matchAll(literal)) {
+        const line = source.slice(0, match.index).split("\n").length;
+        errors.push(`${file}:${line} → "${name}" (${plugin})`);
+      }
+    }
+  }
+  return errors.sort();
+}
+
 async function walk(dir: string): Promise<string[]> {
   const entries = await readdir(join(ROOT, dir), { withFileTypes: true });
   return (await Promise.all(entries.map(async (entry) => {
@@ -50,7 +77,12 @@ async function walk(dir: string): Promise<string[]> {
 export async function checkFilesystem(): Promise<string[]> {
   const paths = await walk("src");
   const files = new Map(await Promise.all(paths.map(async (path) => [path, await readFile(join(ROOT, path), "utf8")] as const)));
-  return checkPluginBoundary(files);
+  const { plugins } = await import("../src/plugins/index.ts");
+  const kinds = plugins.flatMap((plugin) => [
+    ...Object.keys(plugin.artifactKinds ?? {}).map((name) => ({ name, plugin: plugin.id })),
+    ...(plugin.tasks ?? []).map((task) => ({ name: task.kind, plugin: plugin.id })),
+  ]);
+  return [...checkPluginBoundary(files), ...checkPluginKindReferences(files, kinds)];
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
