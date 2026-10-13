@@ -398,7 +398,7 @@ test("narrate reuses the latest Diff and rejects narrating it twice", async () =
   await post(`/api/sessions/${session.id}/narrate`, { base: "HEAD~1", head: "HEAD" });
   const first = await waitFor(async () => {
     const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();
-    return snapshot.tasks.some((task) => task.kind === "review" && task.status === "succeeded") ? snapshot : undefined;
+    return snapshot.tasks.some((task) => task.kind === "review" && task.status === "succeeded") && !rt.runningEpoch(session.id) ? snapshot : undefined;
   });
   const original = first.artifacts.find((item) => item.type === "Diff")!;
   const second = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { ...(original.data as DiffData), headSha: "new-head" }, provenance: { taskId: "test" } });
