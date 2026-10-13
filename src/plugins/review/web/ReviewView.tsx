@@ -1,5 +1,6 @@
+import { reviewClient } from "./client.ts";
 import { useMemo, useRef, useState } from "react";
-import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, useClosed, api } from "../../../web/plugin-api.ts";
+import { type Artifact, type DiffData, Canvas, FileViewContext, FilePanel, StackContext, TopbarExtras, type PhaseViewProps, type HunkRow, useClosed } from "../../../web/plugin-api.ts";
 import { latestNarrative, reviewGraph } from "./graph.ts";
 import { JumpContext, RevealContext, reviewCanvas } from "./canvas.tsx";
 import { diffNumber, interdiffOf, latestDiff } from "../shared/diffs.ts";
@@ -67,7 +68,7 @@ export function ReviewView({ state, models, drafts, readOnly = false, onSent, on
   </>;
   const session = <StackContext.Provider value={stack}><div className="session-body"><SymbolMarkContext.Provider value={symbolCard.marks}>{body}</SymbolMarkContext.Provider>{panels}{symbolCard.card}</div></StackContext.Provider>;
   const followSpecRef = async (ref: string) => {
-    const { specId } = await api.followSpecRef(state.session.id, ref);
+    const { specId } = await reviewClient.followSpecRef(state.session.id, ref);
     setSpecSelection(null);
     setDetails((current) => openDetail(current, { kind: "spec", specId }));
   };

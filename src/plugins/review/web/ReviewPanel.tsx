@@ -1,6 +1,7 @@
+import { reviewClient } from "./client.ts";
 import { useEffect, useRef, useState } from "react";
 import type { ReviewSubmissionData } from "../shared/types.ts";
-import { api, Box, type Id, Composer, Dialog, ErrorText, useAction } from "../../../web/plugin-api.ts";
+import { Box, type Id, Composer, Dialog, ErrorText, useAction } from "../../../web/plugin-api.ts";
 import type { SummaryNodeData } from "./graph.ts";
 import { mergeServerDraft } from "../shared/postable-comments.ts";
 
@@ -26,7 +27,7 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
     timer.current = null;
     if (body === review.body) return;
     serverBody.current = body;
-    void run(() => api.saveReviewDraft(sessionId, review.revision, body));
+    void run(() => reviewClient.saveReviewDraft(sessionId, review.revision, body));
   };
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -37,10 +38,10 @@ export function ReviewPanel({ sessionId, review }: { sessionId: Id; review: Summ
   const submit = async () => {
     clear();
     void run(async () => {
-      await api.submitReview(sessionId, { revision: review.revision, action, body });
+      await reviewClient.submitReview(sessionId, { revision: review.revision, action, body });
       setBody("");
       serverBody.current = "";
-      await api.saveReviewDraft(sessionId, review.revision, "");
+      await reviewClient.saveReviewDraft(sessionId, review.revision, "");
     });
   };
 

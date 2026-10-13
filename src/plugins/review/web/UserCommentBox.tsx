@@ -1,6 +1,7 @@
+import { reviewClient } from "./client.ts";
 import { useContext, useState, type SyntheticEvent } from "react";
 import type { ChangeNodeData } from "./graph.ts";
-import { IconButton, api, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
+import { IconButton, ChatActionsContext, Composer, useDraftText, useAction, ErrorText } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "../../../web/plugin-api.ts";
 
 type CommentItem = ChangeNodeData["comments"][number];
@@ -16,7 +17,7 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
   const saveDraft = async () => {
     if (!actions || !item.draft || !body.trim() || busy) return;
     void run(async () => {
-      const { artifactId } = await api.createComment(actions.sessionId, diffId, item.lines, body.trim());
+      const { artifactId } = await reviewClient.createComment(actions.sessionId, diffId, item.lines, body.trim());
       clearDraft();
       actions.onDiscard(item.draft!.id);
       inline?.move(item.draft!.id, artifactId);
@@ -24,11 +25,11 @@ export function UserCommentBox({ item, diffId }: { item: CommentItem; diffId: st
   };
   const saveEdit = async () => {
     if (!actions || !item.artifact || busy) return;
-    void run(async () => { await api.editComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id, body.trim()); setEditing(false); });
+    void run(async () => { await reviewClient.editComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id, body.trim()); setEditing(false); });
   };
   const remove = async () => {
     if (!actions || !item.artifact || busy) return;
-    void run(() => api.deleteComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id));
+    void run(() => reviewClient.deleteComment(actions.sessionId, item.artifact!.data.replaces ?? item.artifact!.id));
   };
   return <div className="user-comment-node nodrag nopan" data-testid="user-comment" aria-label={title} onMouseDown={stop} onClick={stop}>
     {item.draft && <IconButton label="Discard comment" className="link-button user-comment-discard" onClick={() => { clearDraft(); actions?.onDiscard(item.draft!.id); }}>×</IconButton>}

@@ -10,11 +10,13 @@ import { InvestigationStepNode } from "./nodes/InvestigationStepNode.tsx";
 import { InvestigationTestsNode } from "./nodes/InvestigationTestsNode.tsx";
 import { LocationNode } from "./nodes/LocationNode.tsx";
 import { MemoriesPanel } from "./MemoriesPanel.tsx";
+import { implementClient } from "./client.ts";
 
 export const implementWeb: WebPlugin = {
   id: "implement",
   phaseViews: { investigate: { Body: InvestigateView }, implement: { Body: ImplementView }, reviewerComments: { Body: ReviewerCommentsView } },
   workflowPhase: { implement: "investigate" },
+  steer: { implement: (sessionId, text, live) => implementClient.steer(sessionId, text, live) },
   conversationItems: { Steer: SteerItem, MemoryNotice: MemoryNoticeItem },
   conversationTasks: ["distillSteer"],
   repoPanels: [MemoriesPanel],

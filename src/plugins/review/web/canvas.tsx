@@ -1,5 +1,6 @@
+import { reviewClient } from "./client.ts";
 import { createContext, useContext, useEffect, type MutableRefObject } from "react";
-import { type CanvasModel, type CanvasProviderProps, DiagramStepContext, api } from "../../../web/plugin-api.ts";
+import { type CanvasModel, type CanvasProviderProps, DiagramStepContext } from "../../../web/plugin-api.ts";
 import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "../../../web/plugin-api.ts";
@@ -42,7 +43,7 @@ export const reviewCanvas: CanvasModel = {
       ] : []),
   guide: (graph, place) => guideEntries(graph, place).map(({ change, ...step }) => ({
     ...step,
-    ...(change ? { toggleReviewed: (sessionId: string) => api.setReviewed(sessionId, change.narrativeId, change.change.id, !change.reviewed) } : {}),
+    ...(change ? { toggleReviewed: (sessionId: string) => reviewClient.setReviewed(sessionId, change.narrativeId, change.change.id, !change.reviewed) } : {}),
   })),
   layers: { list: LAYERS.map((id) => ({ id, label: LAYER_LABEL[id] })), hide: (graph, hidden) => layerGraph(graph, hidden as ReadonlySet<Layer>) },
   places: reviewPlaces,

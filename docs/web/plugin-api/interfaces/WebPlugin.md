@@ -62,6 +62,12 @@
 
 ***
 
+### steer?
+
+> `optional` **steer?**: `Record`\<`string`, (`sessionId`, `text`, `live`) => `Promise`\<`unknown`\>\>
+
+***
+
 ### workflowPhase?
 
 > `optional` **workflowPhase?**: `Record`\<`string`, `string`\>

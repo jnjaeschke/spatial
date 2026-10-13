@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, ChatMessageData } from "../../src/shared/types.ts";
 import { interleave } from "../../src/web/conversation-items.ts";
+import { steerFor } from "../../src/web/conversation-items.ts";
 
 const at = (id: string, createdAt: string) => ({ id, createdAt }) as Artifact;
 
@@ -11,4 +12,12 @@ test("messages and items are in creation order; at the same time a message comes
   assert.deepEqual(interleave(messages, items).map((entry) => "message" in entry ? entry.message.id : entry.item.id), ["M1", "I1", "M2", "I2"]);
   assert.deepEqual(interleave([], []), []);
   assert.deepEqual(interleave(messages, []).map((entry) => "message" in entry), [true, true]);
+});
+
+test("steering is offered only for a workflow with a registered handler", () => {
+  const implement = () => Promise.resolve();
+  const plugins = [{ id: "implement", steer: { implement } }];
+  assert.equal(steerFor("implement", plugins), implement);
+  assert.equal(steerFor("review", plugins), undefined);
+  assert.equal(steerFor(null, plugins), undefined);
 });

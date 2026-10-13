@@ -1,5 +1,6 @@
+import { reviewClient } from "./client.ts";
 import { Fragment, useContext, useState, type SyntheticEvent } from "react";
-import { api, ChatActionsContext, CollapseContext, Composer, Conversation, ErrorText, SidePanel, useAction, useDraftText, type ChatActions, type Graph } from "../../../web/plugin-api.ts";
+import { ChatActionsContext, CollapseContext, Composer, Conversation, ErrorText, SidePanel, useAction, useDraftText, type ChatActions, type Graph } from "../../../web/plugin-api.ts";
 import { isReviewKind, phabCommentCollapseId, type PhabThreadData } from "./graph.ts";
 import { PhabComment } from "./PhabComment.tsx";
 import { UserCommentBox } from "./UserCommentBox.tsx";
@@ -26,15 +27,15 @@ function PhabReply({ data }: { data: PhabThreadData }) {
   const save = () => {
     if (!actions || !text.trim() || busy) return;
     void run(async () => {
-      if (data.replyLines) await api.createComment(actions.sessionId, data.diffId, data.replyLines, text.trim(), data.replyTo);
-      else await api.replyInGeneralComment(actions.sessionId, data.replyTo, text.trim());
+      if (data.replyLines) await reviewClient.createComment(actions.sessionId, data.diffId, data.replyLines, text.trim(), data.replyTo);
+      else await reviewClient.replyInGeneralComment(actions.sessionId, data.replyTo, text.trim());
       clearDraft();
       setOpen(false);
     });
   };
   const draft = () => {
     if (!actions || !chat || busy) return;
-    void run(async () => { setText((await api.draftPhabReply(actions.sessionId, data.anchorId, chat.threadId, actions.models.default)).body); setOpen(true); });
+    void run(async () => { setText((await reviewClient.draftPhabReply(actions.sessionId, data.anchorId, chat.threadId, actions.models.default)).body); setOpen(true); });
   };
   return <div className="phab-reply nodrag nopan" data-testid="phab-reply" onMouseDown={stop} onClick={stop}>
     {open ? <>

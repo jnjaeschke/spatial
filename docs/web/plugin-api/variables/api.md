@@ -60,50 +60,6 @@
 
 `Promise`\<\{ `links`: `Record`\<`string`, `string` \| `null`\>; \}\>
 
-### createComment
-
-> **createComment**: (`sessionId`, `diffId`, `lines`, `body`, `replyTo?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### diffId
-
-`string`
-
-##### lines
-
-###### end
-
-`number`
-
-###### path
-
-`string`
-
-###### side
-
-`"new"` \| `"old"`
-
-###### start
-
-`number`
-
-##### body
-
-`string`
-
-##### replyTo?
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
 ### decide
 
 > **decide**: (`sessionId`, `decisionId`, `option`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
@@ -129,50 +85,6 @@
 [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
 
 ###### text?
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
-### decideFinding
-
-> **decideFinding**: (`sessionId`, `findingId`, `decision`, `llm?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### findingId
-
-`string`
-
-##### decision
-
-`"accepted"` \| `"dismissed"`
-
-##### llm?
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
-### deleteComment
-
-> **deleteComment**: (`sessionId`, `stableId`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### stableId
 
 `string`
 
@@ -208,54 +120,6 @@
 
 `Promise`\<[`DirectoryListing`](../../../shared/types/interfaces/DirectoryListing.md)\>
 
-### draftPhabReply
-
-> **draftPhabReply**: (`sessionId`, `anchorId`, `threadId`, `llm?`) => `Promise`\<\{ `body`: `string`; `replyId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### anchorId
-
-`string`
-
-##### threadId
-
-`string`
-
-##### llm?
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-#### Returns
-
-`Promise`\<\{ `body`: `string`; `replyId`: `string`; \}\>
-
-### editComment
-
-> **editComment**: (`sessionId`, `stableId`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### stableId
-
-`string`
-
-##### body
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
 ### enableMcpServer
 
 > **enableMcpServer**: (`sessionId`, `threadId`, `server`) => `Promise`\<\{ `artifactId`: `string`; \}\>
@@ -278,46 +142,6 @@
 
 `Promise`\<\{ `artifactId`: `string`; \}\>
 
-### followSpecRef
-
-> **followSpecRef**: (`sessionId`, `ref`) => `Promise`\<\{ `specId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### ref
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `specId`: `string`; \}\>
-
-### mapSpecSteps
-
-> **mapSpecSteps**: (`sessionId`, `specId`, `llm`) => `Promise`\<\{ `taskId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### specId
-
-`string`
-
-##### llm
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-#### Returns
-
-`Promise`\<\{ `taskId`: `string`; \}\>
-
 ### models
 
 > **models**: () => `Promise`\<[`ModelsResponse`](../../../shared/types/interfaces/ModelsResponse.md)\>
@@ -326,26 +150,6 @@
 
 `Promise`\<[`ModelsResponse`](../../../shared/types/interfaces/ModelsResponse.md)\>
 
-### narrate
-
-> **narrate**: (`id`, `body`) => `Promise`\<\{ \}\>
-
-#### Parameters
-
-##### id
-
-`string`
-
-##### body
-
-###### llm
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-#### Returns
-
-`Promise`\<\{ \}\>
-
 ### note
 
 > **note**: (`sessionId`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
@@ -353,64 +157,6 @@
 #### Parameters
 
 ##### sessionId
-
-`string`
-
-##### body
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
-### postReplies
-
-> **postReplies**: (`sessionId`) => `Promise`\<\{ `posted`: `number`; `skipped`: `object`[]; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `posted`: `number`; `skipped`: `object`[]; \}\>
-
-### regenerateComment
-
-> **regenerateComment**: (`sessionId`, `findingId`, `llm?`) => `Promise`\<\{ `taskId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### findingId
-
-`string`
-
-##### llm?
-
-[`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-#### Returns
-
-`Promise`\<\{ `taskId`: `string`; \}\>
-
-### replyInGeneralComment
-
-> **replyInGeneralComment**: (`sessionId`, `replyTo`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### replyTo
 
 `string`
 
@@ -472,50 +218,6 @@
 
 `Promise`\<`unknown`\>
 
-### saveComment
-
-> **saveComment**: (`sessionId`, `findingId`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### findingId
-
-`string`
-
-##### body
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
-### saveReviewDraft
-
-> **saveReviewDraft**: (`sessionId`, `revision`, `body`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### revision
-
-`number`
-
-##### body
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
-
 ### sessions
 
 > **sessions**: () => `Promise`\<[`SessionListing`](../../../shared/types/interfaces/SessionListing.md)[]\>
@@ -523,32 +225,6 @@
 #### Returns
 
 `Promise`\<[`SessionListing`](../../../shared/types/interfaces/SessionListing.md)[]\>
-
-### setReviewed
-
-> **setReviewed**: (`sessionId`, `narrativeId`, `changeId`, `reviewed`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### narrativeId
-
-`string`
-
-##### changeId
-
-`string`
-
-##### reviewed
-
-`boolean`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
 
 ### start
 
@@ -590,58 +266,6 @@
 
 `Promise`\<[`SessionState`](../../../shared/types/interfaces/SessionState.md)\>
 
-### steer
-
-> **steer**: (`sessionId`, `text`, `live`) => `Promise`\<\{ `steerId`: `string`; \}\>
-
-`live`: hand the text to the running agent instead of stopping and rerunning it.
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### text
-
-`string`
-
-##### live?
-
-`boolean` = `false`
-
-#### Returns
-
-`Promise`\<\{ `steerId`: `string`; \}\>
-
-### submitReview
-
-> **submitReview**: (`sessionId`, `body`) => `Promise`\<\{ `inlines`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### body
-
-###### action
-
-`"accept"` \| `"comment"` \| `"request-changes"`
-
-###### body
-
-`string`
-
-###### revision
-
-`number`
-
-#### Returns
-
-`Promise`\<\{ `inlines`: `number`; `revision`: `string`; `skipped`: `object`[]; \}\>
-
 ### taskActivity
 
 > **taskActivity**: (`sessionId`, `taskId`) => `Promise`\<[`TaskActivityResponse`](../../../shared/types/interfaces/TaskActivityResponse.md)\>
@@ -659,32 +283,6 @@
 #### Returns
 
 `Promise`\<[`TaskActivityResponse`](../../../shared/types/interfaces/TaskActivityResponse.md)\>
-
-### triageComment
-
-> **triageComment**: (`sessionId`, `commentId`, `action`, `text?`) => `Promise`\<\{ `artifactId`: `string`; \}\>
-
-#### Parameters
-
-##### sessionId
-
-`string`
-
-##### commentId
-
-`string`
-
-##### action
-
-`"reply"` \| `"ignore"` \| `"address"`
-
-##### text?
-
-`string`
-
-#### Returns
-
-`Promise`\<\{ `artifactId`: `string`; \}\>
 
 ### turn
 

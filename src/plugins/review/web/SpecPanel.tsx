@@ -1,6 +1,7 @@
+import { reviewClient } from "./client.ts";
 import { createContext, useMemo, useState, type KeyboardEvent } from "react";
 import type { LineRange, SpecReferenceData, StepLink } from "../../spec/web/api.ts";
-import { type Artifact, type Id, type LlmSelection, type SessionState, SidePanel, api, numberLines } from "../../../web/plugin-api.ts";
+import { type Artifact, type Id, type LlmSelection, type SessionState, SidePanel, numberLines } from "../../../web/plugin-api.ts";
 import { parseSteps } from "../../spec/web/api.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 import { ErrorText, isActive, useAction } from "../../../web/plugin-api.ts";
@@ -67,7 +68,7 @@ function ResolvedSpecPanel({ state, specId, latest, llm, onClose, onBack, onFocu
   return <>
     <SidePanel className="spec-panel" title={`${resolved.spec}#${resolved.anchor}`} closeLabel="Close spec" onClose={onClose} testId="spec-panel" onKeyDown={keydown} onBack={onBack}>
       <SpecSectionView spec={spec} status={hasSupportedChanges && <><div className="spec-view-status" data-testid="spec-map-status">{running ? "Mapping steps…" : task?.status === "failed" ? `Mapping failed: ${task.error}` : map ? `${mapped} of ${steps.length} steps mapped${deviates ? ` · ${deviates} deviate${deviates === 1 ? "s" : ""}` : ""} · ${unexplainedAdds} added line${unexplainedAdds === 1 ? "" : "s"} unexplained` : "Steps not mapped yet"}{map?.data.dropped.length ? <span className="badge muted" title={map.data.dropped.join("\n")}>{map.data.dropped.length} dropped</span> : null}</div>
-        {!running && llm && <button onClick={() => void action.run(() => api.mapSpecSteps(state.session.id, specId, llm))}>{map || task ? "Map again" : "Map steps"}</button>}<ErrorText error={action.error} /></>}
+        {!running && llm && <button onClick={() => void action.run(() => reviewClient.mapSpecSteps(state.session.id, specId, llm))}>{map || task ? "Map again" : "Map steps"}</button>}<ErrorText error={action.error} /></>}
          children={<>{hasSupportedChanges && <div className="spec-legend">{(["implements", "partial", "structural", "deviates"] as const).map((kind) => <span key={kind} className={`legend map-${kind}`}>{kind}</span>)}{(["plumbing", "error-path", "test", "unexplained"] as const).map((reason) => <span key={reason} className={`legend map-${reason}`}>{reason}</span>)}<span className="legend map-none">not mapped</span></div>}
         <div className="spec-steps"><ol>{steps.map((step) => { const status = statuses.get(step.number)!; const notes = notesFor(step.number); return <li key={step.number} style={{ paddingLeft: `${step.depth * 18}px` }}>
           <button className={`spec-step status-${status}${selected === step.number ? " selected" : ""}`} data-testid={`step-${step.number}`} onClick={() => select(step.number)}><span className="step-number">{step.number}</span><span className="step-text">{step.text}</span><span className="step-status">{STATUS_LABEL[status]}</span></button>

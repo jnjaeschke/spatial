@@ -40,7 +40,6 @@ export const api = {
   start: (path: string, text: string, llm: LlmSelection, writeMode: WriteMode) => post<Session | StartQuestion>("/api/start", { path, text, llm, writeMode }),
   answerStart: (question: string, answer: number | string) => post<Session | StartQuestion>("/api/start", { question, answer }),
   state: (id: string) => get<SessionState>(`/api/sessions/${id}/state`),
-  narrate: (id: string, body: { llm: LlmSelection }) => post<{}>(`/api/sessions/${id}/narrate`, body),
   runAction: (path: string) => {
     if (!path.startsWith("/api/sessions/")) return Promise.reject(new Error("Invalid action path"));
     return post<unknown>(path, {});
@@ -51,41 +50,11 @@ export const api = {
   note: (sessionId: string, body: string) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/notes`, { body }),
   enableMcpServer: (sessionId: string, threadId: string, server: string) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
-  setReviewed: (sessionId: string, narrativeId: string, changeId: string, reviewed: boolean) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/narratives/${narrativeId}/changes/${changeId}/reviewed`, { reviewed }),
   codeLinks: (sessionId: string, tokens: string[]) => post<{ links: Record<string, string | null> }>(`/api/sessions/${sessionId}/code-links`, { tokens }),
-  saveComment: (sessionId: string, findingId: string, body: string) =>
-    put<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment`, { body }),
-  createComment: (sessionId: string, diffId: string, lines: NonNullable<ChatThreadData["lines"]>, body: string, replyTo?: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments`, { diffId, lines, body, replyTo }),
-  editComment: (sessionId: string, stableId: string, body: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments/${stableId}`, { body }),
-  deleteComment: (sessionId: string, stableId: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/comments/${stableId}`, { deleted: true }),
-  saveReviewDraft: (sessionId: string, revision: number, body: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/review-draft`, { revision, body }),
-  replyInGeneralComment: (sessionId: string, replyTo: string, body: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/review-draft/reply`, { replyTo, body }),
-  draftPhabReply: (sessionId: string, anchorId: string, threadId: string, llm?: LlmSelection) =>
-    post<{ replyId: string; body: string }>(`/api/sessions/${sessionId}/phab-threads/${anchorId}/draft-reply`, { threadId, llm }),
-  followSpecRef: (sessionId: string, ref: string) => post<{ specId: string }>(`/api/sessions/${sessionId}/spec-refs`, { ref }),
-  mapSpecSteps: (sessionId: string, specId: string, llm: LlmSelection) => post<{ taskId: string }>(`/api/sessions/${sessionId}/specs/${specId}/map`, { llm }),
-  regenerateComment: (sessionId: string, findingId: string, llm?: LlmSelection) =>
-    post<{ taskId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/comment/regenerate`, { llm }),
-  submitReview: (sessionId: string, body: { revision: number; action: "comment" | "accept" | "request-changes"; body: string }) =>
-    post<{ inlines: number; skipped: { source: string; reason: string }[]; revision: string }>(`/api/sessions/${sessionId}/review-submit`, body),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
   taskActivity: (sessionId: string, taskId: string) => get<TaskActivityResponse>(`/api/sessions/${sessionId}/tasks/${taskId}/activity`),
-  /** `live`: hand the text to the running agent instead of stopping and rerunning it. */
-  steer: (sessionId: string, text: string, live = false) => post<{ steerId: string }>(`/api/sessions/${sessionId}/steer`, { text, ...(live ? { live } : {}) }),
   decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>
     post<{ artifactId: string }>(`/api/sessions/${sessionId}/decisions/${decisionId}`, { option, ...body }),
-  decideFinding: (sessionId: string, findingId: string, decision: "accepted" | "dismissed", llm?: LlmSelection) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/findings/${findingId}/decide`, { decision, llm }),
-  triageComment: (sessionId: string, commentId: string, action: "address" | "reply" | "ignore", text?: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/reviewer-comments/${commentId}/triage`, { action, ...(text ? { text } : {}) }),
-  postReplies: (sessionId: string) =>
-    post<{ posted: number; skipped: { comment: string; reason: string }[] }>(`/api/sessions/${sessionId}/reviewer-comments/post-replies`, {}),
   retry: (sessionId: string) => post<{}>(`/api/sessions/${sessionId}/retry`, {}),
 };
 

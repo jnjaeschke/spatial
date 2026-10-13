@@ -10,10 +10,6 @@
 
 ## Type Declaration
 
-### canSteer?
-
-> `optional` **canSteer?**: `boolean`
-
 ### decision?
 
 > `optional` **decision?**: [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<[`DecisionData`](../../../shared/types/interfaces/DecisionData.md)\> \| `null`
@@ -39,3 +35,21 @@
 #### Returns
 
 `ReactNode`
+
+### steer()?
+
+> `optional` **steer**(`text`, `live`): `Promise`\<`unknown`\>
+
+#### Parameters
+
+##### text
+
+`string`
+
+##### live
+
+`boolean`
+
+#### Returns
+
+`Promise`\<`unknown`\>

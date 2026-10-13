@@ -12,5 +12,6 @@ export function MainConversation({ data, decision = null }: { data: Conversation
     const Item = context.components[artifact.type]!;
     return <Item artifact={artifact} artifacts={context.artifacts} sessionId={context.sessionId} repoDir={context.repoDir} worktree={context.worktree} />;
   } : undefined;
-  return <Conversation {...data} decision={decision} canSteer={data.epochRunning === true} items={items} renderItem={renderItem} lead={data.threadId === null ? <div className="msg user">{data.prompt}</div> : undefined} />;
+  const steer = data.epochRunning && context?.steer ? (text: string, live: boolean) => context.steer!(context.sessionId, text, live) : undefined;
+  return <Conversation {...data} decision={decision} steer={steer} items={items} renderItem={renderItem} lead={data.threadId === null ? <div className="msg user">{data.prompt}</div> : undefined} />;
 }

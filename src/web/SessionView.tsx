@@ -21,7 +21,7 @@ import { RouteContext, routeUrl, sessionViewOf, showSessionView } from "./routes
 import { Segmented } from "./Segmented.tsx";
 import { ReplyActionsContext, derivedArtifacts } from "./reply-actions.ts";
 import { webConversationItems, webConversationTasks, webReplyActions } from "../plugins/web.ts";
-import { ConversationItemsContext } from "./conversation-items.ts";
+import { ConversationItemsContext, steerFor } from "./conversation-items.ts";
 import { SearchfoxProvider } from "./SearchfoxProvider.tsx";
 import { TaskProgressContext } from "./TaskControls.tsx";
 import { OpenActivityLogContext, type OpenLog } from "./activity-log-context.ts";
@@ -69,7 +69,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const latestEpoch = state.epochs.at(-1) ?? null;
   const past = viewed !== null && viewed !== latestEpoch?.n ? state.epochs.find((e) => e.n === viewed) ?? null : null;
   const shown = past ? stateAtEpoch(state, past.n) : state;
-  const conversationItems = { components: webConversationItems, artifacts: shown.artifacts, sessionId, repoDir: state.session.repoDir, worktree: state.session.worktree };
+  const conversationItems = { components: webConversationItems, artifacts: shown.artifacts, sessionId, repoDir: state.session.repoDir, worktree: state.session.worktree, steer: steerFor(state.session.workflow, webPlugins) };
   const { phase, view } = activePhaseView(webPlugins, shown);
   const extra = sessionViews(webPlugins, shown, viewId);
   const Body = extra.active?.Body ?? view?.Body;

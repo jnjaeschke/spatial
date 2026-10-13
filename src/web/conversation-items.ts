@@ -1,11 +1,17 @@
 import { createContext, type ComponentType } from "react";
 import type { Artifact, ChatMessageData } from "../shared/types.ts";
+import type { WebPlugin } from "./plugin-api.ts";
 
 /** What a plugin component shown in the root conversation gets: its artifact and the session state shown around it. */
 export interface ConversationItemProps { artifact: Artifact; artifacts: Artifact[]; sessionId: string; repoDir: string; worktree: string }
 
 /** The registered conversation item components by artifact type, with the session they render for. */
-export const ConversationItemsContext = createContext<{ components: Record<string, ComponentType<ConversationItemProps>>; artifacts: Artifact[]; sessionId: string; repoDir: string; worktree: string } | null>(null);
+export const ConversationItemsContext = createContext<{ components: Record<string, ComponentType<ConversationItemProps>>; artifacts: Artifact[]; sessionId: string; repoDir: string; worktree: string; steer?: NonNullable<WebPlugin["steer"]>[string] } | null>(null);
+
+/** Steering is available only when the session workflow has a registered handler. */
+export function steerFor(workflow: string | null, plugins: { steer?: WebPlugin["steer"] }[]): ((sessionId: string, text: string, live: boolean) => Promise<unknown>) | undefined {
+  return workflow ? Object.assign({}, ...plugins.map((plugin) => plugin.steer ?? {}))[workflow] : undefined;
+}
 
 export type ConversationEntry = { message: Artifact<ChatMessageData> } | { item: Artifact };
 

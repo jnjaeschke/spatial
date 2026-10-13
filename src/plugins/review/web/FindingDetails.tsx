@@ -1,5 +1,6 @@
+import { reviewClient } from "./client.ts";
 import { useContext, useState } from "react";
-import { IconButton, type Graph, type ChatActions, api, SidePanel, ChatActionsContext, AnswerMarkdown, Conversation, Composer, ErrorText, taskState, useAction } from "../../../web/plugin-api.ts";
+import { IconButton, type Graph, type ChatActions, SidePanel, ChatActionsContext, AnswerMarkdown, Conversation, Composer, ErrorText, taskState, useAction } from "../../../web/plugin-api.ts";
 import { findingsOf, type FindingData } from "./graph.ts";
 
 /** Finds the finding of a finding detail. */
@@ -30,7 +31,7 @@ export function FindingBody({ data }: { data: FindingData }) {
   const statusLabel = data.status === "partially" ? "partially addressed" : data.status === "not_addressed" ? "not addressed" : data.status;
   const finding = <div className="msg assistant finding-body"><AnswerMarkdown text={data.body} hunks={data.hunks} diffId={data.diffId} /></div>;
   const decide = (decision: "accepted" | "dismissed") => {
-    if (actions) void run(() => api.decideFinding(actions.sessionId, data.findingId, decision, actions.models.default));
+    if (actions) void run(() => reviewClient.decideFinding(actions.sessionId, data.findingId, decision, actions.models.default));
   };
   return <section className={`finding-details severity-${data.severity}${dismissed ? " dismissed" : ""}${data.outdated ? " outdated" : ""}`} data-testid={`finding-details-${data.findingId}`}>
     <header className="finding-detail-title"><span className={`badge severity-${data.severity}`}>{data.severity}</span><span className="category">{data.category}</span>{!data.ai && <span className="badge muted" title="Found by the runtime, not an LLM">spec check</span>}{data.status !== "open" && <span className={`badge status-${data.status}`} data-testid="finding-status">{statusLabel}</span>}{data.outdated && <span className="badge outdated" data-testid="finding-outdated">outdated</span>}{data.fromEpoch !== null && <span className="epoch-marker" data-testid="finding-epoch">epoch {data.fromEpoch}</span>}<strong>{data.title}</strong></header>
@@ -51,8 +52,8 @@ function CommentEditor({ findingId, comment, postedTo }: Pick<FindingData, "find
   const [body, setBody] = useState(comment?.body ?? "");
   const { busy: saving, error, run } = useAction();
   const { busy, failed: taskError } = taskState(actions?.tasks ?? [], ["comment"], (input) => (input as { findingId?: string }).findingId === findingId);
-  const save = () => { if (actions) void run(() => api.saveComment(actions.sessionId, findingId, body)); };
-  const regenerate = () => { if (actions) void run(() => api.regenerateComment(actions.sessionId, findingId, actions.models.default)); };
+  const save = () => { if (actions) void run(() => reviewClient.saveComment(actions.sessionId, findingId, body)); };
+  const regenerate = () => { if (actions) void run(() => reviewClient.regenerateComment(actions.sessionId, findingId, actions.models.default)); };
   if (!comment && busy) return <div className="comment-draft">Generating comment…</div>;
   if (!comment && taskError) return <div className="comment-draft failed">{taskError}</div>;
   return <div className="comment-draft">

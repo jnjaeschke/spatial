@@ -1,6 +1,7 @@
+import { implementClient } from "./client.ts";
 import { useState } from "react";
 import type { PhaseViewProps } from "../../../web/plugin-api.ts";
-import { api, Composer, ErrorText, plural, Segmented, useAction } from "../../../web/plugin-api.ts";
+import { Composer, ErrorText, plural, Segmented, useAction } from "../../../web/plugin-api.ts";
 import { commentPlan, type CommentPlanItem } from "../shared/comment-plan.ts";
 import type { CommentAction } from "../shared/types.ts";
 import { PhaseShell } from "./api.ts";
@@ -10,7 +11,7 @@ function CommentItem({ sessionId, item, readOnly }: { sessionId: string; item: C
   const [action, setAction] = useState<CommentAction>(item.action);
   const [text, setText] = useState(item.text ?? "");
   const { error, run } = useAction();
-  const save = (next: CommentAction, value: string) => run(() => api.triageComment(sessionId, item.comment.id, next, value.trim() || undefined));
+  const save = (next: CommentAction, value: string) => run(() => implementClient.triageComment(sessionId, item.comment.id, next, value.trim() || undefined));
   return <li className="reviewer-comment" data-testid="reviewer-comment" data-action={item.action}>
     <div className="reviewer-comment-head"><strong>{c.author}</strong> on D{c.revision}{c.path !== undefined && c.line !== undefined ? <> · <code>{c.path}:{c.line}</code></> : " · general comment"}</div>
     {c.quote !== undefined && <pre className="reviewer-comment-quote">{c.quote}</pre>}
@@ -39,7 +40,7 @@ export function ReviewerCommentsView({ state, epoch, readOnly = false }: PhaseVi
     {/* The text box is seeded from the interpretation, which can arrive after the comment shows: remount then. */}
     <ul className="reviewer-comments">{items.map((item) => <CommentItem key={`${item.comment.data.phid}:${item.interpretation?.id ?? ""}`} sessionId={state.session.id} item={item} readOnly={readOnly} />)}</ul>
     {!readOnly && replies > 0 && <><button type="button" data-testid="post-replies" disabled={busy} onClick={() => void run(async () => {
-      const r = await api.postReplies(state.session.id);
+      const r = await implementClient.postReplies(state.session.id);
       setResult(`Posted ${plural(r.posted, "draft reply", "draft replies")}${r.skipped.length ? `; skipped ${r.skipped.length}: ${r.skipped.map((s) => s.reason).join("; ")}` : ""}`);
     })}>Post {plural(replies, "reply", "replies")} as Phabricator drafts</button><ErrorText error={error} />
     </>}
