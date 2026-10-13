@@ -4,6 +4,7 @@ import { defineTask } from "../../runtime/tasks.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
 import { prependRepoContext } from "../../runtime/repo-context.ts";
+import { sessionProfile } from "../../runtime/profiles.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as object;
@@ -52,7 +53,8 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       .map((artifact) => artifact.data.server);
     const enabledRepoMcp = Object.fromEntries([...new Set(enabledNames)].filter((name) => ctx.repoRequestableMcp[name]).map((name) => [name, ctx.repoRequestableMcp[name]!]));
     const requestableNames = Object.keys(ctx.repoRequestableMcp);
-    const systemBody = SYSTEM + ctx.chat.replyFields.map((field) => "\n\n" + field.prompt).join("");
+    const notes = (await sessionProfile(ctx.repoProfiles, view, ctx.repo)).promptNotes;
+    const systemBody = SYSTEM + (notes ? `\n\n${notes}` : "") + ctx.chat.replyFields.map((field) => "\n\n" + field.prompt).join("");
     const system = prependRepoContext(systemBody, ctx) + (requestableNames.length
       ? `\n\n# Repo MCP servers available on request\nThe following server(s) are not active but can be enabled by the user: ${requestableNames.join(", ")}.\nInclude the server name in \`requestMcpServers\` in your reply to request access.`
       : "");

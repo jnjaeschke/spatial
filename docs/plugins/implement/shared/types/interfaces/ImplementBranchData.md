@@ -31,9 +31,3 @@ Recorded (verified) by the start: where the work lives; `baseSha` is the commit 
 ### checkout
 
 > **checkout**: `"new-branch"` \| `"current-branch"`
-
-***
-
-### profile
-
-> **profile**: `string`

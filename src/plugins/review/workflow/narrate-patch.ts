@@ -1,8 +1,8 @@
-import { isGeckoRepo, type DiffData, type Id, type LlmSelection, type Runtime } from "../../../plugin-api.ts";
+import { sessionProfile, sessionView, type DiffData, type Id, type LlmSelection, type Runtime } from "../../../plugin-api.ts";
 import { diffsOf, diffNumber, interdiffOf, narrativeOf } from "../shared/diffs.ts";
 import { mappableSpecs } from "../tasks/map-spec-steps/task.ts";
 
-/** narrate → (carryFindings) → resolveSpecRefs → review for an imported Diff, with introducedSymbols, mapSpecSteps for each spec section with steps and, in Gecko repos, fetchBugs → summarizeBug alongside the review. */
+/** narrate → (carryFindings) → resolveSpecRefs → review for an imported Diff, with introducedSymbols, mapSpecSteps for each spec section with steps and, when the repo profile can fetch bugs, fetchBugs → summarizeBug alongside the review. */
 export async function narrateDiff(rt: Runtime, sessionId: Id, diffId: Id, llm?: LlmSelection, recheck?: Id[]): Promise<void> {
   const symbols = rt.run(sessionId, "introducedSymbols", { diffId }).catch(() => undefined);
   const artifacts = rt.store.listArtifacts(sessionId);
@@ -18,7 +18,8 @@ export async function narrateDiff(rt: Runtime, sessionId: Id, diffId: Id, llm?: 
   const diff = rt.store.getArtifact<DiffData>(diffId).data;
   const namesBug = diff.commits.some((commit) => /\bBug \d+\b/i.test(commit.subject));
   // Failed mappings and bug lookups stay visible on their task records; the review is complete without them.
-  const bugs = isGeckoRepo(rt.store.getSession(sessionId).worktree) && namesBug
+  const profile = await sessionProfile(rt.plugins.repoProfiles, sessionView(rt.store, sessionId), rt.store.getSession(sessionId).worktree);
+  const bugs = profile.fetchBug && namesBug
     ? rt.run<{ reportIds: Id[] }>(sessionId, "fetchBugs", { diffId }).then(({ reportIds }) => Promise.allSettled(reportIds.map((reportId) => rt.run(sessionId, "summarizeBug", { reportId, llm })))).catch(() => undefined)
     : Promise.resolve();
   const view = { artifacts: rt.store.listArtifacts(sessionId), links: rt.store.listLinks(sessionId) };

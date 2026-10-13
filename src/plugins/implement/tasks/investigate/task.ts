@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
-import { type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, schemaErrors, verifyDiagramAtBase } from "../../../../plugin-api.ts";
+import { type ChatThreadData, type Id, type JsonSchema, LlmOutputError, type LlmSelection, defineTask, diagramSchema, makeGitWriter, prependRepoContext, schemaErrors, sessionProfile, verifyDiagramAtBase } from "../../../../plugin-api.ts";
 import { resolveSpecReference } from "../../../spec/api.ts";
 import type { AcceptanceCheck, InvestigationData } from "../../shared/types.ts";
 import { requireCheckoutOn } from "../../branch.ts";
-import { requireProfile } from "../../profiles.ts";
 import { verifyLocations } from "../../runtime/locations.ts";
 import { verifyChecks } from "../../runtime/checks.ts";
 import { steerSections, steersOf } from "../../runtime/steers.ts";
@@ -15,7 +14,7 @@ const SCHEMA = { ...BASE_SCHEMA, required: [...BASE_SCHEMA.required, "diagram"],
 const MAX_RETRIES = 2;
 
 /** Input of the investigate phase and task. `previous` is set on a revision: the Investigation to improve and the user's text. */
-export interface InvestigateInput { request: string; profile: string; baseSha: string; branch: string; previous?: { id: Id; text: string | null }; llm?: LlmSelection }
+export interface InvestigateInput { request: string; baseSha: string; branch: string; previous?: { id: Id; text: string | null }; llm?: LlmSelection }
 
 interface RawCheck { kind: AcceptanceCheck["kind"]; path: string | null; subtests: string[]; command: string | null; goal: string | null }
 /** The check a reply entry names, or why it is unusable. */
@@ -45,8 +44,8 @@ const listProblems = (problems: string[]) => problems.map((problem) => `- ${prob
 
 export const investigate = defineTask<InvestigateInput, { investigationId: Id; droppedLocations: string[] }>({
   kind: "investigate",
-  async run(ctx, { request, profile: profileId, baseSha, branch, previous, llm }) {
-    const profile = requireProfile(ctx.repoProfiles, profileId);
+  async run(ctx, { request, baseSha, branch, previous, llm }) {
+    const profile = await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo);
     const current = await makeGitWriter(ctx.repo).currentBranch();
     requireCheckoutOn(current, branch);
     const view = ctx.artifacts.view();
@@ -63,7 +62,9 @@ export const investigate = defineTask<InvestigateInput, { investigationId: Id; d
         ...(threads.length ? ["# Chat threads on the previous investigation", ...threads.map((thread) => ctx.artifacts.render(thread.id))] : []),
       ] : []),
     ].join("\n\n");
-    const ask = (text: string, resumeProviderSession?: string) => ctx.llm.run({ prompt: text, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const notes = profile.promptNotes;
+    const system = prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx);
+    const ask = (text: string, resumeProviderSession?: string) => ctx.llm.run({ prompt: text, system, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", resumeProviderSession, mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     const r = await (async () => {
       const attempts: string[][] = [];
       let session: string | undefined;

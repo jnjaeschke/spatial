@@ -1,6 +1,5 @@
-import { type DiffData, defineTask, isGeckoRepo } from "../../../../plugin-api.ts";
+import { type DiffData, defineTask, sessionProfile } from "../../../../plugin-api.ts";
 import type { BugReportData } from "../../shared/types.ts";
-import { fetchBugMarkdown } from "../../../../plugin-api.ts";
 
 export function parseBugMarkdown(markdown: string): Pick<BugReportData, "title" | "status" | "component"> {
   const title = /^# Bug \d+ - (.*)$/m.exec(markdown)?.[1] ?? "";
@@ -10,10 +9,11 @@ export function parseBugMarkdown(markdown: string): Pick<BugReportData, "title" 
   return { title, status, component: product && component ? `${product} :: ${component}` : "" };
 }
 
-export const fetchBugsWith = (fetch: typeof fetchBugMarkdown) => defineTask<{ diffId: string }, { reportIds: string[] }>({
+export const fetchBugs = defineTask<{ diffId: string }, { reportIds: string[] }>({
   kind: "fetchBugs",
   async run(ctx, { diffId }) {
-    if (!isGeckoRepo(ctx.repo) || ctx.repoMcp.moz?.type !== "http") return { reportIds: [] };
+    const { fetchBug } = await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo);
+    if (!fetchBug) return { reportIds: [] };
     const diff = ctx.artifacts.get<DiffData>(diffId);
     if (diff.type !== "Diff") throw new Error(`Artifact ${diffId} is not a Diff (got ${diff.type})`);
     const existing = new Set(ctx.artifacts.view().artifacts.filter((a) => a.type === "BugReport").map((a) => (a.data as BugReportData).bug));
@@ -22,7 +22,8 @@ export const fetchBugsWith = (fetch: typeof fetchBugMarkdown) => defineTask<{ di
     for (const bug of bugs) {
       let data: BugReportData;
       try {
-        const markdown = await fetch(ctx.repoMcp.moz.url, bug, ctx.signal);
+        const markdown = await fetchBug(String(bug), ctx);
+        if (markdown === null) return { reportIds };
         data = { bug, ...parseBugMarkdown(markdown), markdown, error: null };
       } catch (error) {
         if (ctx.signal.aborted) throw error;
@@ -34,5 +35,3 @@ export const fetchBugsWith = (fetch: typeof fetchBugMarkdown) => defineTask<{ di
     return { reportIds };
   },
 });
-
-export const fetchBugs = fetchBugsWith(fetchBugMarkdown);

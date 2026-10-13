@@ -1,7 +1,7 @@
 import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "../../../../src/runtime/store.ts";
@@ -35,7 +35,7 @@ const webspecFor = (failing?: string, checks: StepCommentCheck[] = [], analyzed:
 function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: string; head?: string[]; f0h0?: DiffLine[]; checks?: StepCommentCheck[] }) {
   const analyzed: string[] = [];
   const repo = mkdtempSync(join(tmpdir(), "repo-"));
-  if (opts.gecko) { writeFileSync(join(repo, "mach"), ""); writeFileSync(join(repo, "moz.build"), ""); }
+  if (opts.gecko) writeFileSync(join(repo, "mach"), "");
   const searchfoxCalls: string[] = [];
   const showCalls: string[] = [];
   const searchfox: SearchfoxCapability = {
@@ -66,7 +66,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
     },
     async wordsAt() { return new Set(); },
   };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [resolveSpecRefs] }], llm: {} as LlmService, git: () => git, services: specTestServices({ webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox }) });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [resolveSpecRefs], repoProfiles: [{ id: "gecko-like", description: "g", commitStyle: "stack" as const, engine: "gecko", detect: async (repo: string) => existsSync(join(repo, "mach")) }] }], llm: {} as LlmService, git: () => git, services: specTestServices({ webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox }) });
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "t" });
   const change = (id: string, specUrls: string[]) => ({ id, title: id, explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls });
   const diff: DiffData = {

@@ -9,7 +9,9 @@ import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { LlmSelection, Session, StartQuestion, WorkflowStartData } from "../../src/shared/types.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { chatPlugin } from "../../src/plugins/chat/index.ts";
-import { startSession, type PendingStart, type StartRequest } from "../../src/workflows/start.ts";
+import { begin, startSession, type PendingStart, type StartRequest } from "../../src/workflows/start.ts";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { makeRepo } from "../helpers/git-fixture.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
@@ -32,7 +34,7 @@ const llm: LlmService = {
 const repo = makeRepo();
 repo.commit({ "a.txt": "1\n" }, "base");
 const store = new Store(":memory:");
-const rt = new Runtime({ store, plugins: [corePlugin, chatPlugin, { id: "t", workflows: [gated] }], llm, git: () => ({}) as GitCapability });
+const rt = new Runtime({ store, plugins: [corePlugin, chatPlugin, { id: "t", workflows: [gated], repoProfiles: [{ id: "marked", description: "marked", commitStyle: "stack" as const, detect: async (dir: string) => existsSync(join(dir, "marker")) }, { id: "other", description: "other", commitStyle: "single" as const }] }], llm, git: () => ({}) as GitCapability });
 async function waitFor<T>(fn: () => T | undefined, ms = 5000): Promise<T> {
   const end = Date.now() + ms;
   while (Date.now() < end) { const value = fn(); if (value !== undefined) return value; await new Promise((resolve) => setTimeout(resolve, 20)); }
@@ -93,7 +95,7 @@ test("the selector's choice gets the precheck question as options; the answer st
   assert.equal(prompts.length, 1);
   assert.equal(session.title, "T");
   const startArtifact = store.listArtifacts(session.id, "WorkflowStart")[0]!;
-  assert.deepEqual(startArtifact.data, { via: "selector", workflow: "gated", params: { mode: "a" }, title: "T", prompt: "do the thing", writeMode: "full" });
+  assert.deepEqual(startArtifact.data, { via: "selector", workflow: "gated", profile: "plain-git", params: { mode: "a" }, title: "T", prompt: "do the thing", writeMode: "full" });
   assert.deepEqual(startArtifact.provenance.llm, selection);
 });
 
@@ -108,4 +110,21 @@ test("the selector's question is answered in text and selection continues with t
   const session = await start({ question: question.id, answer: "the blue one" }) as Session;
   assert.match(prompts.at(-1)!, /# Clarification\n\nQuestion: Which thing\?\nAnswer: the blue one/);
   assert.equal((store.listArtifacts(session.id, "WorkflowStart")[0]!.data as WorkflowStartData).prompt, "do it\n\n# Clarification\n\nQuestion: Which thing?\nAnswer: the blue one");
+});
+
+const profileOf = (session: Session) => (store.listArtifacts(session.id, "WorkflowStart")[0]!.data as WorkflowStartData).profile;
+const chosen = (params: object): Parameters<typeof begin>[2] => ({ via: "command", workflow: "gated", params, title: "T", prompt: "" });
+
+test("a session's start stores the profile detected in its work tree", async () => {
+  const marked = makeRepo();
+  marked.commit({ marker: "" }, "base");
+  assert.equal(profileOf(await begin(rt, { path: marked.dir, worktree: marked.dir }, chosen({ mode: "a" }))), "marked");
+  assert.equal(profileOf(await begin(rt, { path: repo.dir, worktree: repo.dir }, chosen({ mode: "a" }))), "plain-git");
+});
+
+test("a workflow param named profile requests that profile; an unknown one refuses the start before a session exists", async () => {
+  assert.equal(profileOf(await begin(rt, { path: repo.dir, worktree: repo.dir }, chosen({ mode: "a", profile: "other" }))), "other");
+  const before = store.listSessions().length;
+  await assert.rejects(begin(rt, { path: repo.dir, worktree: repo.dir }, chosen({ mode: "a", profile: "nope" })), /Unknown repo profile: nope/);
+  assert.equal(store.listSessions().length, before);
 });

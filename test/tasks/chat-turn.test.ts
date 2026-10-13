@@ -6,7 +6,7 @@ import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm
 import type { ChatMessageData, ChatThreadData, DiagramData, DiffData, LlmSelection, McpServerData } from "../../src/shared/types.ts";
 import type { PatchNarrativeData } from "../../src/plugins/review/api.ts";
 import { renderRef as renderRefWith, sessionView } from "../../src/runtime/render-ref.ts";
-import { pluginRegistry, type ChatReplyField } from "../../src/runtime/plugins.ts";
+import { pluginRegistry, type ChatReplyField, type RepoProfile } from "../../src/runtime/plugins.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 const registry = pluginRegistry(plugins);
@@ -24,7 +24,7 @@ const DIFF: DiffData = {
   ] }],
 };
 
-function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; git?: GitCapability; replyFields?: ChatReplyField[]; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[]; diagram?: unknown; [field: string]: unknown } | undefined)[] } = {}) {
+function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; repoRequestable?: string[]; repo?: string; git?: GitCapability; replyFields?: ChatReplyField[]; profile?: RepoProfile; replies?: ({ answer: string; questions?: string[]; revisions?: { message: string | null; quote: string; correction: string }[]; requestMcpServers?: string[]; diagram?: unknown; [field: string]: unknown } | undefined)[] } = {}) {
   const store = new Store(":memory:");
   const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let n = 0;
@@ -43,12 +43,13 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({
-    store, plugins: [corePlugin, ...plugins, ...(opts.replyFields?.length ? [{ id: "test-reply-fields", chatReplyFields: opts.replyFields }] : [])], llm, git: () => opts.git ?? ({} as GitCapability),
+    store, plugins: [corePlugin, ...plugins, ...(opts.replyFields?.length ? [{ id: "test-reply-fields", chatReplyFields: opts.replyFields }] : []), ...(opts.profile ? [{ id: "test-profile", repoProfiles: [opts.profile] }] : [])], llm, git: () => opts.git ?? ({} as GitCapability),
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
   });
   const session = store.createSession({ worktree: opts.repo ?? "/repo", repoDir: `${opts.repo ?? "/repo"}/.git`, title: "t" });
   const put = <T>(type: string, data: T) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "x" } });
+  if (opts.profile) put("WorkflowStart", { via: "command", workflow: "w", profile: opts.profile.id, params: {}, title: "t", prompt: "" });
   const diffId = put("Diff", DIFF).id;
   const narrativeId = put<PatchNarrativeData>("PatchNarrative", {
     diffId, summary: "s",
@@ -92,6 +93,16 @@ test("aside first turn records an aside thread without changing its anchor", asy
   const { threadId } = await turn({ anchor: `${narrativeId}#c1`, aside: true, text: "Side question", llm: SONNET });
   assert.deepEqual(store.getArtifact<ChatThreadData>(threadId).data, { anchor: `${narrativeId}#c1`, aside: true });
   assert.ok(store.listLinks(session.id).some((link) => link.from === threadId && link.to === `${narrativeId}#c1` && link.kind === "about"));
+});
+
+test("the system prompt carries the repo profile's prompt notes, and nothing for a profile without them", async () => {
+  const profile: RepoProfile = { id: "noted", description: "n", commitStyle: "single", promptNotes: "Use the noted-search tool for repository-wide search." };
+  const noted = setup({ profile });
+  await noted.turn({ anchor: `${noted.narrativeId}#c1`, text: "q", llm: SONNET });
+  assert.match(noted.calls[0]!.prompt.system!, /Use the noted-search tool for repository-wide search\./);
+  const plain = setup();
+  await plain.turn({ anchor: `${plain.narrativeId}#c1`, text: "q", llm: SONNET });
+  assert.doesNotMatch(plain.calls[0]!.prompt.system!, /noted-search|searchfox/);
 });
 
 test("chat system prompt includes repo instructions and skill index on every turn", async () => {

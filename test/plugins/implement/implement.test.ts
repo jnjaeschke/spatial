@@ -39,7 +39,8 @@ function setup(agent: (call: number, prompt: LlmPrompt, repo: ReturnType<typeof 
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, testProfilePlugin], llm, git: makeGit, ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
-  const branch = put("ImplementBranch", { branch: "spatial/x", baseSha: base, baseRef: "main", profile, checkout: "new-branch" });
+  put("WorkflowStart", { via: "command", workflow: "implement", profile: profile, params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
+  const branch = put("ImplementBranch", { branch: "spatial/x", baseSha: base, baseRef: "main", checkout: "new-branch" });
   const inv = put("Investigation", plan);
   const run = (input: Partial<ImplementInput> = {}) => rt.run<{ resultId: string }>(session.id, "implement", { branchId: branch.id, investigationId: inv.id, bug: null, text: null, fix: [], writeMode: "auto", ...input });
   return { repo, base, store, session, prompts, put, run };

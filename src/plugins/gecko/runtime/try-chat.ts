@@ -1,4 +1,5 @@
-import { isGeckoRepo, type ChatReplyField } from "../../../plugin-api.ts";
+import type { ChatReplyField } from "../../../plugin-api.ts";
+import { isGeckoRepo } from "./gecko-repo.ts";
 import type { TryInput } from "../shared/types.ts";
 import { isTryProposal, tryCommandProblem } from "./try-command.ts";
 

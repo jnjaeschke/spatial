@@ -1,4 +1,5 @@
-import { isGeckoRepo, type ChatReplyField } from "../../../plugin-api.ts";
+import type { ChatReplyField } from "../../../plugin-api.ts";
+import { isGeckoRepo } from "./gecko-repo.ts";
 import type { ImplementBranchData } from "../../implement/api.ts";
 import type { SubmitInput } from "../shared/types.ts";
 

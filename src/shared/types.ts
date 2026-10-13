@@ -25,6 +25,8 @@ export interface WorkflowStartData {
   params: unknown;
   title: string;
   prompt: string;
+  /** Id of the repo profile the session works with, chosen once when it starts; a workflow param named `profile` requests a specific one. */
+  profile: string;
   /** The start box selection later phases reuse: the model for investigate and review, and how much the implement agent may do. */
   llm?: LlmSelection;
   writeMode?: WriteMode;

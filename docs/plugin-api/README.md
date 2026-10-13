@@ -79,10 +79,8 @@ composition roots.
 - [createSession](functions/createSession.md)
 - [definePlugin](functions/definePlugin.md)
 - [escapeRegex](functions/escapeRegex.md)
-- [fetchBugMarkdown](functions/fetchBugMarkdown.md)
 - [fileRows](functions/fileRows.md)
 - [isActive](functions/isActive.md)
-- [isGeckoRepo](functions/isGeckoRepo.md)
 - [latestArtifact](functions/latestArtifact.md)
 - [makeGit](functions/makeGit.md)
 - [makeGitWriter](functions/makeGitWriter.md)
@@ -95,6 +93,8 @@ composition roots.
 - [runProcess](functions/runProcess.md)
 - [safeRepoPath](functions/safeRepoPath.md)
 - [safeRevision](functions/safeRevision.md)
+- [sessionProfile](functions/sessionProfile.md)
+- [startProfile](functions/startProfile.md)
 - [taskState](functions/taskState.md)
 
 ## References

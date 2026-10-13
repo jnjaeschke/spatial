@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type {  FindingVerdictData, ReviewCommentData, ReviewFindingData , PatchNarrativeData, PostedCommentData } from "../../shared/types.ts";
 
-import {type DiffData, type Id, type LlmSelection, defineTask, prependRepoContext} from "../../../../plugin-api.ts";
+import {type DiffData, type Id, type LlmSelection, defineTask, prependRepoContext, sessionProfile} from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { diffNumber } from "../../shared/diffs.ts";
 import { findingStates } from "../../shared/findings.ts";
@@ -67,7 +67,8 @@ export const review = defineTask<{ narrativeId: string; llm?: LlmSelection; rech
       ...updateSections,
       ...(specIds.length ? ["# Spec references", ...specIds.map((id) => ctx.artifacts.render(id))] : []),
     ].join("\n\n");
-    const r = await ctx.llm.run({ prompt, system: prependRepoContext(SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
+    const notes = (await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo)).promptNotes;
+    const r = await ctx.llm.run({ prompt, system: prependRepoContext(notes ? `${SYSTEM}\n\n${notes}` : SYSTEM, ctx), schema: SCHEMA, cwd: ctx.repo, tools: "read-only", mcpServers: { ...ctx.sessionMcp, ...ctx.repoMcp } }, llm);
     if (!isReply(r.json)) throw new Error(`Review reply is not valid JSON: ${JSON.stringify(r.json)}`);
 
     const locate = (f: ReplyFinding): Pick<ReviewFindingData, "anchor" | "quote" | "lines"> | string => {

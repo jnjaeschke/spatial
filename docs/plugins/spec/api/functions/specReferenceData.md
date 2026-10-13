@@ -14,7 +14,7 @@ The `SpecReference` data of a looked-up URL; a found spec in a Gecko repo also g
 
 ### env
 
-`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"services"` \| `"repo"` \| `"signal"`\>
+`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"services"` \| `"repo"` \| `"repoProfiles"` \| `"artifacts"` \| `"signal"`\>
 
 ### url
 

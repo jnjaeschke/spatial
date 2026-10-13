@@ -5,6 +5,7 @@ import type { Runtime } from "../runtime/tasks.ts";
 import { createSession, resolveRepo } from "../runtime/git.ts";
 import { selectWorkflow } from "./select.ts";
 import { parseCommand } from "./registry.ts";
+import { chooseProfile } from "../runtime/profiles.ts";
 
 /** Sets the session's workflow and title from its `WorkflowStart` artifact and runs the workflow. */
 export async function runWorkflow(rt: Runtime, sessionId: Id, startId: Id, llm?: LlmSelection): Promise<void> {
@@ -21,7 +22,7 @@ export async function runWorkflow(rt: Runtime, sessionId: Id, startId: Id, llm?:
 export type StartRequest = { path: string; text: string; llm?: LlmSelection; writeMode?: WriteMode } | { question: string; answer: number | string };
 
 export interface StartBase { path: string; worktree: string; llm?: LlmSelection; writeMode?: WriteMode }
-export type Chosen = Omit<WorkflowStartData, "llm" | "writeMode">;
+export type Chosen = Omit<WorkflowStartData, "llm" | "writeMode" | "profile">;
 /** A start waiting in the start box: the selector's clarifying question, or the chosen workflow's precheck. */
 export type PendingStart = { base: StartBase; question: string } & (
   | { prompt: string; round: number }
@@ -82,11 +83,13 @@ async function answer(rt: Runtime, pending: Map<string, PendingStart>, id: strin
 
 /** Creates a workflow session; callers can wait for the workflow instead of running it in the background. */
 export async function begin(rt: Runtime, base: StartBase, start: Chosen, selection?: LlmSelection, waitForWorkflow = false): Promise<Session> {
+  const requested = (start.params as { profile?: unknown } | null)?.profile;
+  const profile = await chooseProfile(rt.plugins.repoProfiles, base.worktree, typeof requested === "string" ? requested : null);
   const session = await createSession(rt.store, base.path, start.title, start.workflow);
   const artifact = rt.putArtifact<WorkflowStartData>(selection ? "runtime" : "user", {
     sessionId: session.id, type: "WorkflowStart", status: start.via === "command" ? "verified" : "proposed",
     provenance: selection ? { taskId: "runtime", llm: selection } : { taskId: "user" },
-    data: { ...start, ...(base.llm ? { llm: base.llm } : {}), ...(base.writeMode ? { writeMode: base.writeMode } : {}) },
+    data: { ...start, profile: profile.id, ...(base.llm ? { llm: base.llm } : {}), ...(base.writeMode ? { writeMode: base.writeMode } : {}) },
   });
   const work = runWorkflow(rt, session.id, artifact.id, base.llm);
   if (waitForWorkflow) await work;

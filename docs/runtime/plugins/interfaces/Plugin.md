@@ -64,7 +64,7 @@ Shell commands (such as `tool sub`) a read-only LLM run may execute.
 
 > `optional` **repoProfiles?**: [`RepoProfile`](RepoProfile.md)[]
 
-Repo profiles this plugin contributes; ids are unique across plugins.
+Repo profiles this plugin contributes; ids are unique across plugins and distinct from core's `plain-git`.
 
 ***
 

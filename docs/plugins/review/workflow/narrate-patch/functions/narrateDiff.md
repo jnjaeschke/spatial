@@ -8,7 +8,7 @@
 
 > **narrateDiff**(`rt`, `sessionId`, `diffId`, `llm?`, `recheck?`): `Promise`\<`void`\>
 
-narrate → (carryFindings) → resolveSpecRefs → review for an imported Diff, with introducedSymbols, mapSpecSteps for each spec section with steps and, in Gecko repos, fetchBugs → summarizeBug alongside the review.
+narrate → (carryFindings) → resolveSpecRefs → review for an imported Diff, with introducedSymbols, mapSpecSteps for each spec section with steps and, when the repo profile can fetch bugs, fetchBugs → summarizeBug alongside the review.
 
 ## Parameters
 

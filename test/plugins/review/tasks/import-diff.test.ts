@@ -8,6 +8,8 @@ import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { DiffData } from "../../../../src/shared/types.ts";
 import { hunkCommit } from "../../../../src/plugins/review/shared/review-path.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const noLlm = {
   defaultSelection: { backend: "claude", model: "m", effort: "low" },
@@ -15,10 +17,12 @@ const noLlm = {
   async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
 } satisfies LlmService;
 
+const upstreamProfile = { id: "upstream", description: "upstream", commitStyle: "stack" as const, upstreamBranch: "main", detect: async (repo: string) => existsSync(join(repo, "marker")) };
+
 async function setup() {
   const r = makeRepo();
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff] }], llm: noLlm, git: makeGit });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff], repoProfiles: [upstreamProfile] }], llm: noLlm, git: makeGit });
   const session = await createSession(store, r.dir, "t", "review");
   return { r, store, rt, session };
 }
@@ -74,9 +78,9 @@ test("single-commit import stores no line attribution", async () => {
   assert.equal(store.getArtifact<DiffData>(diffId).data.files[0]!.hunks[0]!.lines.some((line) => line.commit !== undefined), false);
 });
 
-test("records the merge-base with main for Gecko repositories", async () => {
+test("records the merge-base with the profile's upstream branch", async () => {
   const { r, store, rt, session } = await setup();
-  const base = r.commit({ mach: "", "moz.build": "", "a.txt": "1\n" }, "main tip");
+  const base = r.commit({ marker: "", "a.txt": "1\n" }, "main tip");
   const { execFileSync } = await import("node:child_process");
   execFileSync("git", ["-C", r.dir, "checkout", "-qb", "patch"]);
   const expected = r.commit({ "a.txt": "3\n" }, "patch base");
@@ -86,9 +90,9 @@ test("records the merge-base with main for Gecko repositories", async () => {
   assert.equal(base.length, 40);
 });
 
-test("Gecko repository without main imports with upstreamRev absent", async () => {
+test("a profile with an upstream branch that does not exist imports with upstreamRev absent", async () => {
   const { r, store, rt, session } = await setup();
-  r.commit({ mach: "", "moz.build": "", "a.txt": "1\n" }, "base");
+  r.commit({ marker: "", "a.txt": "1\n" }, "base");
   r.commit({ "a.txt": "2\n" }, "head");
   const { execFileSync } = await import("node:child_process");
   execFileSync("git", ["-C", r.dir, "branch", "-m", "other"]);

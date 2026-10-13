@@ -1,6 +1,5 @@
 import { definePlugin, type Runtime, type SessionView } from "../../plugin-api.ts";
 import type { ImplementBranchData } from "./shared/types.ts";
-import { plainGitProfile } from "./profiles.ts";
 import { implementStart } from "./tasks/start/task.ts";
 import { investigate } from "./tasks/investigate/task.ts";
 import { implement } from "./tasks/implement/task.ts";
@@ -21,5 +20,5 @@ function linkRev(view: SessionView): string | null {
   return (view.artifacts.findLast((artifact) => artifact.type === "ImplementBranch")?.data as ImplementBranchData | undefined)?.baseSha ?? null;
 }
 
-/** Implementation workflow plugin and its generic git profile. */
-export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments, distillSteer], artifactKinds, linkRev, repoProfiles: [plainGitProfile], server });
+/** Implementation workflow plugin. */
+export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments, distillSteer], artifactKinds, linkRev, server });

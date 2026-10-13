@@ -1,4 +1,4 @@
-import { defineTask, isGeckoRepo, plainText, readRepoSkill, runStructured, type Id, type JsonSchema, type TaskContext } from "../../../../plugin-api.ts";
+import { defineTask, plainText, readRepoSkill, runStructured, sessionProfile, type Id, type JsonSchema, type TaskContext } from "../../../../plugin-api.ts";
 import { ENGINE_LABEL } from "../../shared/engines.ts";
 import type { Engine, SpecIdlMember } from "../../shared/types.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../shared/types.ts";
@@ -30,7 +30,7 @@ export const findImplementation = defineTask<{ algorithmId: Id; engine: Engine; 
   async run(ctx, { algorithmId, engine, stale }) {
     const algorithm = ctx.artifacts.get<SpecAlgorithmData>(algorithmId).data;
     const current = storedMapping(ctx.knowledge, engine, algorithm.ref);
-    const instructions = isGeckoRepo(ctx.repo) && engine === "gecko" && ctx.repoSkills.some((skill) => skill.name === "specmap") ? readRepoSkill(ctx.repo, "specmap") : COMMANDS[engine];
+    const instructions = engine === "gecko" && (await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo)).engine === "gecko" && ctx.repoSkills.some((skill) => skill.name === "specmap") ? readRepoSkill(ctx.repo, "specmap") : COMMANDS[engine];
     const prompt = await findPrompt(ctx, engine, algorithm, current, stale);
     const { json } = await runStructured<{ candidates: ImplementationCandidate[] }>(ctx.llm, { prompt, system: `${instructions}\n\n${task(engine)}`, schema: SCHEMA, cwd: ctx.repo, tools: "read-only", label: `${ENGINE_LABEL[engine]} candidates` });
     const known = new Set([...(current?.sites ?? []).filter((site) => !site.stale).map(siteKey), ...(current?.rejected ?? []).map(siteKey)]);

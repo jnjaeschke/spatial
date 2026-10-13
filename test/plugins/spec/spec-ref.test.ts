@@ -1,8 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import type { ResolvedSpec } from "../../../src/plugins/spec/shared/types.ts";
 import type { SearchfoxCapability } from "../../../src/plugins/spec/runtime/searchfox.ts";
 import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
@@ -10,8 +7,9 @@ import { lookupSpec, resolveSpecReference } from "../../../src/plugins/spec/runt
 import { specTestServices } from "../../helpers/spec-services.ts";
 
 const spec: ResolvedSpec = { spec: "HTML", anchor: "a", title: "T", type: "dfn", url: "https://html.spec/#a", content: "c" };
-const env = (resolve: WebspecCapability["resolve"], repo = "/nonexistent", specRefs: SearchfoxCapability["specRefs"] = async () => []) =>
-  ({ services: specTestServices({ webspec: { effect: "read-only", resolve, analyze: async () => [], lookup: async () => { throw new Error("not used"); }, query: async () => { throw new Error("not used"); }, search: async () => { throw new Error("not used"); }, refs: async () => { throw new Error("not used"); }, idl: async () => { throw new Error("not used"); }, effectPaths: async () => { throw new Error("not used"); } }, searchfox: { effect: "read-only", specRefs, tip: async () => ({ repoBase: "", rev: "" }) } }), repo, signal: new AbortController().signal });
+const env = (resolve: WebspecCapability["resolve"], engine?: string, specRefs: SearchfoxCapability["specRefs"] = async () => []) =>
+  ({ services: specTestServices({ webspec: { effect: "read-only", resolve, analyze: async () => [], lookup: async () => { throw new Error("not used"); }, query: async () => { throw new Error("not used"); }, search: async () => { throw new Error("not used"); }, refs: async () => { throw new Error("not used"); }, idl: async () => { throw new Error("not used"); }, effectPaths: async () => { throw new Error("not used"); } }, searchfox: { effect: "read-only", specRefs, tip: async () => ({ repoBase: "", rev: "" }) } }), repo: "/r", signal: new AbortController().signal,
+    repoProfiles: new Map([["p", { id: "p", description: "p", commitStyle: "single" as const, ...(engine ? { engine } : {}) }]]), artifacts: { view: () => ({ links: [], artifacts: [{ type: "WorkflowStart", data: { profile: "p" } }] }) } as never });
 
 test("a found spec is a verified-style reference without Searchfox lookups outside Gecko", async () => {
   const data = await resolveSpecReference(env(async () => ({ found: true, spec })), "https://html.spec/#a", "llm");
@@ -29,13 +27,10 @@ test("a cancelled lookup rejects", async () => {
   await assert.rejects(lookupSpec({ ...env(async () => { throw new Error("aborted"); }), signal: controller.signal }, "u"), /aborted/);
 });
 
-test("in a Gecko repo the Searchfox references are added, and their failure is recorded", async () => {
-  const repo = mkdtempSync(join(tmpdir(), "gecko-"));
-  writeFileSync(join(repo, "mach"), "");
-  writeFileSync(join(repo, "moz.build"), "");
+test("in a Gecko-engine repo the Searchfox references are added, and their failure is recorded", async () => {
   const refs = [{ group: "g", path: "p.cpp", line: 1, url: "u" }];
-  assert.deepEqual((await resolveSpecReference(env(async () => ({ found: true, spec }), repo, async () => refs), "u", "code")).geckoRefs, refs);
-  const failed = await resolveSpecReference(env(async () => ({ found: true, spec }), repo, async () => { throw new Error("searchfox down"); }), "u", "code");
+  assert.deepEqual((await resolveSpecReference(env(async () => ({ found: true, spec }), "gecko", async () => refs), "u", "code")).geckoRefs, refs);
+  const failed = await resolveSpecReference(env(async () => ({ found: true, spec }), "gecko", async () => { throw new Error("searchfox down"); }), "u", "code");
   assert.deepEqual([failed.geckoRefs, failed.geckoRefsError], [[], "searchfox down"]);
 });
 

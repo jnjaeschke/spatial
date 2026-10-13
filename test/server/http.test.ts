@@ -126,7 +126,7 @@ test("workflow start routes support slash commands, selection, and validation", 
   });
   const commandStart = commandState.state.artifacts.find((item) => item.type === "WorkflowStart")!;
   assert.equal((commandState.thread!.data as { anchor: string }).anchor, commandStart.id);
-  assert.deepEqual(commandStart.data, { via: "command", workflow: "chat", params: {}, title: "/chat hi there", prompt: "hi there" });
+  assert.deepEqual(commandStart.data, { via: "command", workflow: "chat", profile: "gecko", params: {}, title: "/chat hi there", prompt: "hi there" });
   assert.ok(commandStart.provenance.taskId === "user");
   assert.ok(commandState.messages.some((message) => message.role === "user" && message.text === "hi there"));
 

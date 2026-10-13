@@ -1,4 +1,5 @@
-import { definePlugin, isGeckoRepo, type Runtime } from "../../plugin-api.ts";
+import { definePlugin, type Runtime } from "../../plugin-api.ts";
+import { isGeckoRepo } from "./runtime/gecko-repo.ts";
 import { geckoProfile } from "./profile.ts";
 import { proposeTry } from "./tasks/propose-try/task.ts";
 import { tryPhase, tryPushPhase } from "./workflow/try.ts";

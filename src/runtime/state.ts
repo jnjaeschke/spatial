@@ -1,15 +1,15 @@
 import type { Id, SessionState } from "../shared/types.ts";
 import type { Store } from "./store.ts";
-import { isGeckoRepo } from "./gecko-repo.ts";
+import { sessionProfile } from "./profiles.ts";
 import { selectLinkRev } from "./link-rev.ts";
 import { sessionView } from "./render-ref.ts";
 import type { PluginRegistry } from "./plugins.ts";
 
-export async function buildSessionState(store: Store, searchfoxCapability: { tip(): Promise<{ repoBase: string; rev: string }> }, hooks: Pick<PluginRegistry, "linkRevs" | "textLinks">, sessionId: Id): Promise<SessionState> {
+export async function buildSessionState(store: Store, searchfoxCapability: { tip(): Promise<{ repoBase: string; rev: string }> }, hooks: Pick<PluginRegistry, "linkRevs" | "textLinks" | "repoProfiles">, sessionId: Id): Promise<SessionState> {
   const session = store.getSession(sessionId);
   const view = sessionView(store, sessionId);
   let searchfox: SessionState["searchfox"] = null;
-  if (isGeckoRepo(session.worktree)) {
+  if ((await sessionProfile(hooks.repoProfiles, view, session.worktree)).upstreamBranch) {
     try { const tip = await searchfoxCapability.tip(); searchfox = { repoBase: tip.repoBase, tipRev: tip.rev, linkRev: selectLinkRev(view, hooks.linkRevs) }; }
     catch (e) { console.error(`Searchfox unavailable: ${(e as Error).message}`); }
   }

@@ -27,10 +27,10 @@ test("the start box refuses a checkout with another running implement session be
 test("a checkout with another running implement session is refused with a notice", async () => {
   const { store, rt, make } = setup();
   const busy = make("/repo");
-  store.putArtifact({ sessionId: busy.id, type: "ImplementBranch", status: "verified", data: { branch: "spatial/a", baseSha: "b", baseRef: null, profile: "plain-git", checkout: "new-branch" }, provenance: { taskId: "t" } });
+  store.putArtifact({ sessionId: busy.id, type: "ImplementBranch", status: "verified", data: { branch: "spatial/a", baseSha: "b", baseRef: null, checkout: "new-branch" }, provenance: { taskId: "t" } });
   store.createEpoch(busy.id, "implement", null);
   const mine = make("/repo");
-  const start = store.putArtifact<WorkflowStartData>({ sessionId: mine.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "implement", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" } });
+  const start = store.putArtifact<WorkflowStartData>({ sessionId: mine.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "implement", profile: "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" } });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
   await assert.rejects(implementWorkflow.start(rt, mine.id, { params: { request: "x", profile: null, checkout: null }, startId: start.id, prompt: "x" }), /in use by the implement session/);
@@ -45,8 +45,8 @@ test("an implement session waiting on an open decision keeps its checkout; a fin
   const { store, rt, make } = setup();
   const waiting = make("/repo");
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: waiting.id, type, status: "verified", data, provenance: { taskId: "t" } });
-  put("WorkflowStart", { via: "command", workflow: "implement", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
-  put("ImplementBranch", { branch: "spatial/a", baseSha: "b", baseRef: null, profile: "plain-git", checkout: "new-branch" });
+  put("WorkflowStart", { via: "command", workflow: "implement", profile: "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
+  put("ImplementBranch", { branch: "spatial/a", baseSha: "b", baseRef: null, checkout: "new-branch" });
   const epoch = store.createEpoch(waiting.id, "investigate", null);
   store.updateEpoch(waiting.id, epoch.n, { status: "succeeded" });
   put("Investigation", { kind: "bugfix", summary: "S", bug: null, locations: [], testCases: [], steps: [], openQuestions: [], exploration: [] });
@@ -61,8 +61,8 @@ test("a session whose latest own epoch failed or was cancelled keeps its checkou
   const { isActive } = await import("../../../src/plugins/implement/workflow/next.ts");
   const session = make("/repo");
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
-  put("WorkflowStart", { via: "command", workflow: "implement", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
-  put("ImplementBranch", { branch: "spatial/a", baseSha: "b", baseRef: null, profile: "plain-git", checkout: "new-branch" });
+  put("WorkflowStart", { via: "command", workflow: "implement", profile: "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
+  put("ImplementBranch", { branch: "spatial/a", baseSha: "b", baseRef: null, checkout: "new-branch" });
   const investigate = store.createEpoch(session.id, "investigate", null);
   store.updateEpoch(session.id, investigate.n, { status: "failed", error: "boom" });
   assert.equal(isActive(rt, session.id), true, "a failed investigation can be retried");
@@ -76,8 +76,8 @@ test("a session whose latest own epoch failed or was cancelled keeps its checkou
 
   const other = make("/repo");
   const putOther = (type: string, data: unknown) => store.putArtifact({ sessionId: other.id, type, status: "verified", data, provenance: { taskId: "t" } });
-  putOther("WorkflowStart", { via: "command", workflow: "implement", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
-  putOther("ImplementBranch", { branch: "spatial/b", baseSha: "b", baseRef: null, profile: "plain-git", checkout: "new-branch" });
+  putOther("WorkflowStart", { via: "command", workflow: "implement", profile: "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
+  putOther("ImplementBranch", { branch: "spatial/b", baseSha: "b", baseRef: null, checkout: "new-branch" });
   const first = store.createEpoch(other.id, "investigate", null);
   store.updateEpoch(other.id, first.n, { status: "succeeded" });
   putOther("Investigation", { kind: "bugfix", summary: "S", bug: null, locations: [], testCases: [], steps: [], openQuestions: [], exploration: [] });
@@ -92,8 +92,8 @@ test("an abandoned session releases its checkout whatever state its epochs are i
   const { isActive } = await import("../../../src/plugins/implement/workflow/next.ts");
   const session = make("/repo");
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
-  put("WorkflowStart", { via: "command", workflow: "implement", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
-  put("ImplementBranch", { branch: "spatial/a", baseSha: "b", baseRef: null, profile: "plain-git", checkout: "new-branch" });
+  put("WorkflowStart", { via: "command", workflow: "implement", profile: "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" });
+  put("ImplementBranch", { branch: "spatial/a", baseSha: "b", baseRef: null, checkout: "new-branch" });
   const epoch = store.createEpoch(session.id, "implement", null);
   store.updateEpoch(session.id, epoch.n, { status: "failed", error: "boom" });
   assert.equal(isActive(rt, session.id), true);

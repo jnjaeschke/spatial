@@ -34,7 +34,7 @@ test("sessionGraph requires a selected workflow and a chat start", () => {
   const reviewArtifacts = [diff, narrative("N")];
   assert.equal(sessionGraph(state(reviewArtifacts, null)), null);
   assert.equal(sessionGraph(state([], "chat")), null);
-  const start: Artifact<WorkflowStartData> = { id: "W", sessionId: "S", type: "WorkflowStart", data: { via: "selector", workflow: "chat", params: {}, title: "Explain X", prompt: "Explain X" }, status: "proposed", createdAt: "0", provenance: { taskId: "t" } , epoch: null};
+  const start: Artifact<WorkflowStartData> = { id: "W", sessionId: "S", type: "WorkflowStart", data: { via: "selector", workflow: "chat", profile: "plain-git", params: {}, title: "Explain X", prompt: "Explain X" }, status: "proposed", createdAt: "0", provenance: { taskId: "t" } , epoch: null};
   const graph = sessionGraph(state([start], "chat"));
   assert.equal(graph?.nodes[0]?.id, "W");
   assert.equal(graph?.nodes[0]?.data.kind, "conversation");

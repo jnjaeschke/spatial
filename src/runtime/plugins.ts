@@ -5,7 +5,9 @@ import type { Artifact, Ref, TextLink } from "../shared/types.ts";
 import type { SearchDoc, SessionView, WorkflowView } from "./render-ref.ts";
 import type { Route } from "../server/http.ts";
 import type { Knowledge } from "./knowledge.ts";
+import type { McpServerSpec } from "./llm/types.ts";
 import { coreArtifactKinds } from "./render-ref.ts";
+import { PLAIN_GIT, plainGitProfile } from "./profiles.ts";
 
 export type ParseResult<P> = { ok: true; params: P } | { ok: false; error: string };
 /** What a workflow does next: run a phase, or take a decision. A decision is identified by its `key` and epoch; `question` is display text. A decision with `chosen` is made by a rule and stored already answered; without it the user is asked. `epoch` is the epoch the decision is about (default: the latest); a workflow sets it when phases it does not own may have run since. */
@@ -39,6 +41,14 @@ export interface RepoProfile {
   autoFixRounds?: number;
   /** Phase ids run in order right after the user accepts; a phase with an outside effect asks first through its own `Phase.next`. */
   afterAccept?: string[];
+  /** The browser engine whose source tree this repo is (an `Engine` id of the spec plugin). */
+  engine?: string;
+  /** The branch code links pin to: a diff base's merge-base with it is the diff's upstream revision. */
+  upstreamBranch?: string;
+  /** The markdown of bug `id` from the repo's bug tracker; `repoMcp` holds the repo's MCP servers. Null when this checkout has no access to the tracker; throws when the bug cannot be fetched. */
+  fetchBug?(id: string, ctx: { repoMcp: Record<string, McpServerSpec>; signal: AbortSignal }): Promise<string | null>;
+  /** Repo-specific tool hints appended to LLM prompts that work in the repo. */
+  promptNotes?: string;
 }
 /** What `Workflow.next` may consult besides the stored session state. */
 export interface WorkflowContext { repoProfiles: ReadonlyMap<string, RepoProfile> }
@@ -96,7 +106,7 @@ export interface Plugin {
   id: string;
   /** Ids of the plugins this one imports the public API of (`src/plugins/<id>/api.ts`, `src/plugins/<id>/web/api.ts`); each must be registered, and the graph must have no cycle. Write it as a literal array in the manifest: `scripts/plugin-boundary.ts` reads it statically. */
   dependsOn?: string[];
-  /** Repo profiles this plugin contributes; ids are unique across plugins. */
+  /** Repo profiles this plugin contributes; ids are unique across plugins and distinct from core's `plain-git`. */
   repoProfiles?: RepoProfile[];
   workflows?: Workflow<any>[];
   phases?: Phase<any>[];
@@ -158,7 +168,7 @@ export function searchKinds(plugins: Plugin[]): string[] {
 
 export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
   const workflows = new Map<string, Workflow<any>>(), phases = new Map<string, Phase<any>>(), tasks = new Map<string, TaskDefinition<any, any>>();
-  const repoProfiles = new Map<string, RepoProfile>();
+  const repoProfiles = new Map<string, RepoProfile>([[PLAIN_GIT, plainGitProfile]]);
   const fields = new Map<string, ChatReplyField>();
   const mcpTools = new Map<string, McpTool>();
   for (const plugin of plugins) {

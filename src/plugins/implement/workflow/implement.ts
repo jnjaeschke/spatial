@@ -54,6 +54,6 @@ export const implementWorkflow: Workflow<Params> = {
       throw new Error(busy.message);
     }
     const writeMode = rt.store.getArtifact<WorkflowStartData>(startId).data.writeMode;
-    await rt.run(sessionId, "implementStart", { request: p.request, profile: p.profile, checkout: p.checkout ?? "new-branch", ...(writeMode ? { writeMode } : {}) });
+    await rt.run(sessionId, "implementStart", { request: p.request, checkout: p.checkout ?? "new-branch", ...(writeMode ? { writeMode } : {}) });
   },
 };

@@ -86,9 +86,9 @@ export type { JsonSchema, StructuredPrompt } from "./runtime/structured.ts";
 export { LlmOutputError } from "./runtime/llm/types.ts";
 /** A CommandRun record with capped output. */
 export { commandRunData } from "./runtime/command-run.ts";
-export { fetchBugMarkdown } from "./runtime/moz-mcp.ts";
 export { prependRepoContext, readRepoSkill } from "./runtime/repo-context.ts";
-export { isGeckoRepo } from "./runtime/gecko-repo.ts";
+/** The session's repo profile: the one its `WorkflowStart` names, else the one detected in the work tree. */
+export { sessionProfile, startProfile } from "./runtime/profiles.ts";
 export { revisedText } from "./shared/revisions.ts";
 export { plainText } from "./shared/plain-text.ts";
 export { numberLines, fileRows } from "./shared/diff-lines.ts";

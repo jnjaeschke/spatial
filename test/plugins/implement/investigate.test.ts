@@ -38,7 +38,10 @@ function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = []
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: typeof json === "function" ? json(prompts.length - 1) : json, providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, services: specTestServices({ webspec }), ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
-  const run = (input: object = {}) => rt.run<{ investigationId: string; droppedLocations: string[] }>(session.id, "investigate", { request: "fix it", profile: "plain-git", baseSha: base, branch: "spatial/x", llm: selection, ...input });
+  const run = ({ profile = "plain-git", ...input }: { profile?: string } & Record<string, unknown> = {}) => {
+    store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "implement", profile: profile, params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" }, provenance: { taskId: "t" } });
+    return rt.run<{ investigationId: string; droppedLocations: string[] }>(session.id, "investigate", { request: "fix it", baseSha: base, branch: "spatial/x", llm: selection, ...input });
+  };
   return { repo, base, store, session, prompts, rt, run };
 }
 

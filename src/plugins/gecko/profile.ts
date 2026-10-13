@@ -1,4 +1,6 @@
-import { isGeckoRepo, type RepoProfile } from "../../plugin-api.ts";
+import type { RepoProfile } from "../../plugin-api.ts";
+import { isGeckoRepo } from "./runtime/gecko-repo.ts";
+import { fetchBugMarkdown } from "./runtime/moz-mcp.ts";
 
 const TEST_COMMAND = /^\.\/mach\s+(?:test|mochitest|wpt|gtest|xpcshell-test)(?:\s|$)/;
 const REVIEWERS = / r\?[\w.-]+(?:,[\w.-]+)*$/;
@@ -23,4 +25,12 @@ export const geckoProfile: RepoProfile = {
   testCommand: (paths) => `./mach test ${paths.map(quote).join(" ")}`,
   isTestCommand: (command) => TEST_COMMAND.test(command.trim()),
   afterAccept: ["try", "submit"],
+  engine: "gecko",
+  upstreamBranch: "main",
+  async fetchBug(id, { repoMcp, signal }) {
+    const moz = repoMcp.moz;
+    if (moz?.type !== "http") return null;
+    return fetchBugMarkdown(moz.url, Number(id), signal);
+  },
+  promptNotes: "`searchfox-cli` may be available for repository-wide Gecko search (`searchfox-cli --help`); it may also be unavailable, in which case use local search.",
 };

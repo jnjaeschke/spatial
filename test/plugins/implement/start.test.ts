@@ -21,7 +21,10 @@ function setup() {
   const store = new Store(":memory:");
   const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
-  const start = (input: object) => rt.run<{ branchId: string }>(session.id, "implementStart", input);
+  const start = ({ profile, ...input }: { profile?: string } & Record<string, unknown>) => {
+    store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "implement", profile: profile ?? "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" }, provenance: { taskId: "t" } });
+    return rt.run<{ branchId: string }>(session.id, "implementStart", input);
+  };
   return { repo, base, store, rt, session, start };
 }
 const params = { request: "x", profile: null, checkout: null } as const;
@@ -31,15 +34,15 @@ test("parseArgs takes the whole argument as the request", () => {
   assert.deepEqual(implementWorkflow.parseArgs(" "), { ok: false, error: "Usage: /implement <what to fix or build>" });
 });
 
-test("start on a new branch records the branch, base and profile", async () => {
+test("start on a new branch records the branch and base", async () => {
   const { repo, base, store, start } = setup();
-  const { branchId } = await start({ request: "Fix the crash on close", profile: null, checkout: "new-branch" });
+  const { branchId } = await start({ request: "Fix the crash on close", checkout: "new-branch" });
   const artifact = store.getArtifact<ImplementBranchData>(branchId);
   assert.equal(artifact.status, "verified");
-  assert.deepEqual(artifact.data, { branch: "spatial/fix-the-crash-on-close", baseSha: base, baseRef: "main", profile: "plain-git", checkout: "new-branch" });
+  assert.deepEqual(artifact.data, { branch: "spatial/fix-the-crash-on-close", baseSha: base, baseRef: "main", checkout: "new-branch" });
   assert.equal(repo.git("branch", "--show-current"), "spatial/fix-the-crash-on-close");
   repo.git("switch", "main");
-  const second = await start({ request: "Fix the crash on close", profile: null, checkout: "new-branch" });
+  const second = await start({ request: "Fix the crash on close", checkout: "new-branch" });
   assert.equal(store.getArtifact<ImplementBranchData>(second.branchId).data.branch, "spatial/fix-the-crash-on-close-2");
 });
 
@@ -47,16 +50,15 @@ test("start on the current branch uses its fork point from main", async () => {
   const { repo, base, store, start } = setup();
   repo.git("switch", "-c", "feature");
   repo.commit({ "b.txt": "b\n" }, "work");
-  const { branchId } = await start({ request: "x", profile: null, checkout: "current-branch" });
-  assert.deepEqual(store.getArtifact<ImplementBranchData>(branchId).data, { branch: "feature", baseSha: base, baseRef: null, profile: "plain-git", checkout: "current-branch" });
+  const { branchId } = await start({ request: "x", checkout: "current-branch" });
+  assert.deepEqual(store.getArtifact<ImplementBranchData>(branchId).data, { branch: "feature", baseSha: base, baseRef: null, checkout: "current-branch" });
 });
 
-test("start refuses a detached HEAD, an unknown profile and edits-only without a test command", async () => {
+test("start refuses a detached HEAD and edits-only without a test command", async () => {
   const { repo, start } = setup();
-  await assert.rejects(start({ request: "x", profile: "nope", checkout: "new-branch" }), /Unknown repo profile: nope/);
-  await assert.rejects(start({ request: "x", profile: null, checkout: "new-branch", writeMode: "editsOnly" }), /Edits-only mode needs a test command/);
+  await assert.rejects(start({ request: "x", checkout: "new-branch", writeMode: "editsOnly" }), /Edits-only mode needs a test command/);
   repo.git("checkout", "--detach");
-  await assert.rejects(start({ request: "x", profile: null, checkout: "current-branch" }), /detached/);
+  await assert.rejects(start({ request: "x", checkout: "current-branch" }), /detached/);
 });
 
 test("precheck asks only when the checkout is unclear and dirty or off main", async () => {

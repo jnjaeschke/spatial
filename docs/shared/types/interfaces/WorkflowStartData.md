@@ -24,6 +24,14 @@ The start box selection later phases reuse: the model for investigate and review
 
 ***
 
+### profile
+
+> **profile**: `string`
+
+Id of the repo profile the session works with, chosen once when it starts; a workflow param named `profile` requests a specific one.
+
+***
+
 ### prompt
 
 > **prompt**: `string`

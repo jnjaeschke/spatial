@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors } from "../../../../plugin-api.ts";
+import { type Artifact, type CommandRunData, type Id, type JsonSchema, type LlmEvent, type LlmSelection, type WriteMode, commandRunData, defineTask, makeGitWriter, prependRepoContext, runProcess, schemaErrors, sessionProfile } from "../../../../plugin-api.ts";
 import type { AgentSessionData, CheckResultsData, ImplementBranchData, ImplementResultData, InvestigationData, StackRewriteData } from "../../shared/types.ts";
 import { requireCheckoutOn } from "../../branch.ts";
-import { requireEditsOnlyReady, requireProfile } from "../../profiles.ts";
+import { requireEditsOnlyReady } from "../../profiles.ts";
 import { describeCheck } from "../../shared/acceptance.ts";
 import { describeFinding } from "../../runtime/findings.ts";
 import { feedbackSections } from "../../runtime/feedback.ts";
@@ -27,7 +27,7 @@ export const implement = defineTask<ImplementInput, { resultId: Id }>({
   kind: "implement",
   async run(ctx, input) {
     const branch = ctx.artifacts.get<ImplementBranchData>(input.branchId).data;
-    const profile = requireProfile(ctx.repoProfiles, branch.profile);
+    const profile = await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo);
     if (profile.requiresBug && input.bug === null) throw new Error(`The ${profile.id} profile needs a bug number`);
     requireEditsOnlyReady(profile, input.writeMode);
     const investigation = ctx.artifacts.get<InvestigationData>(input.investigationId).data;

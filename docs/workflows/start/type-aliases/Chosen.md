@@ -6,4 +6,4 @@
 
 # Type Alias: Chosen
 
-> **Chosen** = `Omit`\<[`WorkflowStartData`](../../../shared/types/interfaces/WorkflowStartData.md), `"llm"` \| `"writeMode"`\>
+> **Chosen** = `Omit`\<[`WorkflowStartData`](../../../shared/types/interfaces/WorkflowStartData.md), `"llm"` \| `"writeMode"` \| `"profile"`\>

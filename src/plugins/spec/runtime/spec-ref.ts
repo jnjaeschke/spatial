@@ -1,4 +1,4 @@
-import { type TaskContext, isGeckoRepo } from "../../../plugin-api.ts";
+import { type TaskContext, sessionProfile } from "../../../plugin-api.ts";
 import type { ResolvedSpec, SpecReferenceData } from "../shared/types.ts";
 import { specServices } from "./services.ts";
 
@@ -14,10 +14,10 @@ export function lookupSpec(env: Pick<TaskContext, "services" | "signal">, url: s
 }
 
 /** The `SpecReference` data of a looked-up URL; a found spec in a Gecko repo also gets the Searchfox lines that reference it. */
-export async function specReferenceData(env: Pick<TaskContext, "services" | "repo" | "signal">, url: string, result: SpecLookup, origin: NonNullable<SpecReferenceData["origin"]>): Promise<SpecReferenceData> {
+export async function specReferenceData(env: Pick<TaskContext, "services" | "repo" | "repoProfiles" | "artifacts" | "signal">, url: string, result: SpecLookup, origin: NonNullable<SpecReferenceData["origin"]>): Promise<SpecReferenceData> {
   if (!result.found) return { url, resolved: null, origin, reason: result.reason, geckoRefs: [] };
   const data: SpecReferenceData = { url, resolved: result.spec, origin, geckoRefs: [] };
-  if (isGeckoRepo(env.repo)) {
+  if ((await sessionProfile(env.repoProfiles, env.artifacts.view(), env.repo)).engine === "gecko") {
     try { data.geckoRefs = await specServices(env).searchfox.specRefs(result.spec.url, env.signal); }
     catch (error) {
       if (env.signal.aborted) throw error;
@@ -28,6 +28,6 @@ export async function specReferenceData(env: Pick<TaskContext, "services" | "rep
 }
 
 /** Resolves a spec URL exactly as `resolveSpecRefs` does for a citation. */
-export async function resolveSpecReference(env: Pick<TaskContext, "services" | "repo" | "signal">, url: string, origin: NonNullable<SpecReferenceData["origin"]>): Promise<SpecReferenceData> {
+export async function resolveSpecReference(env: Pick<TaskContext, "services" | "repo" | "repoProfiles" | "artifacts" | "signal">, url: string, origin: NonNullable<SpecReferenceData["origin"]>): Promise<SpecReferenceData> {
   return specReferenceData(env, url, await lookupSpec(env, url), origin);
 }

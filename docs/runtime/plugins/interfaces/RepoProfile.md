@@ -36,7 +36,7 @@ Shell command that builds the project; edits-only runs it before the tests and r
 
 ### commitStyle
 
-> **commitStyle**: `"stack"` \| `"single"`
+> **commitStyle**: `"single"` \| `"stack"`
 
 ***
 
@@ -45,6 +45,14 @@ Shell command that builds the project; edits-only runs it before the tests and r
 > **description**: `string`
 
 Shown to the workflow selector LLM.
+
+***
+
+### engine?
+
+> `optional` **engine?**: `string`
+
+The browser engine whose source tree this repo is (an `Engine` id of the spec plugin).
 
 ***
 
@@ -62,11 +70,27 @@ Phase id that investigates; default `investigate`.
 
 ***
 
+### promptNotes?
+
+> `optional` **promptNotes?**: `string`
+
+Repo-specific tool hints appended to LLM prompts that work in the repo.
+
+***
+
 ### requiresBug?
 
 > `optional` **requiresBug?**: `boolean`
 
 A bug number is given or asked for, never invented.
+
+***
+
+### upstreamBranch?
+
+> `optional` **upstreamBranch?**: `string`
+
+The branch code links pin to: a diff base's merge-base with it is the diff's upstream revision.
 
 ## Methods
 
@@ -85,6 +109,34 @@ Deterministic hint that the work tree root `repo` is this kind of repository.
 #### Returns
 
 `Promise`\<`boolean`\>
+
+***
+
+### fetchBug()?
+
+> `optional` **fetchBug**(`id`, `ctx`): `Promise`\<`string` \| `null`\>
+
+The markdown of bug `id` from the repo's bug tracker; `repoMcp` holds the repo's MCP servers. Null when this checkout has no access to the tracker; throws when the bug cannot be fetched.
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### ctx
+
+###### repoMcp
+
+`Record`\<`string`, [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)\>
+
+###### signal
+
+`AbortSignal`
+
+#### Returns
+
+`Promise`\<`string` \| `null`\>
 
 ***
 

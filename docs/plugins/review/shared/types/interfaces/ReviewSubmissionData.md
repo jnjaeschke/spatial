@@ -12,7 +12,7 @@ Receipt for a submitted Phabricator review.
 
 ### action
 
-> **action**: `"accept"` \| `"comment"` \| `"request-changes"`
+> **action**: `"comment"` \| `"accept"` \| `"request-changes"`
 
 ***
 

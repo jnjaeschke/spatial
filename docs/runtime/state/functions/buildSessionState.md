@@ -20,7 +20,7 @@
 
 ### hooks
 
-`Pick`\<[`PluginRegistry`](../../plugins/interfaces/PluginRegistry.md), `"linkRevs"` \| `"textLinks"`\>
+`Pick`\<[`PluginRegistry`](../../plugins/interfaces/PluginRegistry.md), `"linkRevs"` \| `"textLinks"` \| `"repoProfiles"`\>
 
 ### sessionId
 

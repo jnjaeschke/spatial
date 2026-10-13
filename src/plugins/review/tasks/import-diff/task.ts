@@ -1,4 +1,4 @@
-import { type DiffData, defineTask, isGeckoRepo, parseUnifiedDiff } from "../../../../plugin-api.ts";
+import { type DiffData, defineTask, parseUnifiedDiff, sessionProfile } from "../../../../plugin-api.ts";
 import { attribute, splitByCommit } from "../../runtime/attribution.ts";
 import { findRewrites } from "../../runtime/rewrites.ts";
 
@@ -17,8 +17,9 @@ export const importDiff = defineTask<{ base: string; head: string }, { diffId: s
     splitByCommit(files, commits.length);
     await findRewrites(ctx.git, baseSha, commits, files);
     const data: DiffData = { baseSha, headSha, commits, files };
-    if (isGeckoRepo(ctx.repo)) {
-      const rev = await ctx.git.mergeBase(baseSha, "main");
+    const { upstreamBranch } = await sessionProfile(ctx.repoProfiles, ctx.artifacts.view(), ctx.repo);
+    if (upstreamBranch) {
+      const rev = await ctx.git.mergeBase(baseSha, upstreamBranch);
       if (rev) data.upstreamRev = rev;
     }
     return { diffId: ctx.artifacts.put("Diff", "verified", data).id };

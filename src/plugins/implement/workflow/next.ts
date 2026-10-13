@@ -2,12 +2,11 @@ import { type Artifact, type DecisionData, type DecisionOption, type Id, type Ll
 import type { ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
 import type { ImplementInput } from "../tasks/implement/task.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
-import { requireProfile } from "../profiles.ts";
 import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
 import { commentsFeedback } from "../runtime/comments-feedback.ts";
-import { chosenDecision, latestArtifact, plural, workflowView } from "../../../plugin-api.ts";
+import { chosenDecision, latestArtifact, plural, startProfile, workflowView } from "../../../plugin-api.ts";
 
 export const APPROVE = "Approve the investigation plan?";
 export const REVIEWED = "The self-review is done. What next?";
@@ -40,7 +39,7 @@ function chosenImplementLlm(decisions: Artifact<DecisionData>[]): LlmSelection |
 
 function investigateStep(start: Artifact<WorkflowStartData>, branch: Artifact<ImplementBranchData>, profile: RepoProfile, llm: LlmSelection | undefined, previous?: { id: Id; text: string }): Step {
   const params = start.data.params as { request: string };
-  return { run: profile.investigatePhase ?? "investigate", input: { request: params.request, profile: profile.id, baseSha: branch.data.baseSha, branch: branch.data.branch, ...(previous ? { previous } : {}), ...(llm ? { llm } : {}) } };
+  return { run: profile.investigatePhase ?? "investigate", input: { request: params.request, baseSha: branch.data.baseSha, branch: branch.data.branch, ...(previous ? { previous } : {}), ...(llm ? { llm } : {}) } };
 }
 
 interface ImplementStepOptions {
@@ -72,8 +71,8 @@ const ownPhases = (profile: RepoProfile) => new Set([profile.investigatePhase ??
 /** Chooses the next implement workflow phase or decision from stored session state. */
 export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | null {
   const start = latestArtifact<WorkflowStartData>(view.artifacts, "WorkflowStart"), branch = latestArtifact<ImplementBranchData>(view.artifacts, "ImplementBranch");
-  if (!start || !branch) return null;
-  const profile = requireProfile(ctx.repoProfiles, branch.data.profile);
+  const profile = startProfile(ctx.repoProfiles, view);
+  if (!start || !branch || !profile) return null;
   // Phases started outside the workflow (a try push from chat) leave its own last epoch and that epoch's decision in charge.
   const investigatePhase = profile.investigatePhase ?? "investigate", own = ownPhases(profile);
   const last = view.epochs.findLast((epoch) => own.has(epoch.phase));
@@ -155,7 +154,7 @@ export function isActive(rt: Runtime, sessionId: Id): boolean {
   if (rt.runningEpoch(sessionId) !== null || rt.nextStep(sessionId) !== null) return true;
   const view = workflowView(rt.store, sessionId);
   const branch = latestArtifact<ImplementBranchData>(view.artifacts, "ImplementBranch");
-  const profile = branch && rt.plugins.repoProfiles.get(branch.data.profile);
+  const profile = branch && startProfile(rt.plugins.repoProfiles, view);
   if (!profile) return false;
   const own = ownPhases(profile);
   const status = view.epochs.findLast((epoch) => own.has(epoch.phase))?.status;

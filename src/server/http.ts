@@ -12,7 +12,7 @@ import { groupByRepo, recentFirst, repoName } from "../shared/repos.ts";
 import { isActive } from "../shared/task-state.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { startSession, type PendingStart, type StartRequest } from "../workflows/start.ts";
-import { isGeckoRepo } from "../runtime/gecko-repo.ts";
+import { sessionProfile } from "../runtime/profiles.ts";
 import { resolveCodeLinks, searchfoxOf } from "../runtime/code-links.ts";
 import { selectLinkRev } from "../runtime/link-rev.ts";
 import { meteredRuns } from "../runtime/usage.ts";
@@ -236,7 +236,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const body = await readJson(req);
       if (!Array.isArray(body.tokens) || body.tokens.length < 1 || body.tokens.length > 50 || body.tokens.some((token) => typeof token !== "string" || token.length > 200)) throw new HttpError(400, "tokens must be 1–50 strings of at most 200 characters");
       const rev = selectLinkRev(sessionView(rt.store, session.id), rt.plugins.linkRevs);
-      if (!rev || !isGeckoRepo(session.worktree)) throw new HttpError(409, "Code links require a Gecko session with a known upstream revision");
+      if (!rev || !(await sessionProfile(rt.plugins.repoProfiles, sessionView(rt.store, session.id), session.worktree)).upstreamBranch) throw new HttpError(409, "Code links require a Gecko session with a known upstream revision");
       const diff = rt.store.listArtifacts(session.id, "Diff").findLast((artifact) => (artifact.data as DiffData).upstreamRev === rev);
       const prior: Record<string, string | null> = {};
       for (const artifact of rt.store.listArtifacts(session.id, "CodeLinks")) {

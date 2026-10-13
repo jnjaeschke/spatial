@@ -313,6 +313,6 @@ await new Promise<void>((resolve) => moz.listen(MOZ_PORT, "127.0.0.1", resolve))
 Object.assign(process.env, { SPATIAL_WEBSPEC_BIN: WEBSPEC, SPATIAL_SEARCHFOX_BIN: SEARCHFOX, SPATIAL_CHROMIUM_SEARCH_BIN: CHROMIUM });
 const rt = createRuntime({ dbPath: join(dir, "db.sqlite"), claudeBin: STUB });
 const fixture = await createSession(rt.store, repo.dir, "fixture", null);
-const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
+const fixtureStart = rt.store.putArtifact<WorkflowStartData>({ sessionId: fixture.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", profile: "plain-git", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "fixture", prompt: "HEAD~1..HEAD" } });
 await runWorkflow(rt, fixture.id, fixtureStart.id);
 createHttpServer(rt, { staticDir: "dist/e2e-web", background: { intervalMs: 300 } }).listen(PORT, "127.0.0.1", () => console.log(`e2e runtime on ${PORT}`));

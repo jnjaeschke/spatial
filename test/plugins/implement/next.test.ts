@@ -13,8 +13,8 @@ const stack: RepoProfile = { id: "stack", description: "s", commitStyle: "stack"
 const never: RepoProfile = { id: "never", description: "n", commitStyle: "single", autoFixRounds: 0 };
 const profiles = new Map([plain, stack, never].map((p) => [p.id, p]));
 
-const start = () => art("WorkflowStart", { via: "command", workflow: "implement", params: { request: "fix it", profile: null, checkout: null }, title: "t", prompt: "fix it", llm: START, writeMode: "editsOnly" }, null);
-const branch = (profile = "plain") => art("ImplementBranch", { branch: "spatial/x", baseSha: "BASE", baseRef: "main", profile, checkout: "new-branch" }, null);
+const start = (profile = "plain") => art("WorkflowStart", { via: "command", workflow: "implement", profile, params: { request: "fix it", profile: null, checkout: null }, title: "t", prompt: "fix it", llm: START, writeMode: "editsOnly" }, null);
+const branch = () => art("ImplementBranch", { branch: "spatial/x", baseSha: "BASE", baseRef: "main", checkout: "new-branch" }, null);
 const investigation = (bug: number | null, epochN = 1) => art("Investigation", { kind: "bugfix", summary: "S", bug, locations: [], testCases: [], steps: [], openQuestions: [], exploration: [] }, epochN);
 const result = (epochN: number, over: object = {}) => art("ImplementResult", { head: "HEAD1", branch: "spatial/x", summary: "s", planChange: null, planInvalid: null, ...over }, epochN);
 const decision = (key: string, question: string, chosen: DecisionData["chosen"], epochN: number, options: DecisionOption[] = []) => art("Decision", { key, question, options, chosen } satisfies DecisionData, epochN);
@@ -28,7 +28,7 @@ const APPROVE = "Approve the investigation plan?", REVIEWED = "The self-review i
 test("without epochs the investigation starts with the start box selection", () => {
   const step = run(next(view([start(), branch()], [])));
   assert.equal(step.run, "investigate");
-  assert.deepEqual(step.input, { request: "fix it", profile: "plain", baseSha: "BASE", branch: "spatial/x", llm: START });
+  assert.deepEqual(step.input, { request: "fix it", baseSha: "BASE", branch: "spatial/x", llm: START });
 });
 
 test("a failed or running epoch waits for Retry", () => {
@@ -49,28 +49,28 @@ test("after the investigation the user approves, revises or cancels", () => {
 });
 
 test("profile that requires a bug asks for the number", () => {
-  const withoutBug = decide(next(view([start(), branch("stack"), investigation(null)], [epoch(1, "investigate")])));
+  const withoutBug = decide(next(view([start("stack"), branch(), investigation(null)], [epoch(1, "investigate")])));
   assert.deepEqual(withoutBug.decide.options[0], { id: "approve", label: "Approve", takesModel: true, takesText: true, requiresText: true, textPattern: "^\\d+$" });
-  const withBug = decide(next(view([start(), branch("stack"), investigation(77)], [epoch(1, "investigate")])));
+  const withBug = decide(next(view([start("stack"), branch(), investigation(77)], [epoch(1, "investigate")])));
   assert.equal(withBug.decide.options[0]!.requiresText, undefined);
 });
 
 test("approval starts implement with the chosen model, the bug from the text and the start's write mode", () => {
-  const v = (text?: string) => view([start(), branch("stack"), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", ...(text ? { text } : {}), llm: IMPL }, 1)], [epoch(1, "investigate")]);
+  const v = (text?: string) => view([start("stack"), branch(), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", ...(text ? { text } : {}), llm: IMPL }, 1)], [epoch(1, "investigate")]);
   const step = run(next(v("4711")));
   assert.equal(step.run, "implement");
   const { branchId, investigationId, ...rest } = step.input as { branchId: string; investigationId: string };
   assert.ok(branchId && investigationId);
   assert.deepEqual(rest, { bug: 4711, text: null, fix: [], writeMode: "editsOnly", llm: IMPL });
-  const withKnownBug = run(next(view([start(), branch("stack"), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
+  const withKnownBug = run(next(view([start("stack"), branch(), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
   assert.equal((withKnownBug.input as { bug: number; llm: LlmSelection }).bug, 77);
   assert.deepEqual((withKnownBug.input as { llm: LlmSelection }).llm, START, "no chosen model falls back to the start selection");
 });
 
 test("the approve text is the bug number as typed, and a known bug needs no text", () => {
-  const typed = run(next(view([start(), branch("stack"), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", text: "4711" }, 1)], [epoch(1, "investigate")])));
+  const typed = run(next(view([start("stack"), branch(), investigation(null), decision("approve", APPROVE, { option: "approve", by: "user", text: "4711" }, 1)], [epoch(1, "investigate")])));
   assert.equal((typed.input as { bug: number }).bug, 4711);
-  const known = run(next(view([start(), branch("stack"), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
+  const known = run(next(view([start("stack"), branch(), investigation(77), decision("approve", APPROVE, { option: "approve", by: "user" }, 1)], [epoch(1, "investigate")])));
   assert.equal((known.input as { bug: number }).bug, 77);
 });
 
@@ -84,13 +84,13 @@ test("revise reinvestigates with the previous investigation and the text; cancel
 
 test("a replacement investigate phase is honoured through the profile", () => {
   const custom: RepoProfile = { id: "custom", description: "c", commitStyle: "single", investigatePhase: "my-investigate" };
-  const v = view([start(), branch("custom")], []);
+  const v = view([start("custom"), branch()], []);
   assert.equal(run(implementNext(v, { repoProfiles: new Map([["custom", custom]]) })).run, "my-investigate");
 });
 
 const baseArtifacts = (profile = "plain", bug: number | null = null) => {
   const inv = investigation(bug);
-  return [start(), branch(profile), inv, decision("approve", APPROVE, { option: "approve", by: "user", llm: IMPL, ...(profile === "stack" ? { text: "5" } : {}) }, 1)];
+  return [start(profile), branch(), inv, decision("approve", APPROVE, { option: "approve", by: "user", llm: IMPL, ...(profile === "stack" ? { text: "5" } : {}) }, 1)];
 };
 
 test("after implement the review runs on the recorded tip, as an update from the second round", () => {
@@ -198,7 +198,7 @@ test("a plan that does not hold asks to re-investigate or continue", () => {
 });
 
 test("an unknown profile is an error", () => {
-  assert.throws(() => next(view([start(), branch("missing")], [])), /Unknown repo profile: missing/);
+  assert.throws(() => next(view([start("missing"), branch()], [])), /Unknown repo profile: missing/);
 });
 
 test("reviewer comments ask to work in, feed addressed comments to implement, and leave other choices idle", () => {

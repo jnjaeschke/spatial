@@ -17,7 +17,7 @@ const fake = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.
 function setup(webspec: WebspecCapability = fake) {
   const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, services: specTestServices({ webspec }) });
   const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
-  const start = (query: string) => rt.store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "explore", params: { query }, title: query, prompt: query } });
+  const start = (query: string) => rt.store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "explore", profile: "plain-git", params: { query }, title: query, prompt: query } });
   return { rt, session, start };
 }
 const opened = (rt: Runtime, sessionId: string) => rt.store.listArtifacts(sessionId, "SpecOpened").map((a) => a.data as SpecOpenedData);

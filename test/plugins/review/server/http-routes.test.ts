@@ -64,7 +64,7 @@ test("narrate runs in background and state reflects the result", async () => {
 
 test("narrate retries a failed workflow before a Diff exists", async () => {
   const session = await newSession();
-  const start = rt.store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "review", prompt: "HEAD~1..HEAD" } });
+  const start = rt.store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "review", profile: "plain-git", params: { base: "HEAD~1", head: "HEAD", revision: null }, title: "review", prompt: "HEAD~1..HEAD" } });
   assert.equal((await post(`/api/sessions/${session.id}/narrate`, {})).status, 202);
   const state = await waitFor(async () => {
     const snapshot: SessionState = await (await fetch(`${base}/api/sessions/${session.id}/state`)).json();

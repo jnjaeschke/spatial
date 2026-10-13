@@ -105,7 +105,7 @@ test("advance does nothing for a workflow without next", async () => {
 
 test("runWorkflow advances a workflow that has next", async () => {
   const { store, rt, session } = setup((view) => view.epochs.length === 0 ? { run: "a", input: null } : null);
-  const start = store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "flow", params: {}, title: "t", prompt: "" } });
+  const start = store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "flow", profile: "plain-git", params: {}, title: "t", prompt: "" } });
   await runWorkflow(rt, session.id, start.id);
   assert.equal(store.listEpochs(session.id).length, 1);
 });
