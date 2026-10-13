@@ -4,20 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect, type Page, type APIRequestContext, type Locator } from "@playwright/test";
 import { expandItem, openChange, openInPanel, openPatch, revealNode, startReview } from "./canvas.ts";
+import { newRevision } from "./revisions.ts";
 
 const repoDirs: string[] = [];
 const control = "http://127.0.0.1:4179/control";
-let revisionCount = 0;
 
 test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-
-/** A revision and diff ids no other test uses: workers run in parallel against one server, and Phabricator diff ids are global. */
-function newRevision() {
-  const revision = 1000 + test.info().workerIndex * 100 + revisionCount++;
-  return { revision, d1: revision * 10 + 1, d2: revision * 10 + 2 };
-}
 
 function git(dir: string, ...args: string[]) {
   return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();

@@ -3,18 +3,13 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { newRevision } from "./revisions.ts";
 
 const repoDirs: string[] = [];
-let revisionCount = 50;
 
 test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-
-function newRevision() {
-  const revision = 7000 + test.info().workerIndex * 100 + revisionCount++;
-  return { revision, diff: revision * 10 + 1 };
-}
 
 function git(dir: string, ...args: string[]) {
   return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
@@ -227,7 +222,7 @@ test("/review D<id> imports the revision named by .arcconfig and leaves the repo
   execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "add", "-A"]);
   execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-m", "Bug 1 - Remote change"]);
   const raw = execFileSync("git", ["-C", scratch, "diff", base, "HEAD"], { encoding: "utf8" });
-  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Bug 1 - Remote change", base, diffs: [ids.diff], rawDiffs: { [ids.diff]: raw } } });
+  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Bug 1 - Remote change", base, diffs: [ids.d1], rawDiffs: { [ids.d1]: raw } } });
   expect(control.ok()).toBeTruthy();
 
   const snapshot = () => ({
@@ -246,7 +241,7 @@ test("/review D<id> imports the revision named by .arcconfig and leaves the repo
   await expect(page.getByTestId("summary")).toContainText("Edits a and adds c.");
 
   expect(snapshot()).toEqual(before);
-  const spatialRef = git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial").split("\n").find((ref) => ref.startsWith(`refs/spatial/D${ids.revision}/${ids.diff}-`));
+  const spatialRef = git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial").split("\n").find((ref) => ref.startsWith(`refs/spatial/D${ids.revision}/${ids.d1}-`));
   expect(spatialRef).toBeTruthy();
   expect(git(dir, "log", "-1", "--format=%B", spatialRef!)).toContain(`Differential Revision: https://phab.example.com/D${ids.revision}`);
 });
@@ -272,7 +267,7 @@ test("Retry repeats a failed revision import", async ({ page, request }) => {
   execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-m", "Remote change"]);
   const raw = execFileSync("git", ["-C", scratch, "diff", base, "HEAD"], { encoding: "utf8" });
   const missing = "e".repeat(40);
-  const register = (revisionBase: string) => request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Remote change", base: revisionBase, diffs: [ids.diff], rawDiffs: { [ids.diff]: raw } } });
+  const register = (revisionBase: string) => request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Remote change", base: revisionBase, diffs: [ids.d1], rawDiffs: { [ids.d1]: raw } } });
   expect((await register(missing)).ok()).toBeTruthy();
   await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(dir)}`);
   const box = page.getByLabel("start");

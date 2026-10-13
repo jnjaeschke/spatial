@@ -3,18 +3,13 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
+import { newRevision } from "./revisions.ts";
 
 const repoDirs: string[] = [];
-let revisionCount = 0;
 
 test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-
-function newRevision() {
-  const revision = 7000 + test.info().workerIndex * 100 + revisionCount++;
-  return { revision, diff: revision * 10 + 1 };
-}
 
 function git(dir: string, ...args: string[]) {
   return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
@@ -40,7 +35,7 @@ test("reviews a Phabricator revision that is not checked out and leaves the repo
   execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "add", "-A"]);
   execFileSync("git", ["-C", scratch, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-m", "Bug 1 - Remote change"]);
   const raw = execFileSync("git", ["-C", scratch, "diff", base, "HEAD"], { encoding: "utf8" });
-  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Bug 1 - Remote change", base, diffs: [ids.diff], rawDiffs: { [ids.diff]: raw } } });
+  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, title: "Bug 1 - Remote change", base, diffs: [ids.d1], rawDiffs: { [ids.d1]: raw } } });
   expect(control.ok()).toBeTruthy();
   const title = `remote-${crypto.randomUUID()}`;
   const session = await (await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: dir, title } })).json() as { id: string };
@@ -62,7 +57,7 @@ test("reviews a Phabricator revision that is not checked out and leaves the repo
 
   expect(snapshot()).toEqual(before);
   expect(git(dir, "log", "-1", "--format=%B", range.head)).toContain(`Differential Revision: https://phab.example.com/D${ids.revision}`);
-  expect(git(dir, "for-each-ref", "refs/spatial")).toContain(`refs/spatial/D${ids.revision}/${ids.diff}-${range.head.slice(0, 12)}`);
+  expect(git(dir, "for-each-ref", "refs/spatial")).toContain(`refs/spatial/D${ids.revision}/${ids.d1}-${range.head.slice(0, 12)}`);
   const state = await (await request.get(`http://127.0.0.1:4178/api/sessions/${session.id}/state`)).json() as { artifacts: { type: string; data: { baseSha?: string; headSha?: string } }[] };
   const diff = state.artifacts.find((artifact) => artifact.type === "Diff")!.data;
   expect(diff.baseSha).toBe(base);
@@ -80,7 +75,7 @@ test("a revision whose base commit is not in the repo is refused without writing
   git(dir, "commit", "-m", "base");
   const head = git(dir, "rev-parse", "HEAD");
   const missingBase = "e".repeat(40);
-  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, base: missingBase, diffs: [ids.diff], rawDiffs: { [ids.diff]: "diff --git a/x b/x\n" } } });
+  const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, base: missingBase, diffs: [ids.d1], rawDiffs: { [ids.d1]: "diff --git a/x b/x\n" } } });
   expect(control.ok()).toBeTruthy();
   const title = `remote-missing-base-${crypto.randomUUID()}`;
   const session = await (await request.post("http://127.0.0.1:4178/api/sessions", { data: { repo: dir, title } })).json() as { id: string };
