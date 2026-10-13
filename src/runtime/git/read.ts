@@ -99,14 +99,11 @@ export function makeGit(repo: string, signal?: AbortSignal): GitCapability {
     async patchIds(baseSha, headSha) {
       safeRevision(baseSha, "base");
       safeRevision(headSha, "head");
-      const shas = (await git(["rev-list", "--reverse", "--end-of-options", `${baseSha}..${headSha}`])).split("\n").filter(Boolean);
-      const ids: { sha: string; patchId: string }[] = [];
-      for (const sha of shas) {
-        const patch = await git(["show", "--no-color", "--no-ext-diff", "--format=", sha]);
-        const line = (await runGit(repo, ["patch-id", "--stable"], { signal, input: patch })).trim();
-        if (line) ids.push({ sha, patchId: line.split(" ")[0]! });
-      }
-      return ids;
+      const patches = await git(["log", "--reverse", "-p", "--no-color", "--no-ext-diff", "--format=commit %H", "--end-of-options", `${baseSha}..${headSha}`]);
+      if (!patches.trim()) return [];
+      // patch-id prints "<patch id> <commit>" per commit, in input order; commits without a diff print nothing.
+      const out = await runGit(repo, ["patch-id", "--stable"], { signal, input: patches });
+      return out.split("\n").filter(Boolean).map((line) => { const [patchId, sha] = line.split(" "); return { sha: sha!, patchId: patchId! }; });
     },
     async log(baseSha, headSha) {
       safeRevision(baseSha, "base");
