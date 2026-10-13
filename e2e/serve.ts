@@ -38,18 +38,19 @@ const out = join(dir, "claude.json");
 writeFileSync(out, JSON.stringify({ type: "result", is_error: false, result: "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```", structured_output: narrative, session_id: "stub-session", usage: { input_tokens: 1, output_tokens: 1 } }));
 process.env.FAKE_LLM_STDOUT = out;
 const chatOut = join(dir, "chat.json");
+const noFields = { tryPush: null, phabSubmit: null, specExplore: null };
 const chatAnswer = "Stub answer.\n\n- uses **`THIRTY`**\n\n```cpp\nint x = 1;\n```";
-writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-chat", total_cost_usd: 0.25, usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(chatOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: ["Should c2 really depend on c1?"], revisions: [], requestMcpServers: [], ...noFields, diagram: null }, session_id: "stub-chat", total_cost_usd: 0.25, usage: { input_tokens: 1, output_tokens: 1 } }));
 const longChatOut = join(dir, "long-chat.json");
 const longAnswer = Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1} of a long answer.`).join("\n\n");
-writeFileSync(longChatOut, JSON.stringify({ type: "result", is_error: false, result: longAnswer, structured_output: { answer: longAnswer, questions: [], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(longChatOut, JSON.stringify({ type: "result", is_error: false, result: longAnswer, structured_output: { answer: longAnswer, questions: [], revisions: [], requestMcpServers: [], ...noFields, diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const activityChatOut = join(dir, "activity-chat.jsonl");
 writeFileSync(activityChatOut, [
   { type: "system", subtype: "init", session_id: "stub-activity" },
   { type: "assistant", message: { content: [{ type: "thinking", thinking: "Find the caller first." }, { type: "tool_use", id: "t1", name: "Grep", input: { pattern: "CallerOfThings" } }] } },
   { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "c.txt:3: CallerOfThings()", is_error: false }] } },
   { type: "assistant", message: { content: [{ type: "text", text: "The caller lives in c.txt." }] } },
-  { type: "result", is_error: false, result: "Found it.", structured_output: { answer: "Found it.", questions: [], revisions: [], requestMcpServers: [], diagram: null }, session_id: "stub-activity", usage: { input_tokens: 1, output_tokens: 1 } },
+  { type: "result", is_error: false, result: "Found it.", structured_output: { answer: "Found it.", questions: [], revisions: [], requestMcpServers: [], ...noFields, diagram: null }, session_id: "stub-activity", usage: { input_tokens: 1, output_tokens: 1 } },
 ].map((line) => JSON.stringify(line)).join("\n"));
 const activityHangOut = join(dir, "activity-hang.jsonl");
 writeFileSync(activityHangOut, readFileSync(activityChatOut, "utf8").split("\n").slice(0, -1).join("\n") + "\n");
@@ -62,9 +63,9 @@ const selectAskOut = join(dir, "select-ask.json");
 writeFileSync(selectAskOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { question: "Review your branch or chat about it?", workflow: "chat", params: {}, title: "Unsure" }, session_id: "stub-select-ask", usage: { input_tokens: 1, output_tokens: 1 } }));
 writeFileSync(selectChatOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { workflow: "chat", params: {}, title: "Chat via selector" }, session_id: "stub-select-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const mcpRequestOut = join(dir, "mcp-request.json");
-writeFileSync(mcpRequestOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: [], revisions: [], requestMcpServers: ["firefox-devtools"], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(mcpRequestOut, JSON.stringify({ type: "result", is_error: false, result: chatAnswer, structured_output: { answer: chatAnswer, questions: [], revisions: [], requestMcpServers: ["firefox-devtools"], ...noFields, diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const revisedOut = join(dir, "revised-chat.json");
-writeFileSync(revisedOut, JSON.stringify({ type: "result", is_error: false, result: "You are right, corrected.", structured_output: { answer: "You are right, corrected.", questions: [], revisions: [{ message: null, quote: "Stub answer.", correction: "Corrected stub answer." }], requestMcpServers: [], diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
+writeFileSync(revisedOut, JSON.stringify({ type: "result", is_error: false, result: "You are right, corrected.", structured_output: { answer: "You are right, corrected.", questions: [], revisions: [{ message: null, quote: "Stub answer.", correction: "Corrected stub answer." }], requestMcpServers: [], ...noFields, diagram: null }, session_id: "stub-chat", usage: { input_tokens: 1, output_tokens: 1 } }));
 const reviewOut = join(dir, "review.json");
 writeFileSync(reviewOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { findings: [{ anchor: "f1h0", quote: "c", category: "tests", severity: "medium", title: "No test for c", body: "Adds `c.txt` without a test." }], verdicts: [] }, session_id: "stub-review", usage: { input_tokens: 1, output_tokens: 1 } }));
 const updateReview1Out = join(dir, "update-review1.json");
@@ -81,7 +82,7 @@ const stubOut = (name: string, structured: object) => {
 const findBlinkOut = stubOut("find-blink", { candidates: [{ path: "third_party/blink/renderer/core/loader/frame_loader.cc", line: 1813, quote: "bool FrameLoader::CancelProvisionalLoaderForNewNavigation() {", why: "Aborts the active document before a new navigation (step 9)." }] });
 const findWebkitOut = stubOut("find-webkit", { candidates: [] });
 const geckoFindOut = stubOut("gecko-find", { candidates: [{ path: "dom/fake/Snapshot.cpp", line: 3, quote: "Snap();", why: "Snapshots the source params." }] });
-const diagramOut = stubOut("diagram", { answer: "Here is the sequence.", questions: [], revisions: [], requestMcpServers: [], diagram: { commit: 1, title: "First commit sequence", summary: "The changed value is applied, then observed.", lanes: [
+const diagramOut = stubOut("diagram", { answer: "Here is the sequence.", questions: [], revisions: [], requestMcpServers: [], ...noFields, diagram: { commit: 1, title: "First commit sequence", summary: "The changed value is applied, then observed.", lanes: [
   { id: "driver", label: "Refresh driver", note: null }, { id: "page", label: "Page", note: "current document" }, { id: "object", label: "Target object", note: null },
 ], steps: [
   { from: "driver", to: "page", symbol: "c", call: "Apply(c)", what: "Applies the changed value.", when: "During refresh", guard: "if current", phase: "Refresh", status: "changed", cite: { path: "c.txt", line: 1 } },
@@ -148,7 +149,7 @@ const fixedReviewOut = stubOut("implement-fixed-review", { findings: [], verdict
 const tryInvestigationOut = stubOut("try-investigation", { kind: "bugfix", summary: "Gecko needs c.", bug: 4242, locations: [{ path: "a.txt", line: 1, quote: "line 1", why: "Start here.", step: 0 }], testCases: [], architecture: null, steps: [{ title: "Add c", message: "Bug N - Add c", intent: "Add c.txt.", checks: [rawCheck("covering-test", { path: "a.txt" })] }], openQuestions: [], exploration: [], specUrls: [], diagram: null });
 const tryCleanReviewOut = stubOut("try-clean-review", { findings: [], verdicts: [] });
 const tryProposalOut = stubOut("try-proposal", { command: "./mach try fuzzy --query 'mochitest-plain'", reason: "Runs the plain mochitests." });
-const localLinkChatOut = stubOut("local-link-chat", { answer: "See [a.txt](a.txt:30), [missing](missing.txt:1) and [the spec](https://example.com/spec).", questions: [], revisions: [], requestMcpServers: [], diagram: null });
+const localLinkChatOut = stubOut("local-link-chat", { answer: "See [a.txt](a.txt:30), [missing](missing.txt:1) and [the spec](https://example.com/spec).", questions: [], revisions: [], requestMcpServers: [], ...noFields, diagram: null });
 const tryNarrativeOut = stubOut("try-narrative", { summary: "Adds c.", changes: [{ id: "c1", title: "Add c", explanation: "Adds c.txt.", rationale: "r", hunkIds: ["f0h0"], dependsOn: [], specUrls: [] }] });
 const bugSummaryOut = stubOut("bug-summary", { summary: "The bug reports that c.txt is missing. Create or request the file to reproduce it. The reporter provides no additional decisions, and the open question is why the file is absent." });
 const phabThreadSummaryOut = stubOut("phab-thread-summary", { summary: "The reviewers question the implementation, then agree the change addresses the concern." });
@@ -175,8 +176,8 @@ const specTraceOut = stubOut("spec-trace", { title: "Source snapshot before the 
   { anchor: "HTML#setup", step: "1", note: "Runs the setup.", hop: "call", code: [] },
 ], verdict: { answer: "fails", reasoning: "The origin snapshot is created at step 3, after step 2." } });
 const specTraceNotesOut = stubOut("spec-trace-notes", { notes: Array.from({ length: 4 }, () => ({ supported: true, reason: "The step says so." })) });
-const specExploreChatOut = stubOut("spec-explore-chat", { answer: "Read the navigate algorithm.", questions: [], revisions: [], requestMcpServers: [], diagram: null, specExplore: { anchors: ["HTML#navigate"], question: null } });
-const specTraceChatOut = stubOut("spec-trace-chat", { answer: "Let me trace that.", questions: [], revisions: [], requestMcpServers: [], diagram: null, specExplore: { anchors: ["HTML#navigate"], question: { mode: "claim", text: "The source snapshot is taken before the origin snapshot." } } });
+const specExploreChatOut = stubOut("spec-explore-chat", { answer: "Read the navigate algorithm.", questions: [], revisions: [], requestMcpServers: [], ...noFields, diagram: null, specExplore: { anchors: ["HTML#navigate"], question: null } });
+const specTraceChatOut = stubOut("spec-trace-chat", { answer: "Let me trace that.", questions: [], revisions: [], requestMcpServers: [], ...noFields, diagram: null, specExplore: { anchors: ["HTML#navigate"], question: { mode: "claim", text: "The source snapshot is taken before the origin snapshot." } } });
 const compareOut = stubOut("compare-engines", { differences: [{ kind: "other", steps: ["9"], summary: "Blink aborts the active document with `Abort`.", claims: [{ engine: "blink", text: "Calls `Abort` on the document.", code: [{ path: "third_party/blink/renderer/core/loader/frame_loader.cc", line: 1817, quote: "frame_->GetDocument()->Abort();" }] }] }] });
 const verifyComparisonOut = stubOut("verify-comparison", { differences: [{ supported: true, reason: "Line 1817 calls Abort on the document." }] });
 // Spec view and file navigation routes come first: their mapping and narration prompts also contain the generic needles below.
