@@ -1,4 +1,4 @@
-import type { ChatThreadData, DiagramData, SessionState } from "../shared/types.ts";
+import type { ChatThreadData, DiagramData, SessionState, TaskRecord } from "../shared/types.ts";
 
 /** A session snapshot embedded in a static export file. */
 export interface SessionExport {
@@ -16,7 +16,7 @@ export interface SessionExport {
 const CLOSABLE = new Set(["ChatThread", "Note", "Diagram"]);
 
 /** The state as the canvas shows it: closed chats, notes and diagrams are dropped with everything that hangs off them (messages, replies, revisions, derived diagrams), and so are diagrams the canvas does not show (not the latest sequence diagram of a commit of the exported diff). Only the tasks the canvas reads are kept, since task inputs carry prompts. */
-export function exportState(state: SessionState, closed: ReadonlySet<string>, diffCommits: readonly string[]): SessionState {
+export function exportState(state: SessionState, closed: ReadonlySet<string>, diffCommits: readonly string[], exportTask: (task: TaskRecord) => boolean = () => false): SessionState {
   const dropped = new Set(state.artifacts.filter((a) => closed.has(a.id) && CLOSABLE.has(a.type)).map((a) => a.id));
   const commits = new Set(diffCommits);
   const shownDiagram = new Map<string, string>();
@@ -35,7 +35,7 @@ export function exportState(state: SessionState, closed: ReadonlySet<string>, di
     ...state,
     artifacts: state.artifacts.filter((a) => !dropped.has(a.id)),
     links: state.links.filter((l) => !dropped.has(l.from) && !dropped.has(l.to)),
-    tasks: state.tasks.filter((t) => t.kind === "resolveSpecRefs" && t.status === "succeeded"),
+    tasks: state.tasks.filter(exportTask),
   };
 }
 

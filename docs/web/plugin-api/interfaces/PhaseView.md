@@ -66,6 +66,42 @@ The diff an export carries file texts of; none for views without diffs.
 
 ***
 
+### exportSummary()?
+
+> `optional` **exportSummary**(`state`): `string`[]
+
+Extra contents summary lines for a static export.
+
+#### Parameters
+
+##### state
+
+[`SessionState`](../../../shared/types/interfaces/SessionState.md)
+
+#### Returns
+
+`string`[]
+
+***
+
+### exportTasks()?
+
+> `optional` **exportTasks**(`task`): `boolean`
+
+Which tasks this view includes in a static export; tasks are omitted by default because inputs can contain prompts.
+
+#### Parameters
+
+##### task
+
+[`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md)
+
+#### Returns
+
+`boolean`
+
+***
+
 ### isStaleNotice()?
 
 > `optional` **isStaleNotice**(`state`, `notice`): `boolean`

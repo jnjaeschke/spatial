@@ -13,6 +13,8 @@ export const webNodeKinds = Object.assign({}, coreNodeKinds, ...webPlugins.map((
 export const webReplyActions: Record<string, ComponentType<ReplyActionProps>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.replyActions ?? {}));
 export const webConversationItems: Record<string, ComponentType<ConversationItemProps>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.conversationItems ?? {}));
 export const webConversationTasks: ReadonlySet<string> = new Set(webPlugins.flatMap((plugin) => plugin.conversationTasks ?? []));
+export const webTaskLabels: Readonly<Record<string, string>> = Object.assign({}, ...webPlugins.map((plugin) => plugin.taskLabels ?? {}));
+export const webTaskBadges = Object.assign({}, ...webPlugins.map((plugin) => plugin.taskBadges ?? {}));
 export const webRepoPanels: ComponentType<RepoPanelProps>[] = webPlugins.flatMap((plugin) => plugin.repoPanels ?? []);
 export const webRepoViews: PluginRepoView[] = webPlugins.flatMap((plugin) => plugin.repoViews ?? []);
 for (const [index, view] of webRepoViews.entries()) if (webRepoViews.findIndex((other) => other.id === view.id) !== index) throw new Error(`Duplicate repo view: ${view.id}`);

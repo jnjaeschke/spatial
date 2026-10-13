@@ -68,6 +68,18 @@
 
 ***
 
+### taskBadges?
+
+> `optional` **taskBadges?**: `Record`\<`string`, `ComponentType`\<\{ `task`: [`TaskRecord`](../../../shared/types/interfaces/TaskRecord.md); \}\>\>
+
+***
+
+### taskLabels?
+
+> `optional` **taskLabels?**: `Record`\<`string`, `string`\>
+
+***
+
 ### workflowPhase?
 
 > `optional` **workflowPhase?**: `Record`\<`string`, `string`\>

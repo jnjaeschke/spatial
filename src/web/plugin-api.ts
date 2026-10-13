@@ -5,12 +5,13 @@
  */
 import { createContext, useContext, type ComponentType, type ReactNode, type ReactPortal } from "react";
 import { createPortal } from "react-dom";
-import type { SessionState, ModelsResponse, NotifyPayload, Epoch } from "../shared/types.ts";
+import type { SessionState, ModelsResponse, NotifyPayload, Epoch, TaskRecord } from "../shared/types.ts";
 import type { Draft } from "./chat-context.ts";
 import type { GraphNodeData } from "./graph-api.ts";
 import type { NodeProps } from "@xyflow/react";
 import type { ReplyActionProps } from "./reply-actions.ts";
 import type { ConversationItemProps } from "./conversation-items.ts";
+export type { TaskRecord } from "../shared/types.ts";
 
 export interface PhaseViewProps { state: SessionState; models: ModelsResponse; drafts: Draft[]; /** The epoch being shown; null before the first epoch. A past epoch comes with the session state as it was then and `readOnly`. */ epoch: Epoch | null; readOnly?: boolean; onSent(draftId: string, taskId: string): void; onDiscard(draftId: string): void; onOpenAside(draft: Draft): void }
 /** What a static export embeds of the latest diff: its id, its commit shas, and the paths of files whose full text is included. */
@@ -23,6 +24,10 @@ export interface PhaseView {
   exportable?(state: SessionState): boolean;
   /** The diff an export carries file texts of; none for views without diffs. */
   exportDiff?(state: SessionState): ExportDiff | null;
+  /** Which tasks this view includes in a static export; tasks are omitted by default because inputs can contain prompts. */
+  exportTasks?(task: TaskRecord): boolean;
+  /** Extra contents summary lines for a static export. */
+  exportSummary?(state: SessionState): string[];
   /** Whether a notification is stale for this view and is not shown. */
   isStaleNotice?(state: SessionState, notice: NotifyPayload): boolean;
   /** Whether the view shows the session's main conversation itself; the footer then offers no session chip. */
@@ -44,7 +49,7 @@ export interface RepoPanelProps { repoDir: string }
 export interface RepoViewProps { worktree: string; repoDir: string; name: string }
 /** A repository page outside any session, linked from the repo page. */
 export interface PluginRepoView { id: string; label: string; Body: ComponentType<RepoViewProps> }
-export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Handles steering input for the named workflow. */ steer?: Record<string, (sessionId: string, text: string, live: boolean) => Promise<unknown>>; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; /** Repository pages, linked from the repo page. */ repoViews?: PluginRepoView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
+export interface WebPlugin { id: string; phaseViews: Record<string, PhaseView>; /** Views offered in every session where they are available, beside the phase view. */ sessionViews?: PluginSessionView[]; /** Components shown under a chat reply for the artifacts derived from it, by artifact type (e.g. a button for a proposal a reply field stored without running anything). */ replyActions?: Record<string, ComponentType<ReplyActionProps>>; /** Components shown in the root conversation for artifacts of these types, in creation order among its messages. */ conversationItems?: Record<string, ComponentType<ConversationItemProps>>; /** Task kinds shown inline in a conversation (by their `conversationItems`), so the activity strip leaves them out. */ conversationTasks?: string[]; /** Display names for task kinds. */ taskLabels?: Record<string, string>; /** Extra task result text shown after task status. */ taskBadges?: Record<string, ComponentType<{ task: TaskRecord }>>; /** Handles steering input for the named workflow. */ steer?: Record<string, (sessionId: string, text: string, live: boolean) => Promise<unknown>>; /** Panels shown on the repo page below the session list. */ repoPanels?: ComponentType<RepoPanelProps>[]; /** Repository pages, linked from the repo page. */ repoViews?: PluginRepoView[]; workflowPhase?: Record<string, string>; nodeKinds?: Record<string, NodeKind> }
 export const NodeKindsContext = createContext<Record<string, NodeKind>>({});
 
 export const TopbarSlot = createContext<HTMLElement | null>(null);
@@ -65,6 +70,7 @@ export { InlineStatesContext, useDraftInlineStates, useInlineState, useInlineSta
 export type { InlineState, InlineStates } from "./inline-state.ts";
 export { routeUrl, showSessionView } from "./routes.ts";
 export { repoName } from "../shared/repos.ts";
+export { plural } from "../shared/plural.ts";
 export { useUrlParam } from "./url-param.ts";
 export { Box } from "./Box.tsx";
 export type { BoxProps } from "./Box.tsx";

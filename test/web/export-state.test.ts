@@ -21,11 +21,17 @@ test("exportState drops closed items with their messages, replies, revisions and
   ], [
     link("M1", "T1", "reply"), link("R1", "M1", "revises"), link("D1", "M1", "derivedFrom"), link("M2", "T2", "reply"), link("M3", "T3", "reply"),
   ], [task("a", "resolveSpecRefs", "succeeded"), task("b", "chatTurn", "succeeded"), task("c", "resolveSpecRefs", "failed")]);
-  const out = exportState(st, new Set(["T1", "NOTE", "D2", "F", "unknown"]), []);
+  const out = exportState(st, new Set(["T1", "NOTE", "D2", "F", "unknown"]), [], (t) => t.kind === "resolveSpecRefs" && t.status === "succeeded");
   assert.deepEqual(out.artifacts.map((a) => a.id), ["T3", "M3", "F"]);
   assert.deepEqual(out.links.map((l) => l.id), ["M3->T3"]);
   assert.deepEqual(out.tasks.map((t) => t.id), ["a"]);
+  assert.deepEqual(exportState(st, new Set(), [], () => false).tasks, []);
   assert.deepEqual(exportState(st, new Set(), []).artifacts.filter((a) => a.type !== "Diagram").length, st.artifacts.filter((a) => a.type !== "Diagram").length);
+});
+
+test("exportState keeps no tasks without a phase predicate", () => {
+  const st = state([], [], [task("a", "resolveSpecRefs", "succeeded")]);
+  assert.deepEqual(exportState(st, new Set(), []).tasks, []);
 });
 
 test("exportState keeps only the diagram the canvas shows for each reviewed commit", () => {
