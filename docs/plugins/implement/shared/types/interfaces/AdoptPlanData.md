@@ -6,7 +6,7 @@
 
 # Interface: AdoptPlanData
 
-What an adopt can take over (artifact `AdoptPlan`, verified). `diffs` contains every Phabricator diff for trailer revisions; `missingBases` are diff bases absent locally; history errors preserve local adoption without rounds.
+What an adopt can take over (artifact `AdoptPlan`, verified). `diffs`: every Phabricator diff of the revisions named by trailers in the branches' commits; `missingBases`: diff bases not in the repository; `refError`: why the named branch was not used; `historyError`: why the Phabricator history could not be read (no arcrc token, Conduit down); the adopt then goes on without rounds.
 
 ## Properties
 

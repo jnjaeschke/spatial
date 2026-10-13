@@ -303,3 +303,57 @@ test("a single-commit adopt skips choices and stale review decisions do not over
   assert.equal(range.run, "adoptRange");
   assert.deepEqual(range.input, { planId: plan.id, branch: "topic", head: "c1" });
 });
+
+test("Other… under adopt-branch adopts again with the named branch, and a named branch skips the branch question", () => {
+  const twoBranches = { mode: "renamed", host: null, refError: null, historyError: null, missingBases: [], revisions: [], diffs: [], branches: [
+    { branch: "b0", base: "BASE", tip: "c1", commits: [{ sha: "c1", subject: "one", body: "" }] },
+    { branch: "b1", base: "BASE", tip: "d1", commits: [{ sha: "d1", subject: "other", body: "" }] },
+  ] };
+  const plan = art("AdoptPlan", twoBranches, 4);
+  const other = decision("adopt-branch", "Adopt which branch?", { option: "other", by: "user", text: " bug-2 " }, 4);
+  const again = run(next(view([start(), branch(), plan, other], [{ ...epoch(4, "adopt"), input: { mode: "renamed" } }])));
+  assert.deepEqual(again, { run: "adopt", input: { mode: "choose", ref: "bug-2" } });
+  const named = art("AdoptPlan", { ...twoBranches, mode: "choose", branches: [{ branch: "bug-2", base: "BASE", tip: "e2", commits: [{ sha: "e1", subject: "1", body: "" }, { sha: "e2", subject: "2", body: "" }] }] }, 5);
+  const head = decide(next(view([start(), branch(), named], [{ ...epoch(5, "adopt"), input: { mode: "choose", ref: "bug-2" } }])));
+  assert.equal(head.decide.key, "adopt-head");
+  const missing = art("AdoptPlan", { ...twoBranches, mode: "choose", refError: "Branch nope does not exist" }, 6);
+  const retry = decide(next(view([start(), branch(), missing], [{ ...epoch(6, "adopt"), input: { mode: "choose", ref: "nope" } }])));
+  assert.equal(retry.decide.key, "adopt-branch");
+  assert.match(retry.decide.question, /^Branch nope does not exist\. /);
+});
+
+test("only the last round of an adopt carries the start's model", () => {
+  const H = "https://phab.example.com";
+  const plan = art("AdoptPlan", {
+    mode: "moved", host: H, refError: null, historyError: null, missingBases: [],
+    branches: [{ branch: "b0", base: "BASE", tip: "c1", commits: [{ sha: "c1", subject: "one", body: `Differential Revision: ${H}/D1` }] }],
+    revisions: [{ id: 1, title: "Part 1", latestDiffId: 20 }],
+    diffs: [{ revision: 1, diffId: 10, base: "OLD", dateCreated: 0 }, { revision: 1, diffId: 20, base: "NEW", dateCreated: 9000 }],
+  }, 4);
+  const range = { ...epoch(5, "adoptRange"), input: { planId: plan.id, branch: "b0", head: "c1" } };
+  const first = run(next(view([start(), branch(), plan], [epoch(4, "adopt"), range])));
+  assert.equal("llm" in (first.input as object), false);
+  const second = run(next(view([start(), branch(), plan], [epoch(4, "adopt"), range, { ...epoch(6, "round"), input: first.input }])));
+  assert.deepEqual((second.input as { llm: LlmSelection }).llm, START);
+});
+
+test("an adopt without trailers asks what next: self-review, revise or accept", () => {
+  const ADOPTED = "Adopted 2 commits from topic. What next?";
+  const plan = art("AdoptPlan", { mode: "moved", host: null, refError: null, historyError: null, missingBases: [], revisions: [], diffs: [], branches: [{ branch: "topic", base: "BASE", tip: "c2", commits: [{ sha: "c1", subject: "one", body: "" }, { sha: "c2", subject: "two", body: "" }] }] }, 4);
+  const range = { ...epoch(5, "adoptRange"), input: { planId: plan.id, branch: "topic", head: "c2" } };
+  const round = { ...epoch(6, "round"), input: { round: { kind: "local", base: "BASE", head: "c2", host: null, phab: null }, narrate: true, llm: START } };
+  const diff = art("Diff", { baseSha: "BASE", headSha: "c2", commits: [{ sha: "c1" }, { sha: "c2" }] }, 6);
+  const base = (profile = "plain") => [start(profile), branch(), investigation(77), plan, result(5, { head: "c2", branch: "topic" }), diff];
+  const epochs = [epoch(1, "investigate"), epoch(4, "adopt"), range, round];
+  const asked = decide(next(view(base(), epochs)));
+  assert.equal(asked.decide.key, "adopted");
+  assert.equal(asked.decide.question, ADOPTED);
+  assert.deepEqual(asked.decide.options.map((o) => [o.id, !!o.takesText, !!o.requiresText]), [["self-review", false, false], ["revise", true, true], ["accept", false, false], ["cancel", false, false]]);
+  const answer = (option: string, text?: string) => decision("adopted", ADOPTED, { option, by: "user", ...(text ? { text } : {}) }, 6);
+  assert.deepEqual(run(next(view([...base(), answer("self-review")], epochs))), { run: "review", input: { base: "BASE", head: "c2", update: true, llm: START } });
+  const revise = run(next(view([...base(), answer("revise", "split it")], epochs)));
+  assert.equal(revise.run, "implement");
+  assert.equal((revise.input as { text: string }).text, "split it");
+  assert.equal(run(next(view([...base("stack"), answer("accept")], epochs))).run, "x");
+  assert.equal(next(view([...base(), answer("cancel")], epochs)), null);
+});

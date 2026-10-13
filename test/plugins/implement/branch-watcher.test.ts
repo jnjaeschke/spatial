@@ -19,11 +19,11 @@ function setup() {
   put("WorkflowStart", {});
   put("ImplementBranch", { branch: "topic", baseSha: base, baseRef: "main", checkout: "new-branch" });
   put("Diff", { baseSha: base, headSha: head, commits: [], files: [] });
-  return { repo, rt, store, session, put, head };
+  return { repo, rt, store, session, put };
 }
 
 test("watcher notifies once when a branch moves, and stays quiet at known heads", async () => {
-  const { repo, rt, session, put, head } = setup();
+  const { repo, rt, session, put } = setup();
   const watcher = new BranchWatcher(rt);
   const events: unknown[] = [];
   rt.onEvent((e) => { if (e.type === "notify") events.push(e.payload); });
@@ -34,10 +34,10 @@ test("watcher notifies once when a branch moves, and stays quiet at known heads"
   await watcher.tick();
   await watcher.tick();
   assert.deepEqual(events, [{ id: `branch-moved:${moved}`, title: "Branch topic moved outside spatial", action: { label: "Adopt", path: `/api/sessions/${session.id}/adopt` } }]);
-  put("PhabSubmission", { head: moved });
+  const submitted = repo.commit({ "a.txt": "submitted\n" }, "submitted");
+  put("PhabSubmission", { head: submitted });
   await watcher.tick();
   assert.equal(events.length, 1);
-  assert.equal(head.length, 40);
 });
 
 test("the adopted branch tip is known even when the selected range ended earlier", async () => {
@@ -61,11 +61,11 @@ test("watcher detects renamed related branches and offers choose when none match
   rt.onEvent((e) => { if (e.type === "notify") events.push(e.payload); });
   watcher.watch(session.id);
   repo.git("branch", "-m", "topic", "bug-2072138");
-  repo.git("switch", "-q", "main");
   repo.commit({ "b.txt": "b\n" }, "Bug 2072138 - x");
   await watcher.tick();
-  assert.match(events[0].title, /found bug-2072138/);
+  assert.equal(events[0].title, "Branch topic is gone; found bug-2072138");
   assert.equal(events[0].action.label, "Adopt");
+  repo.git("switch", "-q", "main");
   repo.git("branch", "-D", "bug-2072138");
   await watcher.tick();
   assert.equal(events.at(-1).action.label, "Choose branch");

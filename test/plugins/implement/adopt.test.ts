@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeRepo } from "../../helpers/git-fixture.ts";
@@ -131,4 +133,49 @@ test("without trailers adoptRounds returns one local round without Phabricator d
 test("trailers without readable history adopt one local round", () => {
   const rounds = adoptRounds(roundPlan({ revisions: [], diffs: [], historyError: "No arcrc token" }), { planId: "p", branch: "topic", head: "c2" });
   assert.deepEqual(rounds, [{ round: { kind: "local", base: "BASE", head: "c2", host: null, phab: null }, narrate: true }]);
+});
+
+test("adoptPlan reads every diff of the revisions named by trailers and lists diff bases missing locally", async () => {
+  const repo = makeRepo();
+  const base = repo.commit({ "a.txt": "a\n" }, "base");
+  repo.git("switch", "-q", "-c", "topic");
+  repo.commit({ "b.txt": "b\n" }, "Bug 9 - part 1\n\nDifferential Revision: https://phab.example.com/D7");
+  const absent = "f".repeat(40);
+  const diff = (id: number, sha: string, dateCreated: number) => ({ id, fields: { dateCreated, refs: [{ type: "base", identifier: sha }] } });
+  const results: Record<string, unknown> = {
+    "differential.revision.search": { data: [{ id: 7, phid: "PHID-DREV-7", fields: { title: "Bug 9 - part 1", status: { closed: false } } }] },
+    "differential.diff.search": { data: [diff(72, base, 1_760_000_300), diff(71, absent, 1_760_000_000)] },
+  };
+  const calls: string[] = [];
+  const server = createServer(async (req, res) => {
+    for await (const _ of req);
+    const method = req.url!.slice("/api/".length);
+    calls.push(method);
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ result: results[method] ?? null, error_code: results[method] ? null : "ERR", error_info: results[method] ? null : `unexpected ${method}` }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const arcrc = join(repo.dir, "..", `arcrc-${process.pid}`);
+  writeFileSync(arcrc, JSON.stringify({ hosts: { "https://phab.example.com/api/": { token: "test-token" } } }));
+  const old = { arcrc: process.env.SPATIAL_ARCRC_PATH, base: process.env.SPATIAL_CONDUIT_BASE_URL };
+  process.env.SPATIAL_ARCRC_PATH = arcrc;
+  process.env.SPATIAL_CONDUIT_BASE_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  try {
+    const { rt, store, session } = planSetup(repo);
+    const { planId } = await rt.run<{ planId: string }>(session.id, "adoptPlan", { mode: "moved" });
+    const plan = store.getArtifact<{ host: string | null; revisions: unknown[]; diffs: unknown[]; missingBases: string[]; historyError: string | null }>(planId).data;
+    assert.deepEqual(calls, ["differential.revision.search", "differential.diff.search"]);
+    assert.equal(plan.host, "https://phab.example.com");
+    assert.deepEqual(plan.revisions, [{ id: 7, title: "Bug 9 - part 1", latestDiffId: 72 }]);
+    assert.deepEqual(plan.diffs, [
+      { revision: 7, diffId: 72, base, dateCreated: 1_760_000_300 },
+      { revision: 7, diffId: 71, base: absent, dateCreated: 1_760_000_000 },
+    ]);
+    assert.deepEqual(plan.missingBases, [absent]);
+    assert.equal(plan.historyError, null);
+  } finally {
+    if (old.arcrc === undefined) delete process.env.SPATIAL_ARCRC_PATH; else process.env.SPATIAL_ARCRC_PATH = old.arcrc;
+    if (old.base === undefined) delete process.env.SPATIAL_CONDUIT_BASE_URL; else process.env.SPATIAL_CONDUIT_BASE_URL = old.base;
+    server.close();
+  }
 });

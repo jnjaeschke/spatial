@@ -30,10 +30,13 @@ test("adopt route starts one adopt epoch, rejects a concurrent request, and rele
   const [a, b] = await Promise.all([adopt(routes, session.id), adopt(routes, session.id)]);
   assert.deepEqual([a.status, b.status].sort(), [202, 409]);
   assert.deepEqual((a.status === 202 ? a : b).body, { mode: "moved" });
-  await waitFor(() => rt.store.listEpochs(session.id).some((e) => e.phase === "adopt"));
-  await waitFor(() => rt.runningEpoch(session.id) === null);
-  const third = await adopt(routes, session.id);
-  assert.notEqual(third.body.error, "An adopt is already starting for this session");
+  const epoch = await waitFor(() => rt.store.listEpochs(session.id).find((e) => e.phase === "adopt" && e.status !== "running"));
+  assert.deepEqual(epoch.input, { mode: "moved" });
+  const third = await waitFor(async () => {
+    const out = await adopt(routes, session.id);
+    return out.body.error === "An adopt is already starting for this session" ? undefined : out;
+  }, 2000, 20, "the adopt guard was never released");
+  assert.equal(third.status, 202);
 });
 
 test("adopt route rejects a branch at its known head", async () => {
