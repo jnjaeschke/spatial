@@ -1,13 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime } from "../../src/runtime/tasks.ts";
-import type { LlmService } from "../../src/runtime/llm/types.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
+import { testRuntime } from "../helpers/runtime.ts";
 
-const llm = { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService;
-const runtimeOptions = (store: Store) => ({ store, plugins: [corePlugin, ...plugins], llm, git: () => ({} as never) });
+const runtime = (store: Store) => testRuntime({ store, plugins: [corePlugin, ...plugins] }).rt;
 const provenance = { taskId: "task" };
 
 test("FTS search scopes to session, filters kinds, and reports syntax errors", () => {
@@ -33,8 +31,8 @@ test("Runtime backfills old artifacts once and search does not duplicate hits", 
   store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: {
     diffId: "D", summary: "Backfill marker searchable", changes: [],
   }, provenance });
-  new Runtime(runtimeOptions(store));
-  new Runtime(runtimeOptions(store));
+  runtime(store);
+  runtime(store);
   const hits = store.search(session.id, "Backfill");
   assert.equal(hits.length, 1);
   assert.equal(hits[0].kind, "summary");
@@ -44,7 +42,7 @@ test("Runtime backfills old artifacts once and search does not duplicate hits", 
 test("Runtime artifact and revising-link writes index and emit once", () => {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "session" });
-  const rt = new Runtime(runtimeOptions(store));
+  const rt = runtime(store);
   const events: { actor: string; type: string; payload: unknown }[] = [];
   rt.onEvent((event) => events.push(event));
 

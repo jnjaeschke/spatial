@@ -1,9 +1,7 @@
 import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { DiffData, LlmSelection } from "../../../../src/shared/types.ts";
 
 import { narrate, MAX_PROMPT_CHARS } from "../../../../src/plugins/review/tasks/narrate/task.ts";
@@ -125,20 +123,8 @@ test("validate: optionally allows unassigned hunks but still rejects duplicates"
 });
 
 function setup(responses: unknown[]) {
-  const store = new Store(":memory:");
-  const prompts: LlmPrompt[] = [];
   const sel: LlmSelection = { backend: "codex", model: "gpt-6-luna", effort: "medium" };
-  const llm: LlmService = {
-    defaultSelection: { backend: "claude", model: "m", effort: "low" },
-    async run(selection, prompt) {
-      prompts.push(prompt);
-      if (responses.length === 0) throw new Error("no more responses");
-      return { text: "", json: responses.shift(), providerSessionId: "p", selection: selection ?? sel };
-    },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const { rt, store, session, prompts } = testRuntime({ plugins: [{ id: "test", tasks: [narrate] }], selection: sel, reply: () => { if (responses.length === 0) throw new Error("no more responses"); return responses.shift(); }, session: {} });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   return { store, rt, session, diffId, prompts, sel };
 }
@@ -176,23 +162,12 @@ test("narrate stack: adds stack prompt and schema and stores commit intents and 
 });
 
 test("narrate: passes session and repo MCP servers with read-only tools", async () => {
-  const store = new Store(":memory:");
-  const prompts: LlmPrompt[] = [];
-  const llm: LlmService = {
-    defaultSelection: { backend: "claude", model: "m", effort: "low" },
-    async run(selection, prompt) {
-      prompts.push(prompt);
-      return { text: "", json: VALID, providerSessionId: "p", selection: selection ?? this.defaultSelection };
-    },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
-  const rt = new Runtime({
-    store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability,
+  const { rt, store, session, prompts } = testRuntime({
+    plugins: [{ id: "test", tasks: [narrate] }], reply: () => VALID, session: {},
     sessionMcp: () => ({ spatial: { type: "stdio", command: "node", args: ["session-server"] } }),
     repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       skills: [{ name: "narrate-skill", description: "Group changes." }], instructions: "Follow narration rules." }),
   });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   await rt.run(session.id, "narrate", { diffId });
   assert.equal(prompts[0].tools, "read-only");

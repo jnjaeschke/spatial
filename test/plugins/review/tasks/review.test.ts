@@ -1,9 +1,7 @@
 import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { FindingVerdictData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { DiffData, LlmSelection } from "../../../../src/shared/types.ts";
 
@@ -23,23 +21,12 @@ const diffData: DiffData = {
 };
 
 function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
-  const store = new Store(":memory:");
-  const calls: { prompt: LlmPrompt; selection?: LlmSelection }[] = [];
   let index = 0;
-  const llm: LlmService = {
-    defaultSelection: selection,
-    run(selected, prompt) {
-      calls.push({ prompt, selection: selected });
-      return Promise.resolve({ text: "", json: replies[index++], providerSessionId: "p", selection: selected! });
-    },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin], llm, git: () => ({}) as GitCapability,
+  const { rt, store, session, prompts: calls } = testRuntime({ plugins: [specPlugin, reviewPlugin], selection, reply: () => replies[index++], session: {},
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       instructions: repoPrompt ? "Review by repo rules." : null,
       skills: repoPrompt ? [{ name: "review-skill", description: "Review changes." }] : [] }) } : {}) });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "x" } }).id;
   const narrativeId = store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: {
     diffId, summary: "s", changes: [
@@ -73,7 +60,7 @@ test("a rechecked finding needs a verdict although nobody accepted it", async ()
   const out = await run(narrative2, [priorId]);
   assert.deepEqual(out.findingErrors, []);
   assert.equal(store.getArtifact<FindingVerdictData>(out.verdictIds[0]!).data.verdict, "addressed");
-  assert.match(calls[1]!.prompt.prompt, /F1 \[open\] Prior[\s\S]*fix requested:/);
+  assert.match(calls[1]!.prompt, /F1 \[open\] Prior[\s\S]*fix requested:/);
 });
 
 test("without recheck an unaccepted prior finding gets no verdict, and a missing recheck verdict is an error", async () => {
@@ -81,7 +68,7 @@ test("without recheck an unaccepted prior finding gets no verdict, and a missing
   const priorId = (await unexpected.run()).findingIds[0]!;
   const out = await unexpected.run(secondEpoch(unexpected.store, unexpected.session.id, unexpected.narrativeId, priorId));
   assert.deepEqual(out.findingErrors, ["verdict F1: unknown or not expected"]);
-  assert.doesNotMatch(unexpected.calls[1]!.prompt.prompt, /fix requested:/);
+  assert.doesNotMatch(unexpected.calls[1]!.prompt, /fix requested:/);
   const missing = setup([priorHigh, { findings: [], verdicts: [] }]);
   const missingId = (await missing.run()).findingIds[0]!;
   const out2 = await missing.run(secondEpoch(missing.store, missing.session.id, missing.narrativeId, missingId), [missingId]);
@@ -110,7 +97,7 @@ test("valid findings become artifacts with derived lines and links", async () =>
   const links = store.listLinks(session.id);
   assert.ok(links.some((l) => l.from === a.id && l.to === narrativeId && l.kind === "derivedFrom"));
   assert.ok(links.some((l) => l.from === a.id && l.to === `${diffId}#f0h0` && l.kind === "about"));
-  const p = calls[0].prompt;
+  const p = calls[0];
   assert.equal(p.tools, "read-only");
   assert.equal(p.cwd, "/repo");
   assert.ok(p.mcpServers?.spatial);
@@ -120,7 +107,7 @@ test("valid findings become artifacts with derived lines and links", async () =>
 test("review merges repo MCP servers with session MCP servers", async () => {
   const { calls, run, session } = setup([{ findings: [], verdicts: [] }], true);
   await run();
-  assert.deepEqual(calls[0].prompt.mcpServers, {
+  assert.deepEqual(calls[0].mcpServers, {
     spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", session.id] },
     moz: { type: "http", url: "https://example.com/mcp" },
   });
@@ -129,9 +116,9 @@ test("review merges repo MCP servers with session MCP servers", async () => {
 test("review system prompt includes repo instructions and skill index", async () => {
   const { calls, run } = setup([{ findings: [], verdicts: [] }], false, true);
   await run();
-  assert.ok(calls[0].prompt.system?.startsWith("Review by repo rules."));
-  assert.match(calls[0].prompt.system!, /- review-skill: Review changes\./);
-  assert.match(calls[0].prompt.system!, /read_skill\(name\)/);
+  assert.ok(calls[0].system?.startsWith("Review by repo rules."));
+  assert.match(calls[0].system!, /- review-skill: Review changes\./);
+  assert.match(calls[0].system!, /read_skill\(name\)/);
 });
 
 test("a change anchor without quote stays on the change", async () => {
@@ -201,14 +188,14 @@ test("epoch two prompt includes carried prior states and only epoch two adds sec
     store.putLink({ sessionId: session.id, from: carry.id, to: id, kind: "about" });
   }
   await run(narrative2.id);
-  assert.match(calls[1].prompt.prompt, /# Prior findings\n\nF1 \[accepted\]/);
-  assert.match(calls[1].prompt.prompt, /Please add a regression test\./);
-  assert.match(calls[1].prompt.prompt, /posted to D2/);
-  assert.match(calls[1].prompt.prompt, /outdated/);
-  assert.match(calls[1].prompt.prompt, /F2 \[dismissed\] Dismissed finding/);
-  assert.match(calls[1].prompt.prompt, /# Change status[\s\S]*c1: modified/);
-  assert.doesNotMatch(calls[0].prompt.prompt, /# Prior findings|# Change status/);
-  assert.match(calls[1].prompt.system!, /dismissed finding must not come back/);
+  assert.match(calls[1].prompt, /# Prior findings\n\nF1 \[accepted\]/);
+  assert.match(calls[1].prompt, /Please add a regression test\./);
+  assert.match(calls[1].prompt, /posted to D2/);
+  assert.match(calls[1].prompt, /outdated/);
+  assert.match(calls[1].prompt, /F2 \[dismissed\] Dismissed finding/);
+  assert.match(calls[1].prompt, /# Change status[\s\S]*c1: modified/);
+  assert.doesNotMatch(calls[0].prompt, /# Prior findings|# Change status/);
+  assert.match(calls[1].system!, /dismissed finding must not come back/);
 });
 
 test("valid verdict is stored and changes finding state", async () => {
@@ -292,7 +279,7 @@ test("an invalid reply is repaired before storing findings", async () => {
   const out = await run();
   assert.deepEqual(out.findingIds, []);
   assert.equal(calls.length, 2);
-  assert.match(calls[1]!.prompt.prompt, /Your previous answer was invalid/);
+  assert.match(calls[1]!.prompt, /Your previous answer was invalid/);
 });
 
 test("reply without verdicts is rejected after schema repair", async () => {

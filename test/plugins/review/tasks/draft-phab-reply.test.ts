@@ -1,27 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { PhabCommentData, SuggestedReplyData } from "../../../../src/plugins/review/shared/types.ts";
 import type { ChatMessageData, LlmSelection } from "../../../../src/shared/types.ts";
-import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
 import { draftPhabReply } from "../../../../src/plugins/review/tasks/draft-phab-reply/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
 function setup(reply: unknown) {
-  const store = new Store(":memory:");
-  const calls: LlmPrompt[] = [];
-  const llm: LlmService = {
-    defaultSelection: selection,
-    async run(_selection, prompt) {
-      calls.push(prompt);
-      return { text: "", json: reply, providerSessionId: "p", selection };
-    },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [draftPhabReply] }], llm, git: () => ({}) as GitCapability });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const { rt, store, session, prompts: calls } = testRuntime({ plugins: [{ id: "test", tasks: [draftPhabReply] }], selection, reply: () => reply, session: {} });
   const phab = (phid: string, txId: number, author: string, body: string, replyTo?: string) => store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified",
     data: { revision: 7, phid, version: 1, author, bot: false, byMe: false, body, replyTo, own: false, done: false, txId, dateCreated: txId } satisfies PhabCommentData, provenance: { taskId: "runtime" } });
   const root = phab("ROOT", 1, "alice", "Why THIRTY?");

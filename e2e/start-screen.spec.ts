@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { git, makeRepo as createRepo } from "./repo.ts";
 import { test, expect, type Page } from "@playwright/test";
 
 const repoDirs: string[] = [];
@@ -10,17 +10,9 @@ test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
-
 function makeRepo() {
-  const dir = mkdtempSync(join(tmpdir(), "spatial-start-"));
+  const dir = createRepo("spatial-start-", { "base.txt": "base\n" });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "base.txt"), "base\n");
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   git(dir, "checkout", "-b", "change");
   writeFileSync(join(dir, "change.txt"), "change\n");
   git(dir, "add", "-A");

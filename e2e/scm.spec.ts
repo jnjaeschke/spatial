@@ -1,24 +1,15 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, makeRepo as createRepo } from "./repo.ts";
 import { test, expect, type Page } from "@playwright/test";
 
 const dirs: string[] = [];
 test.afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
-
 /** main: root, 250 filler commits, then a merge of `feature` (2 commits); tag v1 on the root; origin/main and origin/gone remote refs. */
 function makeRepo() {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "spatial-scm-")));
+  const dir = createRepo("spatial-scm-", { "a.txt": "a\n" }, "root commit");
   dirs.push(dir);
-  git(dir, "init", "-q", "-b", "main");
-  writeFileSync(join(dir, "a.txt"), "a\n");
-  git(dir, "add", "-A");
-  git(dir, "commit", "-q", "-m", "root commit");
   const root = git(dir, "rev-parse", "HEAD");
   git(dir, "tag", "v1");
   for (let i = 1; i <= 250; i++) git(dir, "commit", "-q", "--allow-empty", "-m", `filler ${i}`);

@@ -2,11 +2,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { Store } from "../../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { Runtime } from "../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
-import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
@@ -22,11 +20,7 @@ const response = (phids = ["PHID-XCMT-1", "PHID-XCMT-2"]) => ({ comments: phids.
 function setup(json: unknown, knowledge?: KnowledgeStore) {
   const repo = makeRepo();
   repo.commit({ "dom/a.cpp": "const int kMax = 20;\n" }, "base");
-  const store = new Store(":memory:");
-  const prompts: LlmPrompt[] = [];
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit, ...(knowledge ? { knowledge } : {}) });
-  const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "comments" });
+  const { rt, store, session, prompts } = testRuntime({ plugins: [specPlugin, reviewPlugin, implementPlugin], selection, git: makeGit, reply: () => json, ...(knowledge ? { knowledge } : {}), session: { worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "comments" } });
   const add = (data: PhabCommentData) => store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data, provenance: { taskId: "test" } });
   const first = add({ revision: 7, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, byMe: false, body: "Please name the constant.", path: "dom/a.cpp", line: 12, length: 1, quote: "const int kMax = 20;", diffId: 70, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 });
   const second = add({ revision: 7, phid: "PHID-XCMT-2", version: 1, author: "bob", bot: false, byMe: false, body: "Why not X?", own: false, done: false, txId: 2, dateCreated: 2 });

@@ -1,14 +1,13 @@
 import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
+import type { GitCapability } from "../../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { WebspecCapability } from "../../../../src/plugins/spec/runtime/webspec.ts";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { SpecReferenceData, SpecStepMapData } from "../../../../src/plugins/spec/api.ts";
 import type { DiffData, LlmSelection } from "../../../../src/shared/types.ts";
 
-import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
 import { mappableSpecs, mapSpecSteps } from "../../../../src/plugins/review/tasks/map-spec-steps/task.ts";
 import { specTestServices } from "../../../helpers/spec-services.ts";
 
@@ -16,14 +15,7 @@ const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "m
 const STEPS = "To navigate:\n\n1. Fire *navigate*.\n2. If the commit is pending:\n\n    1. Defer the event.\n3. Fire navigatesuccess.";
 
 function setup(reply: unknown, opts: { head?: string; checks?: { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }[]; analyzeFails?: boolean; otherSpec?: boolean; hunk?: DiffData["files"][number]["hunks"][number] } = {}) {
-  const store = new Store(":memory:");
-  const calls: LlmPrompt[] = [];
   let replyIndex = 0;
-  const llm: LlmService = {
-    defaultSelection: selection,
-    async run(_selection, prompt) { calls.push(prompt); return { text: "", json: Array.isArray(reply) ? reply[replyIndex++] : reply, providerSessionId: "p", selection }; },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
   const git = { async show() { return opts.head ?? ""; } } as unknown as GitCapability;
   const webspec = {
     effect: "read-only" as const,
@@ -31,7 +23,7 @@ function setup(reply: unknown, opts: { head?: string; checks?: { line: number; s
     async analyze() { if (opts.analyzeFails) throw new Error("analysis failed"); return opts.checks ?? []; },
     async resolve(url: string) { return { found: true as const, spec: { spec: opts.otherSpec ? "OTHER" : "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: opts.otherSpec ? "https://example.com/#other" : url, content: STEPS } }; },
   } as WebspecCapability;
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [mapSpecSteps] }], llm, git: () => git, services: specTestServices({ webspec }) });
+  const { rt, store, prompts: calls } = testRuntime({ plugins: [{ id: "test", tasks: [mapSpecSteps] }], selection, reply: () => Array.isArray(reply) ? reply[replyIndex++] : reply, git: () => git, services: specTestServices({ webspec }) });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = <T>(type: string, data: T, status: "verified" | "proposed" = "verified") => store.putArtifact({ sessionId: session.id, type, status, data, provenance: { taskId: "x" } });
   const diff = put<DiffData>("Diff", { baseSha: "B", headSha: "H", commits: [], files: [

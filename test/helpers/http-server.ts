@@ -11,6 +11,7 @@ import type { ChatReplyField } from "../../src/runtime/plugins.ts";
 import { makeGit } from "../../src/runtime/git/read.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { plugins } from "../../src/plugins/index.ts";
+export { waitFor } from "./wait-for.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { Session } from "../../src/shared/types.ts";
@@ -54,14 +55,3 @@ export async function newSession(): Promise<Session> {
   assert.equal(res.status, 201);
   return res.json();
 }
-
-export async function waitFor<T>(fn: () => Promise<T | undefined>, ms = 5000): Promise<T> {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    const value = await fn();
-    if (value !== undefined) return value;
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error("timeout");
-}
-

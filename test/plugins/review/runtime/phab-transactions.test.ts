@@ -4,8 +4,7 @@ import { readFileSync } from "node:fs";
 import { parseTransactions, fetchTransactions, storeRemoteComments } from "../../../../src/plugins/review/runtime/phab-transactions.ts";
 import { latestPhabComments } from "../../../../src/plugins/review/shared/phab-comments.ts";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime } from "../../../../src/runtime/tasks.ts";
-import type { LlmService } from "../../../../src/runtime/llm/types.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { RemoteComment } from "../../../../src/plugins/review/runtime/phab-transactions.ts";
 
 const fixture = JSON.parse(readFileSync(new URL("../../../fixtures/phab-transactions.json", import.meta.url), "utf8")).result;
@@ -56,7 +55,7 @@ test("fetchTransactions follows the cursor and concatenates pages", async () => 
 });
 
 const remote = (patch: Partial<RemoteComment> = {}): RemoteComment => ({ phid: "C", version: 1, authorPHID: "U", body: "hello", path: "a.ts", line: 4, diffId: 1, isNewFile: true, isDone: false, txId: 1, dateCreated: 10, ...patch });
-const runtime = (store: Store) => new Runtime({ store, plugins: [], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService, git: () => ({} as never) });
+const runtime = (store: Store) => testRuntime({ store, plugins: [] }).rt;
 
 test("storeRemoteComments is idempotent, revises edits and done toggles, and identifies our posts", () => {
   const store = new Store(":memory:");

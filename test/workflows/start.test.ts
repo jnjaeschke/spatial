@@ -2,10 +2,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
 import type { Workflow } from "../../src/runtime/plugins.ts";
-import type { LlmService } from "../../src/runtime/llm/types.ts";
+import { waitFor } from "../helpers/wait-for.ts";
+import { testRuntime } from "../helpers/runtime.ts";
 import type { LlmSelection, Session, StartQuestion, WorkflowStartData } from "../../src/shared/types.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
 import { chatPlugin } from "../../src/plugins/chat/index.ts";
@@ -25,21 +24,9 @@ const gated: Workflow<Params> = {
 };
 /** Selector replies, consumed in order; the last one repeats. */
 let replies: unknown[] = [];
-const prompts: string[] = [];
-const llm: LlmService = {
-  defaultSelection: selection,
-  async run(chosen, prompt) { prompts.push(prompt.prompt); return { text: "", json: replies.length > 1 ? replies.shift() : replies[0], providerSessionId: "p", selection: chosen ?? selection }; },
-  async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-};
 const repo = makeRepo();
 repo.commit({ "a.txt": "1\n" }, "base");
-const store = new Store(":memory:");
-const rt = new Runtime({ store, plugins: [corePlugin, chatPlugin, { id: "t", workflows: [gated], repoProfiles: [{ id: "marked", description: "marked", commitStyle: "stack" as const, detect: async (dir: string) => existsSync(join(dir, "marker")) }, { id: "other", description: "other", commitStyle: "single" as const }] }], llm, git: () => ({}) as GitCapability });
-async function waitFor<T>(fn: () => T | undefined, ms = 5000): Promise<T> {
-  const end = Date.now() + ms;
-  while (Date.now() < end) { const value = fn(); if (value !== undefined) return value; await new Promise((resolve) => setTimeout(resolve, 20)); }
-  throw new Error("timeout");
-}
+const { rt, store, prompts } = testRuntime({ plugins: [corePlugin, chatPlugin, { id: "t", workflows: [gated], repoProfiles: [{ id: "marked", description: "marked", commitStyle: "stack" as const, detect: async (dir: string) => existsSync(join(dir, "marker")) }, { id: "other", description: "other", commitStyle: "single" as const }] }], selection, reply: () => replies.length > 1 ? replies.shift() : replies[0] });
 
 const pending = new Map<string, PendingStart>();
 const start = (request: StartRequest) => startSession(rt, pending, request, new AbortController().signal);
@@ -108,7 +95,7 @@ test("the selector's question is answered in text and selection continues with t
   assert.equal(store.listSessions().length, before);
   await assert.rejects(start({ question: question.id, answer: "  " }), /must not be empty/);
   const session = await start({ question: question.id, answer: "the blue one" }) as Session;
-  assert.match(prompts.at(-1)!, /# Clarification\n\nQuestion: Which thing\?\nAnswer: the blue one/);
+  assert.match(prompts.at(-1)!.prompt, /# Clarification\n\nQuestion: Which thing\?\nAnswer: the blue one/);
   assert.equal((store.listArtifacts(session.id, "WorkflowStart")[0]!.data as WorkflowStartData).prompt, "do it\n\n# Clarification\n\nQuestion: Which thing?\nAnswer: the blue one");
 });
 

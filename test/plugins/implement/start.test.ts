@@ -3,10 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Store } from "../../../src/runtime/store.ts";
-import { Runtime } from "../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
-import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
@@ -14,13 +12,10 @@ import { implementWorkflow } from "../../../src/plugins/implement/workflow/imple
 import type { ImplementBranchData } from "../../../src/plugins/implement/shared/types.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 
-const llm: LlmService = { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
 function setup() {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "1\n" }, "base");
-  const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit });
-  const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
+  const { rt, store, session } = testRuntime({ plugins: [specPlugin, reviewPlugin, implementPlugin], git: makeGit, session: { worktree: repo.dir, repoDir: join(repo.dir, ".git") } });
   const start = ({ profile, ...input }: { profile?: string } & Record<string, unknown>) => {
     store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "implement", profile: profile ?? "plain-git", params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" }, provenance: { taskId: "t" } });
     return rt.run<{ branchId: string }>(session.id, "implementStart", input);

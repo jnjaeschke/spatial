@@ -1,15 +1,9 @@
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { openChange, openInPanel, openPatch, revealNode, startReview } from "./canvas.ts";
+import { test, expect, type Page } from "@playwright/test";
+import { openChange, openInPanel, openNarrated, openPatch, revealNode } from "./canvas.ts";
 
 test.describe.configure({ mode: "serial" });
 
 const changeChats = (page: Page) => page.getByTestId("change-c1").locator(".inline-item.kind-chat");
-
-async function openNarrated(page: Page, request: APIRequestContext): Promise<string> {
-  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
-  const fixture = sessions.find((s) => s.title === "fixture")!;
-  return await startReview(page, fixture.worktree, "HEAD~1..HEAD");
-}
 
 test("ask about a change: the chat starts inline, send, stub answer appears and persists", async ({ page, request }) => {
   await openNarrated(page, request);

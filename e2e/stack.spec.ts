@@ -1,7 +1,6 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, writeLines, inlineTx, makeRepo } from "./repo.ts";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { expandItem, openChange, openInPanel, openPatch, placeUp, revealNode, startReview, waitForCanvasSettled } from "./canvas.ts";
 
@@ -18,23 +17,11 @@ function newStackIds(count: number) {
   return revisions.map((revision) => ({ revision, diff: revision * 10 + 1 }));
 }
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
-
-function writeLines(dir: string, values: string[]) {
-  writeFileSync(join(dir, "a.txt"), `${values.join("\n")}\n`);
-}
-
 type StackCommit = { revision: number; subject: string; apply: (dir: string) => void };
 
 async function buildStack(request: APIRequestContext, commits: StackCommit[]) {
-  const dir = mkdtempSync(join(tmpdir(), "spatial-stack-"));
+  const dir = makeRepo("spatial-stack-", { "a.txt": `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n` });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeLines(dir, Array.from({ length: 60 }, (_, i) => `line ${i + 1}`));
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   const base = git(dir, "rev-parse", "HEAD");
   git(dir, "checkout", "-b", "feature");
   const ids = commits.map((commit) => ({ revision: commit.revision, diff: commit.revision * 10 + 1 }));
@@ -89,10 +76,6 @@ async function state(request: APIRequestContext, sessionId: string) {
 
 async function inlines(request: APIRequestContext, revision: number) {
   return await (await request.get(`${control}/inlines?revision=${revision}`)).json() as { revisionID: number; diffID: number; filePath: string }[];
-}
-
-function inlineTx(id: number, revision: number, diffId: number, path: string, line: number, body: string) {
-  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: "PHID-USER-alice", objectPHID: `PHID-DREV-${revision}`, dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: diffId, phid: `PHID-DIFF-${diffId}` }, path, line, length: 1, isNewFile: true, replyToCommentPHID: null, isDone: false, hasSuggestion: false, suggestionText: null } };
 }
 
 function changeLine(dir: string, value: string) {
@@ -161,7 +144,7 @@ test("a comment on the first stack revision anchors to its commit line", async (
     { ...firstCommit(ids[0]!.revision), revision: ids[0]!.revision },
     { revision: ids[1]!.revision, subject: "Rewrite line", apply: (dir) => changeLine(dir, "THIRTY-TWO") },
   ]);
-  const response = await request.post(control, { data: { revision: ids[0]!.revision, transactions: [inlineTx(7000 + revisionCount, ids[0]!.revision, ids[0]!.diff, "c.txt", 1, "Why c?")] } });
+  const response = await request.post(control, { data: { revision: ids[0]!.revision, transactions: [inlineTx(7000 + revisionCount, "c.txt", 1, "Why c?", { revision: ids[0]!.revision, diffId: ids[0]!.diff })] } });
   expect(response.ok()).toBeTruthy();
 
   const sessionId = await narrate(page, stack);

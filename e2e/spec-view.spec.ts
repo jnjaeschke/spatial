@@ -1,25 +1,16 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, makeRepo } from "./repo.ts";
 import { test, expect } from "@playwright/test";
 import { expandItem, openChange, openInPanel, startReview } from "./canvas.ts";
 
 const dirs: string[] = [];
 test.afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
-
 function specRepo() {
-  const dir = mkdtempSync(join(tmpdir(), "spatial-spec-"));
+  const dir = makeRepo("spatial-spec-", { "SpecViewFixture.cpp": "// https://html.spec.whatwg.org/#navigate\nvoid Navigate() {\n}\n" });
   dirs.push(dir);
-  git(dir, "init", "-b", "main");
   const file = join(dir, "SpecViewFixture.cpp");
-  writeFileSync(file, "// https://html.spec.whatwg.org/#navigate\nvoid Navigate() {\n}\n");
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   const base = git(dir, "rev-parse", "HEAD");
   writeFileSync(file, "// https://html.spec.whatwg.org/#navigate\nvoid Navigate() {\n  // Step 1. Edit the line.\n  Edit();\n  // Step 3. Add the file.\n  Other();\n  // Step 1. Edit the line.\n  Add();\n  Log();\n}\n");
   git(dir, "commit", "-am", "Implement navigate");

@@ -1,4 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+
+export async function openNarrated(page: Page, request: APIRequestContext, openFirstPatch = false): Promise<string> {
+  const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
+  const fixture = sessions.find((session) => session.title === "fixture")!;
+  const sessionId = await startReview(page, fixture.worktree, "HEAD~1..HEAD");
+  if (openFirstPatch) await openPatch(page, 0);
+  return sessionId;
+}
 
 export async function startReview(page: Page, repoDir: string, range: string): Promise<string> {
   await page.goto(`http://127.0.0.1:4178/repo?path=${encodeURIComponent(repoDir)}`);

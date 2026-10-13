@@ -4,12 +4,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
+import type { Runtime } from "../../../src/runtime/tasks.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 import type { CodeSearch } from "../../../src/plugins/spec/runtime/code-search.ts";
-import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
-import type { LlmSelection } from "../../../src/shared/types.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
@@ -56,14 +54,10 @@ function setup(candidates: unknown[], skill: boolean, gecko = skill) {
   const repo = mkdtempSync(join(tmpdir(), "gecko-"));
   if (gecko) writeFileSync(join(repo, "mach"), "");
   if (skill) { mkdirSync(join(repo, ".agents", "skills", "specmap"), { recursive: true }); writeFileSync(join(repo, ".agents", "skills", "specmap", "SKILL.md"), "---\nname: specmap\ndescription: Map specs to code.\n---\n\nSPECMAP-SKILL-BODY\n"); }
-  const prompts: LlmPrompt[] = [];
-  const DEFAULT: LlmSelection = { backend: "claude", model: "sonnet", effort: "low" };
-  const llm = { defaultSelection: DEFAULT, async run(selection: LlmSelection | undefined, prompt: LlmPrompt) { prompts.push(prompt); return { text: "", json: { candidates }, providerSessionId: "p", selection: selection ?? DEFAULT }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService;
   const fake = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
   const webspec = { ...fake, async query(ref: string) { const anchor = ref.split("#")[1]!; return { found: true as const, section: { spec: "HTML", anchor, title: anchor, type: "algorithm", url: `https://html.spec.whatwg.org/#${anchor}`, content: "1. Edit the line.\n2. Add the file.", outgoingRefs: 0, effects: [], effectsStatus: { state: "ready" as const, semantics: "may" as const, issues: [], omitted: 0 }, sha: `fake-${anchor}` } }; }, async effectPaths() { return { effects: [], explanations: [] }; }, refs: async () => ({ incoming: ["HTML#navigate"], outgoing: ["HTML#unmapped"] }), idl: async () => [] };
   const knowledge = new KnowledgeStore(":memory:");
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin, { id: "test", repoProfiles: [{ id: "gecko-like", description: "g", commitStyle: "stack" as const, engine: "gecko", detect: async (repo: string) => existsSync(join(repo, "mach")) }] }], llm, git: () => ({}) as GitCapability, services: specTestServices({ webspec, searchfox }), knowledge, repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: skill ? [{ name: "specmap", description: "Map specs to code." }] : [], instructions: null }) });
-  const session = rt.store.createSession({ worktree: repo, repoDir: join(repo, ".git"), title: "t" });
+  const { rt, session, prompts } = testRuntime({ plugins: [corePlugin, specPlugin, { id: "test", repoProfiles: [{ id: "gecko-like", description: "g", commitStyle: "stack" as const, engine: "gecko", detect: async (repo: string) => existsSync(join(repo, "mach")) }] }], reply: () => ({ candidates }), services: specTestServices({ webspec, searchfox }), knowledge, repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: skill ? [{ name: "specmap", description: "Map specs to code." }] : [], instructions: null }), session: { worktree: repo, repoDir: join(repo, ".git") } });
   return { rt, session, prompts, knowledge };
 }
 async function algorithm(rt: Runtime, sessionId: string) {

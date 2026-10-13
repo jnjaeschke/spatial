@@ -2,12 +2,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { Store } from "../../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { Runtime } from "../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
-import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { LlmOutputError, type Plugin } from "../../../src/plugin-api.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
@@ -33,11 +31,7 @@ function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = []
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "alpha\nbeta\ngamma\n", ...files }, "base");
   repo.git("switch", "-c", "spatial/x");
-  const store = new Store(":memory:");
-  const prompts: LlmPrompt[] = [];
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: typeof json === "function" ? json(prompts.length - 1) : json, providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, services: specTestServices({ webspec }), ...(knowledge ? { knowledge } : {}) });
-  const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
+  const { rt, store, session, prompts } = testRuntime({ plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], selection, git: makeGit, reply: (_, call) => typeof json === "function" ? json(call) : json, providerSessionId: (call) => `p${call + 1}`, services: specTestServices({ webspec }), ...(knowledge ? { knowledge } : {}), session: { worktree: repo.dir, repoDir: join(repo.dir, ".git") } });
   const run = ({ profile = "plain-git", ...input }: { profile?: string } & Record<string, unknown> = {}) => {
     store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "implement", profile: profile, params: { request: "x", profile: null, checkout: null }, title: "t", prompt: "x" }, provenance: { taskId: "t" } });
     return rt.run<{ investigationId: string; droppedLocations: string[] }>(session.id, "investigate", { request: "fix it", baseSha: base, branch: "spatial/x", llm: selection, ...input });

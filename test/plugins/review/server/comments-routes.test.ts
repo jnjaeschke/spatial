@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { Readable } from "node:stream";
 import { test } from "node:test";
 import { reviewRoutes } from "../../../../src/plugins/review/server/routes.ts";
 import { Store } from "../../../../src/runtime/store.ts";
-import { HttpError, type Route } from "../../../../src/server/http.ts";
+import type { Route } from "../../../../src/server/http.ts";
 import type { Runtime } from "../../../../src/runtime/tasks.ts";
+import { callRoute } from "../../../helpers/route-call.ts";
 
 function fixture() {
   const store = new Store(":memory:");
@@ -20,24 +20,13 @@ function fixture() {
   return { store, session, diff, routes };
 }
 
-async function call(route: Route, params: string[], body: unknown) {
-  let status = 0, text = "";
-  const req = Readable.from([JSON.stringify(body)]) as never;
-  const res = { writeHead(code: number) { status = code; return this; }, end(value?: string) { text = value ?? ""; return this; } } as never;
-  try {
-    await route[2]({ req, res, params, url: new URL("http://localhost/") });
-  } catch (error) {
-    if (error instanceof HttpError) return { status: error.status, body: { error: error.message } };
-    throw error;
-  }
-  return { status, body: text ? JSON.parse(text) : undefined };
-}
-
 function route(routes: Route[], suffix: string): Route {
   const found = routes.find(([method, pattern]) => method === "POST" && pattern.test(`/api/sessions/test/${suffix}`));
   assert.ok(found, `route ${suffix} exists`);
   return found;
 }
+
+const call = (route: Route, params: string[], body: unknown) => callRoute(route, params, undefined, body);
 
 test("comments route validates Diff paths and rejects editing a posted comment", async () => {
   const { store, session, diff, routes } = fixture();

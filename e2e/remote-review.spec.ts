@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { git, makeRepo } from "./repo.ts";
 import { test, expect } from "@playwright/test";
 import { newRevision } from "./revisions.ts";
 
@@ -11,18 +11,10 @@ test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
-
 test("reviews a Phabricator revision that is not checked out and leaves the repo untouched", async ({ page, request }) => {
   const ids = newRevision();
-  const dir = mkdtempSync(join(tmpdir(), "spatial-remote-"));
+  const dir = makeRepo("spatial-remote-", { "a.txt": `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n` });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "a.txt"), `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`);
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   const base = git(dir, "rev-parse", "HEAD");
 
   const scratch = mkdtempSync(join(tmpdir(), "spatial-remote-scratch-"));
@@ -67,12 +59,8 @@ test("reviews a Phabricator revision that is not checked out and leaves the repo
 
 test("a revision whose base commit is not in the repo is refused without writing anything", async ({ request }) => {
   const ids = newRevision();
-  const dir = mkdtempSync(join(tmpdir(), "spatial-remote-missing-base-"));
+  const dir = makeRepo("spatial-remote-missing-base-", { "a.txt": "base\n" });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "a.txt"), "base\n");
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   const head = git(dir, "rev-parse", "HEAD");
   const missingBase = "e".repeat(40);
   const control = await request.post("http://127.0.0.1:4179/control", { data: { revision: ids.revision, base: missingBase, diffs: [ids.d1], rawDiffs: { [ids.d1]: "diff --git a/x b/x\n" } } });
@@ -87,3 +75,4 @@ test("a revision whose base commit is not in the repo is refused without writing
   expect(git(dir, "for-each-ref", "refs/spatial")).toBe("");
   expect(git(dir, "rev-parse", "HEAD")).toBe(head);
 });
+import { execFileSync } from "node:child_process";

@@ -1,22 +1,12 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, makeRepo } from "./repo.ts";
 import { test, expect } from "@playwright/test";
 
 const dirs: string[] = [];
 test.afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
-function git(dir: string, ...args: string[]) {
-  execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args]);
-}
 test("Gecko review renders the fetched Bugzilla report and its summary", async ({ page }) => {
-  const dir = mkdtempSync(join(tmpdir(), "spatial-bug-summary-")); dirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "mach"), "");
-  writeFileSync(join(dir, "moz.build"), "");
-  writeFileSync(join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { moz: { type: "http", url: "http://127.0.0.1:4180/mcp" } } }));
-  writeFileSync(join(dir, "base.txt"), "base\n");
-  git(dir, "add", "-A"); git(dir, "commit", "-m", "base");
+  const dir = makeRepo("spatial-bug-summary-", { "mach": "", "moz.build": "", ".mcp.json": JSON.stringify({ mcpServers: { moz: { type: "http", url: "http://127.0.0.1:4180/mcp" } } }), "base.txt": "base\n" }); dirs.push(dir);
   writeFileSync(join(dir, "c.txt"), "c\n");
   git(dir, "add", "-A"); git(dir, "commit", "-m", "Bug 4242 - Add c");
 

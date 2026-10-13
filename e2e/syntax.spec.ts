@@ -1,31 +1,22 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
 import { openChange, startReview } from "./canvas.ts";
+import { git as runGit, makeRepo } from "./repo.ts";
 
 let dir = "";
 
 test.afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function git(...args: string[]) {
-  execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args]);
-}
-
 const painted = (name: string) => [...(CSS.highlights.get(name) ?? [])].map((range) => (range as Range).toString());
 
 test("C++ code in a hunk is painted through the highlight registry", async ({ page }) => {
-  dir = mkdtempSync(join(tmpdir(), "spatial-syntax-"));
-  git("init", "-b", "main");
-  writeFileSync(join(dir, "a.cpp"), "int f() {\n  return 1;\n}\n");
-  git("add", "-A");
-  git("commit", "-m", "base");
-  git("checkout", "-b", "feature");
+  dir = makeRepo("spatial-syntax-", { "a.cpp": "int f() {\n  return 1;\n}\n" });
+  runGit(dir, "checkout", "-b", "feature");
   writeFileSync(join(dir, "a.cpp"), "int f() {\n  static const int x = 2;\n  return x;\n}\n");
   writeFileSync(join(dir, "c.txt"), "c\n");
-  git("add", "-A");
-  git("commit", "-m", "change");
+  runGit(dir, "add", "-A");
+  runGit(dir, "commit", "-m", "change");
 
   await startReview(page, dir, "main..feature");
   await openChange(page);
@@ -35,19 +26,13 @@ test("C++ code in a hunk is painted through the highlight registry", async ({ pa
 });
 
 test("introduced symbols show all sites in a hover card and jump to the selected site", async ({ page }) => {
-  dir = mkdtempSync(join(tmpdir(), "spatial-symbols-"));
-  git("init", "-b", "main");
-  writeFileSync(join(dir, "api.h"), "void existing();\n");
-  writeFileSync(join(dir, "api.cpp"), '#include "api.h"\nvoid existing() {}\n');
-  writeFileSync(join(dir, "caller.cpp"), '#include "api.h"\nvoid caller() {}\n');
-  git("add", "-A");
-  git("commit", "-m", "base");
-  git("checkout", "-b", "feature");
+  dir = makeRepo("spatial-symbols-", { "api.h": "void existing();\n", "api.cpp": '#include "api.h"\nvoid existing() {}\n', "caller.cpp": '#include "api.h"\nvoid caller() {}\n' });
+  runGit(dir, "checkout", "-b", "feature");
   writeFileSync(join(dir, "api.h"), "void existing();\nvoid introducedFunction();\n");
   writeFileSync(join(dir, "api.cpp"), '#include "api.h"\nvoid existing() {}\nvoid introducedFunction() {}\n');
   writeFileSync(join(dir, "caller.cpp"), '#include "api.h"\nvoid caller() { introducedFunction(); }\n');
-  git("add", "-A");
-  git("commit", "-m", "Introduce function and call");
+  runGit(dir, "add", "-A");
+  runGit(dir, "commit", "-m", "Introduce function and call");
 
   await startReview(page, dir, "main..feature");
   await openChange(page);

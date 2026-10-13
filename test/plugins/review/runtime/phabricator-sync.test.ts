@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
+import type { GitCapability } from "../../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { DiffData, RuntimeEvent } from "../../../../src/shared/types.ts";
 import type { ConduitClient } from "../../../../src/plugins/review/runtime/conduit.ts";
 import { PhabricatorSyncer } from "../../../../src/plugins/review/runtime/phabricator-sync.ts";
@@ -20,7 +21,7 @@ const inlineTx = (id: number, done: boolean) => ({
   comments: [{ phid: "CI", version: 1, authorPHID: "U1", content: { raw: "inline" }, removed: false }],
 });
 
-function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[]; pages?: unknown[]; commits?: { sha: string; body: string }[]; texts?: Record<string, string>; pagesByRevision?: Record<number, unknown>; llm?: unknown } = {}) {
+function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[]; pages?: unknown[]; commits?: { sha: string; body: string }[]; texts?: Record<string, string>; pagesByRevision?: Record<number, unknown>; reply?: () => unknown } = {}) {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   const commits = opts.commits ?? [{ sha: "H", body: opts.trailer === false ? "" : "Differential Revision: https://phab.example.com/D1" }];
@@ -40,8 +41,8 @@ function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[];
     if (method === "user.search") return { data: [{ phid: "U1", fields: { username: "alice" } }] };
     throw new Error(`unexpected ${method}`);
   } } as unknown as ConduitClient;
-  const runtime = new Runtime({ store, plugins: [corePlugin, ...plugins], llm: (opts.llm ?? {}) as never,
-    git: () => ({ diff: async (base: string, head: string) => opts.texts?.[`${base}..${head}`] ?? local } as unknown as GitCapability) });
+  const runtime = testRuntime({ store, plugins: [corePlugin, ...plugins], ...(opts.reply ? { reply: opts.reply } : {}),
+    git: () => ({ diff: async (base: string, head: string) => opts.texts?.[`${base}..${head}`] ?? local } as unknown as GitCapability) }).rt;
   const watcher = { watchedSessions: () => [session.id] };
   const events: RuntimeEvent[] = [];
   runtime.onEvent((event) => events.push(event));
@@ -59,24 +60,24 @@ test("does not contact Conduit for an unwatched session", async () => {
 test("starts one Phabricator thread summary for a new four-comment set and no duplicate while pending", async () => {
   let release!: (value: unknown) => void;
   let calls = 0;
-  const llm = { defaultSelection: { backend: "claude", model: "sonnet", effort: "low" }, run: async () => { calls++; return new Promise((resolve) => { release = resolve; }); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const reply = () => { calls++; return new Promise((resolve) => { release = resolve; }); };
   const items = ["C1", "C2", "C3", "C4"].map((phid, index) => ({ id: index + 10, type: "inline", dateCreated: index + 10, fields: { path: "a.txt", line: 1, length: 1, diff: { id: 1 }, isNewFile: true, isDone: false, ...(index ? { replyToCommentPHID: `C${index}` } : {}) }, comments: [{ phid, version: 1, authorPHID: "U1", content: { raw: `body ${index + 1}` }, removed: false }] }));
-  const x = setup({ pages: [transactions(items)], llm });
+  const x = setup({ pages: [transactions(items)], reply });
   await x.syncer.tick();
   assert.equal(x.store.listTasks(x.session.id).filter((task) => task.kind === "summarizePhabThread").length, 1);
   await x.syncer.tick();
   assert.equal(x.store.listTasks(x.session.id).filter((task) => task.kind === "summarizePhabThread").length, 1);
   assert.equal(calls, 1);
-  release({ json: { summary: "A summary." }, selection: { backend: "claude", model: "haiku", effort: "low" } });
+  release({ summary: "A summary." });
   await new Promise((resolve) => setTimeout(resolve, 0));
   x.store.close();
 });
 
 test("a failed Phabricator thread summary is not retried until the thread gets a new comment", async () => {
   let calls = 0;
-  const llm = { defaultSelection: { backend: "claude", model: "sonnet", effort: "low" }, run: async () => { calls++; throw new Error("model down"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
+  const reply = () => { calls++; throw new Error("model down"); };
   const items = ["C1", "C2", "C3", "C4"].map((phid, index) => ({ id: index + 10, type: "inline", dateCreated: index + 10, fields: { path: "a.txt", line: 1, length: 1, diff: { id: 1 }, isNewFile: true, isDone: false, ...(index ? { replyToCommentPHID: `C${index}` } : {}) }, comments: [{ phid, version: 1, authorPHID: "U1", content: { raw: `body ${index + 1}` }, removed: false }] }));
-  const x = setup({ pages: [transactions(items)], llm });
+  const x = setup({ pages: [transactions(items)], reply });
   await x.syncer.tick();
   await new Promise((resolve) => setTimeout(resolve, 0));
   await x.syncer.tick();

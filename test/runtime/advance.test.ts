@@ -2,18 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type Phase } from "../../src/runtime/tasks.ts";
+import type { Phase } from "../../src/runtime/tasks.ts";
+import { testRuntime } from "../helpers/runtime.ts";
 import type { Step, Workflow } from "../../src/runtime/plugins.ts";
 import { renderRef, type WorkflowView } from "../../src/runtime/render-ref.ts";
-import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { Artifact, DecisionData, WorkflowStartData } from "../../src/shared/types.ts";
 import { runWorkflow } from "../../src/workflows/start.ts";
 
-const llm: LlmService = {
-  defaultSelection: { backend: "claude", model: "m", effort: "low" },
-  async run() { throw new Error("unused"); },
-  async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-};
 const OPTIONS = [{ id: "go", label: "Go" }, { id: "stop", label: "Stop" }];
 
 function setup(next?: (view: WorkflowView) => Step | null, follow?: Phase<unknown>["next"]) {
@@ -21,8 +16,7 @@ function setup(next?: (view: WorkflowView) => Step | null, follow?: Phase<unknow
   const calls: string[] = [];
   const phase = (id: string): Phase<unknown> => ({ id, async run() { calls.push(id); if (id === "boom") throw new Error("kaput"); }, ...((id === "a" || id === "boom") && follow ? { next: follow } : {}) });
   const flow: Workflow<Record<string, never>> = { id: "flow", description: "d", argHint: "", params: z.strictObject({}), parseArgs: () => ({ ok: true, params: {} }), async start() {}, ...(next ? { next } : {}) };
-  const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [flow], phases: [phase("a"), phase("b"), phase("boom")] }], llm, git: () => ({}) as GitCapability });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "flow" });
+  const { rt, session } = testRuntime({ store, plugins: [{ id: "t", workflows: [flow], phases: [phase("a"), phase("b"), phase("boom")] }], session: { workflow: "flow" } });
   return { store, rt, session, calls };
 }
 const decisionsOf = (store: Store, id: string) => store.listArtifacts(id, "Decision") as Artifact<DecisionData>[];

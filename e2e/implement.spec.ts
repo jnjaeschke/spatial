@@ -1,7 +1,6 @@
-import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, inlineTx, makeRepo as createRepo } from "./repo.ts";
 import { test, expect } from "@playwright/test";
 
 const repoDirs: string[] = [];
@@ -9,16 +8,9 @@ test.afterEach(() => { for (const dir of repoDirs.splice(0)) rmSync(dir, { recur
 const treeherder = (action: "hold" | "release") => fetch(`http://127.0.0.1:4181/${action}`, { method: "POST" });
 test.afterEach(async () => { await treeherder("release"); });
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
 function makeRepo() {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "spatial-implement-")));
+  const dir = createRepo("spatial-implement-", { "a.txt": `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n` });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "a.txt"), `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`);
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   return dir;
 }
 const open = (path: string) => `http://127.0.0.1:4178/repo?path=${encodeURIComponent(path)}`;
@@ -31,10 +23,6 @@ function makeGeckoRepo() {
   git(dir, "add", "-A");
   git(dir, "commit", "-m", "gecko markers");
   return dir;
-}
-
-function inlineTx(id: number, path: string, line: number, body: string) {
-  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: "PHID-USER-alice", objectPHID: "PHID-DREV-4242", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: "PHID-USER-alice", dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: 42421, phid: "PHID-DIFF-42421" }, path, line, length: 1, isNewFile: true, replyToCommentPHID: null, isDone: false, hasSuggestion: false, suggestionText: null } };
 }
 
 test("implement: investigate, approve, implement, automatic fix round, revise, accept", async ({ page }) => {
@@ -368,7 +356,7 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   await bar.getByRole("button", { name: "Submit", exact: true }).click();
 
   await page.getByTestId("epoch-chip-6").waitFor({ timeout: 20_000 });
-  await request.post("http://127.0.0.1:4179/control", { data: { revision: 4242, transactions: [inlineTx(4301, "c.txt", 1, "Magic value?"), inlineTx(4302, "c.txt", 1, "Why a new file?")] } });
+  await request.post("http://127.0.0.1:4179/control", { data: { revision: 4242, transactions: [inlineTx(4301, "c.txt", 1, "Magic value?", { revision: 4242, diffId: 42421 }), inlineTx(4302, "c.txt", 1, "Why a new file?", { revision: 4242, diffId: 42421 })] } });
   await expect(bar).toContainText("Work in 2 reviewer comments?", { timeout: 30_000 });
   await page.getByRole("button", { name: "Close session" }).click();
   const comments = page.getByTestId("reviewer-comment");

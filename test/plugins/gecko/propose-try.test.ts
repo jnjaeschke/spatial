@@ -2,10 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { Store } from "../../../src/runtime/store.ts";
-import { Runtime } from "../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
-import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
@@ -19,12 +17,8 @@ function setup(json: unknown) {
   const repo = makeRepo();
   const base = repo.commit({ "dom/base/a.cpp": "a\n" }, "base");
   const head = repo.commit({ "dom/base/a.cpp": "b\n", "dom/base/test/test_a.html": "t\n" }, "Bug 1 - Change a");
-  const store = new Store(":memory:");
-  const prompts: LlmPrompt[] = [];
   let replyIndex = 0;
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: Array.isArray(json) ? json[replyIndex++] : json, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit });
-  const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
+  const { rt, store, session, prompts } = testRuntime({ plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], selection, git: makeGit, reply: () => Array.isArray(json) ? json[replyIndex++] : json, session: { worktree: repo.dir, repoDir: join(repo.dir, ".git") } });
   store.putArtifact({ sessionId: session.id, type: "CommandRun", status: "verified", provenance: { taskId: "t" }, data: { command: "./mach test dom/base/test/test_a.html", exitCode: 0, durationMs: 1, output: "", test: true } });
   store.putArtifact({ sessionId: session.id, type: "CommandRun", status: "verified", provenance: { taskId: "t" }, data: { command: "ls", exitCode: 0, durationMs: 1, output: "", test: false } });
   const run = () => rt.run<{ proposalId: string }>(session.id, "proposeTry", { base, head, llm: selection });

@@ -1,9 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
+import { testRuntime } from "../helpers/runtime.ts";
+import type { LlmPrompt } from "../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../src/shared/types.ts";
 import type { Plugin } from "../../src/runtime/plugins.ts";
 import { MAX_SELECTOR_QUESTIONS, selectWorkflow, selectorSchema } from "../../src/workflows/select.ts";
@@ -15,17 +14,8 @@ const workflows = new Map(plugins.flatMap((plugin) => plugin.workflows ?? []).ma
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
 function setup(json: unknown, extra: Plugin[] = []) {
-  const store = new Store(":memory:");
   let call: LlmPrompt | undefined;
-  const llm: LlmService = {
-    defaultSelection: selection,
-    async run(_selection, prompt) {
-      call = prompt;
-      return { text: "selected", json, providerSessionId: "p", selection };
-    },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
-  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins, ...extra], llm, repoMcp: (repo) => ({ spatial: { type: "stdio", command: "spatial", args: ["--repo", repo] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability });
+  const { rt, store } = testRuntime({ plugins: [corePlugin, ...plugins, ...extra], selection, reply: (prompt) => { call = prompt; return json; }, repoMcp: (repo) => ({ spatial: { type: "stdio", command: "spatial", args: ["--repo", repo] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }) });
   const select = (prompt: string, round = 0) => selectWorkflow(rt, "/repo", prompt, round, undefined, new AbortController().signal);
   return { store, select, get call() { return call; } };
 }

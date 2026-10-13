@@ -5,13 +5,11 @@ import { Runtime, defineTask, type GitCapability, type Phase } from "../../../sr
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementRoutes } from "../../../src/plugins/implement/server/routes.ts";
 import { routeCall } from "../../helpers/route-call.ts";
+import { waitFor } from "../../helpers/wait-for.ts";
 import type { MemoryNoticeData } from "../../../src/plugins/implement/shared/types.ts";
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function until(done: () => boolean) {
-  for (let i = 0; i < 200 && !done(); i++) await tick();
-  assert.ok(done(), "condition not reached");
-}
+const until = (done: () => boolean) => waitFor(() => done() ? true : undefined, 1000, 0, "condition not reached");
 
 function setup(scope = "repo") {
   let runs = 0;

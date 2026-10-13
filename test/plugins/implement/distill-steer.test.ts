@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import type { LlmSelection, RuntimeEvent } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
@@ -17,12 +15,8 @@ const fields = { situation: "the agent adds a helper", observed: "It named the h
 const reply = (over: object = {}) => ({ action: "add", key: "name-helpers", scope: "repo", memory: fields, ...over });
 
 function setup(replies: unknown[]) {
-  const store = new Store(":memory:");
-  const prompts: LlmPrompt[] = [];
-  const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: replies.shift(), providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
   const knowledge = new KnowledgeStore(":memory:");
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: () => ({}) as GitCapability, knowledge });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "implement" });
+  const { rt, store, session, prompts } = testRuntime({ plugins: [specPlugin, reviewPlugin, implementPlugin], selection, reply: () => replies.shift(), knowledge, session: { workflow: "implement" } });
   store.createEpoch(session.id, "implement", null);
   const put = (type: string, data: unknown) => store.putArtifact({ sessionId: session.id, type, status: "verified", data, provenance: { taskId: "t" } });
   const events: RuntimeEvent[] = [];

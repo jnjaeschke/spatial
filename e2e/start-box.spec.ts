@@ -1,5 +1,5 @@
+import { git, makeRepo } from "./repo.ts";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
-import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,10 +10,6 @@ const repoDirs: string[] = [];
 test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
 
 async function openStartBox(page: Page, request: APIRequestContext): Promise<void> {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
@@ -203,13 +199,8 @@ test("/review with a range runs the review chain", async ({ page, request }) => 
 
 test("/review D<id> imports the revision named by .arcconfig and leaves the repo untouched", async ({ page, request }) => {
   const ids = newRevision();
-  const dir = mkdtempSync(join(tmpdir(), "spatial-start-review-"));
+  const dir = makeRepo("spatial-start-review-", { "a.txt": `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`, ".arcconfig": JSON.stringify({ "phabricator.uri": "https://phab.example.com/" }) });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "a.txt"), `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`);
-  writeFileSync(join(dir, ".arcconfig"), JSON.stringify({ "phabricator.uri": "https://phab.example.com/" }));
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   const base = git(dir, "rev-parse", "HEAD");
 
   const scratch = mkdtempSync(join(tmpdir(), "spatial-start-review-scratch-"));
@@ -248,13 +239,8 @@ test("/review D<id> imports the revision named by .arcconfig and leaves the repo
 
 test("Retry repeats a failed revision import", async ({ page, request }) => {
   const ids = newRevision();
-  const dir = mkdtempSync(join(tmpdir(), "spatial-start-retry-"));
+  const dir = makeRepo("spatial-start-retry-", { "a.txt": `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`, ".arcconfig": JSON.stringify({ "phabricator.uri": "https://phab.example.com/" }) });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeFileSync(join(dir, "a.txt"), `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n`);
-  writeFileSync(join(dir, ".arcconfig"), JSON.stringify({ "phabricator.uri": "https://phab.example.com/" }));
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   const base = git(dir, "rev-parse", "HEAD");
   const scratch = mkdtempSync(join(tmpdir(), "spatial-start-retry-scratch-"));
   repoDirs.push(scratch);
@@ -291,3 +277,4 @@ test("Retry repeats a failed revision import", async ({ page, request }) => {
   expect(git(dir, "status", "--porcelain")).toBe("");
   expect(git(dir, "for-each-ref", "--format=%(refname)", "refs/spatial").split("\n").every((ref) => ref.startsWith(`refs/spatial/D${ids.revision}/`))).toBeTruthy();
 });
+import { execFileSync } from "node:child_process";

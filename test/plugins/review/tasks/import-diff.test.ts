@@ -1,29 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime } from "../../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import { makeGit } from "../../../../src/runtime/git/read.ts";
 import { createSession } from "../../../../src/workflows/start.ts";
 import { importDiff } from "../../../../src/plugins/review/tasks/import-diff/task.ts";
-import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { DiffData } from "../../../../src/shared/types.ts";
 import { hunkCommit } from "../../../../src/plugins/review/shared/review-path.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-const noLlm = {
-  defaultSelection: { backend: "claude", model: "m", effort: "low" },
-  async run() { throw new Error("unused"); },
-  async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-} satisfies LlmService;
-
 const upstreamProfile = { id: "upstream", description: "upstream", commitStyle: "stack" as const, upstreamBranch: "main", detect: async (repo: string) => existsSync(join(repo, "marker")) };
 
 async function setup() {
   const r = makeRepo();
-  const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff], repoProfiles: [upstreamProfile] }], llm: noLlm, git: makeGit });
+  const { rt, store } = testRuntime({ plugins: [{ id: "test", tasks: [importDiff], repoProfiles: [upstreamProfile] }], git: makeGit });
   const session = await createSession(store, r.dir, "t", "review");
   return { r, store, rt, session };
 }

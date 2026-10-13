@@ -4,17 +4,13 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type Phase } from "../../src/runtime/tasks.ts";
+import type { Phase } from "../../src/runtime/tasks.ts";
+import { testRuntime } from "../helpers/runtime.ts";
 import type { Workflow } from "../../src/runtime/plugins.ts";
-import type { LlmService } from "../../src/runtime/llm/types.ts";
+import { waitFor } from "../helpers/wait-for.ts";
 import type { Artifact, DecisionData } from "../../src/shared/types.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 
-const llm: LlmService = {
-  defaultSelection: { backend: "claude", model: "m", effort: "low" },
-  async run() { throw new Error("unused"); },
-  async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-};
 const OPTIONS = [
   { id: "go", label: "Go", takesText: true, takesModel: true },
   { id: "num", label: "Number", takesText: true, requiresText: true, textPattern: "^\\d+$" },
@@ -31,18 +27,13 @@ const asking = workflow("asking", (view) => {
 const retrying = workflow("retrying", (view) => view.epochs.length === 0 ? { run: "flaky", input: null } : null);
 const guarded: Workflow<Record<string, never>> = { ...asking, id: "guarded", checkAnswer: (_view, decision, option) => option === "stop" && decision.data.key === "go" ? "Nothing to stop" : null };
 const store = new Store(":memory:");
-const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [asking, retrying, guarded], phases: [phase("a"), phase("flaky")] }], llm, git: () => ({}) as GitCapability });
+const { rt } = testRuntime({ store, plugins: [{ id: "t", workflows: [asking, retrying, guarded], phases: [phase("a"), phase("flaky")] }] });
 const server = createHttpServer(rt);
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 after(() => server.close());
 const post = (path: string, body: unknown = {}) => fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 const session = (workflow: string) => store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow });
-async function waitFor(check: () => boolean, ms = 5000) {
-  const end = Date.now() + ms;
-  while (Date.now() < end) { if (check()) return; await new Promise((resolve) => setTimeout(resolve, 20)); }
-  throw new Error("timeout");
-}
 const open = (id: string) => store.listArtifacts(id, "Decision").at(-1) as Artifact<DecisionData>;
 
 test("a decision answer validates the option and text", async () => {

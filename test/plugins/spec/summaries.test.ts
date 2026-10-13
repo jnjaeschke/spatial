@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
+import type { Runtime } from "../../../src/runtime/tasks.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
@@ -13,17 +11,11 @@ import type { SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.t
 import type { Artifact } from "../../../src/shared/types.ts";
 import { routeCall } from "../../helpers/route-call.ts";
 import { specTestServices } from "../../helpers/spec-services.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 
 const webspec = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 function setup(replies: { summary: unknown; verdicts?: unknown }) {
-  const prompts: LlmPrompt[] = [];
-  const llm: LlmService = {
-    defaultSelection: { backend: "claude", model: "sonnet", effort: "low" },
-    async run(selection, prompt) { prompts.push(prompt); const verify = prompt.system!.startsWith("You check"); return { text: "", json: verify ? replies.verdicts : replies.summary, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
-    async listModels() { return { claude: { models: [] }, codex: { error: "" } }; },
-  } as LlmService;
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm, git: () => ({}) as GitCapability, services: specTestServices({ webspec }) });
-  const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const { rt, session, prompts } = testRuntime({ plugins: [corePlugin, specPlugin], reply: (prompt) => prompt.system!.startsWith("You check") ? replies.verdicts : replies.summary, services: specTestServices({ webspec }), session: {} });
   return { rt, session, prompts };
 }
 async function algorithm(rt: Runtime, sessionId: string, ref = "HTML#setup") {

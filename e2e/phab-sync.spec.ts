@@ -1,7 +1,6 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, writeLines, inlineTx, makeRepo } from "./repo.ts";
 import { test, expect, type Page, type APIRequestContext, type Locator } from "@playwright/test";
 import { expandItem, openChange, openInPanel, openPatch, revealNode, startReview } from "./canvas.ts";
 import { newRevision } from "./revisions.ts";
@@ -12,18 +11,6 @@ const control = "http://127.0.0.1:4179/control";
 test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trim();
-}
-
-function writeLines(dir: string, values: string[]) {
-  writeFileSync(join(dir, "a.txt"), `${values.join("\n")}\n`);
-}
-
-function inlineTx(id: number, path: string, line: number, body: string, options: { diffId: number; isNewFile?: boolean; isDone?: boolean; phid?: string; author?: string; replyTo?: string }) {
-  return { id, phid: `PHID-XACT-${id}`, type: "inline", authorPHID: `PHID-USER-${options.author ?? "alice"}`, objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: options.phid ?? `PHID-XCMT-${id}`, version: 1, authorPHID: `PHID-USER-${options.author ?? "alice"}`, dateCreated: id - 1, dateModified: id, removed: false, content: { raw: body } }], fields: { diff: { id: options.diffId, phid: `PHID-DIFF-${options.diffId}` }, path, line, length: 1, isNewFile: options.isNewFile ?? true, replyToCommentPHID: options.replyTo ?? null, isDone: options.isDone ?? false, hasSuggestion: false, suggestionText: null } };
-}
 
 function commentTx(id: number, body: string, author = "alice", replyTo?: string) {
   return { id, phid: `PHID-XACT-${id}`, type: "comment", authorPHID: `PHID-USER-${author}`, objectPHID: "PHID-DREV-1", dateCreated: id, dateModified: id, groupID: null, comments: [{ id: id + 100, phid: `PHID-XCMT-${id}`, version: 1, authorPHID: `PHID-USER-${author}`, dateCreated: id, dateModified: id, removed: false, content: { raw: body } }], fields: replyTo ? { replyToCommentPHID: replyTo } : {} };
@@ -36,12 +23,8 @@ async function configure(request: APIRequestContext, revision: number, value: ob
 
 /** Configures the fake Conduit before the session opens: the syncer caches raw diffs, as they never change on Phabricator. */
 async function openNarratedWithTrailer(page: Page, request: APIRequestContext, revision: number, conduit: (diff: string) => object) {
-  const dir = mkdtempSync(join(tmpdir(), "spatial-phab-"));
+  const dir = makeRepo("spatial-phab-", { "a.txt": `${Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n")}\n` });
   repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
-  writeLines(dir, Array.from({ length: 60 }, (_, i) => `line ${i + 1}`));
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
   git(dir, "checkout", "-b", "feature");
   const lines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
   lines[29] = "THIRTY";

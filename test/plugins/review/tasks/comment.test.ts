@@ -1,28 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../../helpers/runtime.ts";
 import type { ReviewCommentData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { ChatMessageData, LlmSelection } from "../../../../src/shared/types.ts";
-import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
 import { comment } from "../../../../src/plugins/review/tasks/comment/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 
 function setup(replies: unknown[]) {
-  const store = new Store(":memory:");
-  const calls: LlmPrompt[] = [];
   let index = 0;
-  const llm: LlmService = {
-    defaultSelection: selection,
-    async run(_selection, prompt) {
-      calls.push(prompt);
-      return { text: "", json: replies[index++], providerSessionId: "p", selection };
-    },
-    async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
-  };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [comment] }], llm, git: () => ({}) as GitCapability });
-  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  const { rt, store, session, prompts: calls } = testRuntime({ plugins: [{ id: "test", tasks: [comment] }], selection, reply: () => replies[index++], session: {} });
   const finding = store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed",
     data: { anchor: "diff#f0h0", quote: "mFlag = true", lines: { path: "dom/A.cpp", side: "new", start: 8, end: 8 },
       category: "correctness", severity: "high", title: "Flag never reset", body: "The flag remains set after teardown." } satisfies ReviewFindingData,

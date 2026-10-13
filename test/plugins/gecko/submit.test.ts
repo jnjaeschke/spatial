@@ -4,11 +4,9 @@ import assert from "node:assert/strict";
 import { chmodSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Artifact, DecisionData, Epoch, WorkflowView } from "../../../src/plugin-api.ts";
-import { Store } from "../../../src/runtime/store.ts";
-import { Runtime } from "../../../src/runtime/tasks.ts";
+import { testRuntime } from "../../helpers/runtime.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
-import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
@@ -33,10 +31,7 @@ function setup() {
   const base = repo.git("rev-parse", "HEAD").trim();
   repo.commit({ "dom/a.txt": "a\n" }, "Bug 1 - A");
   repo.commit({ "dom/b.txt": "b\n" }, "Bug 1 - B");
-  const store = new Store(":memory:");
-  const llm: LlmService = { defaultSelection: selection, async run(chosen) { return { text: "", json: null, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit });
-  const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
+  const { rt, store, session } = testRuntime({ plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], selection, git: makeGit, session: { worktree: repo.dir, repoDir: join(repo.dir, ".git") } });
   return { repo, base, head: repo.git("rev-parse", "HEAD").trim(), rt, store, session };
 }
 

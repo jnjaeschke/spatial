@@ -1,7 +1,6 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { git, makeRepo } from "./repo.ts";
 import { test, expect } from "@playwright/test";
 import { openChange, openPatch, revealNode } from "./canvas.ts";
 
@@ -11,19 +10,10 @@ test.afterEach(() => {
   for (const dir of repoDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function git(dir: string, ...args: string[]) {
-  return execFileSync("git", ["-C", dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8" }).trimEnd();
-}
-
 test("/review with uncommitted changes reviews them and leaves the repo untouched", async ({ page }) => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "spatial-worktree-")));
-  repoDirs.push(dir);
-  git(dir, "init", "-b", "main");
   const lines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
-  writeFileSync(join(dir, "a.txt"), `${lines.join("\n")}\n`);
-  writeFileSync(join(dir, ".gitignore"), "ignored.log\n");
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "base");
+  const dir = makeRepo("spatial-worktree-", { "a.txt": `${lines.join("\n")}\n`, ".gitignore": "ignored.log\n" });
+  repoDirs.push(dir);
   lines[29] = "THIRTY";
   writeFileSync(join(dir, "a.txt"), `${lines.join("\n")}\n`);
   writeFileSync(join(dir, "c.txt"), "c\n");
