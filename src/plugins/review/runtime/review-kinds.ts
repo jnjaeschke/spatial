@@ -1,5 +1,5 @@
-import type { PhabCommentData, ReviewDraftData, ReviewFindingData, UserCommentData } from "../shared/types.ts";
-import type { DiffData, PatchNarrativeData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
+import type {  PhabCommentData, ReviewDraftData, ReviewFindingData, UserCommentData , PatchNarrativeData } from "../shared/types.ts";
+import type {DiffData, ArtifactKind, SessionView} from "../../../plugin-api.ts";
 import type { SpecReferenceData } from "../../spec/api.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { findingStates } from "../shared/findings.ts";

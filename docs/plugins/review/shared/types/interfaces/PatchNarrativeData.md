@@ -1,8 +1,8 @@
-[**spatial**](../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial](../../../README.md) / [shared/types](../README.md) / PatchNarrativeData
+[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / PatchNarrativeData
 
 # Interface: PatchNarrativeData
 

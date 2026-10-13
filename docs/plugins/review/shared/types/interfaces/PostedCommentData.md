@@ -1,8 +1,8 @@
-[**spatial**](../../../README.md)
+[**spatial**](../../../../../README.md)
 
 ***
 
-[spatial](../../../README.md) / [shared/types](../README.md) / PostedCommentData
+[spatial](../../../../../README.md) / [plugins/review/shared/types](../README.md) / PostedCommentData
 
 # Interface: PostedCommentData
 

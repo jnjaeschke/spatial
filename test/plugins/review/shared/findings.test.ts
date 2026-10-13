@@ -1,8 +1,10 @@
+import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findingStates } from "../../../../src/plugins/review/shared/findings.ts";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
-import type { Artifact, Link, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import type { Artifact, Link } from "../../../../src/shared/types.ts";
+
 
 const a = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id, epoch: null});
 const link = (from: string, to: string, kind: Link["kind"]): Link => ({ id: `${from}-${to}-${kind}`, sessionId: "S", from, to, kind });

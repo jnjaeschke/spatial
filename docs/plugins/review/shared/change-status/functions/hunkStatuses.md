@@ -6,7 +6,7 @@
 
 # Function: hunkStatuses()
 
-> **hunkStatuses**(`next`, `prev`, `interdiff`): `Map`\<`string`, [`ChangeStatus`](../../../../../shared/types/type-aliases/ChangeStatus.md)\>
+> **hunkStatuses**(`next`, `prev`, `interdiff`): `Map`\<`string`, [`ChangeStatus`](../../types/type-aliases/ChangeStatus.md)\>
 
 Per-hunk status of `next` relative to the previous revision.
 
@@ -26,4 +26,4 @@ Per-hunk status of `next` relative to the previous revision.
 
 ## Returns
 
-`Map`\<`string`, [`ChangeStatus`](../../../../../shared/types/type-aliases/ChangeStatus.md)\>
+`Map`\<`string`, [`ChangeStatus`](../../types/type-aliases/ChangeStatus.md)\>

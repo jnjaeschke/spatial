@@ -1,4 +1,5 @@
-import type { DiffData, SemanticChange } from "../../../../plugin-api.ts";
+import type { SemanticChange } from "../../shared/types.ts";
+import type {DiffData} from "../../../../plugin-api.ts";
 import { hunkCommit } from "../../shared/review-path.ts";
 
 /** Deterministic checks the LLM cannot be trusted with. Returns human-readable errors; empty = valid. `allowUnassigned` accepts hunks no change claims (the web shows them as unassigned changes). */

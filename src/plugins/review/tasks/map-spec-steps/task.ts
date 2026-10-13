@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import type { ReviewFindingData } from "../../shared/types.ts";
+import type {  ReviewFindingData , PatchNarrativeData } from "../../shared/types.ts";
 import type { LineRange, SpecReferenceData, SpecStepMapData, StepLink, UnmappedLines, UnmappedReason } from "../../../spec/api.ts";
 import { lookupSpec, type SpecLookup } from "../../../spec/api.ts";
-import { type Artifact, type DiffData, type Id, type Link, type LlmSelection, type PatchNarrativeData, defineTask } from "../../../../plugin-api.ts";
+import {type Artifact, type DiffData, type Id, type Link, type LlmSelection, defineTask} from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { parseSteps, checkStepComment, commentBlock, misplacedStepComment, stepComments } from "../../../spec/api.ts";
 import { findingStates } from "../../shared/findings.ts";

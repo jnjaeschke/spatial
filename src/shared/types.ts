@@ -218,11 +218,6 @@ export interface McpServerData { server: string }
 /** A user-authored note attached to a session request. */
 export interface NoteData { body: string }
 
-export type ChangeStatus = "unchanged" | "modified" | "new";
-
-
-/** Receipt of a posted Phabricator inline. Linked `about → commentId`. Provenance: runtime. */
-export interface PostedCommentData { comment: Id; revision: number; diff: number; inlineId: number }
 /** Data of a `ChatMessage` artifact; linked `reply → thread`. Assistant messages record the provider session they belong to. `run`: a phase the reply asked to start after the turn; anything with outside effects still waits for the user's decision in that phase. */
 export interface ChatMessageData {
   role: "user" | "assistant";
@@ -343,28 +338,3 @@ export interface DiffData {
 
 /** Payload of a `notify` runtime event. `action.path` is an API path the client POSTs (empty JSON body) when the user presses the action. */
 export interface NotifyPayload { id: string; title: string; body?: string; action?: { label: string; path: string } }
-
-export interface SemanticChange {
-  id: string;
-  title: string;
-  explanation: string;
-  rationale: string;
-  hunkIds: string[];
-  dependsOn: string[];
-  specUrls: string[];
-  /** Set by the runtime for narratives of epoch >= 2 written in update mode; absent otherwise. */
-  status?: ChangeStatus;
-}
-
-/** Data of a `PatchNarrative` artifact. */
-export interface PatchNarrativeData {
-  diffId: Id;
-  summary: string;
-  changes: SemanticChange[];
-  /** One sentence per stack commit, in commit order, on what the commit achieves within the stack. Present for stacks only. */
-  commitIntents?: string[];
-  /** Per stack commit, in commit order: a short phrase naming the runtime flow a sequence diagram would explain, or null. Present for stacks only. */
-  flowHints?: (string | null)[];
-  /** Previous epoch's narrative; present when this narrative describes what changed since it. */
-  previous?: Id;
-}

@@ -1,6 +1,8 @@
+import type { PatchNarrativeData, SemanticChange } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiffData, Hunk, PatchNarrativeData, SemanticChange } from "../../../../src/shared/types.ts";
+import type { Artifact, DiffData, Hunk } from "../../../../src/shared/types.ts";
+
 import { changeCommit, hunkCommit, reviewedChanges, withUnassigned } from "../../../../src/plugins/review/shared/review-path.ts";
 
 const diff: DiffData = {

@@ -1,7 +1,9 @@
+import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { PhabCommentData } from "../../../../src/plugins/review/shared/types.ts";
-import type { Artifact, DiffData, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import type { Artifact, DiffData } from "../../../../src/shared/types.ts";
+
 import { phabView } from "../../../../src/plugins/review/shared/phab-anchor.ts";
 
 const make = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, data, status: "verified", provenance: { taskId: "runtime" }, createdAt: id, epoch: null});

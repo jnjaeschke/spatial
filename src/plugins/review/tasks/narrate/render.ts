@@ -1,4 +1,5 @@
-import type { ChangeStatus, Commit, DiffData, DiffFile, Hunk } from "../../../../plugin-api.ts";
+import type { ChangeStatus } from "../../shared/types.ts";
+import type {Commit, DiffData, DiffFile, Hunk} from "../../../../plugin-api.ts";
 import { hunkCommit } from "../../shared/review-path.ts";
 
 const PREFIX = { ctx: " ", add: "+", del: "-" } as const;

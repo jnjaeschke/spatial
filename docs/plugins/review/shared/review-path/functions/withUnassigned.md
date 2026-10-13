@@ -6,7 +6,7 @@
 
 # Function: withUnassigned()
 
-> **withUnassigned**(`narrative`, `diff`): [`SemanticChange`](../../../../../shared/types/interfaces/SemanticChange.md)[]
+> **withUnassigned**(`narrative`, `diff`): [`SemanticChange`](../../types/interfaces/SemanticChange.md)[]
 
 The narrative's changes plus, per commit with hunks no change claims, a trailing "Unassigned changes" change `unassigned-C<n>` (in diff order) after that commit's last change.
 
@@ -14,7 +14,7 @@ The narrative's changes plus, per commit with hunks no change claims, a trailing
 
 ### narrative
 
-[`PatchNarrativeData`](../../../../../shared/types/interfaces/PatchNarrativeData.md)
+[`PatchNarrativeData`](../../types/interfaces/PatchNarrativeData.md)
 
 ### diff
 
@@ -22,4 +22,4 @@ The narrative's changes plus, per commit with hunks no change claims, a trailing
 
 ## Returns
 
-[`SemanticChange`](../../../../../shared/types/interfaces/SemanticChange.md)[]
+[`SemanticChange`](../../types/interfaces/SemanticChange.md)[]

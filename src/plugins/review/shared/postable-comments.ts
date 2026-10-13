@@ -1,5 +1,6 @@
+import type { PostedCommentData } from "./types.ts";
 import type { PhabCommentData, ReviewCommentData, ReviewDraftData, UserCommentData } from "./types.ts";
-import type { Artifact, ChatThreadData, Link, PostedCommentData } from "../../../plugin-api.ts";
+import type {Artifact, ChatThreadData, Link} from "../../../plugin-api.ts";
 import { findingStates } from "./findings.ts";
 
 export interface PostableComment {

@@ -1,5 +1,6 @@
+import type { PatchNarrativeData } from "./types.ts";
 import type { PhabCommentData, PhabSyncData } from "./types.ts";
-import type { Artifact, DiffData, Id, PatchNarrativeData } from "../../../plugin-api.ts";
+import type {Artifact, DiffData, Id} from "../../../plugin-api.ts";
 import { numberLines } from "../../../web/graph-api.ts";
 import { diffNumber } from "./diffs.ts";
 import { latestPhabComments, phabAnchorId } from "./phab-comments.ts";

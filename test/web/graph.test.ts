@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
+import type { Artifact, DiffData, SessionState, WorkflowStartData } from "../../src/shared/types.ts";
+import type { PatchNarrativeData } from "../../src/plugins/review/web/api.ts";
 import { closeGraph, conversationGraph, diagramSize, diagramsByMessage, estimateSize, fitMinZoom, isCoreKind, placeSatellites, rootGraph, sessionGraph as buildSessionGraph, subgraph, visibleGraph, type ConversationNodeData, type GraphNode } from "../../src/web/graph.ts";
 import type { Draft } from "../../src/web/chat-context.ts";
 import type { FreePosition } from "../../src/web/free-positions.ts";

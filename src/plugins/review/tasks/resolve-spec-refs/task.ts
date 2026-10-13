@@ -1,6 +1,6 @@
-import type { ReviewFindingData } from "../../shared/types.ts";
+import type {  ReviewFindingData , PatchNarrativeData } from "../../shared/types.ts";
 import type { SpecReferenceData } from "../../../spec/api.ts";
-import { type DiffData, type PatchNarrativeData, type ResolvedSpec, defineTask, type StepCommentCheck } from "../../../../plugin-api.ts";
+import {type DiffData, type ResolvedSpec, defineTask, type StepCommentCheck} from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
 import { parseSteps, checkStepComment, stepComments } from "../../../spec/api.ts";
 import { numberLines } from "../../../../plugin-api.ts";

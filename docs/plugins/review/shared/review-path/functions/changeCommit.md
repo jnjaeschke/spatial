@@ -18,7 +18,7 @@ Commit that owns a change: that of its first hunk (stack narration validation ma
 
 ### change
 
-[`SemanticChange`](../../../../../shared/types/interfaces/SemanticChange.md)
+[`SemanticChange`](../../types/interfaces/SemanticChange.md)
 
 ## Returns
 

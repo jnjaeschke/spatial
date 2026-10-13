@@ -1,3 +1,4 @@
+import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
@@ -7,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { createRuntime } from "../../../../src/runtime/create.ts";
 import { createSession } from "../../../../src/runtime/git.ts";
 import type { Runtime } from "../../../../src/runtime/tasks.ts";
-import type { PatchNarrativeData } from "../../../../src/shared/types.ts";
+
 import { narrativeOf } from "../../../../src/plugins/review/shared/diffs.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
 

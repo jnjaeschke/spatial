@@ -1,6 +1,7 @@
+import type { PatchNarrativeData } from "./types.ts";
 import { diffNumber } from "./diffs.ts";
 import type { FindingCarryData, FindingDecisionData, FindingVerdictData, ReviewFindingData } from "./types.ts";
-import type { Artifact, ChatThreadData, Id, Link, PatchNarrativeData, Ref } from "../../../plugin-api.ts";
+import type {Artifact, ChatThreadData, Id, Link, Ref} from "../../../plugin-api.ts";
 
 export type FindingStatus = "open" | "accepted" | "dismissed" | "addressed" | "partially" | "not_addressed";
 export interface FindingState {

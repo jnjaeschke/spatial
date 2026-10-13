@@ -179,12 +179,6 @@ Re-exports [BackendModels](../../shared/types/type-aliases/BackendModels.md)
 
 ***
 
-### ChangeStatus
-
-Re-exports [ChangeStatus](../../shared/types/type-aliases/ChangeStatus.md)
-
-***
-
 ### ChatMessageData
 
 Re-exports [ChatMessageData](../../shared/types/interfaces/ChatMessageData.md)
@@ -443,12 +437,6 @@ Re-exports [numberLines](../../plugin-api/functions/numberLines.md)
 
 ***
 
-### PatchNarrativeData
-
-Re-exports [PatchNarrativeData](../../shared/types/interfaces/PatchNarrativeData.md)
-
-***
-
 ### plainText
 
 Re-exports [plainText](../../plugin-api/functions/plainText.md)
@@ -458,12 +446,6 @@ Re-exports [plainText](../../plugin-api/functions/plainText.md)
 ### plural
 
 Re-exports [plural](../../plugin-api/functions/plural.md)
-
-***
-
-### PostedCommentData
-
-Re-exports [PostedCommentData](../../shared/types/interfaces/PostedCommentData.md)
 
 ***
 
@@ -542,12 +524,6 @@ Re-exports [Row](../../plugin-api/type-aliases/Row.md)
 ### RuntimeEvent
 
 Re-exports [RuntimeEvent](../../shared/types/interfaces/RuntimeEvent.md)
-
-***
-
-### SemanticChange
-
-Re-exports [SemanticChange](../../shared/types/interfaces/SemanticChange.md)
 
 ***
 

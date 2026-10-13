@@ -1,5 +1,5 @@
-import type { PhabCommentData, PhabSyncData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
-import type { PostedCommentData } from "../../../plugin-api.ts";
+import type {  PhabCommentData, PhabSyncData, ReviewCommentData, ReviewFindingData , PostedCommentData } from "../shared/types.ts";
+
 import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, parseUnifiedDiff, type Runtime } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { commitRevision } from "../shared/phabricator.ts";

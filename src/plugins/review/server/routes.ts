@@ -9,10 +9,10 @@ import { withUnassigned } from "../shared/review-path.ts";
 import { currentUserComments, postableComments, reviewDraft, withGeneralReply } from "../shared/postable-comments.ts";
 import { postPlan, type RevisionDrafts } from "../shared/post-plan.ts";
 import { updateRevision } from "../workflow/update-revision.ts";
-import type { ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData } from "../shared/types.ts";
+import type {  ChangeReviewData, FindingDecisionData, PhabCommentData, ReviewCommentData, ReviewDraftData, ReviewPostedCommentData, ReviewSubmissionData, UserCommentData , PatchNarrativeData, PostedCommentData } from "../shared/types.ts";
 import type { SpecReferenceData } from "../../spec/api.ts";
-import type { PostedCommentData } from "../../../plugin-api.ts";
-import { createSession, HttpError, isActive, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, text, llmField, startTask, type Artifact, type DiffData, type PatchNarrativeData, type Runtime, type Route, putUserArtifact } from "../../../plugin-api.ts";
+
+import {createSession, HttpError, isActive, PhaseBusyError, readJson, requireArtifact, requireSession, runWorkflow, send, str, text, llmField, startTask, type Artifact, type DiffData, type Runtime, type Route, putUserArtifact} from "../../../plugin-api.ts";
 
 const HEAVY_TASKS = new Set(["importDiff", "importRevision", "narrate", "resolveSpecRefs", "review", "interdiff", "carryFindings"]);
 const runningUpdates = new Set<string>();

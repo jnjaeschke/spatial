@@ -1,6 +1,8 @@
+import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Artifact, DiagramData, DiffData, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import type { Artifact, DiagramData, DiffData } from "../../../../src/shared/types.ts";
+
 import { layout, type Graph, type GraphNode, type HostedThread } from "../../../../src/web/graph.ts";
 import { changeLayoutEdges, focusLabel, guideEntries, isReviewKind, narrativeGraph, reviewPlaces, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
 

@@ -22,7 +22,7 @@ Resolve remote comments against the latest local narrative and prior local epoch
 
 ### narrative
 
-[`PatchNarrativeData`](../../../../../shared/types/interfaces/PatchNarrativeData.md)
+[`PatchNarrativeData`](../../types/interfaces/PatchNarrativeData.md)
 
 ## Returns
 

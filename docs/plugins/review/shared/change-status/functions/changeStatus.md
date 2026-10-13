@@ -6,7 +6,7 @@
 
 # Function: changeStatus()
 
-> **changeStatus**(`hunkIds`, `statuses`): [`ChangeStatus`](../../../../../shared/types/type-aliases/ChangeStatus.md)
+> **changeStatus**(`hunkIds`, `statuses`): [`ChangeStatus`](../../types/type-aliases/ChangeStatus.md)
 
 `unchanged` when every hunk is unchanged, `new` when every hunk is new, else `modified`.
 
@@ -18,8 +18,8 @@
 
 ### statuses
 
-`Map`\<`string`, [`ChangeStatus`](../../../../../shared/types/type-aliases/ChangeStatus.md)\>
+`Map`\<`string`, [`ChangeStatus`](../../types/type-aliases/ChangeStatus.md)\>
 
 ## Returns
 
-[`ChangeStatus`](../../../../../shared/types/type-aliases/ChangeStatus.md)
+[`ChangeStatus`](../../types/type-aliases/ChangeStatus.md)

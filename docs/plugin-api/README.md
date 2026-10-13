@@ -143,12 +143,6 @@ Re-exports [BusyError](../runtime/tasks/classes/BusyError.md)
 
 ***
 
-### ChangeStatus
-
-Re-exports [ChangeStatus](../shared/types/type-aliases/ChangeStatus.md)
-
-***
-
 ### ChatMessageData
 
 Re-exports [ChatMessageData](../shared/types/interfaces/ChatMessageData.md)
@@ -521,12 +515,6 @@ Re-exports [parseUnifiedDiff](../runtime/diff-parse/functions/parseUnifiedDiff.m
 
 ***
 
-### PatchNarrativeData
-
-Re-exports [PatchNarrativeData](../shared/types/interfaces/PatchNarrativeData.md)
-
-***
-
 ### Phase
 
 Re-exports [Phase](../runtime/tasks/interfaces/Phase.md)
@@ -554,12 +542,6 @@ Re-exports [PluginRegistry](../runtime/plugins/interfaces/PluginRegistry.md)
 ### PluginServer
 
 Re-exports [PluginServer](../runtime/plugins/interfaces/PluginServer.md)
-
-***
-
-### PostedCommentData
-
-Re-exports [PostedCommentData](../shared/types/interfaces/PostedCommentData.md)
 
 ***
 
@@ -722,12 +704,6 @@ Re-exports [searchDocs](../runtime/render-ref/functions/searchDocs.md)
 ### SearchfoxCapability
 
 Re-exports [SearchfoxCapability](../runtime/tasks/interfaces/SearchfoxCapability.md)
-
-***
-
-### SemanticChange
-
-Re-exports [SemanticChange](../shared/types/interfaces/SemanticChange.md)
 
 ***
 

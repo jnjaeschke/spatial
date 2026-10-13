@@ -1,3 +1,4 @@
+import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -8,7 +9,8 @@ import { Runtime, type GitCapability, type SearchfoxCapability, type StepComment
 import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { SpecReferenceData } from "../../../../src/plugins/spec/api.ts";
-import type { DiffData, DiffLine, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import type { DiffData, DiffLine } from "../../../../src/shared/types.ts";
+
 import { resolveSpecRefs } from "../../../../src/plugins/review/tasks/resolve-spec-refs/task.ts";
 
 const CANON = "https://html.spec.whatwg.org/#navigate";

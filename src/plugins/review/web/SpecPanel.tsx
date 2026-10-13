@@ -1,3 +1,4 @@
+import type { PatchNarrativeData } from "../shared/types.ts";
 import { reviewClient } from "./client.ts";
 import { createContext, useMemo, useState, type KeyboardEvent } from "react";
 import type { LineRange, SpecReferenceData, StepLink } from "../../spec/web/api.ts";
@@ -6,7 +7,7 @@ import { parseSteps } from "../../spec/web/api.ts";
 import { latestStepMap, lineKey, linksByLine, stepStatuses, unmappedByLine, worstKind, type StepStatus } from "./spec-map.ts";
 import { ErrorText, isActive, useAction } from "../../../web/plugin-api.ts";
 import { SpecSectionView } from "../../spec/web/api.ts";
-import type { DiffData, PatchNarrativeData } from "../../../web/plugin-api.ts";
+import type {DiffData} from "../../../web/plugin-api.ts";
 
 export interface SpecStepSelection { ranges: LineRange[]; kind: string | null }
 export const SpecStepContext = createContext<SpecStepSelection | null>(null);

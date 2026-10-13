@@ -1,7 +1,9 @@
+import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/types.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
-import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
+import type { Artifact, DiagramData, DiffData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
+
 import { closeGraph, conversationGraph, diagramSize, isCoreKind, layout, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
