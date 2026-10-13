@@ -28,11 +28,12 @@ export interface LlmPrompt {
   liveInput?: boolean;
 }
 
-/** Progress, finished shell commands, activity and the provider session id of a run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. */
+/** Progress, finished shell commands, activity, usage and the provider session id of a run, in stream order; `session` comes first, as soon as the stream shows the id. `output` is capped at 256 KB. Each `usage` replaces the previous one; it also arrives for a run that then fails or is cancelled. */
 export type LlmEvent =
   | { kind: "progress"; message: string }
   | { kind: "command"; command: string; exitCode: number; durationMs: number; output: string; callId?: string }
   | { kind: "activity"; activity: LlmActivity }
+  | { kind: "usage"; usage: LlmUsage }
   | { kind: "session"; providerSessionId: string };
 
 export type McpServerSpec =
@@ -64,7 +65,6 @@ export interface LlmResult {
   /** Parsed structured output; present iff a schema was given. */
   json?: unknown;
   providerSessionId: string;
-  usage?: LlmUsage;
 }
 
 export interface LlmRunResult extends LlmResult {

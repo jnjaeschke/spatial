@@ -393,6 +393,16 @@ test("enable MCP server is scoped to a chat thread and records user provenance",
   assert.deepEqual(await blank.json(), { error: "Not an on-request MCP server:  " });
 });
 
+test("usage lists only the session's own LLM runs", async () => {
+  const [mine, other] = [await newSession(), await newSession()];
+  const usage = (costUsd: number) => ({ selection: { backend: "claude", model: "opus", effort: "low" }, providerSessionId: "p", usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1, costUsd, cumulative: false } });
+  rt.emit(mine.id, "user", "llm.usage", usage(0.5));
+  rt.emit(other.id, "user", "llm.usage", usage(2));
+  const runs = await (await fetch(`${base}/api/sessions/${mine.id}/usage`)).json();
+  assert.deepEqual(runs.map((run: { sessionId: string; costUsd: number }) => [run.sessionId, run.costUsd]), [[mine.id, 0.5]]);
+  assert.equal((await fetch(`${base}/api/sessions/nope/usage`)).status, 404);
+});
+
 test("unknown session and API routes return 404 JSON", async () => {
   assert.equal((await fetch(`${base}/api/sessions/nope/state`)).status, 404);
   const response = await fetch(`${base}/api/nope`);

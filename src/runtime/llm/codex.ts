@@ -90,7 +90,6 @@ function sandboxArgs(tools: LlmRequest["tools"], mode: WriteMode, resumed: boole
 function parseCodexOutput(stdout: string, stderr: string, code: number, structured: boolean): LlmResult {
   let threadId: string | undefined;
   let text: string | undefined;
-  let usage: LlmResult["usage"];
   let error: string | undefined;
   let warning: string | undefined;
   for (const line of stdout.split("\n")) {
@@ -98,7 +97,6 @@ function parseCodexOutput(stdout: string, stderr: string, code: number, structur
     const e = JSON.parse(line);
     if (e.type === "thread.started") threadId = e.thread_id;
     else if (e.type === "item.completed" && e.item?.type === "agent_message") text = e.item.text;
-    else if (e.type === "turn.completed") usage = { inputTokens: e.usage?.input_tokens ?? 0, cachedInputTokens: e.usage?.cached_input_tokens ?? 0, outputTokens: e.usage?.output_tokens ?? 0, cumulative: true };
     else if (e.type === "turn.failed") error = e.error?.message ?? "turn failed";
     else if (e.type === "error") warning = e.message ?? "error";
   }
@@ -107,7 +105,6 @@ function parseCodexOutput(stdout: string, stderr: string, code: number, structur
   if (threadId === undefined || threadId.length === 0) throw new Error("codex: the run reported no thread id");
   if (text === undefined) throw new Error(`codex produced no agent message${warning ? `: ${warning}` : ""}`);
   const result: LlmResult = { text, providerSessionId: threadId };
-  if (usage) result.usage = usage;
   if (structured) {
     try {
       result.json = JSON.parse(text);

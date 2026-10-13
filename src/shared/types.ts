@@ -76,7 +76,7 @@ export interface LlmSelection {
   effort: string;
 }
 
-/** One LLM run: its tokens, `null` for a run recorded before tokens were metered, and its cost in USD, `null` when unknown (an unpriced model, or unmetered tokens without a reported cost). Item of `GET /api/usage`. */
+/** One LLM run: its tokens, `null` when the run reported none (cancelled before the provider reported them, or recorded before tokens were metered), and its cost in USD, `null` when unknown (an unpriced model, or no tokens and no reported cost). Item of `GET /api/sessions/:id/usage`. */
 export interface UsageRun {
   ts: string;
   sessionId: string;

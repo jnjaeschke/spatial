@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   Actor, Artifact, ArtifactStatus, Commit, DecisionData, Epoch, Id, Link, LinkKind, LlmActivity, LlmSelection, Progress, Ref, RuntimeEvent, TaskRecord,
 } from "../shared/types.ts";
-import type { LlmEvent, LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
+import type { LlmEvent, LlmPrompt, LlmRunResult, LlmService, LlmUsage, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
 import { MAX_RESULT_OUTPUT } from "./llm/events.ts";
 import { capOutput } from "./process.ts";
@@ -294,16 +294,26 @@ export class Runtime {
       },
       llm: {
         run: async (prompt, selection) => {
+          let providerSessionId: string | undefined;
+          let usage: LlmUsage | null = null;
           const onEvent = (event: LlmEvent) => {
             if (event.kind === "activity") emit("task.activity", { taskId: task.id, activity: event.activity });
+            else if (event.kind === "session") providerSessionId = event.providerSessionId;
+            else if (event.kind === "usage") usage = event.usage;
             prompt.onEvent?.(event);
           };
           const onLiveInput = (send: ((text: string) => void) | null) => { if (send) this.#live.set(task.id, { sessionId, send }); else this.#live.delete(task.id); };
-          let r: LlmRunResult;
-          try { r = await this.#llm.run(selection, { ...prompt, onEvent, ...(prompt.liveInput ? { onLiveInput } : {}) }, controller.signal); }
-          finally { this.#live.delete(task.id); }
-          emit("llm.usage", { selection: r.selection, providerSessionId: r.providerSessionId, usage: r.usage ?? null });
-          return r;
+          const resolved = selection ?? this.#llm.defaultSelection;
+          try {
+            const r = await this.#llm.run(resolved, { ...prompt, onEvent, ...(prompt.liveInput ? { onLiveInput } : {}) }, controller.signal);
+            providerSessionId = r.providerSessionId;
+            return r;
+          }
+          finally {
+            this.#live.delete(task.id);
+            // A failed or cancelled run is billed too; one the provider never started is not.
+            if (providerSessionId !== undefined || usage) emit("llm.usage", { selection: resolved, providerSessionId, usage });
+          }
         },
         defaultSelection: this.#llm.defaultSelection,
       },

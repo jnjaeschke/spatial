@@ -13,7 +13,7 @@ const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)), "utf8");
 const clock = () => { let t = 1000; return () => (t += 250); };
 function read(reader: (line: string) => void, text: string) { for (const line of text.split("\n")) reader(line); }
-const describe = (e: LlmEvent) => e.kind === "progress" ? e.message : e.kind === "command" ? `${e.command} -> ${e.exitCode}` : e.kind === "session" ? `session ${e.providerSessionId}` : "activity";
+const describe = (e: LlmEvent) => e.kind === "progress" ? e.message : e.kind === "command" ? `${e.command} -> ${e.exitCode}` : e.kind === "session" ? `session ${e.providerSessionId}` : e.kind === "usage" ? "usage" : "activity";
 const activities = (events: LlmEvent[]) => events.flatMap((e) => e.kind === "activity" ? [e.activity] : []);
 const said = (events: LlmEvent[]) => activities(events).filter((a) => a.kind !== "tool-result").map((a) => { if (a.kind !== "tool") return a; const { callId: _, ...rest } = a; return rest; });
 
@@ -21,7 +21,7 @@ test("claude stream: progress for shell and edits, command runs with exit codes"
   const events: LlmEvent[] = [];
   read(claudeEventReader((e) => events.push(e), clock()), fixture("claude-stream.jsonl"));
   assert.deepEqual(events.filter((e) => e.kind !== "activity").map(describe), [
-    "session 69d98f99-fd06-4274-875f-052ab81441e8", "running git status --short", "running false", "false -> 1", "git status --short -> 0", "editing /tmp/spike-oqAa/a.txt",
+    "session 69d98f99-fd06-4274-875f-052ab81441e8", "running git status --short", "running false", "false -> 1", "git status --short -> 0", "editing /tmp/spike-oqAa/a.txt", "usage",
   ]);
   const status = events.find((e) => e.kind === "command" && e.command === "git status --short")!;
   assert.equal(status.kind === "command" && status.output, "?? b.txt\n?? c.txt");
@@ -34,7 +34,7 @@ test("codex stream: wrapped commands are unwrapped, error items are ignored", ()
   const events: LlmEvent[] = [];
   read(codexEventReader((e) => events.push(e), clock()), fixture("codex.jsonl"));
   assert.deepEqual(events.filter((e) => e.kind !== "activity").map(describe), [
-    "session 01a11c66-e36a-7fc0-b477-1b34dd2b17a8", "running git status --short", "git status --short -> 0", "running false", "false -> 1", "running printf 'b' > a.txt", "printf 'b' > a.txt -> 0",
+    "session 01a11c66-e36a-7fc0-b477-1b34dd2b17a8", "running git status --short", "git status --short -> 0", "running false", "false -> 1", "running printf 'b' > a.txt", "printf 'b' > a.txt -> 0", "usage",
   ]);
   const status = events.find((e) => e.kind === "command")!;
   assert.equal(status.kind === "command" && status.output, "?? b.txt\n?? c.txt\n");
@@ -144,6 +144,23 @@ test("codex stream: with a schema the turn's last agent message is the answer, n
   };
   assert.deepEqual(texts(true), ["Looking at the frame code."]);
   assert.deepEqual(texts(false), ["Looking at the frame code.", "{\"answer\":\"done\"}"]);
+});
+
+test("claude stream: each result reports the run's usage so far, its tokens summed over the results and the cost as claude totals it", () => {
+  const events: LlmEvent[] = [];
+  const reader = claudeEventReader((e) => events.push(e));
+  reader(JSON.stringify({ type: "result", subtype: "success", session_id: "s", total_cost_usd: 0.1, usage: { input_tokens: 2, cache_creation_input_tokens: 3, cache_read_input_tokens: 5, output_tokens: 7 } }));
+  reader(JSON.stringify({ type: "result", subtype: "error_during_execution", session_id: "s", total_cost_usd: 0.25, usage: { input_tokens: 1, cache_read_input_tokens: 10, output_tokens: 4 } }));
+  assert.deepEqual(events.filter((e) => e.kind === "usage"), [
+    { kind: "usage", usage: { inputTokens: 10, cachedInputTokens: 5, outputTokens: 7, costUsd: 0.1, cumulative: false } },
+    { kind: "usage", usage: { inputTokens: 21, cachedInputTokens: 15, outputTokens: 11, costUsd: 0.25, cumulative: false } },
+  ]);
+});
+
+test("codex stream: a completed turn reports the provider session's cumulative usage", () => {
+  const events: LlmEvent[] = [];
+  codexEventReader((e) => events.push(e))(JSON.stringify({ type: "turn.completed", usage: { input_tokens: 20, cached_input_tokens: 15, output_tokens: 4 } }));
+  assert.deepEqual(events, [{ kind: "usage", usage: { inputTokens: 20, cachedInputTokens: 15, outputTokens: 4, cumulative: true } }]);
 });
 
 test("an MCP call's detail names what it works on, like a Claude tool", () => {

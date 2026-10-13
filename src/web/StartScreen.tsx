@@ -3,7 +3,6 @@ import type { RecentRepo, RepoInfo } from "../shared/types.ts";
 import { api, useModels } from "./api.ts";
 import { SessionList } from "./SessionPicker.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
-import { UsageWidget } from "./UsageWidget.tsx";
 import { StartBox } from "./StartBox.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
 import { routeUrl } from "./routes.ts";
@@ -24,7 +23,7 @@ export function StartScreen({ path, panels, views }: { path: string; panels: Com
     api.repo(path).then((value) => { if (!cancelled) setRepo(value); }, (e: Error) => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
   }, [path]);
-  const header = <header><h2>{repo?.name ?? "Repository"}{repo && checkoutName(repo) !== repo.name && <span className="checkout-name"> · {checkoutName(repo)}</span>}</h2><button type="button" onClick={() => setPickerOpen(true)}>Open folder…</button><a href="/">All sessions</a><UsageWidget /><ThemeToggle /></header>;
+  const header = <header><h2>{repo?.name ?? "Repository"}{repo && checkoutName(repo) !== repo.name && <span className="checkout-name"> · {checkoutName(repo)}</span>}</h2><button type="button" onClick={() => setPickerOpen(true)}>Open folder…</button><a href="/">All sessions</a><ThemeToggle /></header>;
   // The page is shown once everything above the session list has loaded, so the list does not move under a click.
   if (!repo || !repos || (!models && !modelsError)) return <div className="empty session-picker start-screen">{header}{error ? <p className="failed" data-testid="start-error">{error}</p> : <p className="empty">Loading…</p>}{repos && <RecentRepoSwitcher repos={repos} current={null} />}{pickerOpen && <FolderPicker onClose={() => setPickerOpen(false)} />}</div>;
   return <div className="empty session-picker start-screen" data-testid="start-screen">

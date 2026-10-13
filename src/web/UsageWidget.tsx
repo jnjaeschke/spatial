@@ -4,24 +4,22 @@ import { api } from "./api.ts";
 import { Dialog } from "./Dialog.tsx";
 import { formatTokens, formatUsd, usageByDay, usageByModel, type ModelUsage } from "./usage.ts";
 
-const REFRESH_MS = 60_000;
 const DAYS = 30;
 const color = (index: number) => `oklch(65% 0.15 ${(index * 137.5 + 260) % 360})`;
 
-/** The topbar button with the overall LLM spend; it opens the spend per model and per day. */
-export function UsageWidget() {
+/** The topbar button with the session's LLM spend; it opens the spend per model and per day. Reloads whenever the session's `lastEventId` moves, which includes every recorded run. */
+export function UsageWidget({ sessionId, lastEventId }: { sessionId: string; lastEventId: number }) {
   const [runs, setRuns] = useState<UsageRun[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    const load = () => api.usage().then((loaded) => { setRuns(loaded); setError(null); }, (e: Error) => setError(e.message));
-    void load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [open]);
+    let cancelled = false;
+    api.usage(sessionId).then((loaded) => { if (!cancelled) { setRuns(loaded); setError(null); } }, (e: Error) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [sessionId, lastEventId]);
   const total = runs?.reduce((sum, run) => sum + (run.costUsd ?? 0), 0) ?? 0;
   return <>
-    <button type="button" className="usage-widget" data-testid="usage-widget" title={error ? `LLM spend unavailable: ${error}` : "LLM spend at API prices, all sessions"} onClick={() => setOpen(true)}>{runs ? formatUsd(total) : "$…"}</button>
+    <button type="button" className="usage-widget" data-testid="usage-widget" title={error ? `LLM spend unavailable: ${error}` : "LLM spend of this session at API prices"} onClick={() => setOpen(true)}>{runs ? formatUsd(total) : "$…"}</button>
     {open && runs && <UsageDialog runs={runs} onClose={() => setOpen(false)} />}
   </>;
 }
@@ -32,21 +30,21 @@ function UsageDialog({ runs, onClose }: { runs: UsageRun[]; onClose(): void }) {
   const total = models.reduce((sum, model) => sum + model.costUsd, 0);
   const unpriced = models.reduce((sum, model) => sum + model.unpricedRuns, 0);
   const unmetered = models.reduce((sum, model) => sum + model.unmeteredRuns, 0);
-  return <Dialog title={<>LLM spend · {formatUsd(total)}</>} className="usage-dialog" testId="usage-dialog" onClose={onClose} footer={<button type="button" onClick={onClose}>Close</button>}>
+  return <Dialog title={<>Session LLM spend · {formatUsd(total)}</>} className="usage-dialog" testId="usage-dialog" onClose={onClose} footer={<button type="button" onClick={onClose}>Close</button>}>
     <div className="usage-models">
       <UsagePie models={models} colors={colors} />
       <table className="usage-table">
         <thead><tr><th>Model</th><th>Runs</th><th title="Input tokens, cached ones included">Input</th><th>Cached</th><th>Output</th><th>Cost</th></tr></thead>
         <tbody>{models.map((model) => <tr key={model.key}>
           <td><span className="usage-swatch" style={{ background: colors.get(model.key) }} />{model.key}</td>
-          <td>{model.runs}</td>{(["input", "cachedInput", "output"] as const).map((field) => <td key={field} title={model.unmeteredRuns ? `${model.unmeteredRuns} runs recorded before tokens were metered are not included` : undefined}>{model.unmeteredRuns === model.runs ? "—" : <>{formatTokens(model.tokens[field])}{model.unmeteredRuns > 0 && "*"}</>}</td>)}
+          <td>{model.runs}</td>{(["input", "cachedInput", "output"] as const).map((field) => <td key={field} title={model.unmeteredRuns ? `${model.unmeteredRuns} runs without token counts are not included` : undefined}>{model.unmeteredRuns === model.runs ? "—" : <>{formatTokens(model.tokens[field])}{model.unmeteredRuns > 0 && "*"}</>}</td>)}
           <td title={model.unpricedRuns ? `${model.unpricedRuns} runs without a known cost are not included` : undefined}>{formatUsd(model.costUsd)}{model.unpricedRuns > 0 && "*"}</td>
         </tr>)}</tbody>
       </table>
     </div>
     <h3>Last {DAYS} days</h3>
     <UsageBars days={usageByDay(runs, DAYS, new Date())} colors={colors} />
-    <p className="usage-note">Claude costs are what the claude CLI reports; codex costs are its tokens at list prices.{unpriced > 0 && ` * ${unpriced} runs have no known cost: an unpriced model, or recorded before tokens were metered without a reported cost.`}{unmetered > 0 && ` ${unmetered} runs were recorded before tokens were metered: their tokens are missing (— or *).`}</p>
+    <p className="usage-note">Claude costs are what the claude CLI reports; codex costs are its tokens at list prices.{unpriced > 0 && ` * ${unpriced} runs have no known cost: an unpriced model, or no token counts and no reported cost.`}{unmetered > 0 && ` ${unmetered} runs have no token counts (— or *): codex runs cancelled before they reported them, or runs recorded before tokens were metered.`}</p>
   </Dialog>;
 }
 

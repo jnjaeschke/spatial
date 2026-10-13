@@ -26,12 +26,20 @@ const unwrap = (command: string) => {
   return inner.length > 1 && (inner[0] === "'" || inner[0] === '"') && inner.at(-1) === inner[0] ? inner.slice(1, -1) : inner;
 };
 
-/** Reads Claude `--output-format stream-json` lines: the `system/init` line is the session event; assistant text, thinking and tool calls (except `StructuredOutput`, the run's answer) are activity. A tool result has no exit code field: an error result starts with `Exit code N`, else `is_error` decides 1 or 0. */
+/** Reads Claude `--output-format stream-json` lines: the `system/init` line is the session event; assistant text, thinking and tool calls (except `StructuredOutput`, the run's answer) are activity. A tool result has no exit code field: an error result starts with `Exit code N`, else `is_error` decides 1 or 0. Each `result` is usage: a live-input run has one per answered message, whose tokens cover that answer while `total_cost_usd` covers the run so far. */
 export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now): (line: string) => void {
   const running = new Map<string, { command: string | null; startedAt: number }>();
+  const tokens = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
   return (line) => {
     const event = parse(line);
     if (event?.type === "system" && event.subtype === "init" && typeof event.session_id === "string") emit({ kind: "session", providerSessionId: event.session_id });
+    if (event?.type === "result" && event.usage) {
+      const cached = event.usage.cache_read_input_tokens ?? 0;
+      tokens.inputTokens += (event.usage.input_tokens ?? 0) + (event.usage.cache_creation_input_tokens ?? 0) + cached;
+      tokens.cachedInputTokens += cached;
+      tokens.outputTokens += event.usage.output_tokens ?? 0;
+      emit({ kind: "usage", usage: { ...tokens, ...(typeof event.total_cost_usd === "number" ? { costUsd: event.total_cost_usd } : {}), cumulative: false } });
+    }
     const blocks: any[] = Array.isArray(event?.message?.content) ? event!.message.content : [];
     if (event?.type === "assistant") for (const block of blocks) {
       if (block.type === "text" || block.type === "thinking") { for (const e of said(block.type, block.type === "text" ? block.text : block.thinking)) emit(e); continue; }
@@ -57,7 +65,7 @@ export function claudeEventReader(emit: (event: LlmEvent) => void, now: () => nu
   };
 }
 
-/** Reads Codex `exec --json` lines: `thread.started` is the session event, `command_execution` items become command events, `file_change` items progress. Messages, reasoning, commands, file changes, MCP calls and web searches are activity. `error` items are warnings and ignored. With `structured` (an `--output-schema` run) the turn's last agent message is the answer, so each message is held until another item shows it was not the last. */
+/** Reads Codex `exec --json` lines: `thread.started` is the session event, `turn.completed` the usage, `command_execution` items become command events, `file_change` items progress. Messages, reasoning, commands, file changes, MCP calls and web searches are activity. `error` items are warnings and ignored. With `structured` (an `--output-schema` run) the turn's last agent message is the answer, so each message is held until another item shows it was not the last. */
 export function codexEventReader(emit: (event: LlmEvent) => void, now: () => number = Date.now, structured = false): (line: string) => void {
   const started = new Map<string, number>();
   const elapsed = (id: string) => now() - (started.get(id) ?? now());
@@ -66,7 +74,7 @@ export function codexEventReader(emit: (event: LlmEvent) => void, now: () => num
   return (line) => {
     const event = parse(line);
     if (event?.type === "thread.started" && typeof event.thread_id === "string") { emit({ kind: "session", providerSessionId: event.thread_id }); return; }
-    if (event?.type === "turn.completed") { held = null; return; }
+    if (event?.type === "turn.completed") { held = null; emit({ kind: "usage", usage: { inputTokens: event.usage?.input_tokens ?? 0, cachedInputTokens: event.usage?.cached_input_tokens ?? 0, outputTokens: event.usage?.output_tokens ?? 0, cumulative: true } }); return; }
     if (event?.type === "turn.failed") { release(); return; }
     const item = event?.item;
     if (!item) return;

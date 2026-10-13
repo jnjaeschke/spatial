@@ -218,9 +218,8 @@ export class Store {
     return (this.#db.prepare("SELECT * FROM events WHERE session_id = ? AND id > ? ORDER BY id").all(sessionId, afterId) as Row[]).map(eventFromRow);
   }
 
-  /** Every session's events of `type`, oldest first. */
-  listEventsOfType(type: string): RuntimeEvent[] {
-    return (this.#db.prepare("SELECT * FROM events WHERE type = ? ORDER BY id").all(type) as Row[]).map(eventFromRow);
+  listEventsOfType(sessionId: Id, type: string): RuntimeEvent[] {
+    return (this.#db.prepare("SELECT * FROM events WHERE session_id = ? AND type = ? ORDER BY id").all(sessionId, type) as Row[]).map(eventFromRow);
   }
 
   lastEventId(sessionId: Id): number {

@@ -43,7 +43,7 @@ test("ask about a change: the chat starts inline, send, stub answer appears and 
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain("Stub");
 });
 
-test("the topbar shows the overall LLM spend and opens it per model and per day", async ({ page, request }) => {
+test("the topbar shows the session's LLM spend and opens it per model and per day", async ({ page, request }) => {
   await openNarrated(page, request);
   await openPatch(page, 0);
   await page.getByRole("button", { name: "Ask about c1" }).click();

@@ -47,13 +47,3 @@ Parsed structured output; present iff a schema was given.
 #### Inherited from
 
 [`LlmResult`](LlmResult.md).[`text`](LlmResult.md#text)
-
-***
-
-### usage?
-
-> `optional` **usage?**: [`LlmUsage`](LlmUsage.md)
-
-#### Inherited from
-
-[`LlmResult`](LlmResult.md).[`usage`](LlmResult.md#usage)

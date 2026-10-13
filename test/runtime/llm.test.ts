@@ -8,7 +8,7 @@ import { ClaudeBackend } from "../../src/runtime/llm/claude.ts";
 import { CodexBackend } from "../../src/runtime/llm/codex.ts";
 import { LlmManager } from "../../src/runtime/llm/manager.ts";
 import { runProcess } from "../../src/runtime/process.ts";
-import { LlmOutputError, type LlmBackend, type LlmRequest } from "../../src/runtime/llm/types.ts";
+import { LlmOutputError, type LlmBackend, type LlmEvent, type LlmRequest } from "../../src/runtime/llm/types.ts";
 
 const STUB = fileURLToPath(new URL("../stubs/fake-llm.mjs", import.meta.url));
 let dir: string;
@@ -20,6 +20,7 @@ beforeEach(() => {
   delete process.env.FAKE_LLM_EXIT;
   delete process.env.FAKE_LLM_SLEEP_MS;
   delete process.env.FAKE_LLM_STDERR;
+  delete process.env.FAKE_LLM_ON_SIGINT;
 });
 
 function stdout(s: string) {
@@ -51,8 +52,10 @@ test("runProcess: missing binary gives a clear error", async () => {
 
 test("claude: args, stdin prompt, structured output, usage", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: '{"n":7}', structured_output: { n: 7 }, session_id: "sess-1", total_cost_usd: 0.5, usage: { input_tokens: 10, cache_creation_input_tokens: 5, cache_read_input_tokens: 20, output_tokens: 3 } }));
-  const r = await new ClaudeBackend({ bin: STUB }).run(req({ system: "SYS", schema: SCHEMA, cwd: dir }));
-  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "sess-1", usage: { inputTokens: 35, cachedInputTokens: 20, outputTokens: 3, costUsd: 0.5, cumulative: false } });
+  const events: LlmEvent[] = [];
+  const r = await new ClaudeBackend({ bin: STUB }).run(req({ system: "SYS", schema: SCHEMA, cwd: dir, onEvent: (e) => events.push(e) }));
+  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "sess-1" });
+  assert.deepEqual(events, [{ kind: "usage", usage: { inputTokens: 35, cachedInputTokens: 20, outputTokens: 3, costUsd: 0.5, cumulative: false } }]);
   const [call] = calls();
   assert.equal(call.stdin, "PROMPT");
   assert.equal(call.cwd, dir);
@@ -74,6 +77,19 @@ test("claude: read-only tools", async () => {
   const a: string[] = calls()[0].argv;
   assert.equal(a[a.indexOf("--tools") + 1], "Read,Grep,Glob,Bash");
   assert.equal(a[a.indexOf("--allowedTools") + 1], READ_ONLY);
+});
+
+test("claude: abort interrupts the run, which still reports what it used", async () => {
+  const interrupted = join(dir, "interrupted");
+  writeFileSync(interrupted, JSON.stringify({ type: "result", subtype: "error_during_execution", is_error: true, session_id: "s", total_cost_usd: 0.3, usage: { input_tokens: 4, output_tokens: 2 } }) + "\n");
+  process.env.FAKE_LLM_ON_SIGINT = interrupted;
+  process.env.FAKE_LLM_SLEEP_MS = "10000";
+  const c = new AbortController();
+  const events: LlmEvent[] = [];
+  const run = new ClaudeBackend({ bin: STUB }).run(req({ signal: c.signal, onEvent: (e) => events.push(e) }));
+  setTimeout(() => c.abort(), 200);
+  await assert.rejects(run, /aborted/);
+  assert.deepEqual(events, [{ kind: "usage", usage: { inputTokens: 4, cachedInputTokens: 0, outputTokens: 2, costUsd: 0.3, cumulative: false } }]);
 });
 
 test("claude: is_error surfaces the result text", async () => {
@@ -140,7 +156,7 @@ const codexOut = (text: string) =>
 test("codex: args, system prepended, schema file, parsed JSON", async () => {
   stdout(codexOut('{"n":7}'));
   const r = await new CodexBackend({ bin: STUB }).run(req({ system: "SYS", schema: SCHEMA, cwd: dir }));
-  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "th-1", usage: { inputTokens: 20, cachedInputTokens: 15, outputTokens: 4, cumulative: true } });
+  assert.deepEqual(r, { text: '{"n":7}', json: { n: 7 }, providerSessionId: "th-1" });
   const [call] = calls();
   assert.equal(call.stdin, "SYS\n\nPROMPT");
   const a: string[] = call.argv;

@@ -10,7 +10,8 @@ const fakeGit = {} as GitCapability;
 const fakeLlm: LlmService = {
   defaultSelection: { backend: "claude", model: "m", effort: "low" },
   async run(selection, prompt) {
-    return { text: prompt.prompt.toUpperCase(), providerSessionId: "p1", selection: selection ?? { backend: "claude", model: "m", effort: "low" }, usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 2, cumulative: false } };
+    prompt.onEvent?.({ kind: "usage", usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 2, cumulative: false } });
+    return { text: prompt.prompt.toUpperCase(), providerSessionId: "p1", selection: selection ?? { backend: "claude", model: "m", effort: "low" } };
   },
   async listModels() {
     return { claude: { models: [] }, codex: { models: [] } };
@@ -103,7 +104,7 @@ test("LLM activity becomes task.activity events, listed per task; the task's own
   await Promise.all([echoed.done, watched.done]);
   assert.deepEqual(events.filter((e) => e.type === "task.activity" && e.actor === `task:${echoed.taskId}`).map((e) => e.payload), [{ taskId: echoed.taskId, activity: said }]);
   assert.deepEqual(store.listTaskActivity(session.id, watched.taskId), [said]);
-  assert.deepEqual(seen, ["activity", "progress"]);
+  assert.deepEqual(seen, ["activity", "progress", "usage"]);
 });
 
 test("live input reaches the session's run that accepts it, and nothing once that run is done", async () => {
@@ -163,6 +164,31 @@ test("cancel aborts ctx.signal and marks task cancelled", async () => {
   assert.equal(store.getTask(taskId).status, "cancelled");
   assert.equal(events.at(-1)?.type, "task.cancelled");
   assert.throws(() => rt.cancel(taskId), /not running/);
+});
+
+test("an LLM run that fails or is cancelled still records its usage; one that never started records none", async () => {
+  const store = new Store(":memory:");
+  const usage = { inputTokens: 3, cachedInputTokens: 0, outputTokens: 1, costUsd: 0.2, cumulative: false };
+  const llm: LlmService = { ...fakeLlm, async run(_selection, prompt, signal) {
+    if (prompt.prompt === "unstarted") throw new Error("no CLI");
+    prompt.onEvent?.({ kind: "session", providerSessionId: prompt.prompt });
+    if (prompt.prompt === "failing") { prompt.onEvent?.({ kind: "usage", usage }); throw new Error("claude: is_error"); }
+    return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
+  } };
+  const ask = defineTask<string, null>({ kind: "ask", async run(ctx, prompt) { await ctx.llm.run({ prompt, tools: "none" }); return null; } });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [ask] }], llm, git: () => fakeGit });
+  const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
+  await assert.rejects(rt.start(session.id, "ask", "unstarted").done, TaskFailedError);
+  await assert.rejects(rt.start(session.id, "ask", "failing").done, TaskFailedError);
+  const hanging = rt.start(session.id, "ask", "hanging");
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  rt.cancel(hanging.taskId);
+  await assert.rejects(hanging.done, TaskCancelledError);
+  const selection = fakeLlm.defaultSelection;
+  assert.deepEqual(store.listEventsOfType(session.id, "llm.usage").map((e) => e.payload), [
+    { selection, providerSessionId: "failing", usage },
+    { selection, providerSessionId: "hanging", usage: null },
+  ]);
 });
 
 test("ctx.run starts a child task linked to its parent; a child failure fails the parent with its cause", async () => {

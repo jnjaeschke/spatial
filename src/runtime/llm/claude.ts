@@ -50,7 +50,8 @@ export class ClaudeBackend implements LlmBackend {
 
     const events = req.onEvent ? claudeEventReader(req.onEvent) : undefined;
     const onStdoutLine = live ? (line: string) => { live.read(line); events?.(line); } : events;
-    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: live ? (stdin) => live.open(stdin, req.prompt) : req.prompt, cwd: req.cwd, signal: req.signal, onStdoutLine });
+    // Interrupted, claude still writes a result with the run's usage; terminated, it writes nothing.
+    const { stdout, stderr, code } = await runProcess(this.#bin, args, { stdin: live ? (stdin) => live.open(stdin, req.prompt) : req.prompt, cwd: req.cwd, signal: req.signal, abortSignal: "SIGINT", onStdoutLine });
     let out: Record<string, any> | undefined;
     for (const line of stdout.split("\n")) {
       if (!line.startsWith("{")) continue;
@@ -64,11 +65,6 @@ export class ClaudeBackend implements LlmBackend {
 
     const result: LlmResult = { text: out.result ?? "", providerSessionId: out.session_id };
     if (req.schema) result.json = out.structured_output;
-    if (out.usage) {
-      const cached = out.usage.cache_read_input_tokens ?? 0;
-      result.usage = { inputTokens: (out.usage.input_tokens ?? 0) + (out.usage.cache_creation_input_tokens ?? 0) + cached, cachedInputTokens: cached, outputTokens: out.usage.output_tokens ?? 0, cumulative: false };
-      if (typeof out.total_cost_usd === "number") result.usage.costUsd = out.total_cost_usd;
-    }
     return result;
   }
 }

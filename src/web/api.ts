@@ -33,7 +33,7 @@ export const api = {
   sessions: () => get<SessionListing[]>("/api/sessions"),
   deleteSession: (sessionId: string) => del<void>(`/api/sessions/${encodeURIComponent(sessionId)}`, {}),
   repos: () => get<RecentRepo[]>("/api/repos"),
-  usage: () => get<UsageRun[]>("/api/usage"),
+  usage: (sessionId: string) => get<UsageRun[]>(`/api/sessions/${encodeURIComponent(sessionId)}/usage`),
   dirs: (path?: string) => get<DirectoryListing>(`/api/dirs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   repo: (path: string) => get<RepoInfo>(`/api/repo?path=${encodeURIComponent(path)}`),
   workflows: () => get<WorkflowInfo[]>("/api/workflows"),

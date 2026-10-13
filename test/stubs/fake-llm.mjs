@@ -7,6 +7,8 @@
 // (a fake write backend: edit files, commit).
 // $FAKE_LLM_HANG_ON maps needles to files: on a match the file is printed and the stub then waits until killed
 // (a write run that is stopped), without running any action.
+// $FAKE_LLM_ON_SIGINT names a file printed when the stub is interrupted, before it exits (claude's report of an
+// interrupted run).
 // $FAKE_LLM_DELAYS maps needles to milliseconds the stub waits before its output, instead of $FAKE_LLM_SLEEP_MS.
 // With `--input-format stream-json` (claude live input), stdin is the text of the first user message; every
 // message is echoed as a replay when read, later ones are logged as `{ live: text }`, and the stub exits when
@@ -16,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { createInterface } from "node:readline";
 
 const env = process.env;
+if (env.FAKE_LLM_ON_SIGINT) process.on("SIGINT", () => { process.stdout.write(readFileSync(env.FAKE_LLM_ON_SIGINT, "utf8"), () => process.exit(130)); });
 const streamInput = process.argv.includes("--input-format");
 const messageText = (line) => JSON.parse(line).message.content.map((part) => part.text).join("");
 const replay = (text) => process.stdout.write(JSON.stringify({ type: "user", isReplay: true, message: { role: "user", content: [{ type: "text", text }] } }) + "\n");

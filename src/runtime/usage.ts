@@ -16,7 +16,7 @@ interface UsagePayload { selection: LlmSelection; providerSessionId?: string; us
 
 type Counts = Pick<LlmUsage, "inputTokens" | "cachedInputTokens" | "outputTokens">;
 
-/** Each `llm.usage` event as one run with its own tokens and cost. Cumulative counts become the difference to the provider session's previous run, which also bills runs in between that failed before reporting. Events from before tokens were metered have no tokens and keep only a reported cost. */
+/** Each `llm.usage` event as one run with its own tokens and cost. Cumulative counts become the difference to the provider session's previous run, which also bills runs in between that failed before reporting. Events without token counts (a run cancelled before it reported them, or recorded before tokens were metered) keep only a reported cost. */
 export function meteredRuns(events: RuntimeEvent[]): UsageRun[] {
   const totals = new Map<string, Counts>();
   return events.map((event) => {

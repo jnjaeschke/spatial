@@ -12,11 +12,11 @@ export function isExecutable(bin: string): boolean {
   return bin.includes("/") ? executable(bin) : (process.env.PATH ?? "").split(delimiter).some((dir) => dir !== "" && executable(join(dir, bin)));
 }
 
-/** Spawns `cmd`, writes `stdin`, collects output. A function `stdin` gets the open stream and ends it itself. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
+/** Spawns `cmd`, writes `stdin`, collects output. A function `stdin` gets the open stream and ends it itself. `env` adds to the inherited environment. Abort sends the child `abortSignal` (default SIGTERM) and rejects once it exited, after `onStdoutLine` saw all its output. */
 export function runProcess(
   cmd: string,
   args: string[],
-  opts: { stdin: string | ((stdin: Writable) => void); cwd?: string; signal: AbortSignal; env?: Record<string, string>; onStdoutLine?: (line: string) => void },
+  opts: { stdin: string | ((stdin: Writable) => void); cwd?: string; signal: AbortSignal; abortSignal?: NodeJS.Signals; env?: Record<string, string>; onStdoutLine?: (line: string) => void },
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   return new Promise((resolve, reject) => {
     if (opts.signal.aborted) return reject(new Error("aborted"));
@@ -34,7 +34,7 @@ export function runProcess(
       for (const text of lines) line(text);
     });
     child.stderr.setEncoding("utf8").on("data", (d: string) => (stderr += d));
-    const onAbort = () => child.kill("SIGTERM");
+    const onAbort = () => child.kill(opts.abortSignal ?? "SIGTERM");
     opts.signal.addEventListener("abort", onAbort, { once: true });
     child.on("error", (e) => {
       opts.signal.removeEventListener("abort", onAbort);

@@ -328,7 +328,13 @@
 
 ### usage
 
-> **usage**: () => `Promise`\<[`UsageRun`](../../../shared/types/interfaces/UsageRun.md)[]\>
+> **usage**: (`sessionId`) => `Promise`\<[`UsageRun`](../../../shared/types/interfaces/UsageRun.md)[]\>
+
+#### Parameters
+
+##### sessionId
+
+`string`
 
 #### Returns
 

@@ -211,7 +211,6 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       return { path, parent: dirname(path) === path ? null : dirname(path), entries: entries.slice(0, 2000), ...(truncated ? { truncated: true as const } : {}) };
     }],
     ["GET", /^\/api\/sessions$/, async (): Promise<SessionListing[]> => rt.store.listSessionListings()],
-    ["GET", /^\/api\/usage$/, async (): Promise<UsageRun[]> => meteredRuns(rt.store.listEventsOfType("llm.usage"))],
     ["GET", /^\/api\/repos$/, async (): Promise<RecentRepo[]> => {
       const result: RecentRepo[] = [];
       const live = new Map<string, Promise<boolean>>();
@@ -252,6 +251,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server, command } satisfies McpServerData, threadId);
       send(res, 201, { artifactId: artifact.id });
     }],
+    ["GET", /^\/api\/sessions\/([^/]+)\/usage$/, async ({ params }): Promise<UsageRun[]> => meteredRuns(rt.store.listEventsOfType(requireSession(rt, params[0]).id, "llm.usage"))],
     ["GET", /^\/api\/sessions\/([^/]+)\/tasks\/([^/]+)\/activity$/, async ({ params }): Promise<TaskActivityResponse> => {
       const id = requireSession(rt, params[0]).id;
       return { activity: rt.store.listTaskActivity(id, params[1]!), lastEventId: rt.store.lastEventId(id) };

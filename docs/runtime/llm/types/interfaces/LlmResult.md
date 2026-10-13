@@ -29,9 +29,3 @@ Parsed structured output; present iff a schema was given.
 ### text
 
 > **text**: `string`
-
-***
-
-### usage?
-
-> `optional` **usage?**: [`LlmUsage`](LlmUsage.md)
