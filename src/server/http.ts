@@ -101,16 +101,14 @@ export function requireArtifact(rt: Runtime, sessionId: string, id: string, type
 }
 
 export function putUserArtifact(rt: Runtime, sessionId: string, type: string, data: unknown, about: string) {
-  const artifact = rt.store.putArtifact({
+  const artifact = rt.putArtifact("user", {
     sessionId,
     type,
     status: "verified",
     data,
     provenance: { taskId: "user" },
   });
-  const link = rt.store.putLink({ sessionId, from: artifact.id, to: about, kind: "about" });
-  rt.emit(sessionId, "user", "artifact.created", { artifactId: artifact.id, type: artifact.type });
-  rt.emit(sessionId, "user", "link.created", { linkId: link.id, from: artifact.id, to: about, kind: "about" });
+  rt.putLink("user", { sessionId, from: artifact.id, to: about, kind: "about" });
   return artifact;
 }
 
@@ -132,10 +130,8 @@ function answerDecision(rt: Runtime, sessionId: string, open: Artifact<DecisionD
   const workflow = rt.store.getSession(sessionId).workflow;
   const refused = workflow ? rt.workflows.get(workflow)?.checkAnswer?.(workflowView(rt.store, sessionId), open, option.id) : null;
   if (refused) throw new HttpError(409, refused);
-  const answered = rt.store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: "verified", epoch: open.epoch, data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
-  const link = rt.store.putLink({ sessionId, from: answered.id, to: open.id, kind: "revises" });
-  rt.emit(sessionId, "user", "artifact.created", { artifactId: answered.id, type: "Decision" });
-  rt.emit(sessionId, "user", "link.created", { linkId: link.id, from: answered.id, to: open.id, kind: "revises" });
+  const answered = rt.putArtifact<DecisionData>("user", { sessionId, type: "Decision", status: "verified", epoch: open.epoch, data: { ...open.data, chosen: { option: option.id, by: "user", ...(trimmed ? { text: trimmed } : {}), ...(selection ? { llm: selection } : {}) } }, provenance: { taskId: "user" } });
+  rt.putLink("user", { sessionId, from: answered.id, to: open.id, kind: "revises" });
   return answered;
 }
 
@@ -257,8 +253,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
           diffPaths: (diff?.data as DiffData | undefined)?.files.map((file) => file.path) ?? [],
         }, missing);
         if (Object.keys(added).length) {
-          const artifact = rt.store.putArtifact<CodeLinksData>({ sessionId: session.id, type: "CodeLinks", status: "verified", data: { rev, links: added }, provenance: { taskId: "runtime" } });
-          rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+          rt.putArtifact<CodeLinksData>("runtime", { sessionId: session.id, type: "CodeLinks", status: "verified", data: { rev, links: added }, provenance: { taskId: "runtime" } });
         }
       }
       const links = { ...prior, ...added };

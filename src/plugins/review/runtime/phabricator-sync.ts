@@ -1,6 +1,6 @@
 import type { PhabCommentData, PhabSyncData, ReviewCommentData, ReviewFindingData } from "../shared/types.ts";
 import type { PostedCommentData } from "../../../plugin-api.ts";
-import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, parseUnifiedDiff, sessionView, searchDocs, type Runtime } from "../../../plugin-api.ts";
+import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, parseUnifiedDiff, type Runtime } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 import { commitRevision, phabRevision } from "../shared/phabricator.ts";
 import { latestPhabSync } from "../shared/phab-anchor.ts";
@@ -131,8 +131,7 @@ export class PhabricatorSyncer {
     const newestDiffId = diffs[0]?.id ?? null;
     const previousSync = latestPhabSync(artifacts, diff.id, revision.id);
     if (!previousSync || previousSync.data.matchingDiffId !== matchingDiffId || previousSync.data.latestDiffId !== newestDiffId) {
-      const sync = this.#rt.store.putArtifact<PhabSyncData>({ sessionId, type: "PhabSync", status: "verified", data: { revision: revision.id, matchingDiffId, latestDiffId: newestDiffId, localDiff: diff.id }, provenance: { taskId: "runtime" } });
-      this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: sync.id, type: sync.type });
+      this.#rt.putArtifact<PhabSyncData>("runtime", { sessionId, type: "PhabSync", status: "verified", data: { revision: revision.id, matchingDiffId, latestDiffId: newestDiffId, localDiff: diff.id }, provenance: { taskId: "runtime" } });
     }
     const revisionKey = `${sessionId}:${revision.host}:D${revision.id}`;
     if (matchingDiffId !== null && newestDiffId !== null && newestDiffId > matchingDiffId && this.#announced.get(revisionKey) !== newestDiffId) {
@@ -173,7 +172,7 @@ export class PhabricatorSyncer {
     const current = this.#rt.store.listArtifacts(sessionId);
     const posted = postedComments(current, this.#rt.store.listLinks(sessionId));
     const beforeLinks = new Set(this.#rt.store.listLinks(sessionId).map((link) => link.id));
-    const created = storeRemoteComments(this.#rt.store, sessionId, revision.id, comments, authors, { phid: whoami.phid, posted });
+    const created = storeRemoteComments(this.#rt, sessionId, revision.id, comments, authors, { phid: whoami.phid, posted });
     const storedComments = this.#rt.store.listArtifacts(sessionId, "PhabComment") as Artifact<PhabCommentData>[];
     const revisionComments = storedComments.filter((item) => item.data.revision === revision.id);
     const summaries = this.#rt.store.listArtifacts(sessionId, "PhabThreadSummary");
@@ -186,14 +185,6 @@ export class PhabricatorSyncer {
       void this.#rt.run(sessionId, "summarizePhabThread", { revision: revision.id, rootPhid: thread.rootPhid }).catch(() => undefined);
     }
     const newLinks = this.#rt.store.listLinks(sessionId).filter((link) => !beforeLinks.has(link.id));
-    const view = sessionView(this.#rt.store, sessionId);
-    for (const artifact of created) {
-      this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
-      for (const link of newLinks.filter((item) => item.from === artifact.id)) this.#rt.emit(sessionId, "runtime", "link.created", { linkId: link.id, from: link.from, to: link.to, kind: link.kind });
-      this.#rt.store.putSearchDocs(sessionId, artifact.id, searchDocs(this.#rt.plugins.artifactKinds, view, artifact));
-      const old = newLinks.find((item) => item.from === artifact.id && item.kind === "revises");
-      if (old) this.#rt.store.putSearchDocs(sessionId, old.to, []);
-    }
     const maxTxId = comments.reduce((max, comment) => Math.max(max, comment.txId), 0);
     const previousHighWater = this.#highWater.get(revisionKey);
     this.#highWater.set(revisionKey, maxTxId);

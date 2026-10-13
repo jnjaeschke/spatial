@@ -250,16 +250,14 @@ export function reviewRoutes(rt: Runtime): Route[] {
           } catch (e) {
             throw new HttpError(502, (e as Error).message);
           }
-          const artifact = rt.store.putArtifact({
+          const artifact = rt.putArtifact("runtime", {
             sessionId: session.id,
             type: "PostedComment",
             status: "verified",
             data: { comment: commentId, source: source.id, revision: group.revision.id, diff: diffID, inlineId: result.id } satisfies ReviewPostedCommentData,
             provenance: { taskId: "runtime" },
           });
-          const link = rt.store.putLink({ sessionId: session.id, from: artifact.id, to: commentId, kind: "about" });
-          rt.emit(session.id, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
-          rt.emit(session.id, "runtime", "link.created", { linkId: link.id, from: artifact.id, to: commentId, kind: "about" });
+          rt.putLink("runtime", { sessionId: session.id, from: artifact.id, to: commentId, kind: "about" });
           postedCount++;
         }
       }
@@ -274,14 +272,13 @@ export function reviewRoutes(rt: Runtime): Route[] {
       } catch (e) {
         throw new HttpError(502, (e as Error).message);
       }
-      const submission = rt.store.putArtifact({
+      rt.putArtifact("runtime", {
         sessionId: session.id,
         type: "ReviewSubmission",
         status: "verified",
         data: { revision: revisionId, action, body, inlines: postedCount } satisfies ReviewSubmissionData,
         provenance: { taskId: "runtime" },
       });
-      rt.emit(session.id, "runtime", "artifact.created", { artifactId: submission.id, type: submission.type });
       send(res, 200, { inlines: postedCount, skipped, revision: `D${revisionId}` });
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/update$/, async ({ req, params, res }) => {

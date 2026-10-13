@@ -82,12 +82,11 @@ async function answer(rt: Runtime, pending: Map<string, PendingStart>, id: strin
 
 async function begin(rt: Runtime, base: StartBase, start: Chosen, selection?: LlmSelection): Promise<Session> {
   const session = await createSession(rt.store, base.path, start.title, start.workflow);
-  const artifact = rt.store.putArtifact<WorkflowStartData>({
+  const artifact = rt.putArtifact<WorkflowStartData>(selection ? "runtime" : "user", {
     sessionId: session.id, type: "WorkflowStart", status: start.via === "command" ? "verified" : "proposed",
     provenance: selection ? { taskId: "runtime", llm: selection } : { taskId: "user" },
     data: { ...start, ...(base.llm ? { llm: base.llm } : {}), ...(base.writeMode ? { writeMode: base.writeMode } : {}) },
   });
-  rt.emit(session.id, selection ? "runtime" : "user", "artifact.created", { artifactId: artifact.id, type: artifact.type });
   inBackground(session.id, runWorkflow(rt, session.id, artifact.id, base.llm));
   return session;
 }

@@ -14,7 +14,7 @@ Creates a draft inline per reply on the commented line and records a `PostedRepl
 
 ### rt
 
-`Pick`\<[`Runtime`](../../../../runtime/tasks/classes/Runtime.md), `"store"` \| `"emit"`\>
+`Pick`\<[`Runtime`](../../../../runtime/tasks/classes/Runtime.md), `"store"` \| `"putArtifact"` \| `"putLink"` \| `"emit"`\>
 
 ### sessionId
 

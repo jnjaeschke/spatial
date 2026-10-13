@@ -18,7 +18,7 @@ Polls Treeherder for every try push whose last observed state is not complete an
 
 ##### rt
 
-`Pick`\<[`Runtime`](../../../../../runtime/tasks/classes/Runtime.md), `"store"` \| `"emit"`\>
+`Pick`\<[`Runtime`](../../../../../runtime/tasks/classes/Runtime.md), `"store"` \| `"putArtifact"` \| `"emit"`\>
 
 ##### opts?
 

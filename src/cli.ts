@@ -118,7 +118,7 @@ try {
       }
     });
 
-    const start = rt.store.putArtifact<WorkflowStartData>({
+    const start = rt.putArtifact<WorkflowStartData>("user", {
       sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" },
       data: { via: "command", workflow: "review", params: parsed.params, title, prompt: target },
     });

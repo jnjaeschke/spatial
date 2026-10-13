@@ -23,8 +23,7 @@ export async function ensureSummary(rt: Runtime, sessionId: Id, algorithm: Artif
     verdicts.clauses.forEach((verdict, index) => { if (!verdict.supported) reasons.push(`Clause ${index + 1}: ${verdict.reason}`); });
   }
   if (reasons.length) {
-    const artifact = rt.store.putArtifact<SummaryRejectedData>({ sessionId, type: "SummaryRejected", status: "verified", data: { anchor: algorithm.data.ref, sha: algorithm.data.sha, reasons }, provenance: { taskId: summary.taskId } });
-    rt.emit(sessionId, "runtime", "artifact.created", { artifactId: artifact.id, type: artifact.type });
+    rt.putArtifact<SummaryRejectedData>("runtime", { sessionId, type: "SummaryRejected", status: "verified", data: { anchor: algorithm.data.ref, sha: algorithm.data.sha, reasons }, provenance: { taskId: summary.taskId } });
     return;
   }
   rt.knowledge.put("global", "spec", summaryKey(algorithm.data), { clauses } satisfies SpecSummary, { by: "llm", taskId: summary.taskId, sessionId });

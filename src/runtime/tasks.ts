@@ -253,6 +253,25 @@ export class Runtime {
     return this.#store;
   }
 
+  /** The only artifact write path outside the store; keeps the search index and event stream in step. */
+  putArtifact<T>(actor: Actor, artifact: { sessionId: Id; type: string; status: ArtifactStatus; data: T; provenance: Artifact["provenance"]; epoch?: number | null }): Artifact<T> {
+    const created = this.#store.putArtifact(artifact);
+    this.#store.putSearchDocs(artifact.sessionId, created.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, artifact.sessionId), created));
+    this.emit(artifact.sessionId, actor, "artifact.created", { artifactId: created.id, type: created.type });
+    return created;
+  }
+
+  /** The only link write path outside the store; keeps revised artifact search docs and the event stream in step. */
+  putLink(actor: Actor, link: { sessionId: Id; from: Ref; to: Ref; kind: LinkKind }): Link {
+    const created = this.#store.putLink(link);
+    if (link.kind === "revises") {
+      const target = this.#store.getArtifact(link.to);
+      this.#store.putSearchDocs(link.sessionId, target.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, link.sessionId), target));
+    }
+    this.emit(link.sessionId, actor, "link.created", { linkId: created.id, from: created.from, to: created.to, kind: created.kind });
+    return created;
+  }
+
   get llm(): LlmService {
     return this.#llm;
   }
@@ -353,12 +372,7 @@ export class Runtime {
       repoSkills: [],
       repoInstructions: null,
       artifacts: {
-        put: (type, status, data, llm) => {
-          const a = this.#store.putArtifact({ sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } });
-          this.#store.putSearchDocs(sessionId, a.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, sessionId), a));
-          emit("artifact.created", { artifactId: a.id, type });
-          return a;
-        },
+        put: (type, status, data, llm) => this.putArtifact(`task:${task.id}`, { sessionId, type, status, data, provenance: llm ? { taskId: task.id, llm } : { taskId: task.id } }),
         get: (id) => this.#store.getArtifact(id),
         linkedTo: (to, linkKind) =>
           this.#store.listLinks(sessionId).filter((l) => l.to === to && l.kind === linkKind).map((l) => this.#store.getArtifact(l.from)),
@@ -373,15 +387,7 @@ export class Runtime {
         replyFields: this.plugins.chatReplyFields,
       },
       links: {
-        put: (from, to, linkKind) => {
-          const l = this.#store.putLink({ sessionId, from, to, kind: linkKind });
-          if (linkKind === "revises") {
-            const target = this.#store.getArtifact(to);
-            this.#store.putSearchDocs(sessionId, target.id, searchDocs(this.plugins.artifactKinds, sessionView(this.#store, sessionId), target));
-          }
-          emit("link.created", { linkId: l.id, from, to, kind: linkKind });
-          return l;
-        },
+        put: (from, to, linkKind) => this.putLink(`task:${task.id}`, { sessionId, from, to, kind: linkKind }),
       },
       progress: (p) => emit("task.progress", { taskId: task.id, progress: p }),
       activity: (activity) => emit("task.activity", { taskId: task.id, activity: activity.kind === "tool-result" ? { ...activity, output: capOutput(activity.output, MAX_RESULT_OUTPUT) } : activity }),
@@ -475,8 +481,7 @@ export class Runtime {
       }
       if (step.chosen && !options.some((option) => option.id === step.chosen!.option)) throw new Error(`Session ${sessionId} chose unknown option ${step.chosen.option}`);
       const chosen = step.chosen ? { option: step.chosen.option, by: "rule" as const, reason: step.chosen.reason } : null;
-      const decision = this.#store.putArtifact<DecisionData>({ sessionId, type: "Decision", status: chosen ? "verified" : "proposed", epoch, data: { key, question, options, chosen }, provenance: { taskId: "runtime" } });
-      this.emit(sessionId, "runtime", "artifact.created", { artifactId: decision.id, type: "Decision" });
+      this.putArtifact<DecisionData>("runtime", { sessionId, type: "Decision", status: chosen ? "verified" : "proposed", epoch, data: { key, question, options, chosen }, provenance: { taskId: "runtime" } });
       if (!chosen) return;
     }
   }

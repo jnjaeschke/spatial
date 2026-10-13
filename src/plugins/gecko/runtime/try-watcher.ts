@@ -28,7 +28,7 @@ const carried = (push: Artifact<TryPushData>, last: TryRunData | null, error: st
 
 /** Polls Treeherder for every try push whose last observed state is not complete and that is younger than 24 hours, in all sessions, and stores a `TryRun` when the state changed. Reads everything it needs from the store, so a restarted server resumes. */
 export class TryWatcher {
-  #rt: Pick<Runtime, "store" | "emit">;
+  #rt: Pick<Runtime, "store" | "putArtifact" | "emit">;
   #intervalMs: number;
   #now: () => number;
   #treeherder: (url: string) => Promise<{ code: number; stdout: string; stderr: string }>;
@@ -36,7 +36,7 @@ export class TryWatcher {
   #timer: ReturnType<typeof setInterval> | undefined;
   #ticking = false;
 
-  constructor(rt: Pick<Runtime, "store" | "emit">, opts: { intervalMs?: number; now?: () => number; treeherder?: (url: string) => Promise<{ code: number; stdout: string; stderr: string }>; status?: (pushId: number) => Promise<Record<string, number>> } = {}) {
+  constructor(rt: Pick<Runtime, "store" | "putArtifact" | "emit">, opts: { intervalMs?: number; now?: () => number; treeherder?: (url: string) => Promise<{ code: number; stdout: string; stderr: string }>; status?: (pushId: number) => Promise<Record<string, number>> } = {}) {
     this.#rt = rt;
     this.#intervalMs = opts.intervalMs ?? 300_000;
     this.#now = opts.now ?? Date.now;
@@ -101,9 +101,7 @@ export class TryWatcher {
   }
 
   #store(sessionId: Id, push: Artifact<TryPushData>, data: TryRunData, taskId: string): Artifact<TryRunData> {
-    const run = this.#rt.store.putArtifact<TryRunData>({ sessionId, type: "TryRun", status: "verified", epoch: push.epoch, data, provenance: { taskId } });
-    this.#rt.emit(sessionId, "runtime", "artifact.created", { artifactId: run.id, type: "TryRun" });
-    return run;
+    return this.#rt.putArtifact<TryRunData>("runtime", { sessionId, type: "TryRun", status: "verified", epoch: push.epoch, data, provenance: { taskId } });
   }
 
   async #poll(sessionId: Id, push: Artifact<TryPushData>, last: TryRunData | null, taskId = "try-watcher"): Promise<void> {

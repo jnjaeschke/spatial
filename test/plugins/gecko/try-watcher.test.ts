@@ -16,7 +16,8 @@ function setup(script: { out: { code: number; stdout: string; stderr?: string }[
   const session = store.createSession({ worktree: "/w", repoDir: "/w/.git", title: "t" });
   const push = store.putArtifact({ sessionId: session.id, type: "TryPush", status: "verified", provenance: { taskId: "t" }, data: { command: "./mach try auto", url: "https://treeherder.mozilla.org/jobs?repo=try&landoCommitID=42", head: "HEAD1" } });
   const notices: NotifyPayload[] = [], created: string[] = [];
-  const rt = { store, emit: (_s: string, _source: string, type: string, payload: unknown) => { if (type === "notify") notices.push(payload as NotifyPayload); if (type === "artifact.created") created.push((payload as { type: string }).type); } };
+  const emit = (_s: string, _source: string, type: string, payload: unknown) => { if (type === "notify") notices.push(payload as NotifyPayload); if (type === "artifact.created") created.push((payload as { type: string }).type); };
+  const rt = { store, emit, putArtifact: (_actor: string, artifact: Parameters<Store["putArtifact"]>[0]) => { const value = store.putArtifact(artifact); emit(artifact.sessionId, "runtime", "artifact.created", { artifactId: value.id, type: value.type }); return value; } };
   let calls = 0, statusCalls = 0;
   const clock = { t: Date.parse(push.createdAt) };
   const watcher = new TryWatcher(rt as never, {
@@ -82,7 +83,7 @@ test("an unreadable push is stored once as an error and replaced when Treeherder
 test("a new watcher resumes pushes stored before it started", async () => {
   const first = setup({ out: [{ code: 0, stdout: failingJson(1) }], status: [{ completed: 1, running: 1 }] });
   await first.watcher.tick();
-  const restarted = new TryWatcher({ store: first.store, emit: () => {} } as never, {
+  const restarted = new TryWatcher({ store: first.store, emit: () => {}, putArtifact: (_actor: string, artifact: Parameters<Store["putArtifact"]>[0]) => first.store.putArtifact(artifact) } as never, {
     treeherder: async () => ({ code: 0, stdout: failingJson(1), stderr: "" }),
     status: async () => ({ completed: 2, running: 0, pending: 0 }),
   });

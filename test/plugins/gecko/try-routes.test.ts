@@ -10,7 +10,7 @@ function setup() {
   const session = store.createSession({ worktree: "/w", repoDir: "/w/.git", title: "t" });
   const other = store.createSession({ worktree: "/w2", repoDir: "/w2/.git", title: "o" });
   const push = store.putArtifact({ sessionId: session.id, type: "TryPush", status: "verified", provenance: { taskId: "t" }, data: { command: "./mach try auto", url: "https://treeherder.mozilla.org/jobs?repo=try&landoCommitID=42", head: "HEAD1" } });
-  const rt = { store, emit: () => {} };
+  const rt = { store, emit: () => {}, putArtifact: (_actor: string, artifact: Parameters<Store["putArtifact"]>[0]) => store.putArtifact(artifact) };
   const watcher = new TryWatcher(rt as never, {
     now: () => Date.parse(push.createdAt) + 3 * 86_400_000,
     treeherder: async () => ({ code: 0, stderr: "", stdout: JSON.stringify({ revision: "abc", push_id: 7, matched_jobs: 1, jobs: [] }) }),

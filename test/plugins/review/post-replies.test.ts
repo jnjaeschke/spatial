@@ -19,7 +19,12 @@ function setup() {
   const calls: [string, Record<string, unknown>][] = [];
   let nextId = 900;
   const makeConduit = () => ({ call: async (method: string, params: Record<string, unknown>) => { calls.push([method, params]); return { id: ++nextId }; } }) as unknown as ConduitClient;
-  const rt = { store, emit: () => {} } as never;
+  const rt = {
+    store,
+    emit: () => {},
+    putArtifact: (_actor: string, artifact: Parameters<Store["putArtifact"]>[0]) => store.putArtifact(artifact),
+    putLink: (_actor: string, link: Parameters<Store["putLink"]>[0]) => store.putLink(link),
+  } as never;
   return { store, session, comment, calls, makeConduit, rt };
 }
 

@@ -272,6 +272,92 @@ The step `advance` would take now: the follow-up of the latest epoch's phase whe
 
 ***
 
+### putArtifact()
+
+> **putArtifact**\<`T`\>(`actor`, `artifact`): [`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
+
+The only artifact write path outside the store; keeps the search index and event stream in step.
+
+#### Type Parameters
+
+##### T
+
+`T`
+
+#### Parameters
+
+##### actor
+
+[`Actor`](../../../shared/types/type-aliases/Actor.md)
+
+##### artifact
+
+###### data
+
+`T`
+
+###### epoch?
+
+`number` \| `null`
+
+###### provenance
+
+[`Provenance`](../../../shared/types/interfaces/Provenance.md)
+
+###### sessionId
+
+`string`
+
+###### status
+
+[`ArtifactStatus`](../../../shared/types/type-aliases/ArtifactStatus.md)
+
+###### type
+
+`string`
+
+#### Returns
+
+[`Artifact`](../../../shared/types/interfaces/Artifact.md)\<`T`\>
+
+***
+
+### putLink()
+
+> **putLink**(`actor`, `link`): [`Link`](../../../shared/types/interfaces/Link.md)
+
+The only link write path outside the store; keeps revised artifact search docs and the event stream in step.
+
+#### Parameters
+
+##### actor
+
+[`Actor`](../../../shared/types/type-aliases/Actor.md)
+
+##### link
+
+###### from
+
+`string`
+
+###### kind
+
+[`LinkKind`](../../../shared/types/type-aliases/LinkKind.md)
+
+###### sessionId
+
+`string`
+
+###### to
+
+`string`
+
+#### Returns
+
+[`Link`](../../../shared/types/interfaces/Link.md)
+
+***
+
 ### repoLlmContext()
 
 > **repoLlmContext**(`repo`): `object`

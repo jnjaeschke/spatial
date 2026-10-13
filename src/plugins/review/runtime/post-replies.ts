@@ -5,7 +5,7 @@ import { commitRevision } from "../shared/phabricator.ts";
 import { ConduitClient, readArcToken } from "./conduit.ts";
 
 /** Creates a draft inline per reply on the commented line and records a `PostedReply`. Phabricator publishes drafts only when the user submits them; general comments have no draft replies. */
-export async function postInlineReplies(rt: Pick<Runtime, "store" | "emit">, sessionId: Id, replies: { comment: Artifact<PhabCommentData>; body: string }[], opts: { makeConduit?: (host: string) => ConduitClient } = {}): Promise<{ posted: number; skipped: { comment: Id; reason: string }[] }> {
+export async function postInlineReplies(rt: Pick<Runtime, "store" | "putArtifact" | "putLink" | "emit">, sessionId: Id, replies: { comment: Artifact<PhabCommentData>; body: string }[], opts: { makeConduit?: (host: string) => ConduitClient } = {}): Promise<{ posted: number; skipped: { comment: Id; reason: string }[] }> {
   const makeConduit = opts.makeConduit ?? ((host: string) => new ConduitClient(process.env.SPATIAL_CONDUIT_BASE_URL ?? host, readArcToken(host)));
   const diff = latestDiff(rt.store.listArtifacts(sessionId));
   const hosts = new Map((diff?.data.commits ?? []).flatMap((commit) => { const revision = commitRevision(commit); return revision ? [[revision.id, revision.host] as const] : []; }));
@@ -37,12 +37,10 @@ export async function postInlineReplies(rt: Pick<Runtime, "store" | "emit">, ses
       revisionID: data.revision, diffID: data.diffId, filePath: data.path, isNewFile: data.isNewFile ? 1 : 0,
       lineNumber: data.line, lineLength: data.length ?? 0, content: body,
     });
-    const receipt = rt.store.putArtifact<PostedReplyData>({ sessionId, type: "PostedReply", status: "verified", data: {
+    const receipt = rt.putArtifact<PostedReplyData>("runtime", { sessionId, type: "PostedReply", status: "verified", data: {
       comment: comment.id, body, revision: data.revision, diff: data.diffId, inlineId: result.id,
     }, provenance: { taskId: "runtime" } });
-    const link = rt.store.putLink({ sessionId, from: receipt.id, to: comment.id, kind: "about" });
-    rt.emit(sessionId, "runtime", "artifact.created", { artifactId: receipt.id, type: "PostedReply" });
-    rt.emit(sessionId, "runtime", "link.created", { linkId: link.id, from: receipt.id, to: comment.id, kind: "about" });
+    rt.putLink("runtime", { sessionId, from: receipt.id, to: comment.id, kind: "about" });
     posted.push(receipt);
     count++;
   }

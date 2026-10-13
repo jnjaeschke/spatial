@@ -6,15 +6,15 @@
 
 # Function: storeRemoteComments()
 
-> **storeRemoteComments**(`store`, `sessionId`, `revision`, `comments`, `authors`, `own`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../shared/types/interfaces/PhabCommentData.md)\>[]
+> **storeRemoteComments**(`rt`, `sessionId`, `revision`, `comments`, `authors`, `own`): [`Artifact`](../../../../../shared/types/interfaces/Artifact.md)\<[`PhabCommentData`](../../../shared/types/interfaces/PhabCommentData.md)\>[]
 
 Stores new, edited, and done-toggled remote comments idempotently.
 
 ## Parameters
 
-### store
+### rt
 
-[`Store`](../../../../../runtime/store/classes/Store.md)
+`Pick`\<[`Runtime`](../../../../../runtime/tasks/classes/Runtime.md), `"store"` \| `"putArtifact"` \| `"putLink"`\>
 
 ### sessionId
 

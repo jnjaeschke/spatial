@@ -1,5 +1,5 @@
 import type { PhabCommentData } from "../shared/types.ts";
-import { type Artifact, type DiffFile, type Id, Store } from "../../../plugin-api.ts";
+import { type Artifact, type DiffFile, type Id, type Runtime } from "../../../plugin-api.ts";
 import { numberLines } from "../../../plugin-api.ts";
 import { ConduitClient } from "./conduit.ts";
 import { latestByPhid } from "../shared/phab-comments.ts";
@@ -69,8 +69,8 @@ export async function fetchTransactions(conduit: ConduitClient, revisionPHID: st
 }
 
 /** Stores new, edited, and done-toggled remote comments idempotently. */
-export function storeRemoteComments(store: Store, sessionId: Id, revision: number, comments: RemoteComment[], authors: Map<string, string>, own: { phid: string; posted: { body: string; path: string | null }[] }): Artifact<PhabCommentData>[] {
-  const latest = latestByPhid(store.listArtifacts(sessionId, "PhabComment"));
+export function storeRemoteComments(rt: Pick<Runtime, "store" | "putArtifact" | "putLink">, sessionId: Id, revision: number, comments: RemoteComment[], authors: Map<string, string>, own: { phid: string; posted: { body: string; path: string | null }[] }): Artifact<PhabCommentData>[] {
+  const latest = latestByPhid(rt.store.listArtifacts(sessionId, "PhabComment"));
   const created: Artifact<PhabCommentData>[] = [];
   for (const comment of comments) {
     const done = comment.isDone ?? false;
@@ -87,8 +87,8 @@ export function storeRemoteComments(store: Store, sessionId: Id, revision: numbe
       ...(comment.isNewFile !== undefined ? { isNewFile: comment.isNewFile } : {}), ...(comment.quote !== undefined ? { quote: comment.quote } : {}), ...(comment.replyTo ? { replyTo: comment.replyTo } : {}),
       own: isOwn, done, txId: comment.txId, dateCreated: comment.dateCreated,
     };
-    const artifact = store.putArtifact({ sessionId, type: "PhabComment", status: "verified", data, provenance: { taskId: "runtime" } });
-    if (previous) store.putLink({ sessionId, from: artifact.id, to: previous.id, kind: "revises" });
+    const artifact = rt.putArtifact<PhabCommentData>("runtime", { sessionId, type: "PhabComment", status: "verified", data, provenance: { taskId: "runtime" } });
+    if (previous) rt.putLink("runtime", { sessionId, from: artifact.id, to: previous.id, kind: "revises" });
     created.push(artifact);
     latest.set(comment.phid, artifact);
   }

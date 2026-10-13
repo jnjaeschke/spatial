@@ -255,6 +255,7 @@ test("notes require a nonempty body and a session start request", async () => {
   const { artifactId } = await response.json();
   assert.deepEqual(rt.store.getArtifact(artifactId).data, { body: "draft note" });
   assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifactId && link.kind === "about"));
+  assert.equal(rt.store.search(session.id, "draft note").some((hit) => hit.ref === artifactId), true);
 });
 
 test("health reports whether the server serves the built UI", async () => {

@@ -10,7 +10,12 @@ function fixture() {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo", title: "review", workflow: "review" });
   const diff = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { baseSha: "b", headSha: "h", commits: [], files: [{ path: "a.ts", status: "modified", binary: false, hunks: [] }] }, provenance: { taskId: "test" } });
-  const rt = { store, emit() {} } as unknown as Runtime;
+  const rt = {
+    store,
+    emit() {},
+    putArtifact: (_actor: string, artifact: Parameters<Store["putArtifact"]>[0]) => store.putArtifact(artifact),
+    putLink: (_actor: string, link: Parameters<Store["putLink"]>[0]) => store.putLink(link),
+  } as unknown as Runtime;
   const routes = reviewRoutes(rt);
   return { store, session, diff, routes };
 }

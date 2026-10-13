@@ -9,9 +9,7 @@ export async function rememberSteer(rt: Runtime, sessionId: Id, steer: Artifact<
   const reply = await done;
   const memory: SteerMemory = { ...reply.memory, source: { sessionId, epoch: steer.data.epoch, steer: steer.id } };
   const entry = rt.knowledge.put(scopeId(reply.scope, rt.store.getSession(sessionId).repoDir, sessionId), MEMORY_NAMESPACE, memoryKey(reply.key), memory, { by: "llm", taskId, sessionId });
-  const notice = rt.store.putArtifact<MemoryNoticeData>({ sessionId, type: "MemoryNotice", status: "verified", data: { key: reply.key, scope: reply.scope, entryId: entry.id, memory }, provenance: { taskId } });
-  const link = rt.store.putLink({ sessionId, from: notice.id, to: steer.id, kind: "about" });
-  rt.emit(sessionId, "runtime", "artifact.created", { artifactId: notice.id, type: notice.type });
-  rt.emit(sessionId, "runtime", "link.created", { linkId: link.id, from: notice.id, to: steer.id, kind: "about" });
+  const notice = rt.putArtifact<MemoryNoticeData>("runtime", { sessionId, type: "MemoryNotice", status: "verified", data: { key: reply.key, scope: reply.scope, entryId: entry.id, memory }, provenance: { taskId } });
+  rt.putLink("runtime", { sessionId, from: notice.id, to: steer.id, kind: "about" });
   rt.emit(sessionId, "runtime", "notify", { id: `memory-${entry.id}`, title: `Remembered: ${memory.wanted}`, body: `When ${memory.situation}` } satisfies NotifyPayload);
 }

@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { parseTransactions, fetchTransactions, storeRemoteComments } from "../../../../src/plugins/review/runtime/phab-transactions.ts";
 import { latestPhabComments } from "../../../../src/plugins/review/shared/phab-comments.ts";
 import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime } from "../../../../src/runtime/tasks.ts";
+import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { RemoteComment } from "../../../../src/plugins/review/runtime/phab-transactions.ts";
 
 const fixture = JSON.parse(readFileSync(new URL("../../../fixtures/phab-transactions.json", import.meta.url), "utf8")).result;
@@ -54,42 +56,45 @@ test("fetchTransactions follows the cursor and concatenates pages", async () => 
 });
 
 const remote = (patch: Partial<RemoteComment> = {}): RemoteComment => ({ phid: "C", version: 1, authorPHID: "U", body: "hello", path: "a.ts", line: 4, diffId: 1, isNewFile: true, isDone: false, txId: 1, dateCreated: 10, ...patch });
+const runtime = (store: Store) => new Runtime({ store, plugins: [], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService, git: () => ({} as never), webspec: {} as never, searchfox: {} as never });
 
 test("storeRemoteComments is idempotent, revises edits and done toggles, and identifies our posts", () => {
   const store = new Store(":memory:");
+  const rt = runtime(store);
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
-  const first = storeRemoteComments(store, session.id, 7, [remote()], new Map([["U", "alice"]]), { phid: "U", posted: [] });
+  const first = storeRemoteComments(rt, session.id, 7, [remote()], new Map([["U", "alice"]]), { phid: "U", posted: [] });
   assert.equal(first.length, 1);
   assert.equal(first[0]?.data.done, false);
   assert.equal(first[0]?.data.author, "alice");
   assert.equal(first[0]?.data.byMe, true);
   assert.equal(first[0]?.data.own, false);
-  assert.equal(storeRemoteComments(store, session.id, 7, [remote()], new Map(), { phid: "U", posted: [] }).length, 0);
-  const edited = storeRemoteComments(store, session.id, 7, [remote({ version: 2, body: "edited" })], new Map(), { phid: "U", posted: [] });
-  const done = storeRemoteComments(store, session.id, 7, [remote({ version: 2, body: "edited", isDone: true })], new Map(), { phid: "U", posted: [] });
-  const reopened = storeRemoteComments(store, session.id, 7, [remote({ version: 2, body: "edited", isDone: false })], new Map(), { phid: "U", posted: [] });
+  assert.equal(storeRemoteComments(rt, session.id, 7, [remote()], new Map(), { phid: "U", posted: [] }).length, 0);
+  const edited = storeRemoteComments(rt, session.id, 7, [remote({ version: 2, body: "edited" })], new Map(), { phid: "U", posted: [] });
+  const done = storeRemoteComments(rt, session.id, 7, [remote({ version: 2, body: "edited", isDone: true })], new Map(), { phid: "U", posted: [] });
+  const reopened = storeRemoteComments(rt, session.id, 7, [remote({ version: 2, body: "edited", isDone: false })], new Map(), { phid: "U", posted: [] });
   assert.deepEqual([edited.length, done.length, reopened.length], [1, 1, 1]);
   assert.equal(done[0]?.data.done, true);
   assert.deepEqual(store.listLinks(session.id).map((l) => [l.from, l.to, l.kind]), [[edited[0]!.id, first[0]!.id, "revises"], [done[0]!.id, edited[0]!.id, "revises"], [reopened[0]!.id, done[0]!.id, "revises"]]);
   assert.equal(latestPhabComments(store.listArtifacts(session.id)).find((a) => a.data.phid === "C")?.id, reopened[0]?.id);
-  const versions = storeRemoteComments(store, session.id, 7, [remote({ phid: "V", version: 2, body: "v2" }), remote({ phid: "V", version: 1, body: "v1" })], new Map(), { phid: "U", posted: [] });
+  const versions = storeRemoteComments(rt, session.id, 7, [remote({ phid: "V", version: 2, body: "v2" }), remote({ phid: "V", version: 1, body: "v1" })], new Map(), { phid: "U", posted: [] });
   assert.deepEqual(versions.map((a) => a.data.body), ["v2"]);
 
-  const ownInline = storeRemoteComments(store, session.id, 7, [remote({ phid: "OWN", body: "posted" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
-  const ownGeneral = storeRemoteComments(store, session.id, 7, [remote({ phid: "OWN-G", body: "posted", path: undefined })], new Map(), { phid: "U", posted: [{ body: "posted", path: null }] });
-  const other = storeRemoteComments(store, session.id, 7, [remote({ phid: "OTHER", authorPHID: "V", body: "posted" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
-  const wrongPath = storeRemoteComments(store, session.id, 7, [remote({ phid: "PATH", body: "posted", path: "b.ts" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
+  const ownInline = storeRemoteComments(rt, session.id, 7, [remote({ phid: "OWN", body: "posted" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
+  const ownGeneral = storeRemoteComments(rt, session.id, 7, [remote({ phid: "OWN-G", body: "posted", path: undefined })], new Map(), { phid: "U", posted: [{ body: "posted", path: null }] });
+  const other = storeRemoteComments(rt, session.id, 7, [remote({ phid: "OTHER", authorPHID: "V", body: "posted" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
+  const wrongPath = storeRemoteComments(rt, session.id, 7, [remote({ phid: "PATH", body: "posted", path: "b.ts" })], new Map(), { phid: "U", posted: [{ body: "posted", path: "a.ts" }] });
   assert.deepEqual([ownInline[0]?.data.own, ownGeneral[0]?.data.own, other[0]?.data.own, wrongPath[0]?.data.own], [true, true, false, false]);
   assert.equal(latestPhabComments(store.listArtifacts(session.id)).some((a) => a.data.phid === "OWN"), false);
-  assert.equal(storeRemoteComments(store, session.id, 7, [remote({ phid: "fallback", authorPHID: "UNKNOWN" })], new Map(), { phid: "U", posted: [] })[0]?.data.author, "UNKNOWN");
+  assert.equal(storeRemoteComments(rt, session.id, 7, [remote({ phid: "fallback", authorPHID: "UNKNOWN" })], new Map(), { phid: "U", posted: [] })[0]?.data.author, "UNKNOWN");
   store.close();
 });
 
 test("storeRemoteComments marks bot authors by username", () => {
   const store = new Store(":memory:");
+  const rt = runtime(store);
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "test" });
   const authors = new Map([["B1", "reviewbot"], ["B2", "reviewhelper-bot"], ["B3", "ReviewBOT"], ["H", "abbott"], ["R", "robotics"]]);
-  const stored = storeRemoteComments(store, session.id, 7, ["B1", "B2", "B3", "H", "R", "UNKNOWN"].map((authorPHID) => remote({ phid: authorPHID, authorPHID })), authors, { phid: "U", posted: [] });
+  const stored = storeRemoteComments(rt, session.id, 7, ["B1", "B2", "B3", "H", "R", "UNKNOWN"].map((authorPHID) => remote({ phid: authorPHID, authorPHID })), authors, { phid: "U", posted: [] });
   assert.deepEqual(stored.map((a) => a.data.bot), [true, true, true, false, false, false]);
   store.close();
 });
