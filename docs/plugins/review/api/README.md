@@ -11,10 +11,6 @@
 - [ReviewPhaseInput](interfaces/ReviewPhaseInput.md)
 - [RoundDiff](interfaces/RoundDiff.md)
 
-## Variables
-
-- [ROUND\_WINDOW\_SECONDS](variables/ROUND_WINDOW_SECONDS.md)
-
 ## Functions
 
 - [groupRounds](functions/groupRounds.md)

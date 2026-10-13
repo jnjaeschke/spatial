@@ -10,6 +10,7 @@ import { createSession } from "../../../../src/workflows/start.ts";
 import type { Runtime } from "../../../../src/runtime/tasks.ts";
 
 import { narrativeOf } from "../../../../src/plugins/review/shared/diffs.ts";
+import { narrateRound } from "../../../../src/plugins/review/workflow/narrate-patch.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
 
 const STUB = fileURLToPath(new URL("../../../stubs/fake-llm.mjs", import.meta.url));
@@ -96,6 +97,42 @@ test("review phase carries findings after update narration and before resolving 
   assert.equal(rt.store.getArtifact<PatchNarrativeData>(result.narrativeId).data.previous, firstNarrative.narrativeId);
   assert.deepEqual(rt.store.listEpochs(session.id).map(({ n, phase, status }) => ({ n, phase, status })), [{ n: 1, phase: "review", status: "succeeded" }]);
   assert.deepEqual(rt.store.listTasks(session.id).slice(-4).map((task) => task.kind), ["narrate", "carryFindings", "resolveSpecRefs", "review"]);
+});
+
+test("narrateRound updates from the newest earlier narrated Diff and skips review", async () => {
+  const { dir, r } = fixture();
+  const rt = createRuntime({ dbPath: join(dir, "round.sqlite"), claudeBin: STUB });
+  const session = await createSession(rt.store, r.dir, "t", "review");
+  const c1 = r.git("rev-parse", "HEAD");
+  r.commit({ "a.txt": "1\nTWO-EDITED\n3\n" }, "second");
+  const c2 = r.git("rev-parse", "HEAD");
+  r.commit({ "a.txt": "1\nTHREE\n3\n", "c.txt": "c\nmore\n" }, "third");
+  const c3 = r.git("rev-parse", "HEAD");
+  const { diffId: d1 } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~3", head: c1 });
+  const firstNarrative = await rt.run<{ narrativeId: string }>(session.id, "narrate", { diffId: d1 });
+  const { diffId: d2 } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: c1, head: c2 });
+  const { diffId: d3 } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: c2, head: c3 });
+  await narrateRound(rt, session.id, d3);
+  const tasks = rt.store.listTasks(session.id);
+  const narrateTask = tasks.filter((task) => task.kind === "narrate").at(-1)!;
+  const update = (narrateTask.input as { update: { previousNarrativeId: string; interdiffId: string } }).update;
+  assert.equal(update.previousNarrativeId, firstNarrative.narrativeId);
+  assert.equal(rt.store.getArtifact<{ fromDiff: string; toDiff: string }>(update.interdiffId).data.fromDiff, d1);
+  assert.equal(rt.store.getArtifact<{ fromDiff: string; toDiff: string }>(update.interdiffId).data.toDiff, d3);
+  assert.deepEqual([...new Set(tasks.slice(-5).map((task) => task.kind))].sort(), ["carryFindings", "introducedSymbols", "interdiff", "narrate", "resolveSpecRefs"].sort());
+  assert.equal(tasks.some((task) => task.kind === "review"), false);
+  assert.notEqual(d2, d1);
+});
+
+test("narrateRound narrates a first Diff without update or carryFindings", async () => {
+  const { dir, r } = fixture();
+  const rt = createRuntime({ dbPath: join(dir, "first-round.sqlite"), claudeBin: STUB });
+  const session = await createSession(rt.store, r.dir, "t", "review");
+  const { diffId } = await rt.run<{ diffId: string }>(session.id, "importDiff", { base: "HEAD~1", head: "HEAD" });
+  await narrateRound(rt, session.id, diffId);
+  const tasks = rt.store.listTasks(session.id);
+  assert.equal((tasks.find((task) => task.kind === "narrate")!.input as { update?: unknown }).update, undefined);
+  assert.equal(tasks.some((task) => task.kind === "carryFindings"), false);
 });
 
 const WEBSPEC = fileURLToPath(new URL("../../../stubs/fake-webspec.mjs", import.meta.url));

@@ -9,3 +9,4 @@
 ## Functions
 
 - [narrateDiff](functions/narrateDiff.md)
+- [narrateRound](functions/narrateRound.md)

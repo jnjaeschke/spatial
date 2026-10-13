@@ -39,5 +39,9 @@ export function sessionRefs(artifacts: Artifact[], tasks: TaskRecord[]): { base:
 /** Latest Interdiff linked `about → diffId`, or null. */
 export function interdiffOf(artifacts: Artifact[], links: Link[], diffId: Id): Artifact<InterdiffData> | null {
   const ids = new Set(links.filter((link) => link.kind === "about" && link.to === diffId).map((link) => link.from));
-  return artifacts.filter((artifact) => artifact.type === "Interdiff" && ids.has(artifact.id)).at(-1) as Artifact<InterdiffData> | undefined ?? null;
+  const candidates = artifacts.filter((artifact) => artifact.type === "Interdiff" && ids.has(artifact.id)) as Artifact<InterdiffData>[];
+  const diffs = diffsOf(artifacts);
+  const index = diffs.findIndex((diff) => diff.id === diffId);
+  const previousId = index > 0 ? diffs[index - 1]!.id : undefined;
+  return (previousId ? candidates.findLast((artifact) => artifact.data.fromDiff === previousId) : undefined) ?? candidates.at(-1) ?? null;
 }

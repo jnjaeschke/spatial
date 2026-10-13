@@ -31,3 +31,16 @@ test("epoch helpers derive Diff order, narratives, import refs, and latest inter
   assert.equal(interdiffOf(artifacts, links, "D1")?.id, "I2");
   assert.equal(interdiffOf(artifacts, links, "D2")?.id, "I3");
 });
+
+test("interdiffOf prefers the interdiff from the immediately preceding Diff", () => {
+  const d3 = artifact("D3", "Diff", { baseSha: "b3", headSha: "h3", commits: [], files: [] });
+  const old = artifact("old", "Interdiff", { fromDiff: "D1", toDiff: "D3" });
+  const direct = artifact("direct", "Interdiff", { fromDiff: "D2", toDiff: "D3" });
+  const artifacts = [d1, d2, d3, old, direct];
+  const links: Link[] = [
+    { id: "l-old", sessionId: "S", from: "old", to: "D3", kind: "about" },
+    { id: "l-direct", sessionId: "S", from: "direct", to: "D3", kind: "about" },
+  ];
+  assert.equal(interdiffOf(artifacts, links, "D3")?.id, "direct");
+  assert.equal(interdiffOf([d1, d2, d3, old], [links[0]!], "D3")?.id, "old");
+});
