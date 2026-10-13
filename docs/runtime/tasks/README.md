@@ -18,6 +18,7 @@
 
 - [BlameEntry](interfaces/BlameEntry.md)
 - [GitCapability](interfaces/GitCapability.md)
+- [LocalBranch](interfaces/LocalBranch.md)
 - [Phase](interfaces/Phase.md)
 - [RuntimeOptions](interfaces/RuntimeOptions.md)
 - [TaskContext](interfaces/TaskContext.md)

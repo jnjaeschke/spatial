@@ -46,6 +46,18 @@ Read-only git access bound to one session's repo.
 
 ***
 
+### branches()
+
+> **branches**(): `Promise`\<[`LocalBranch`](LocalBranch.md)[]\>
+
+Local branches: the checked-out one first, then by newest tip commit.
+
+#### Returns
+
+`Promise`\<[`LocalBranch`](LocalBranch.md)[]\>
+
+***
+
 ### diff()
 
 > **diff**(`baseSha`, `headSha`): `Promise`\<`string`\>
@@ -151,6 +163,28 @@ Local and remote-tracking `main`/`master` branches (full ref names).
 #### Returns
 
 `Promise`\<`string` \| `null`\>
+
+***
+
+### patchIds()
+
+> **patchIds**(`baseSha`, `headSha`): `Promise`\<`object`[]\>
+
+`git patch-id --stable` of each commit in `base..head`, oldest first: equal for the same change on another base.
+
+#### Parameters
+
+##### baseSha
+
+`string`
+
+##### headSha
+
+`string`
+
+#### Returns
+
+`Promise`\<`object`[]\>
 
 ***
 

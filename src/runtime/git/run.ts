@@ -11,11 +11,15 @@ export interface GitRunOptions {
   timeout?: number;
   /** Kills git and rejects the run when aborted. */
   signal?: AbortSignal;
+  /** Text supplied on stdin. */
+  input?: string;
 }
 
 /** Runs git in `repo` with the settings every read here uses; resolves with stdout and rejects with git's error. */
-export async function runGit(repo: string, args: string[], { env, timeout, signal }: GitRunOptions = {}): Promise<string> {
-  const { stdout } = await exec("git", ["-C", repo, "-c", "core.quotePath=false", "-c", "log.showSignature=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}), ...(timeout ? { timeout } : {}), ...(signal ? { signal } : {}) });
+export async function runGit(repo: string, args: string[], { env, timeout, signal, input }: GitRunOptions = {}): Promise<string> {
+  const pending = exec("git", ["-C", repo, "-c", "core.quotePath=false", "-c", "log.showSignature=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}), ...(timeout ? { timeout } : {}), ...(signal ? { signal } : {}) });
+  if (input !== undefined) pending.child.stdin!.end(input);
+  const { stdout } = await pending;
   return stdout;
 }
 

@@ -14,6 +14,9 @@ import { isActive } from "../shared/task-state.ts";
 
 export interface BlameEntry { line: number; sha: string; origLine: number; path: string }
 
+/** A local branch: `date` is the tip commit's committer date in Unix seconds; `current` marks the checked-out branch. */
+export interface LocalBranch { name: string; sha: string; date: number; current: boolean }
+
 /** Read-only git access bound to one session's repo. */
 export interface GitCapability {
   readonly effect: "read-only";
@@ -25,6 +28,10 @@ export interface GitCapability {
   mergeBase(a: string, b: string): Promise<string | null>;
   /** Local and remote-tracking `main`/`master` branches (full ref names). */
   mainlineRefs(): Promise<string[]>;
+  /** Local branches: the checked-out one first, then by newest tip commit. */
+  branches(): Promise<LocalBranch[]>;
+  /** `git patch-id --stable` of each commit in `base..head`, oldest first: equal for the same change on another base. */
+  patchIds(baseSha: string, headSha: string): Promise<{ sha: string; patchId: string }[]>;
   /** Commits in `base..head`, oldest first. */
   log(baseSha: string, headSha: string): Promise<Commit[]>;
   /** Raw `git diff` text for `base..head`. */

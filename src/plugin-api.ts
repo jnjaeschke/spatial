@@ -57,7 +57,7 @@ export type { ArtifactKind, ChatReplyField, McpTool, McpToolContext, ParseResult
 /** Typed plugin MCP tools. */
 export { defineMcpTool } from "./runtime/plugins.ts";
 export { BusyError, PhaseBusyError, defineTask } from "./runtime/tasks.ts";
-export type { Phase, TaskContext, TaskDefinition, GitCapability, BlameEntry } from "./runtime/tasks.ts";
+export type { Phase, TaskContext, TaskDefinition, GitCapability, BlameEntry, LocalBranch } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";
 export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } from "./runtime/knowledge.ts";
 export { escapeRegex } from "./shared/regex.ts";

@@ -88,6 +88,26 @@ export function makeGit(repo: string, signal?: AbortSignal): GitCapability {
       const out = await git(["for-each-ref", "--format=%(refname)", "refs/heads/main", "refs/heads/master", "refs/remotes/*/main", "refs/remotes/*/master"]);
       return out.split("\n").filter(Boolean);
     },
+    async branches() {
+      const out = await git(["for-each-ref", "--sort=-committerdate", "--format=%(refname:short)%00%(objectname)%00%(committerdate:unix)%00%(HEAD)", "refs/heads"]);
+      const all = out.split("\n").filter(Boolean).map((line) => {
+        const [name, sha, date, head] = line.split("\0");
+        return { name: name!, sha: sha!, date: Number(date), current: head === "*" };
+      });
+      return [...all.filter((b) => b.current), ...all.filter((b) => !b.current)];
+    },
+    async patchIds(baseSha, headSha) {
+      safeRevision(baseSha, "base");
+      safeRevision(headSha, "head");
+      const shas = (await git(["rev-list", "--reverse", "--end-of-options", `${baseSha}..${headSha}`])).split("\n").filter(Boolean);
+      const ids: { sha: string; patchId: string }[] = [];
+      for (const sha of shas) {
+        const patch = await git(["show", "--no-color", "--no-ext-diff", "--format=", sha]);
+        const line = (await runGit(repo, ["patch-id", "--stable"], { signal, input: patch })).trim();
+        if (line) ids.push({ sha, patchId: line.split(" ")[0]! });
+      }
+      return ids;
+    },
     async log(baseSha, headSha) {
       safeRevision(baseSha, "base");
       safeRevision(headSha, "head");

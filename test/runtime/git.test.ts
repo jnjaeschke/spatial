@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -198,6 +199,37 @@ test("resolve, isAncestor, log, diff", async () => {
   assert.match(diff, /^diff --git a\/a.txt b\/a.txt/m);
   assert.match(diff, /^\+TWO$/m);
   assert.doesNotMatch(diff, /\x1b\[/);
+});
+
+// REQUIRES_REAL_GIT
+test("branches lists local branches, the current one first, then newest tip first", async () => {
+  const repo = makeRepo();
+  repo.commit({ "a.txt": "a\n" }, "base");
+  repo.git("branch", "old");
+  repo.git("switch", "-q", "-c", "newer");
+  execFileSync("git", ["-C", repo.dir, "-c", "user.name=T", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "n"], { env: { ...process.env, GIT_COMMITTER_DATE: "2030-01-01T00:00:00Z" } });
+  repo.git("switch", "-q", "main");
+  const branches = await makeGit(repo.dir).branches();
+  assert.deepEqual(branches.map((b) => [b.name, b.current]), [["main", true], ["newer", false], ["old", false]]);
+  assert.equal(branches[1]!.sha, repo.git("rev-parse", "newer"));
+  assert.ok(branches.every((b) => Number.isInteger(b.date)));
+});
+
+// REQUIRES_REAL_GIT
+test("patchIds gives the same id to a commit cherry-picked onto another base", async () => {
+  const repo = makeRepo();
+  const base = repo.commit({ "a.txt": "a\n" }, "base");
+  const other = repo.commit({ "b.txt": "b\n" }, "other");
+  repo.git("switch", "-q", "-c", "topic", base);
+  const change = repo.commit({ "a.txt": "a\nchanged\n" }, "change");
+  repo.git("switch", "-q", "-c", "moved", other);
+  repo.git("cherry-pick", change);
+  const git = makeGit(repo.dir);
+  const [left] = await git.patchIds(base, change);
+  const [right] = await git.patchIds(other, repo.git("rev-parse", "HEAD"));
+  assert.equal(left!.sha, change);
+  assert.equal(left!.patchId, right!.patchId);
+  assert.notEqual(right!.sha, change);
 });
 
 // REQUIRES_REAL_GIT

@@ -16,6 +16,14 @@ Added to the process environment.
 
 ***
 
+### input?
+
+> `optional` **input?**: `string`
+
+Text supplied on stdin.
+
+***
+
 ### signal?
 
 > `optional` **signal?**: `AbortSignal`

@@ -409,6 +409,12 @@ Re-exports [loadSchema](../runtime/structured/functions/loadSchema.md)
 
 ***
 
+### LocalBranch
+
+Re-exports [LocalBranch](../runtime/tasks/interfaces/LocalBranch.md)
+
+***
+
 ### localMainline
 
 Re-exports [localMainline](../runtime/git/read/functions/localMainline.md)
