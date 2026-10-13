@@ -24,6 +24,9 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
+// `engines` is not enforced for `npm link`; older Node versions that can run TypeScript at all would fail later and less clearly.
+if (Number(process.versions.node.split(".")[0]) < 24) fail(`spatial needs Node.js 24 or newer; this is ${process.version}`);
+
 function parseCli() {
   try {
     return parseArgs({
@@ -88,6 +91,7 @@ try {
     console.log(JSON.stringify(await rt.llm.listModels(), null, 2));
   } else if (cmd === "run") {
     const rt = runtime();
+    await rt.llm.chooseDefault();
     const [repo, ...commandParts] = rest;
     if (!repo || !commandParts.length) fail(USAGE);
     const commandText = commandParts.join(" ");

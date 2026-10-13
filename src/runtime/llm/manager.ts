@@ -22,6 +22,19 @@ export class LlmManager implements LlmService {
     return { ...r, selection: sel };
   }
 
+  /** Keeps the default when its backend lists models; otherwise moves it to the first model of the first backend that does, at medium effort when offered. A user with only one of the CLIs installed then starts with a working selection. */
+  async chooseDefault(): Promise<void> {
+    const backends = await this.listModels();
+    const own = backends[this.#default.backend];
+    if (own && "models" in own) return;
+    for (const [backend, listing] of Object.entries(backends) as [LlmBackendId, BackendModels][]) {
+      const model = "models" in listing ? listing.models[0] : undefined;
+      if (!model) continue;
+      this.#default = { backend, model: model.id, effort: model.efforts.includes("medium") ? "medium" : model.efforts[0]! };
+      return;
+    }
+  }
+
   async listModels(): Promise<Record<LlmBackendId, BackendModels>> {
     const out = {} as Record<LlmBackendId, BackendModels>;
     for (const [id, b] of this.#backends) {

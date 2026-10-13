@@ -13,6 +13,7 @@ mkdirSync(dirname(dbPath), { recursive: true });
 const staticDir = values.static ?? (existsSync("dist/web/index.html") ? "dist/web" : undefined);
 const rt = createRuntime({ dbPath, claudeBin: process.env.SPATIAL_CLAUDE_BIN, codexBin: process.env.SPATIAL_CODEX_BIN });
 rt.store.failInterrupted("Interrupted by a server restart");
+await rt.llm.chooseDefault();
 const port = Number(values.port);
 let commit: string | null = null;
 try { commit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); } catch { /* Running outside a git checkout. */ }

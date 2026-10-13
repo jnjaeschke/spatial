@@ -6,7 +6,7 @@
 
 # Function: createRuntime()
 
-> **createRuntime**(`opts`): [`Runtime`](../../tasks/classes/Runtime.md)
+> **createRuntime**(`opts`): [`Runtime`](../../tasks/classes/Runtime.md) & `object`
 
 ## Parameters
 
@@ -34,4 +34,4 @@
 
 ## Returns
 
-[`Runtime`](../../tasks/classes/Runtime.md)
+[`Runtime`](../../tasks/classes/Runtime.md) & `object`

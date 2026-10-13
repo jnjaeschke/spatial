@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelInfo, WriteMode } from "../../shared/types.ts";
-import { runProcess } from "../process.ts";
+import { isExecutable, runProcess } from "../process.ts";
 import { codexEventReader } from "./events.ts";
 import { LlmOutputError, type LlmBackend, type LlmRequest, type LlmResult } from "./types.ts";
 
@@ -17,6 +17,7 @@ export class CodexBackend implements LlmBackend {
   }
 
   async listModels(): Promise<ModelInfo[]> {
+    if (!isExecutable(this.#bin)) throw new Error(`codex CLI not found: ${this.#bin}`);
     // Private cache file of the codex CLI; may change shape across codex versions.
     const path = join(this.#codexHome, "models_cache.json");
     let parsed: { models: { slug: string; visibility: string; supported_reasoning_levels: { effort: string }[] }[] };

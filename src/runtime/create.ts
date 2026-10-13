@@ -40,18 +40,19 @@ export function createRuntime(opts: {
   claudeBin?: string;
   codexBin?: string;
   codexHome?: string;
-}): Runtime {
+}): Runtime & { readonly llm: LlmManager } {
   const allPlugins = [corePlugin, ...plugins];
   const registry = pluginRegistry(allPlugins);
   const llm = new LlmManager(
     [new ClaudeBackend({ bin: opts.claudeBin, readOnlyCommands: registry.readOnlyCommands }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
     opts.defaultLlm ?? DEFAULT_LLM,
   );
+  // The runtime keeps the manager it is given, so callers may reach `LlmManager.chooseDefault`.
   return new Runtime({
     store: new Store(opts.dbPath), plugins: allPlugins, llm, git: makeGit,
     repoContext: (repo) => loadRepoContext(repo),
     knowledge: new KnowledgeStore(knowledgeDbPath(opts.dbPath)),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId) }),
     repoMcp: (repo) => ({ spatial: repoServerSpec(repo) }),
-  });
+  }) as Runtime & { readonly llm: LlmManager };
 }

@@ -317,6 +317,31 @@ test("manager: default vs explicit selection, unknown backend", async () => {
   await assert.rejects(only.run({ backend: "codex", model: "x", effort: "low" }, { prompt: "p", tools: "none" }, signal), /Unknown LLM backend: codex/);
 });
 
+test("manager: the default moves to the first backend whose models load when its own backend is unavailable", async () => {
+  const backend = (id: "claude" | "codex", models: () => Promise<{ id: string; efforts: string[] }[]>): LlmBackend => ({ id, listModels: models, async run() { return { text: "", providerSessionId: "x" }; } });
+  const missing = async () => { throw new Error("claude CLI not found"); };
+  const codex = backend("codex", async () => [{ id: "gpt-x", efforts: ["low", "medium", "high"] }, { id: "gpt-y", efforts: ["low"] }]);
+  const fallback = new LlmManager([backend("claude", missing), codex], { backend: "claude", model: "sonnet", effort: "medium" });
+  await fallback.chooseDefault();
+  assert.deepEqual(fallback.defaultSelection, { backend: "codex", model: "gpt-x", effort: "medium" });
+  const lowOnly = new LlmManager([backend("claude", missing), backend("codex", async () => [{ id: "gpt-y", efforts: ["low"] }])], { backend: "claude", model: "sonnet", effort: "medium" });
+  await lowOnly.chooseDefault();
+  assert.deepEqual(lowOnly.defaultSelection, { backend: "codex", model: "gpt-y", effort: "low" });
+  const working = new LlmManager([backend("claude", async () => [{ id: "sonnet", efforts: ["medium"] }]), codex], { backend: "claude", model: "sonnet", effort: "medium" });
+  await working.chooseDefault();
+  assert.deepEqual(working.defaultSelection, { backend: "claude", model: "sonnet", effort: "medium" });
+  const none = new LlmManager([backend("claude", missing)], { backend: "claude", model: "sonnet", effort: "medium" });
+  await none.chooseDefault();
+  assert.deepEqual(none.defaultSelection, { backend: "claude", model: "sonnet", effort: "medium" });
+});
+
+test("backends report a missing CLI when listing models", async () => {
+  await assert.rejects(new ClaudeBackend({ bin: "/nonexistent/claude" }).listModels(), /claude CLI not found: \/nonexistent\/claude/);
+  await assert.rejects(new CodexBackend({ bin: "/nonexistent/codex" }).listModels(), /codex CLI not found: \/nonexistent\/codex/);
+  await assert.rejects(new ClaudeBackend({ bin: "spatial-no-such-cli" }).listModels(), /claude CLI not found: spatial-no-such-cli/);
+  assert.equal((await new ClaudeBackend({ bin: STUB }).listModels()).length, 3);
+});
+
 const claudeResult = JSON.stringify({ type: "result", is_error: false, result: "done", structured_output: { n: 1 }, session_id: "w1", usage: { input_tokens: 2, output_tokens: 3 } });
 
 test("claude write mode: auto uses the auto permission mode and edit, write and shell tools", async () => {

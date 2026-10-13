@@ -1,9 +1,16 @@
 import { spawn } from "node:child_process";
+import { accessSync, constants } from "node:fs";
+import { delimiter, join } from "node:path";
 import type { Writable } from "node:stream";
 
 /** `text` cut to `max` characters, marked when cut. */
 export const capOutput = (text: string, max: number) => text.length > max ? `${text.slice(0, max)}\n[output truncated]` : text;
 
+/** Whether `bin` names an executable: a path, or a name found on `PATH`. */
+export function isExecutable(bin: string): boolean {
+  const executable = (path: string) => { try { accessSync(path, constants.X_OK); return true; } catch { return false; } };
+  return bin.includes("/") ? executable(bin) : (process.env.PATH ?? "").split(delimiter).some((dir) => dir !== "" && executable(join(dir, bin)));
+}
 
 /** Spawns `cmd`, writes `stdin`, collects output. A function `stdin` gets the open stream and ends it itself. `env` adds to the inherited environment. Abort kills the child (SIGTERM) and rejects. */
 export function runProcess(

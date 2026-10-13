@@ -1,6 +1,6 @@
 import type { ModelInfo } from "../../shared/types.ts";
 import type { Writable } from "node:stream";
-import { runProcess } from "../process.ts";
+import { isExecutable, runProcess } from "../process.ts";
 import { claudeEventReader } from "./events.ts";
 import { LlmOutputError, type LlmBackend, type LlmRequest, type LlmResult } from "./types.ts";
 
@@ -18,6 +18,7 @@ export class ClaudeBackend implements LlmBackend {
   }
 
   async listModels(): Promise<ModelInfo[]> {
+    if (!isExecutable(this.#bin)) throw new Error(`claude CLI not found: ${this.#bin}`);
     // The claude CLI has no model-listing command; aliases resolve to the latest models.
     return ["opus", "sonnet", "haiku"].map((id) => ({ id, efforts: EFFORTS }));
   }
