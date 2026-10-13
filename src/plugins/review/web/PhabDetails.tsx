@@ -67,9 +67,7 @@ export function PhabBody({ data, reveal }: { data: PhabThreadData; reveal(nodeId
 /** A Phabricator thread opened from its inline item. */
 export function PhabDetails({ data, actions, onClose, onBack, reveal }: { data: PhabThreadData; actions: ChatActions | null; onClose(): void; onBack?: () => void; reveal(nodeId: string, collapseId: string): void }) {
   return <ChatActionsContext.Provider value={actions}>
-    <SidePanel className="review-detail-panel" title={`Phabricator · ${data.comments.length}`} closeLabel="Close Phabricator panel" testId="phab-panel" onClose={onClose}
-      onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); onClose(); } }}
-      onBack={onBack}>
+    <SidePanel className="review-detail-panel" title={`Phabricator · ${data.comments.length}`} closeLabel="Close Phabricator panel" testId="phab-panel" onClose={onClose} onBack={onBack}>
       <PhabBody data={data} reveal={reveal} />
     </SidePanel>
   </ChatActionsContext.Provider>;

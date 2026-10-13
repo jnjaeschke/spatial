@@ -13,8 +13,6 @@ export { isActive, taskState } from "../shared/task-state.ts";
 export type { Graph, GraphEdge, GraphNode, GraphNodeData, CoreNodeData, PluginNodeData, NoteNodeData, ChatNodeData, ConversationNodeData, DiagramNodeData, HostedThread, PlacedNode, RootGraphParts } from "./graph.ts";
 /** Width of cards and of satellites. */
 export { NODE_WIDTH, SATELLITE_WIDTH } from "./graph.ts";
-/** Diagram node size estimate. */
-export { diagramSize } from "./graph.ts";
 /** Core node kind check. */
 export { isCoreKind } from "./graph.ts";
 /** Dagre layout of sized nodes; and column placement of satellites beside their anchors. */
@@ -28,7 +26,7 @@ export { rootGraph, subgraph, diagramsByMessage } from "./graph.ts";
 /** The root graph of a plain chat session. */
 export { conversationGraph } from "./graph.ts";
 /** Chat content of a thread; the conversation node of a session start; notes and chats added to a root graph. */
-export { threadContent, conversationNode, addNotes, addChats } from "./graph.ts";
+export { threadContent, conversationNode, hostedThreads } from "./graph.ts";
 /** Estimated line count of text wrapped at a width in characters. */
 export { lines } from "./graph.ts";
 export type { FreePosition } from "./free-positions.ts";

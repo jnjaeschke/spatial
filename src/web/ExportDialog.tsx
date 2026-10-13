@@ -6,9 +6,13 @@ import { loadFileLines } from "./file-lines.ts";
 import { ErrorText, useAction } from "./action.tsx";
 import { Dialog } from "./Dialog.tsx";
 import { plural } from "../shared/plural.ts";
+import { closedStorageKey } from "./closed.ts";
+import { collapseStorageKey } from "./collapse.ts";
+import { freePositionsStorageKey } from "./free-positions.ts";
+import { nodeSizesStorageKey } from "./node-sizes.ts";
+import { viewStateStorageKey } from "./view-state.ts";
 
 const FILE_CAP = 1_000_000;
-const VIEW_KEYS = ["collapse", "free", "sizes", "view"];
 const keepNoTasks = () => false;
 
 async function bundleText(): Promise<{ css: string; js: string }> {
@@ -26,15 +30,14 @@ async function bundleText(): Promise<{ css: string; js: string }> {
 
 async function prepare(state: SessionState, diff: ExportDiff | null, exportTask: (task: TaskRecord) => boolean): Promise<{ data: SessionExport; css: string; js: string }> {
   const sessionId = state.session.id;
-  const closed = new Set(JSON.parse(localStorage.getItem(`spatial:closed:${sessionId}`) ?? "[]") as string[]);
+  const closed = new Set(JSON.parse(localStorage.getItem(closedStorageKey(sessionId)) ?? "[]") as string[]);
   const files: Record<string, string[] | null> = {};
   if (diff) await Promise.all(diff.files.map(async (path) => {
     const lines = await loadFileLines(sessionId, diff.id, path);
     files[path] = lines.reduce((size, line) => size + line.length + 1, 0) > FILE_CAP ? null : lines;
   }));
   const view: Record<string, string> = {};
-  for (const kind of VIEW_KEYS) {
-    const key = `spatial:${kind}:${sessionId}`;
+  for (const key of [collapseStorageKey(sessionId), freePositionsStorageKey(sessionId), nodeSizesStorageKey(sessionId), viewStateStorageKey(sessionId)]) {
     const value = localStorage.getItem(key);
     if (value !== null) view[key] = value;
   }

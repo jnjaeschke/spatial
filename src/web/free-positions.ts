@@ -3,9 +3,11 @@ import { useCallback, useState } from "react";
 export interface FreePosition { x: number; y: number }
 type Positions = Record<string, FreePosition>;
 
+export function freePositionsStorageKey(sessionId: string): string { return `spatial:free:${sessionId}`; }
+
 /** User placed node positions, kept per session in localStorage. */
 export function useFreePositions(sessionId: string) {
-  const key = `spatial:free:${sessionId}`;
+  const key = freePositionsStorageKey(sessionId);
   const [positions, setPositions] = useState<Positions>(() => JSON.parse(localStorage.getItem(key) ?? "{}") as Positions);
   const update = useCallback((change: (current: Positions) => Positions) => setPositions((current) => {
     const next = change(current);

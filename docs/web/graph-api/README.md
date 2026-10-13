@@ -8,18 +8,6 @@
 
 ## References
 
-### addChats
-
-Re-exports [addChats](../plugin-api/functions/addChats.md)
-
-***
-
-### addNotes
-
-Re-exports [addNotes](../plugin-api/functions/addNotes.md)
-
-***
-
 ### cascade
 
 Re-exports [cascade](../plugin-api/functions/cascade.md)
@@ -68,12 +56,6 @@ Re-exports [diagramsByMessage](../plugin-api/functions/diagramsByMessage.md)
 
 ***
 
-### diagramSize
-
-Re-exports [diagramSize](../plugin-api/functions/diagramSize.md)
-
-***
-
 ### Draft
 
 Re-exports [Draft](../plugin-api/interfaces/Draft.md)
@@ -119,6 +101,12 @@ Re-exports [GraphNodeData](../plugin-api/type-aliases/GraphNodeData.md)
 ### HostedThread
 
 Re-exports [HostedThread](../plugin-api/type-aliases/HostedThread.md)
+
+***
+
+### hostedThreads
+
+Re-exports [hostedThreads](../plugin-api/functions/hostedThreads.md)
 
 ***
 

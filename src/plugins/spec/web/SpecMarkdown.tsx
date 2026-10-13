@@ -1,6 +1,6 @@
 import { Children, createContext, isValidElement, useContext, useState, type ReactNode } from "react";
 import type { Components } from "react-markdown";
-import { ErrorText, IconButton, Markdown, RequestError, useAction } from "../../../web/plugin-api.ts";
+import { ErrorText, ExternalLink, IconButton, Markdown, RequestError, useAction } from "../../../web/plugin-api.ts";
 import { rehypeSpecSteps } from "./spec-steps.ts";
 import { isSpecRef } from "../shared/refs.ts";
 
@@ -34,7 +34,7 @@ function SpecLink({ specRef, children }: { specRef: string; children: ReactNode 
 }
 
 // Module-level renderers: see `MarkdownRenderers`.
-const SpecLinkRenderer: Components["a"] = ({ href, children }) => isSpecRef(href ?? "") ? <SpecLink specRef={href!}>{children}</SpecLink> : <a href={href} target="_blank" rel="noreferrer">{children}</a>;
+const SpecLinkRenderer: Components["a"] = ({ href, children }) => isSpecRef(href ?? "") ? <SpecLink specRef={href!}>{children}</SpecLink> : <ExternalLink href={href}>{children}</ExternalLink>;
 const StepItem: Components["li"] = ({ node: _node, children, ...props }) => {
   const extras = useContext(StepExtrasContext);
   const step = (props as { "data-step"?: string })["data-step"];

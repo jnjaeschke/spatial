@@ -4,6 +4,8 @@ import { useCallback, useState } from "react";
 export interface NodeSize { width?: number; height?: number }
 type Sizes = Record<string, NodeSize>;
 
+export function nodeSizesStorageKey(sessionId: string): string { return `spatial:sizes:${sessionId}`; }
+
 /** The stored sizes by node id; entries of any other shape are ignored. */
 export function parseSizes(json: string | null): Sizes {
   const parsed: unknown = JSON.parse(json ?? "{}");
@@ -13,7 +15,7 @@ export function parseSizes(json: string | null): Sizes {
 
 /** Node sizes by node id, kept per session in localStorage. */
 export function useNodeSizes(sessionId: string) {
-  const key = `spatial:sizes:${sessionId}`;
+  const key = nodeSizesStorageKey(sessionId);
   const [sizes, setSizes] = useState<Sizes>(() => parseSizes(localStorage.getItem(key)));
   const setSize = useCallback((id: string, size: NodeSize) => setSizes((prev) => {
     const next = { ...prev, [id]: { ...prev[id], ...size } };

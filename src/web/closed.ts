@@ -4,8 +4,10 @@ import type { ClosedItem } from "./graph.ts";
 /** Closed chat, note and diagram ids. Client-only view state, kept per session in localStorage. */
 export const ClosedContext = createContext<{ close(id: string): void; reopen(ids: string[]): void; closedOn: ReadonlyMap<string, ClosedItem[]> } | null>(null);
 
+export function closedStorageKey(sessionId: string): string { return `spatial:closed:${sessionId}`; }
+
 export function useClosed(sessionId: string) {
-  const key = `spatial:closed:${sessionId}`;
+  const key = closedStorageKey(sessionId);
   const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set(JSON.parse(localStorage.getItem(key) ?? "[]") as string[]));
   const update = useCallback((apply: (ids: Set<string>) => void) => setClosed((prev) => {
     const next = new Set(prev);

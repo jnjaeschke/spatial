@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { type Draft, type HostedThread, type Graph, ChatBody, SidePanel, ChatActionsContext, ClosedContext, CollapseContext, closeChat, type useClosed, type ChatActions } from "../../../web/plugin-api.ts";
+import { hostedThreads } from "../../../web/graph-api.ts";
 
 /** Finds the hosted chat of a chat detail. A draft is followed to its thread through the task of its first turn, which outlives the draft. */
 export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string) => HostedThread | null {
@@ -10,10 +11,8 @@ export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string
   return (id) => {
     const taskId = drafts.find((item) => item.id === id)?.taskId ?? sentDrafts.current.get(id);
     for (const node of graph?.nodes ?? []) {
-      if ("threads" in node.data && Array.isArray(node.data.threads)) {
-        const thread = (node.data.threads as HostedThread[]).find((item) => (item.threadId ?? item.draftId) === id || (taskId !== undefined && item.taskId === taskId));
-        if (thread) return thread;
-      }
+      const thread = hostedThreads(node.data)?.find((item) => (item.threadId ?? item.draftId) === id || (taskId !== undefined && item.taskId === taskId));
+      if (thread) return thread;
     }
     return null;
   };
@@ -21,7 +20,7 @@ export function useChatLookup(graph: Graph | null, drafts: Draft[]): (id: string
 
 /** The quote and conversation of a chat; a new draft's composer is focused. */
 
-/** Panel × and Escape dismiss the panel (an empty draft is discarded); closing the chat itself is on its inline item. */
+/** Panel × dismisses the panel (an empty draft is discarded); closing the chat itself is on its inline item. */
 export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }: {
   thread: HostedThread;
   actions: ChatActions | null;
@@ -34,9 +33,7 @@ export function ChatDetails({ thread, actions, closed, reveal, onClose, onBack }
   return <ChatActionsContext.Provider value={actions}>
     <ClosedContext.Provider value={{ close: closed.close, reopen: closed.reopen, closedOn: new Map() }}>
       <CollapseContext.Provider value={{ collapsed: new Set(), toggle: () => {}, reveal }}>
-        <SidePanel className="review-detail-panel" title={`Chat · ${thread.messages.length}`} closeLabel="Close chat panel" testId="chat-panel" onClose={dismiss}
-          onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); dismiss(); } }}
-          onBack={onBack}>
+        <SidePanel className="review-detail-panel" title={`Chat · ${thread.messages.length}`} closeLabel="Close chat panel" testId="chat-panel" onClose={dismiss} onBack={onBack}>
           <ChatBody thread={thread} />
         </SidePanel>
       </CollapseContext.Provider>

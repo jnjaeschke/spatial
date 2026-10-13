@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { effectiveCollapsed, expandAllExplicit, toggleExplicit, type CollapseExplicit } from "../../src/web/collapse-state.ts";
+import { serializeCollapseState } from "../../src/web/collapse.ts";
 
 test("explicit collapse toggles override defaults across recomputation", () => {
   const defaults = new Set(["default"]);
@@ -23,4 +24,8 @@ test("explicit expansion persists and expand all clears effective collapse", () 
   assert.deepEqual(effectiveCollapsed(defaults, expanded), new Set(["b"]));
   const allExpanded = expandAllExplicit(defaults);
   assert.deepEqual(effectiveCollapsed(defaults, allExpanded), new Set());
+});
+
+test("collapse state serialization keeps both explicit sets", () => {
+  assert.equal(serializeCollapseState({ collapsed: new Set(["b", "a"]), expanded: new Set(["c"]) }), '{"collapsed":["b","a"],"expanded":["c"]}');
 });

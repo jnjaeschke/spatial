@@ -16,7 +16,7 @@ export function findComment(graph: Graph | null, id: string): Found | null {
   return null;
 }
 
-/** Closing the panel discards an unsaved draft. */
+/** Closing the panel or pressing Escape discards an unsaved draft. */
 export function CommentDetails({ comment, actions, onClose, onBack }: { comment: Found; actions: ChatActions | null; onClose(): void; onBack?(): void }) {
   const close = () => {
     const { draft } = comment.item;
@@ -24,9 +24,7 @@ export function CommentDetails({ comment, actions, onClose, onBack }: { comment:
     onClose();
   };
   return <ChatActionsContext.Provider value={actions}>
-    <SidePanel className="review-detail-panel" title="Comment" closeLabel="Close comment panel" testId="comment-panel" onClose={close}
-      onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); close(); } }}
-      onBack={onBack}>
+    <SidePanel className="review-detail-panel" title="Comment" closeLabel="Close comment panel" testId="comment-panel" onClose={close} onBack={onBack}>
       <UserCommentBox item={comment.item} diffId={comment.diffId} />
     </SidePanel>
   </ChatActionsContext.Provider>;

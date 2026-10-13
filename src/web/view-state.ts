@@ -7,6 +7,8 @@ export interface ViewState {
   guideStep: number | null;
 }
 
+export function viewStateStorageKey(sessionId: string): string { return `spatial:view:${sessionId}`; }
+
 /** A `ViewState` from untrusted data (storage or a history entry), or null when it has the wrong shape. */
 export function parseViewState(value: unknown): ViewState | null {
   if (typeof value !== "object" || value === null) return null;
@@ -19,12 +21,12 @@ export function parseViewState(value: unknown): ViewState | null {
 
 /** The user's viewport and guide position, kept per session in localStorage. */
 export function readViewState(sessionId: string): ViewState | null {
-  const value = localStorage.getItem(`spatial:view:${sessionId}`);
+  const value = localStorage.getItem(viewStateStorageKey(sessionId));
   return value ? parseViewState(JSON.parse(value)) : null;
 }
 
 export function saveViewState(sessionId: string, state: ViewState): void {
-  localStorage.setItem(`spatial:view:${sessionId}`, JSON.stringify(state));
+  localStorage.setItem(viewStateStorageKey(sessionId), JSON.stringify(state));
 }
 
 export function clampGuideStep(step: number | null, count: number): number | null {

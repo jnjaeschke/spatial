@@ -157,6 +157,18 @@ export function addNotes(g: Graph, state: SessionState, nodeIds: Set<string>): v
 /** Hosts threads anchored on a node with hosted threads inside that node and adds nodes for the remaining chats and all asides; unresolvable anchors are skipped. */
 export function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf: Map<string, string>, nodeIds: Set<string>, resolve: (anchor: Ref) => string | null, diffId: string, hunks: ChatNodeData["hunks"]): void {
   const byMessage = diagramsByMessage(g, state);
+  const addChat = (id: string, node: string, hosted: HostedThread, data: ChatNodeData) => {
+    const host = data.aside ? undefined : g.nodes.find((item) => item.id === node && hostedThreads(item.data));
+    if (host) {
+      hostedThreads(host.data)!.push(hosted);
+      hostOf.set(id, host.id);
+      nodeIds.add(id);
+      return;
+    }
+    nodeIds.add(id);
+    g.nodes.push({ id, anchors: [node], data });
+    g.edges.push({ id: `${id}->${node}`, source: id, target: node });
+  };
   const threads = state.artifacts.filter((a) => a.type === "ChatThread") as Artifact<ChatThreadData>[];
   const start = latestStart(state);
   const root = start && rootThread(state, start.id);
@@ -164,31 +176,20 @@ export function addChats(g: Graph, state: SessionState, drafts: Draft[], hostOf:
     if (hostOf.has(thread.id) || thread === root) continue;
     const node = resolve(thread.data.anchor);
     if (!node) continue;
-    const host = thread.data.aside ? undefined : g.nodes.find((item) => item.id === node && hostedThreads(item.data));
-    if (host) {
-      hostedThreads(host.data)!.push({ ...threadContent(state, thread, byMessage), anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, diffId, hunks, draftId: null });
-      hostOf.set(thread.id, host.id);
-      nodeIds.add(thread.id);
-      continue;
-    }
-    nodeIds.add(thread.id);
-    g.nodes.push({ id: thread.id, anchors: [node], data: { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, aside: thread.data.aside, foldsToQuote: true, diffId, hunks, ...threadContent(state, thread, byMessage), draftId: null } });
-    g.edges.push({ id: `${thread.id}->${node}`, source: thread.id, target: node });
+    const content = threadContent(state, thread, byMessage);
+    addChat(thread.id, node,
+      { ...content, anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, diffId, hunks, draftId: null },
+      { kind: "chat", anchor: thread.data.anchor, quote: thread.data.quote, lines: thread.data.lines, aside: thread.data.aside, foldsToQuote: true, diffId, hunks, ...content, draftId: null });
   }
   for (const draft of drafts) {
     if (draft.kind === "comment") continue;
     if (draft.taskId && threads.some((thread) => thread.provenance.taskId === draft.taskId)) continue;
     const node = resolve(draft.anchor);
     if (!node) continue;
-    const host = draft.aside ? undefined : g.nodes.find((item) => item.id === node && hostedThreads(item.data));
-    if (host) {
-      hostedThreads(host.data)!.push({ threadId: null, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [], anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId, hunks, draftId: draft.id });
-      hostOf.set(draft.id, host.id);
-      nodeIds.add(draft.id);
-      continue;
-    }
-    g.nodes.push({ id: draft.id, anchors: [node], data: { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, aside: draft.aside, diffId, hunks, threadId: null, draftId: draft.id, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] } });
-    g.edges.push({ id: `${draft.id}->${node}`, source: draft.id, target: node });
+    const content = { threadId: null, taskId: draft.taskId ?? null, messages: [], revisions: {}, mcpRequests: [] };
+    addChat(draft.id, node,
+      { ...content, anchor: draft.anchor, quote: draft.quote, lines: draft.lines, diffId, hunks, draftId: draft.id },
+      { kind: "chat", anchor: draft.anchor, quote: draft.quote, lines: draft.lines, aside: draft.aside, diffId, hunks, ...content, draftId: draft.id });
   }
 }
 
