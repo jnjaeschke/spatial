@@ -118,7 +118,7 @@ function ResizableNode(props: NodeProps) {
     />}
   </>;
 }
-export interface CanvasProps { state: SessionState; model: CanvasModel; /** Key of the canvas's client view state (viewport, free positions, sizes, collapsed and closed nodes); default the session id. */ viewKey?: string; closed?: ReturnType<typeof useClosed>; models?: ModelsResponse | null; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
+export interface CanvasProps { state: SessionState; model: CanvasModel; /** Key of the canvas's client view state (viewport, free positions, sizes, collapsed and closed nodes); default the session id. */ viewKey?: string; closed?: ReturnType<typeof useClosed>; models?: ModelsResponse | null; readOnly?: boolean; drafts?: Draft[]; onSent?(draftId: string, taskId: string): void; onDiscard?(draftId: string): void; onOpenAside?(draft: Draft, position: { x: number; y: number }): void }
 const NO_DRAFTS: Draft[] = [];
 const ARROW_PAN: Record<string, { x: number; y: number }> = {
   ArrowUp: { x: 0, y: -80 }, ArrowDown: { x: 0, y: 80 }, ArrowLeft: { x: -80, y: 0 }, ArrowRight: { x: 80, y: 0 },
@@ -132,7 +132,7 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed, models = null, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
+function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed, models = null, readOnly = false, drafts = NO_DRAFTS, onSent = () => {}, onDiscard = () => {}, onOpenAside = () => {} }: CanvasProps) {
   const viewKey = viewKeyProp ?? state.session.id;
   const nodeKinds = useContext(NodeKindsContext);
   const inlineStates = useContext(InlineStatesContext);
@@ -154,8 +154,8 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
   const focusDraft = useRef<string | null>(null);
   const knownDrafts = useRef(new Set<string>());
   const knownRevealed = useRef<Set<string> | null>(null);
-  const chatActions = useMemo(() => models ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
-    [models, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
+  const chatActions = useMemo(() => models && !readOnly ? { models, sessionId: state.session.id, tasks: state.tasks, onSent, onDiscard: (id: string) => { removeFreePosition(id); onDiscard(id); }, onNote: (draftId: string, noteId: string) => { moveFreePosition(draftId, noteId); onDiscard(draftId); } } : null,
+    [models, readOnly, state.session.id, state.tasks, onSent, onDiscard, removeFreePosition, moveFreePosition]);
   const ownClosed = useClosed(viewKey);
   const { closed: closedIds, close, reopen } = sharedClosed ?? ownClosed;
   const { hidden: hiddenLayers, toggle: toggleLayer } = useLayers(model.layers?.list.map((layer) => layer.id) ?? []);
@@ -852,7 +852,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
 
   return (
     <ChatActionsContext.Provider value={chatActions}>
-    <Provider state={state} graph={graph} readOnly={!models} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" data-place={place ?? undefined} tabIndex={-1} style={{ width: "100%", height: "100%" }} onKeyDown={placeKeys} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step, button.focus-crumb")) setFocusedRow(null); }}>
+    <Provider state={state} graph={graph} readOnly={!chatActions} reveal={reveal} focusRow={focusRow}><div ref={container} className="canvas" data-place={place ?? undefined} tabIndex={-1} style={{ width: "100%", height: "100%" }} onKeyDown={placeKeys} onClickCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest("button.sequence-step, button.focus-crumb")) setFocusedRow(null); }}>
     {steps.length > 0 && <GuideBar steps={steps} step={guideStep} start={start} canToggle={!!chatActions} onMove={moveGuide} onToggle={toggleReviewed} />}
     <ClosedContext.Provider value={closedValue}>
     <CollapseContext.Provider value={{ collapsed, toggle, reveal }}>

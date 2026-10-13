@@ -2,6 +2,6 @@ import { Canvas, conversationGraph, type CanvasModel, type PhaseViewProps } from
 
 const chatCanvas: CanvasModel = { graph: conversationGraph };
 
-export function ChatView({ state, models, drafts, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
-  return <Canvas model={chatCanvas} state={state} models={models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} />;
+export function ChatView({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
+  return <Canvas model={chatCanvas} state={state} models={models} readOnly={readOnly} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} />;
 }

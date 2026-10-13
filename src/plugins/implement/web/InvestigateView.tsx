@@ -7,7 +7,7 @@ const investigationCanvas: CanvasModel = { graph: investigationGraph, collapsedB
 /** The investigation canvas; before the Investigation exists there is nothing to draw. */
 export function InvestigationCanvas({ state, models, drafts, readOnly = false, onSent, onDiscard, onOpenAside }: PhaseViewProps) {
   return latestInvestigation(state)
-    ? <Canvas model={investigationCanvas} state={state} models={readOnly ? null : models} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} />
+    ? <Canvas model={investigationCanvas} state={state} models={models} readOnly={readOnly} drafts={drafts} onSent={onSent} onDiscard={onDiscard} onOpenAside={onOpenAside} />
     : <p className="empty" data-testid="investigation-pending">Waiting for the investigation…</p>;
 }
 

@@ -64,6 +64,12 @@
 
 ***
 
+### readOnly?
+
+> `optional` **readOnly?**: `boolean`
+
+***
+
 ### state
 
 > **state**: [`SessionState`](../../../shared/types/interfaces/SessionState.md)

@@ -59,6 +59,9 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(page.getByTestId("investigation-location")).toHaveCount(1);
   await expect(page.getByTestId("investigation-tests")).toContainText("Test cases (1)");
   await expect(page.getByTestId("investigation-tests").getByText("c exists")).toHaveCount(0);
+  await step.locator("p").first().dblclick();
+  await page.locator(".ask-selection").getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".react-flow__node-chat").getByLabel("message")).toBeVisible();
   await expect(page.getByTestId("session-decision")).toContainText("Approve the investigation plan?");
   await expect(page.getByTestId("session-popover").locator(".messages .msg.decision")).toHaveCount(1);
 
@@ -68,6 +71,10 @@ test("implement: investigate, approve, implement, automatic fix round, revise, a
   await expect(page.getByTestId("epoch-chip-3")).toContainText("Fix (rule)", { timeout: 60_000 });
   await expect(bar).toContainText("The self-review is done", { timeout: 60_000 });
 
+  await page.getByTestId("epoch-chip-1").click();
+  await expect(investigation).toBeVisible();
+  await expect(page.locator(".react-flow__node-chat")).toHaveCount(1);
+  await expect(page.locator(".react-flow__node-chat").getByLabel("message")).toHaveCount(0);
   await page.getByTestId("epoch-chip-2").click();
   await page.getByTestId("command-summary").click();
   const log = page.getByRole("dialog", { name: "implement activity" });
