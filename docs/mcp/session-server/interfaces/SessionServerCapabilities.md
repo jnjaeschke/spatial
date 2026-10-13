@@ -6,15 +6,9 @@
 
 # Interface: SessionServerCapabilities
 
-Capabilities plugin tools run with; the server process builds them from its flags.
+Capabilities plugin tools run with; the server process builds the services from its environment.
 
 ## Properties
-
-### codeSearch
-
-> **codeSearch**: `Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../../runtime/code-search/interfaces/CodeSearch.md)\>
-
-***
 
 ### knowledge
 
@@ -22,6 +16,6 @@ Capabilities plugin tools run with; the server process builds them from its flag
 
 ***
 
-### webspec
+### services
 
-> **webspec**: [`WebspecCapability`](../../../runtime/tasks/interfaces/WebspecCapability.md)
+> **services**: `Readonly`\<`Record`\<`string`, `unknown`\>\>

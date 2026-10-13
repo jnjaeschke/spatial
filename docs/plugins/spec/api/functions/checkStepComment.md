@@ -15,7 +15,7 @@ only when the comment text clearly describes another step (`describedStep`); a s
 
 ### check
 
-[`StepCommentCheck`](../../../../runtime/tasks/interfaces/StepCommentCheck.md)
+[`StepCommentCheck`](../../runtime/webspec/interfaces/StepCommentCheck.md)
 
 ### spec
 

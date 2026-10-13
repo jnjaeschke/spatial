@@ -72,6 +72,12 @@ Contributions of a plugin list merged by `pluginRegistry`, which throws on dupli
 
 ***
 
+### readOnlyCommands
+
+> **readOnlyCommands**: `string`[]
+
+***
+
 ### repoProfiles
 
 > **repoProfiles**: `Map`\<`string`, [`RepoProfile`](RepoProfile.md)\>

@@ -5,13 +5,16 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type StepCommentCheck, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
+import type { SearchfoxCapability } from "../../../../src/plugins/spec/runtime/searchfox.ts";
+import type { StepCommentCheck, WebspecCapability } from "../../../../src/plugins/spec/runtime/webspec.ts";
 import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { SpecReferenceData } from "../../../../src/plugins/spec/api.ts";
 import type { DiffData, DiffLine } from "../../../../src/shared/types.ts";
 
 import { resolveSpecRefs } from "../../../../src/plugins/review/tasks/resolve-spec-refs/task.ts";
+import { specTestServices } from "../../../helpers/spec-services.ts";
 
 const CANON = "https://html.spec.whatwg.org/#navigate";
 const webspecFor = (failing?: string, checks: StepCommentCheck[] = [], analyzed: string[] = []): WebspecCapability => ({
@@ -63,7 +66,7 @@ function setup(opts: { gecko: boolean; searchfoxFails?: boolean; webspecFails?: 
     },
     async wordsAt() { return new Set(); },
   };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [resolveSpecRefs] }], llm: {} as LlmService, git: () => git, webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [resolveSpecRefs] }], llm: {} as LlmService, git: () => git, services: specTestServices({ webspec: webspecFor(opts.webspecFails, opts.checks, analyzed), searchfox }) });
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "t" });
   const change = (id: string, specUrls: string[]) => ({ id, title: id, explanation: "e", rationale: "r", hunkIds: [], dependsOn: [], specUrls });
   const diff: DiffData = {

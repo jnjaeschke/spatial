@@ -35,7 +35,7 @@ Everything a user works on is a plugin; review and chat are the standard library
   kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
   pick one per session; any plugin can add one.
 - The **knowledge store** (`Runtime.knowledge`, `Knowledge`) keeps plugin data across sessions in its own SQLite file (`knowledge.db` next to the session database): versioned entries by scope, namespace and key. A `null` value is a tombstone; nothing is deleted through any API. Tasks read it through `TaskContext.knowledge` (read-only); plugin runtime code writes.
-- **Code search** (`Runtime.codeSearch`, `TaskContext.codeSearch`, `CodeSearch`): spec links, enclosing functions, file reads and the revision per engine (Gecko and WebKit through searchfox, Blink through chromium-search and a brace scan).
+- **Services** (`Plugin.services`, `Runtime.services`, `TaskContext.services`, `McpToolContext.services`): a plugin builds its capabilities (tool binaries) from the process environment once per process; the runtime and the session MCP server build them the same way, and `RuntimeOptions.services` overrides them per plugin id (tests). A plugin reads its own through a typed accessor such as `specServices`.
 
 The web side of a plugin registers phase views and canvas node kinds through
 `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
@@ -70,8 +70,6 @@ composition roots.
 
 ## Variables
 
-- [ENGINE\_LABEL](variables/ENGINE_LABEL.md)
-- [ENGINES](variables/ENGINES.md)
 - [runGit](variables/runGit.md)
 
 ## Functions
@@ -167,18 +165,6 @@ Re-exports [CodeLinksData](../shared/types/interfaces/CodeLinksData.md)
 
 ***
 
-### CodeScope
-
-Re-exports [CodeScope](../shared/types/interfaces/CodeScope.md)
-
-***
-
-### CodeSearch
-
-Re-exports [CodeSearch](../runtime/code-search/interfaces/CodeSearch.md)
-
-***
-
 ### CommandRunData
 
 Re-exports [CommandRunData](../shared/types/interfaces/CommandRunData.md)
@@ -212,12 +198,6 @@ Re-exports [DecisionData](../shared/types/interfaces/DecisionData.md)
 ### DecisionOption
 
 Re-exports [DecisionOption](../shared/types/interfaces/DecisionOption.md)
-
-***
-
-### declarationAt
-
-Re-exports [declarationAt](../runtime/brace-scan/functions/declarationAt.md)
 
 ***
 
@@ -275,18 +255,6 @@ Re-exports [DirectoryListing](../shared/types/interfaces/DirectoryListing.md)
 
 ***
 
-### enclosingFunction
-
-Re-exports [enclosingFunction](../runtime/brace-scan/functions/enclosingFunction.md)
-
-***
-
-### Engine
-
-Re-exports [Engine](../shared/types/type-aliases/Engine.md)
-
-***
-
 ### Epoch
 
 Re-exports [Epoch](../shared/types/interfaces/Epoch.md)
@@ -302,18 +270,6 @@ Re-exports [EpochStatus](../shared/types/type-aliases/EpochStatus.md)
 ### FileStatus
 
 Re-exports [FileStatus](../shared/types/type-aliases/FileStatus.md)
-
-***
-
-### functionsIn
-
-Re-exports [functionsIn](../runtime/brace-scan/functions/functionsIn.md)
-
-***
-
-### GeckoSpecRef
-
-Re-exports [GeckoSpecRef](../shared/types/interfaces/GeckoSpecRef.md)
 
 ***
 
@@ -452,12 +408,6 @@ Re-exports [LogRow](../shared/types/interfaces/LogRow.md)
 ### LogScope
 
 Re-exports [LogScope](../shared/types/type-aliases/LogScope.md)
-
-***
-
-### makeChromiumSearch
-
-Re-exports [makeChromiumSearch](../runtime/chromium-search/functions/makeChromiumSearch.md)
 
 ***
 
@@ -629,12 +579,6 @@ Re-exports [requireSession](../server/http/functions/requireSession.md)
 
 ***
 
-### ResolvedSpec
-
-Re-exports [ResolvedSpec](../shared/types/interfaces/ResolvedSpec.md)
-
-***
-
 ### RevisionData
 
 Re-exports [RevisionData](../shared/types/interfaces/RevisionData.md)
@@ -677,12 +621,6 @@ Re-exports [runWorkflow](../workflows/start/functions/runWorkflow.md)
 
 ***
 
-### ScannedFunction
-
-Re-exports [ScannedFunction](../runtime/brace-scan/interfaces/ScannedFunction.md)
-
-***
-
 ### schemaErrors
 
 Re-exports [schemaErrors](../runtime/structured/functions/schemaErrors.md)
@@ -698,12 +636,6 @@ Re-exports [SearchDoc](../runtime/render-ref/interfaces/SearchDoc.md)
 ### searchDocs
 
 Re-exports [searchDocs](../runtime/render-ref/functions/searchDocs.md)
-
-***
-
-### SearchfoxCapability
-
-Re-exports [SearchfoxCapability](../runtime/tasks/interfaces/SearchfoxCapability.md)
 
 ***
 
@@ -773,60 +705,6 @@ Re-exports [SessionView](../runtime/render-ref/interfaces/SessionView.md)
 
 ***
 
-### SpecEffect
-
-Re-exports [SpecEffect](../shared/types/interfaces/SpecEffect.md)
-
-***
-
-### SpecEffectPaths
-
-Re-exports [SpecEffectPaths](../shared/types/interfaces/SpecEffectPaths.md)
-
-***
-
-### SpecEffectsStatus
-
-Re-exports [SpecEffectsStatus](../shared/types/interfaces/SpecEffectsStatus.md)
-
-***
-
-### SpecHop
-
-Re-exports [SpecHop](../shared/types/interfaces/SpecHop.md)
-
-***
-
-### SpecIdlMember
-
-Re-exports [SpecIdlMember](../shared/types/interfaces/SpecIdlMember.md)
-
-***
-
-### SpecSearchResult
-
-Re-exports [SpecSearchResult](../shared/types/interfaces/SpecSearchResult.md)
-
-***
-
-### SpecSection
-
-Re-exports [SpecSection](../shared/types/interfaces/SpecSection.md)
-
-***
-
-### SpecSite
-
-Re-exports [SpecSite](../shared/types/interfaces/SpecSite.md)
-
-***
-
-### specUrlParts
-
-Re-exports [specUrlParts](../runtime/code-search/functions/specUrlParts.md)
-
-***
-
 ### StartInput
 
 Re-exports [StartInput](../runtime/plugins/interfaces/StartInput.md)
@@ -848,12 +726,6 @@ Re-exports [startTask](../server/http/functions/startTask.md)
 ### Step
 
 Re-exports [Step](../runtime/plugins/type-aliases/Step.md)
-
-***
-
-### StepCommentCheck
-
-Re-exports [StepCommentCheck](../runtime/tasks/interfaces/StepCommentCheck.md)
 
 ***
 
@@ -932,18 +804,6 @@ Re-exports [verifyDiagramAtBase](../runtime/diagram/functions/verifyDiagramAtBas
 ### verifySequence
 
 Re-exports [verifySequence](../runtime/diagram/functions/verifySequence.md)
-
-***
-
-### WebspecCapability
-
-Re-exports [WebspecCapability](../runtime/tasks/interfaces/WebspecCapability.md)
-
-***
-
-### WebspecLookup
-
-Re-exports [WebspecLookup](../runtime/tasks/type-aliases/WebspecLookup.md)
 
 ***
 

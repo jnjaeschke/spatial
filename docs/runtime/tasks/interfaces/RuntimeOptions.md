@@ -8,14 +8,6 @@
 
 ## Properties
 
-### codeSearch?
-
-> `optional` **codeSearch?**: `Partial`\<`Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>\>
-
-Code search per engine; Gecko defaults to `searchfox`, engines without a tool to a code search that fails every call.
-
-***
-
 ### git
 
 > **git**: (`repo`) => [`GitCapability`](GitCapability.md)
@@ -88,9 +80,11 @@ MCP servers for LLM work in a repository before any session exists.
 
 ***
 
-### searchfox
+### services?
 
-> **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)
+> `optional` **services?**: `Record`\<`string`, `unknown`\>
+
+Per-plugin-id service objects that replace what `Plugin.services` would build (tests).
 
 ***
 
@@ -113,9 +107,3 @@ MCP servers for LLM work in a repository before any session exists.
 ### store
 
 > **store**: [`Store`](../../store/classes/Store.md)
-
-***
-
-### webspec
-
-> **webspec**: [`WebspecCapability`](WebspecCapability.md)

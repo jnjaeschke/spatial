@@ -6,6 +6,7 @@ import { searchSpecs } from "./tasks/search-specs/task.ts";
 import { loadEffectPath } from "./tasks/load-effect-path/task.ts";
 import { summarizeAlgorithm } from "./tasks/summarize-algorithm/task.ts";
 import { verifySummary } from "./tasks/verify-summary/task.ts";
+import { specServicesFromEnv, SPEC_READ_ONLY_COMMANDS } from "./runtime/services.ts";
 import { specRoutes } from "./server/routes.ts";
 import { specExploreField } from "./runtime/explore-field.ts";
 import { mapEngine } from "./tasks/map-engine/task.ts";
@@ -20,4 +21,4 @@ import { verifyTraceNotes } from "./tasks/verify-trace-notes/task.ts";
 import { checkTrace } from "./tasks/check-trace/task.ts";
 
 /** Web spec exploration: spec references, algorithms, traces and summaries. */
-export const specPlugin = definePlugin({ id: "spec", workflows: [exploreWorkflow], phases: [explorePhase], tasks: [loadSpecAlgorithm, searchSpecs, loadEffectPath, summarizeAlgorithm, verifySummary, mapEngine, findImplementation, alignSteps, compareAlgorithm, compareEngines, verifyComparison, traceSpec, verifyTraceNotes, checkTrace], artifactKinds, searchKinds, chatReplyFields: [specExploreField], mcpTools: specMcpTools, server: (rt) => ({ routes: specRoutes(rt) }) });
+export const specPlugin = definePlugin({ id: "spec", workflows: [exploreWorkflow], phases: [explorePhase], tasks: [loadSpecAlgorithm, searchSpecs, loadEffectPath, summarizeAlgorithm, verifySummary, mapEngine, findImplementation, alignSteps, compareAlgorithm, compareEngines, verifyComparison, traceSpec, verifyTraceNotes, checkTrace], artifactKinds, searchKinds, chatReplyFields: [specExploreField], mcpTools: specMcpTools, services: specServicesFromEnv, readOnlyCommands: SPEC_READ_ONLY_COMMANDS, server: (rt) => ({ routes: specRoutes(rt) }) });

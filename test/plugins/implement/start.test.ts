@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
@@ -19,7 +19,7 @@ function setup() {
   const repo = makeRepo();
   const base = repo.commit({ "a.txt": "1\n" }, "base");
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const start = (input: object) => rt.run<{ branchId: string }>(session.id, "implementStart", input);
   return { repo, base, store, rt, session, start };

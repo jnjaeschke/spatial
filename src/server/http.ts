@@ -12,8 +12,8 @@ import { groupByRepo, recentFirst, repoName } from "../shared/repos.ts";
 import { isActive } from "../shared/task-state.ts";
 import { workflowInfo } from "../workflows/registry.ts";
 import { startSession, type PendingStart, type StartRequest } from "../workflows/start.ts";
-import { isGeckoRepo } from "../runtime/searchfox.ts";
-import { resolveCodeLinks } from "../runtime/code-links.ts";
+import { isGeckoRepo } from "../runtime/gecko-repo.ts";
+import { resolveCodeLinks, searchfoxOf } from "../runtime/code-links.ts";
 import { selectLinkRev } from "../runtime/link-rev.ts";
 import { meteredRuns } from "../runtime/usage.ts";
 
@@ -229,7 +229,7 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/state$/, async ({ params }) => {
       requireSession(rt, params[0]);
-      return await buildSessionState(rt.store, rt.searchfox, rt.plugins, params[0]);
+      return await buildSessionState(rt.store, searchfoxOf(rt), rt.plugins, params[0]);
     }],
     ["POST", /^\/api\/sessions\/([^/]+)\/code-links$/, async ({ req, res, params }) => {
       const session = requireSession(rt, params[0]!);
@@ -246,10 +246,10 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const missing = [...new Set(body.tokens as string[])].filter((token) => !Object.hasOwn(prior, token));
       let added: Record<string, string | null> = {};
       if (missing.length) {
-        const tip = await rt.searchfox.tip();
+        const tip = await searchfoxOf(rt).tip();
         added = await resolveCodeLinks({
           git: (args) => runGit(session.worktree, args),
-          searchfox: rt.searchfox, repoBase: tip.repoBase, rev,
+          searchfox: searchfoxOf(rt), repoBase: tip.repoBase, rev,
           diffPaths: (diff?.data as DiffData | undefined)?.files.map((file) => file.path) ?? [],
         }, missing);
         if (Object.keys(added).length) {

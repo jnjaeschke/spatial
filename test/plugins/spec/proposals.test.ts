@@ -8,12 +8,13 @@ import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { startSearch, storedMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
 import { routeCall } from "../../helpers/route-call.ts";
 import { CANDIDATE, NAVIGATE, NAVIGATE_SITE, mapping, searchfox } from "./gecko-fakes.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 const KEY = `docshell/base/BrowsingContext.cpp|${NAVIGATE_SITE.symbol}`;
 
@@ -23,7 +24,7 @@ function setup() {
   const llm = { defaultSelection: DEFAULT, async run(selection: LlmSelection | undefined) { await gate.hold; return { text: "", json: { candidates: gate.candidates }, providerSessionId: "p", selection: selection ?? DEFAULT }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService;
   const fakeWebspec = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
   const webspec = { ...fakeWebspec, async query(ref: string) { const anchor = ref.split("#")[1]!; return { found: true as const, section: { spec: "HTML", anchor, title: anchor, type: "algorithm", url: `https://html.spec.whatwg.org/#${anchor}`, content: "1. Edit the line.\n2. Add the file.", outgoingRefs: 0, effects: [], effectsStatus: { state: "ready" as const, semantics: "may" as const, issues: [], omitted: 0 }, sha: `fake-${anchor}` } }; }, async effectPaths() { return { effects: [], explanations: [] }; }, async refs() { return { incoming: [], outgoing: [] }; } };
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm, git: () => ({}) as GitCapability, webspec, searchfox, knowledge: new KnowledgeStore(":memory:") });
+  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm, git: () => ({}) as GitCapability, services: specTestServices({ webspec, searchfox }), knowledge: new KnowledgeStore(":memory:") });
   const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = (value: EngineMapping) => rt.knowledge.put("global", "spec", "impl|gecko|HTML#setup", value, { by: "plugin", sessionId: session.id });
   const entry = () => { const read = rt.knowledge.get("global", "spec", "impl|gecko|HTML#setup"); if (read.state !== "current") throw new Error(`mapping is ${read.state}`); return read.entry; };

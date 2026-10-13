@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { HoverCard, promiseCache, useHoverCard } from "../../../web/plugin-api.ts";
-import type { Engine } from "../../../plugin-api.ts";
+import type { Engine } from "../shared/types.ts";
 import { specClient } from "./client.ts";
 
 type Lines = { start: number; at: number | null; lines: string[] };

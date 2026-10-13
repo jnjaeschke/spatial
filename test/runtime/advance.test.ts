@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type Phase, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability, type Phase } from "../../src/runtime/tasks.ts";
 import type { Step, Workflow } from "../../src/runtime/plugins.ts";
 import { renderRef, type WorkflowView } from "../../src/runtime/render-ref.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
@@ -21,7 +21,7 @@ function setup(next?: (view: WorkflowView) => Step | null, follow?: Phase<unknow
   const calls: string[] = [];
   const phase = (id: string): Phase<unknown> => ({ id, async run() { calls.push(id); if (id === "boom") throw new Error("kaput"); }, ...((id === "a" || id === "boom") && follow ? { next: follow } : {}) });
   const flow: Workflow<Record<string, never>> = { id: "flow", description: "d", argHint: "", params: z.strictObject({}), parseArgs: () => ({ ok: true, params: {} }), async start() {}, ...(next ? { next } : {}) };
-  const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [flow], phases: [phase("a"), phase("b"), phase("boom")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [flow], phases: [phase("a"), phase("b"), phase("boom")] }], llm, git: () => ({}) as GitCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "flow" });
   return { store, rt, session, calls };
 }

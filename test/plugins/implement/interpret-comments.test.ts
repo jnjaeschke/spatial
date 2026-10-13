@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
@@ -25,7 +25,7 @@ function setup(json: unknown, knowledge?: KnowledgeStore) {
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability, ...(knowledge ? { knowledge } : {}) });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: makeGit, ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "comments" });
   const add = (data: PhabCommentData) => store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data, provenance: { taskId: "test" } });
   const first = add({ revision: 7, phid: "PHID-XCMT-1", version: 1, author: "alice", bot: false, byMe: false, body: "Please name the constant.", path: "dom/a.cpp", line: 12, length: 1, quote: "const int kMax = 20;", diffId: 70, isNewFile: true, own: false, done: false, txId: 1, dateCreated: 1 });

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
 import type { Workflow } from "../../src/runtime/plugins.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { LlmSelection, Session, StartQuestion, WorkflowStartData } from "../../src/shared/types.ts";
@@ -32,7 +32,7 @@ const llm: LlmService = {
 const repo = makeRepo();
 repo.commit({ "a.txt": "1\n" }, "base");
 const store = new Store(":memory:");
-const rt = new Runtime({ store, plugins: [corePlugin, chatPlugin, { id: "t", workflows: [gated] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+const rt = new Runtime({ store, plugins: [corePlugin, chatPlugin, { id: "t", workflows: [gated] }], llm, git: () => ({}) as GitCapability });
 async function waitFor<T>(fn: () => T | undefined, ms = 5000): Promise<T> {
   const end = Date.now() + ms;
   while (Date.now() < end) { const value = fn(); if (value !== undefined) return value; await new Promise((resolve) => setTimeout(resolve, 20)); }

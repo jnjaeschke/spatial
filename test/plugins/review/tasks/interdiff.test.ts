@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import type { DiffData } from "../../../../src/shared/types.ts";
 import { interdiff } from "../../../../src/plugins/review/tasks/interdiff/task.ts";
 import type { LlmService } from "../../../../src/runtime/llm/types.ts";
@@ -10,7 +10,7 @@ test("interdiff task records verified artifact and about link", async () => {
   const store = new Store(":memory:");
   const repo = "/repo";
   const session = store.createSession({ worktree: repo, repoDir: `${repo}/.git`, title: "test" });
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [interdiff] }], llm: {} as LlmService, git: () => ({ diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }) } as unknown as GitCapability), webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [interdiff] }], llm: {} as LlmService, git: () => ({ diff: async () => "", replay: async () => ({ tree: "T", conflicts: [] }) } as unknown as GitCapability) });
   const data: DiffData = { baseSha: "B", headSha: "H", commits: [], files: [] };
   const from = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data, provenance: { taskId: "seed" } });
   const to = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { ...data, headSha: "H2" }, provenance: { taskId: "seed" } });

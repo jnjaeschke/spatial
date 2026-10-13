@@ -15,6 +15,5 @@
 
 - [createRuntime](functions/createRuntime.md)
 - [defaultDbPath](functions/defaultDbPath.md)
-- [makeCodeSearch](functions/makeCodeSearch.md)
 - [repoServerSpec](functions/repoServerSpec.md)
 - [sessionServerSpec](functions/sessionServerSpec.md)

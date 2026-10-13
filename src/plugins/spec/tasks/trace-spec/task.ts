@@ -1,4 +1,5 @@
-import { defineTask, ENGINES, runStructured, type Id, type JsonSchema } from "../../../../plugin-api.ts";
+import { defineTask, runStructured, type Id, type JsonSchema } from "../../../../plugin-api.ts";
+import { ENGINES } from "../../shared/engines.ts";
 import { TRACE_HOPS, type GeneratedTrace, type SpecAlgorithmData, type SpecTraceData, type TraceQuestion } from "../../shared/types.ts";
 import { latestTraces } from "../../shared/traces.ts";
 import { isSpecRef } from "../../shared/refs.ts";

@@ -6,7 +6,7 @@
 
 # Function: stepComments()
 
-> **stepComments**(`webspec`, `path`, `text`, `added`, `signal`): `Promise`\<[`StepCommentCheck`](../../../../runtime/tasks/interfaces/StepCommentCheck.md)[]\>
+> **stepComments**(`webspec`, `path`, `text`, `added`, `signal`): `Promise`\<[`StepCommentCheck`](../../runtime/webspec/interfaces/StepCommentCheck.md)[]\>
 
 webspec-index's checks of a file's Step comments; none (and no analysis) unless an `added` line (1-based) looks like one.
 
@@ -14,7 +14,7 @@ webspec-index's checks of a file's Step comments; none (and no analysis) unless 
 
 ### webspec
 
-[`WebspecCapability`](../../../../runtime/tasks/interfaces/WebspecCapability.md)
+[`WebspecCapability`](../../runtime/webspec/interfaces/WebspecCapability.md)
 
 ### path
 
@@ -34,4 +34,4 @@ webspec-index's checks of a file's Step comments; none (and no analysis) unless 
 
 ## Returns
 
-`Promise`\<[`StepCommentCheck`](../../../../runtime/tasks/interfaces/StepCommentCheck.md)[]\>
+`Promise`\<[`StepCommentCheck`](../../runtime/webspec/interfaces/StepCommentCheck.md)[]\>

@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, ENGINES, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow, InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
-import type { Engine } from "../../../plugin-api.ts";
+import { Canvas, SequenceDiagram, Segmented, TopbarExtras, useClosed, type CanvasModel, type CanvasProviderProps, type PhaseViewProps, type SequenceArrow, InlineStatesContext, useDraftInlineStates, useInlineStates } from "../../../web/plugin-api.ts";
+import { ENGINES } from "../shared/engines.ts";
+import type { Engine } from "../shared/types.ts";
 import type { EngineMapping, SpecAlgorithmData, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../shared/types.ts";
 import { engineTasks } from "../shared/engine.ts";
 import { appendStep, currentCheck, latestTraces, traceSequence, traceStatus, type TraceRow } from "../shared/traces.ts";

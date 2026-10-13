@@ -1,11 +1,10 @@
 import type {  ReviewFindingData , PatchNarrativeData } from "../../shared/types.ts";
-import type { SpecReferenceData } from "../../../spec/api.ts";
-import {type DiffData, type ResolvedSpec, defineTask, type StepCommentCheck} from "../../../../plugin-api.ts";
+import type { ResolvedSpec, SpecReferenceData, StepCommentCheck } from "../../../spec/api.ts";
+import {type DiffData, defineTask} from "../../../../plugin-api.ts";
 import { findingStates } from "../../shared/findings.ts";
-import { parseSteps, checkStepComment, stepComments } from "../../../spec/api.ts";
+import { parseSteps, checkStepComment, stepComments, lookupSpec, specReferenceData, specServices } from "../../../spec/api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
 import { specUrlsNear } from "./cited.ts";
-import { lookupSpec, specReferenceData } from "../../../spec/api.ts";
 
 /** Resolves the spec URLs cited near changed code or proposed by the narrative into `SpecReference` artifacts, and reports Step comments on added lines that webspec-index finds do not match their algorithm as `ReviewFinding`s (no LLM). `stepCheckErrors` lists files whose check failed. */
 export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds: string[]; findingIds: string[]; stepCheckErrors: string[] }>({
@@ -44,7 +43,7 @@ export const resolveSpecRefs = defineTask<{ narrativeId: string }, { specRefIds:
       }
       if (addedIn.size === 0) continue;
       try {
-        for (const check of await stepComments(ctx.webspec, file.path, text, addedIn.keys(), ctx.signal)) {
+        for (const check of await stepComments(specServices(ctx).webspec, file.path, text, addedIn.keys(), ctx.signal)) {
           const hunkId = addedIn.get(check.line);
           if (hunkId) stepCommentRecords.push({ check, path: file.path, hunkId, quote: lines[check.line - 1]!.trim() });
         }

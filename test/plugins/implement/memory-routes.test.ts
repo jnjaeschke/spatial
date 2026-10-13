@@ -15,7 +15,7 @@ const memory = (over: Partial<SteerMemory> = {}): SteerMemory => ({ situation: "
 function setup() {
   const store = new Store(":memory:");
   const knowledge = new KnowledgeStore(":memory:");
-  const rt = new Runtime({ store, plugins: [], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never, knowledge });
+  const rt = new Runtime({ store, plugins: [], llm: {} as LlmService, git: () => ({}) as GitCapability, knowledge });
   const session = store.createSession({ worktree: "/repo", repoDir: REPO, title: "t", workflow: "implement" });
   const entry = knowledge.put(REPO, "implement", memoryKey("name-helpers"), memory(), { by: "llm", taskId: "T", sessionId: session.id });
   const notice = store.putArtifact({ sessionId: session.id, type: "MemoryNotice", status: "verified", data: { key: "name-helpers", scope: "repo", entryId: entry.id, memory: memory() }, provenance: { taskId: "T" } });

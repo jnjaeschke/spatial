@@ -107,7 +107,9 @@ test("review phase maps the steps of cited specs alongside the review; a failed 
   const mapOut = join(dir, "map.json");
   writeFileSync(mapOut, JSON.stringify({ type: "result", is_error: false, result: "", structured_output: { links: [{ step: "1", kind: "implements", ranges: [{ path: "a.txt", side: "new", start: 2, end: 2 }], note: "Edits it." }], unmapped: [] }, session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
   process.env.FAKE_LLM_ROUTES = JSON.stringify({ '"findings"': join(dir, "findings.json"), "# Spec: HTML#edit": mapOut });
-  const rt = createRuntime({ dbPath: join(dir, "map.sqlite"), claudeBin: STUB, webspecBin: WEBSPEC });
+  process.env.SPATIAL_WEBSPEC_BIN = WEBSPEC;
+  const rt = createRuntime({ dbPath: join(dir, "map.sqlite"), claudeBin: STUB });
+  delete process.env.SPATIAL_WEBSPEC_BIN;
   const session = await createSession(rt.store, r.dir, "t", "review");
   await runReview(rt, session.id, { base: "HEAD~1", head: "HEAD" });
   const mapTasks = rt.store.listTasks(session.id).filter((task) => task.kind === "mapSpecSteps");

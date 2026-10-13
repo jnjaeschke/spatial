@@ -1,4 +1,6 @@
-import { ENGINES, type Artifact, type Engine, type Runtime } from "../../../plugin-api.ts";
+import { type Artifact, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES } from "../shared/engines.ts";
+import type { Engine } from "../shared/types.ts";
 import type { EngineMapping, ImplementationsData, SpecAlgorithmData } from "../shared/types.ts";
 import { parseSteps } from "../shared/steps.ts";
 import { storedMapping } from "./mappings.ts";

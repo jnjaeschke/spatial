@@ -3,12 +3,15 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ResolvedSpec, SearchfoxCapability, WebspecCapability } from "../../../src/plugin-api.ts";
+import type { ResolvedSpec } from "../../../src/plugins/spec/shared/types.ts";
+import type { SearchfoxCapability } from "../../../src/plugins/spec/runtime/searchfox.ts";
+import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { lookupSpec, resolveSpecReference } from "../../../src/plugins/spec/runtime/spec-ref.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 const spec: ResolvedSpec = { spec: "HTML", anchor: "a", title: "T", type: "dfn", url: "https://html.spec/#a", content: "c" };
 const env = (resolve: WebspecCapability["resolve"], repo = "/nonexistent", specRefs: SearchfoxCapability["specRefs"] = async () => []) =>
-  ({ webspec: { effect: "read-only", resolve, analyze: async () => [], lookup: async () => { throw new Error("not used"); }, query: async () => { throw new Error("not used"); }, search: async () => { throw new Error("not used"); }, refs: async () => { throw new Error("not used"); }, idl: async () => { throw new Error("not used"); }, effectPaths: async () => { throw new Error("not used"); } } as WebspecCapability, searchfox: { effect: "read-only", specRefs, tip: async () => ({ repoBase: "", rev: "" }) } as SearchfoxCapability, repo, signal: new AbortController().signal });
+  ({ services: specTestServices({ webspec: { effect: "read-only", resolve, analyze: async () => [], lookup: async () => { throw new Error("not used"); }, query: async () => { throw new Error("not used"); }, search: async () => { throw new Error("not used"); }, refs: async () => { throw new Error("not used"); }, idl: async () => { throw new Error("not used"); }, effectPaths: async () => { throw new Error("not used"); } }, searchfox: { effect: "read-only", specRefs, tip: async () => ({ repoBase: "", rev: "" }) } }), repo, signal: new AbortController().signal });
 
 test("a found spec is a verified-style reference without Searchfox lookups outside Gecko", async () => {
   const data = await resolveSpecReference(env(async () => ({ found: true, spec })), "https://html.spec/#a", "llm");
@@ -39,7 +42,7 @@ test("in a Gecko repo the Searchfox references are added, and their failure is r
 
 test("lookupSpec turns a crashing lookup into not found, unless the task was cancelled", async () => {
   const webspec = { resolve: async () => { throw new Error("webspec-index exited with code 101: boom"); } } as never;
-  assert.deepEqual(await lookupSpec({ webspec, signal: new AbortController().signal }, "u"), { found: false, reason: "webspec-index exited with code 101: boom" });
+  assert.deepEqual(await lookupSpec({ services: specTestServices({ webspec }), signal: new AbortController().signal }, "u"), { found: false, reason: "webspec-index exited with code 101: boom" });
   const aborted = new AbortController(); aborted.abort();
-  await assert.rejects(lookupSpec({ webspec, signal: aborted.signal }, "u"), /boom/);
+  await assert.rejects(lookupSpec({ services: specTestServices({ webspec }), signal: aborted.signal }, "u"), /boom/);
 });

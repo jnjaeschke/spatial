@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { Store } from "../../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../src/runtime/tasks.ts";
+import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
@@ -15,6 +16,7 @@ import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
 import type { InvestigationData } from "../../../src/plugins/implement/shared/types.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const reply = (over: object = {}) => ({
@@ -34,7 +36,7 @@ function setup(json: unknown | ((call: number) => unknown), extra: Plugin[] = []
   const store = new Store(":memory:");
   const prompts: LlmPrompt[] = [];
   const llm: LlmService = { defaultSelection: selection, async run(chosen, prompt) { prompts.push(prompt); return { text: "", json: typeof json === "function" ? json(prompts.length - 1) : json, providerSessionId: `p${prompts.length}`, selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, webspec: webspec as WebspecCapability, searchfox: {} as SearchfoxCapability, ...(knowledge ? { knowledge } : {}) });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin, ...extra], llm, git: makeGit, services: specTestServices({ webspec }), ...(knowledge ? { knowledge } : {}) });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   const run = (input: object = {}) => rt.run<{ investigationId: string; droppedLocations: string[] }>(session.id, "investigate", { request: "fix it", profile: "plain-git", baseSha: base, branch: "spatial/x", llm: selection, ...input });
   return { repo, base, store, session, prompts, rt, run };

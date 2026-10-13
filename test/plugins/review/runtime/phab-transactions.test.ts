@@ -56,7 +56,7 @@ test("fetchTransactions follows the cursor and concatenates pages", async () => 
 });
 
 const remote = (patch: Partial<RemoteComment> = {}): RemoteComment => ({ phid: "C", version: 1, authorPHID: "U", body: "hello", path: "a.ts", line: 4, diffId: 1, isNewFile: true, isDone: false, txId: 1, dateCreated: 10, ...patch });
-const runtime = (store: Store) => new Runtime({ store, plugins: [], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService, git: () => ({} as never), webspec: {} as never, searchfox: {} as never });
+const runtime = (store: Store) => new Runtime({ store, plugins: [], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService, git: () => ({} as never) });
 
 test("storeRemoteComments is idempotent, revises edits and done toggles, and identifies our posts", () => {
   const store = new Store(":memory:");

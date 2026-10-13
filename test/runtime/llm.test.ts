@@ -32,7 +32,8 @@ const req = (over: Partial<LlmRequest> = {}): LlmRequest => ({
   prompt: "PROMPT", model: "m1", effort: "high", tools: "none", signal: new AbortController().signal, ...over,
 });
 const SCHEMA = { type: "object", additionalProperties: false, required: ["n"], properties: { n: { type: "integer" } } };
-const READ_ONLY = "Bash(searchfox-cli:*) Bash(chromium-search:*) Bash(webspec-index query:*) Bash(webspec-index search:*) Bash(webspec-index refs:*) Bash(webspec-index anchors:*) Bash(webspec-index idl:*) Bash(webspec-index trace:*) Bash(webspec-index effects:*) Bash(webspec-index exists:*)";
+const READ_ONLY_COMMANDS = ["tool-a", "tool-b sub"];
+const READ_ONLY = "Bash(tool-a:*) Bash(tool-b sub:*)";
 
 test("runProcess: abort kills the child and rejects", async () => {
   process.env.FAKE_LLM_SLEEP_MS = "10000";
@@ -69,7 +70,7 @@ test("claude: args, stdin prompt, structured output, usage", async () => {
 
 test("claude: read-only tools", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: "hi", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
-  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only" }));
+  await new ClaudeBackend({ bin: STUB, readOnlyCommands: READ_ONLY_COMMANDS }).run(req({ tools: "read-only" }));
   const a: string[] = calls()[0].argv;
   assert.equal(a[a.indexOf("--tools") + 1], "Read,Grep,Glob,Bash");
   assert.equal(a[a.indexOf("--allowedTools") + 1], READ_ONLY);
@@ -192,7 +193,7 @@ test("codex: models from models_cache.json; missing file is an error", async () 
 
 test("claude: resume and read-only chat tools", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "sess-1", usage: { input_tokens:  1, output_tokens: 1 } }));
-  await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only", resumeProviderSession: "sess-0" }));
+  await new ClaudeBackend({ bin: STUB, readOnlyCommands: READ_ONLY_COMMANDS }).run(req({ tools: "read-only", resumeProviderSession: "sess-0" }));
   const a: string[] = calls()[0].argv;
   const flag = (f: string) => a[a.indexOf(f) + 1];
   assert.equal(flag("--resume"), "sess-0");
@@ -204,7 +205,7 @@ test("claude: configures MCP tools for new and resumed requests", async () => {
   stdout(JSON.stringify({ type: "result", is_error: false, result: "ok", session_id: "s", usage: { input_tokens: 1, output_tokens: 1 } }));
   const mcpServers = { spatial: { type: "stdio" as const, command: "node", args: ["/tmp/server.ts", "--db", "/tmp/db", "--session", "s"] } };
   for (const resumeProviderSession of [undefined, "sess-0"]) {
-    await new ClaudeBackend({ bin: STUB }).run(req({ tools: "read-only", mcpServers, resumeProviderSession }));
+    await new ClaudeBackend({ bin: STUB, readOnlyCommands: READ_ONLY_COMMANDS }).run(req({ tools: "read-only", mcpServers, resumeProviderSession }));
     const a: string[] = calls().at(-1)!.argv;
     const flag = (f: string) => { const i = a.indexOf(f); assert.notEqual(i, -1, f); return a[i + 1]; };
     assert.deepEqual(JSON.parse(flag("--mcp-config")), { mcpServers: { spatial: mcpServers.spatial } });

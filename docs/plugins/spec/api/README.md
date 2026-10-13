@@ -60,9 +60,27 @@ Re-exports [parseSteps](../shared/steps/functions/parseSteps.md)
 
 ***
 
+### ResolvedSpec
+
+Re-exports [ResolvedSpec](../shared/types/interfaces/ResolvedSpec.md)
+
+***
+
 ### SpecReferenceData
 
 Re-exports [SpecReferenceData](../shared/types/interfaces/SpecReferenceData.md)
+
+***
+
+### specServices
+
+Re-exports [specServices](../runtime/services/functions/specServices.md)
+
+***
+
+### SpecServices
+
+Re-exports [SpecServices](../runtime/services/interfaces/SpecServices.md)
 
 ***
 
@@ -75,6 +93,12 @@ Re-exports [SpecStep](../shared/steps/interfaces/SpecStep.md)
 ### SpecStepMapData
 
 Re-exports [SpecStepMapData](../shared/types/interfaces/SpecStepMapData.md)
+
+***
+
+### StepCommentCheck
+
+Re-exports [StepCommentCheck](../runtime/webspec/interfaces/StepCommentCheck.md)
 
 ***
 
@@ -99,3 +123,9 @@ Re-exports [UnmappedLines](../shared/types/interfaces/UnmappedLines.md)
 ### UnmappedReason
 
 Re-exports [UnmappedReason](../shared/types/type-aliases/UnmappedReason.md)
+
+***
+
+### WebspecCapability
+
+Re-exports [WebspecCapability](../runtime/webspec/interfaces/WebspecCapability.md)

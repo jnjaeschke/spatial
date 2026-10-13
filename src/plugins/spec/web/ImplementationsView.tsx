@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ENGINE_LABEL, ENGINES, ErrorText, plural, showSessionView, taskState, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
-import type { Engine } from "../../../plugin-api.ts";
+import { ErrorText, plural, showSessionView, taskState, useAction, useUrlParam, type PhaseViewProps } from "../../../web/plugin-api.ts";
+import { ENGINE_LABEL, ENGINES } from "../shared/engines.ts";
+import type { Engine } from "../shared/types.ts";
 import type { EngineDifference, ImplementationsData, SpecAlgorithmData, SpecOpenedData } from "../shared/types.ts";
 import { codeUrl, mappedSteps, nothingFound, siteKey } from "../shared/engine.ts";
 import { cellHighlighted, columnState, differenceTargets } from "./implementations.ts";

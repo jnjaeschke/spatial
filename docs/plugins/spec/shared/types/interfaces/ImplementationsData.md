@@ -24,7 +24,7 @@ The implementations overview: spec steps, each engine's stored mapping and its c
 
 ### mappings
 
-> **mappings**: `Record`\<[`Engine`](../../../../../shared/types/type-aliases/Engine.md), [`EngineMapping`](EngineMapping.md) \| `null`\>
+> **mappings**: `Record`\<[`Engine`](../type-aliases/Engine.md), [`EngineMapping`](EngineMapping.md) \| `null`\>
 
 ***
 

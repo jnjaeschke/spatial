@@ -6,15 +6,9 @@
 
 # Interface: McpToolContext
 
-What a plugin MCP tool may use: the session, its work tree, read-only capabilities and the call's abort signal.
+What a plugin MCP tool may use: the session, its work tree, the plugins' services, read-only knowledge and the call's abort signal.
 
 ## Properties
-
-### codeSearch
-
-> **codeSearch**: `Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
-
-***
 
 ### knowledge
 
@@ -28,6 +22,12 @@ What a plugin MCP tool may use: the session, its work tree, read-only capabiliti
 
 ***
 
+### services
+
+> **services**: `Readonly`\<`Record`\<`string`, `unknown`\>\>
+
+***
+
 ### sessionId
 
 > **sessionId**: `string`
@@ -37,9 +37,3 @@ What a plugin MCP tool may use: the session, its work tree, read-only capabiliti
 ### signal
 
 > **signal**: `AbortSignal`
-
-***
-
-### webspec
-
-> **webspec**: [`WebspecCapability`](../../tasks/interfaces/WebspecCapability.md)

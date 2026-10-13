@@ -1,4 +1,5 @@
-import { BusyError, type Artifact, type Engine, type Id, type Runtime } from "../../../plugin-api.ts";
+import { BusyError, type Artifact, type Id, type Runtime } from "../../../plugin-api.ts";
+import type { Engine } from "../shared/types.ts";
 import type { EngineStep, SpecAlgorithmData } from "../shared/types.ts";
 import { siteKey } from "../shared/engine.ts";
 import { ofEngineRef, updateMapping } from "./mappings.ts";

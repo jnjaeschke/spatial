@@ -7,9 +7,10 @@ import { createSessionServer } from "../../../src/mcp/session-server.ts";
 import { pluginRegistry } from "../../../src/runtime/plugins.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import type { WebspecCapability, WebspecLookup } from "../../../src/runtime/tasks.ts";
+import type { WebspecCapability, WebspecLookup } from "../../../src/plugins/spec/runtime/webspec.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
-import type { CodeSearch } from "../../../src/runtime/code-search.ts";
+import type { CodeSearch } from "../../../src/plugins/spec/runtime/code-search.ts";
 import { mappingKey } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite, EngineStep } from "../../../src/plugins/spec/shared/types.ts";
 
@@ -30,7 +31,7 @@ test("spec tools pass their arguments to webspec lookups and answer with the out
   const knowledge = new KnowledgeStore(":memory:");
   knowledge.put("global", "spec", mappingKey("gecko", "HTML#navigate"), MAPPING, { by: "plugin", sessionId: session.id });
   knowledge.put("global", "spec", mappingKey("blink", "HTML#navigate"), null, { by: "user", sessionId: session.id });
-  const server = createSessionServer(pluginRegistry([corePlugin, specPlugin]), store, session.id, "/repo", { webspec, knowledge, codeSearch: { gecko: code, blink: code, webkit: code } });
+  const server = createSessionServer(pluginRegistry([corePlugin, specPlugin]), store, session.id, "/repo", { services: specTestServices({ webspec, codeSearch: { gecko: code, blink: code, webkit: code } }), knowledge });
   const client = new Client({ name: "test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

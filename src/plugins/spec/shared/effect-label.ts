@@ -1,4 +1,4 @@
-import type { SpecEffect } from "../../../plugin-api.ts";
+import type { SpecEffect } from "./types.ts";
 
 const executionSuffix = (execution: string[]) => execution.includes("inline") && execution.includes("separate") ? " (inline or separate)" : !execution.includes("inline") ? " (separate)" : "";
 

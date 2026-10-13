@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
-import { defineTask, Runtime, TaskCancelledError, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
+import { defineTask, Runtime, TaskCancelledError, type GitCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm/types.ts";
 import type { ChatMessageData, ChatThreadData, DiagramData, DiffData, LlmSelection, McpServerData } from "../../src/shared/types.ts";
 import type { PatchNarrativeData } from "../../src/plugins/review/api.ts";
@@ -44,7 +44,6 @@ function setup(opts: { failWith?: string; hang?: boolean; repoMcp?: boolean; rep
   };
   const rt = new Runtime({
     store, plugins: [corePlugin, ...plugins, ...(opts.replyFields?.length ? [{ id: "test-reply-fields", chatReplyFields: opts.replyFields }] : [])], llm, git: () => opts.git ?? ({} as GitCapability),
-    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(opts.repoMcp || opts.repoRequestable ? { repoContext: () => ({ mcpServers: (opts.repoMcp ? { moz: { type: "http", url: "https://example.com/mcp" } } : {}) as Record<string, McpServerSpec>, requestableMcpServers: Object.fromEntries((opts.repoRequestable ?? []).map((name) => [name, { type: "stdio", command: "node", args: [`${name}.js`] }])), skills: [], instructions: null }) } : {}),
   });
@@ -107,7 +106,6 @@ test("chat system prompt includes repo instructions and skill index on every tur
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
   const rt = new Runtime({ store, plugins: [corePlugin, ...plugins], llm, git: () => ({}) as GitCapability,
-    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, instructions: "Follow repo rules.", skills: [{ name: "review-skill", description: "Review changes." }] }),
   });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
@@ -412,7 +410,6 @@ test("linkedTo returns matching source artifacts oldest first", async () => {
   const probeRuntime = new Runtime({
     store, plugins: [{ id: "test", tasks: [probe] }], llm: rt.llm,
     git: () => ({}) as GitCapability,
-    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
   });
   assert.deepEqual(await probeRuntime.run(session.id, "linkedToProbe", { to: "X" }), [first.id, second.id]);
 });

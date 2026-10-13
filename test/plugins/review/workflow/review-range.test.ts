@@ -15,7 +15,7 @@ import { makeRepo } from "../../../helpers/git-fixture.ts";
 function runtimeFor(dir: string) {
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: dir, repoDir: join(dir, ".git"), title: "review" });
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff] }], git: makeGit, llm: {} as never, webspec: {} as never, searchfox: {} as never });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff] }], git: makeGit, llm: {} as never });
   return { store, session, rt };
 }
 
@@ -141,7 +141,7 @@ test("failed default range is a failed reviewRange analysis step", async () => {
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "review" });
   const rt = new Runtime({
     store, plugins: [{ id: "test", tasks: [reviewRange] }], git: () => ({ isDirty: async () => { throw new Error("git status failed"); } }) as unknown as GitCapability,
-    llm: {} as never, webspec: {} as never, searchfox: {} as never,
+    llm: {} as never,
   });
   try {
     await assert.rejects(rt.run(session.id, "reviewRange", {}), /git status failed/);

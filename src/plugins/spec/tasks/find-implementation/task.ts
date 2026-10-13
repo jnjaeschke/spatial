@@ -1,10 +1,13 @@
-import { defineTask, ENGINE_LABEL, isGeckoRepo, plainText, readRepoSkill, runStructured, type Engine, type Id, type JsonSchema, type SpecIdlMember, type TaskContext } from "../../../../plugin-api.ts";
+import { defineTask, isGeckoRepo, plainText, readRepoSkill, runStructured, type Id, type JsonSchema, type TaskContext } from "../../../../plugin-api.ts";
+import { ENGINE_LABEL } from "../../shared/engines.ts";
+import type { Engine, SpecIdlMember } from "../../shared/types.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../shared/types.ts";
 import { parseSteps, stepLines } from "../../shared/steps.ts";
 import { numbered, siteKey, siteName, usedSites } from "../../shared/engine.ts";
 import { DATA_PREAMBLE, fence } from "../../shared/prompt.ts";
 import { storedMapping } from "../../runtime/mappings.ts";
 import { siteAtTip, verifyCandidate, type ImplementationCandidate } from "../../runtime/engine-map.ts";
+import { specServices } from "../../runtime/services.ts";
 
 const NAME: Record<Engine, string> = { gecko: "Gecko (mozilla-central)", blink: "Blink (Chromium)", webkit: "WebKit" };
 
@@ -34,7 +37,7 @@ export const findImplementation = defineTask<{ algorithmId: Id; engine: Engine; 
     const out: FoundImplementation = { sites: [], dropped: [] };
     for (const candidate of json.candidates.slice(0, MAX_CANDIDATES)) {
       let result: Awaited<ReturnType<typeof verifyCandidate>>;
-      try { result = await verifyCandidate(ctx.codeSearch[engine], candidate, ctx.signal); }
+      try { result = await verifyCandidate(specServices(ctx).codeSearch[engine], candidate, ctx.signal); }
       catch (error) {
         if (ctx.signal.aborted) throw error;
         out.dropped.push({ candidate, reason: `could not be checked: ${(error as Error).message}` });
@@ -51,7 +54,7 @@ export const findImplementation = defineTask<{ algorithmId: Id; engine: Engine; 
 async function findPrompt(ctx: TaskContext, engine: Engine, algorithm: SpecAlgorithmData, current: EngineMapping | null, stale: EngineSite | null): Promise<string> {
   const steps = parseSteps(algorithm.content);
   const body = steps.length ? ["## Steps", fence(stepLines(steps))] : ["## Definition", fence(plainText(algorithm.content).slice(0, 4000))];
-  const refs = await ctx.webspec.refs(algorithm.ref, ctx.signal);
+  const refs = await specServices(ctx).webspec.refs(algorithm.ref, ctx.signal);
   const seeds = await seedLines(ctx, engine, refs);
   const idl = await idlEntryPoints(ctx, algorithm.ref, refs.incoming);
   const gecko = engine === "gecko" ? [] : await geckoCode(ctx, algorithm.ref);
@@ -82,14 +85,14 @@ async function seedLines(ctx: TaskContext, engine: Engine, refs: { incoming: str
 
 async function idlEntryPoints(ctx: TaskContext, ref: string, incoming: string[]): Promise<SpecIdlMember[]> {
   const members = new Map<string, SpecIdlMember>();
-  for (const candidate of [ref, ...incoming.slice(0, 20)]) for (const member of await ctx.webspec.idl(candidate, ctx.signal)) members.set(member.canonicalName, member);
+  for (const candidate of [ref, ...incoming.slice(0, 20)]) for (const member of await specServices(ctx).webspec.idl(candidate, ctx.signal)) members.set(member.canonicalName, member);
   return [...members.values()];
 }
 
 async function geckoCode(ctx: TaskContext, ref: string): Promise<string[]> {
   const out: string[] = [];
   for (const site of usedSites(storedMapping(ctx.knowledge, "gecko", ref)).slice(0, 3)) {
-    const found = await siteAtTip(ctx.codeSearch.gecko, site, ctx.signal);
+    const found = await siteAtTip(specServices(ctx).codeSearch.gecko, site, ctx.signal);
     if (!found) continue;
     const { lines, at, fn } = found;
     out.push(fence(`${siteName(site)} (${site.path}:${at})\n${numbered(lines, at, Math.min(fn?.end ?? at, at + 59))}`));

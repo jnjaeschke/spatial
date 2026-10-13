@@ -1,7 +1,9 @@
-import { BusyError, type Artifact, type Engine, type Id, type Knowledge, type KnowledgeEntry, type KnowledgeProvenance, type Runtime } from "../../../plugin-api.ts";
+import { BusyError, type Artifact, type Id, type Knowledge, type KnowledgeEntry, type KnowledgeProvenance, type Runtime } from "../../../plugin-api.ts";
+import type { Engine } from "../shared/types.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../shared/types.ts";
 import { byPlace, engineMapping, mappingKey, mergeLatest, siteKey } from "../shared/engine.ts";
 import type { FoundImplementation } from "../tasks/find-implementation/task.ts";
+import { specServices } from "./services.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -68,7 +70,7 @@ export async function ensureMapping(rt: Runtime, sessionId: Id, engine: Engine, 
   if (read.state === "deleted") return;
   if (read.state === "current") {
     const mapping = engineMapping(read.entry.value);
-    if (now - Date.parse(mapping.checkedAt) < DAY || (rt.codeSearch[engine].pinned && (await rt.codeSearch[engine].tip()).rev === mapping.rev)) return;
+    if (now - Date.parse(mapping.checkedAt) < DAY || (specServices(rt).codeSearch[engine].pinned && (await specServices(rt).codeSearch[engine].tip()).rev === mapping.rev)) return;
   }
   if (rt.activeTask("mapEngine", ofEngineRef(rt, engine, ref))) return;
   const before = JSON.stringify(storedMapping(rt.knowledge, engine, ref));

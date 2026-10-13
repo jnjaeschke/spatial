@@ -2,18 +2,20 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
+import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { runWorkflow } from "../../../src/workflows/start.ts";
 import type { DecisionData, WorkflowStartData } from "../../../src/shared/types.ts";
 import type { SpecOpenedData } from "../../../src/plugins/spec/shared/types.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 const fake = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 function setup(webspec: WebspecCapability = fake) {
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, services: specTestServices({ webspec }) });
   const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const start = (query: string) => rt.store.putArtifact<WorkflowStartData>({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "explore", params: { query }, title: query, prompt: query } });
   return { rt, session, start };

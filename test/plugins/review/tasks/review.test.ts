@@ -2,7 +2,7 @@ import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/t
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { FindingVerdictData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { DiffData, LlmSelection } from "../../../../src/shared/types.ts";
@@ -34,7 +34,7 @@ function setup(replies: unknown[], repoMcp = false, repoPrompt = false) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin], llm, git: () => ({}) as GitCapability,
     sessionMcp: (sessionId) => ({ spatial: { type: "stdio", command: "node", args: ["server.ts", "--session", sessionId] } }),
     ...(repoMcp || repoPrompt ? { repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       instructions: repoPrompt ? "Review by repo rules." : null,

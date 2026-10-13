@@ -1,4 +1,4 @@
-import type { SpecEffect, SpecEffectPaths, SpecSite } from "../../../plugin-api.ts";
+import type { SpecEffect, SpecEffectPaths, SpecSite } from "./types.ts";
 import type { StepEffect } from "./types.ts";
 
 /**

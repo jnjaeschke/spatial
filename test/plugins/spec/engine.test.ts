@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
+import { parseFunctionAt, parseSpecRefs } from "../../../src/plugins/spec/runtime/searchfox.ts";
 import { codeUrl, engineActivity, engineMapping, engineTasks, followQuote, nothingFound, fragmentOf, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 

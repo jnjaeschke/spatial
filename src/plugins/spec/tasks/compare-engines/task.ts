@@ -1,4 +1,6 @@
-import { ENGINES, defineTask, runStructured, type Engine, type Id, type JsonSchema } from "../../../../plugin-api.ts";
+import { defineTask, runStructured, type Id, type JsonSchema } from "../../../../plugin-api.ts";
+import { ENGINES } from "../../shared/engines.ts";
+import type { Engine } from "../../shared/types.ts";
 import type { EngineComparison, SpecAlgorithmData } from "../../shared/types.ts";
 import { parseSteps, stepLines } from "../../shared/steps.ts";
 import { DATA_PREAMBLE, fence } from "../../shared/prompt.ts";

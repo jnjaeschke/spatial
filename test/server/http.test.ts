@@ -7,9 +7,10 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
+import { Runtime } from "../../src/runtime/tasks.ts";
 import { makeGit } from "../../src/runtime/git.ts";
 import { corePlugin } from "../../src/runtime/create.ts";
+import { specServices } from "../../src/plugins/spec/runtime/services.ts";
 import { plugins } from "../../src/plugins/index.ts";
 import { createHttpServer } from "../../src/server/http.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
@@ -39,7 +40,7 @@ test("code-links validates requests, requires an upstream Gecko Diff, and caches
   const rev = repo.git("rev-parse", "HEAD");
   rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { upstreamRev: rev, baseSha: rev, headSha: rev, commits: [], files: [{ path: "a.txt", status: "modified", binary: false, hunks: [] }] } satisfies DiffData, provenance: { taskId: "test" } });
   let definitions = 0;
-  const searchfox = rt.searchfox as unknown as {
+  const searchfox = specServices(rt).searchfox as unknown as {
     tip: () => Promise<{ repoBase: string; rev: string }>;
     define: () => Promise<{ path: string; line: number; text: string }>;
   };
@@ -65,7 +66,7 @@ test("code-links of an implement session without a Diff resolve at the branch ba
   writeFileSync(join(repo.dir, "moz.build"), "");
   const rev = repo.git("rev-parse", "HEAD");
   rt.store.putArtifact({ sessionId: session.id, type: "ImplementBranch", status: "verified", data: { branch: "b", baseSha: rev, baseRef: null, profile: "plain-git", checkout: "new-branch" }, provenance: { taskId: "test" } });
-  const searchfox = rt.searchfox as unknown as { tip: () => Promise<{ repoBase: string; rev: string }> };
+  const searchfox = specServices(rt).searchfox as unknown as { tip: () => Promise<{ repoBase: string; rev: string }> };
   const originalTip = searchfox.tip;
   try {
     searchfox.tip = async () => ({ repoBase: "https://searchfox.org/firefox-main/", rev: "tip" });
@@ -298,7 +299,7 @@ test("turns: first turn creates thread; busy thread is 409", async () => {
       return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
-  const gatedRt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const gatedRt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm: gatedLlm, git: makeGit });
   const gatedServer = createHttpServer(gatedRt, { staticDir });
   await new Promise<void>((resolve) => gatedServer.listen(0, "127.0.0.1", resolve));
   try {
@@ -447,7 +448,7 @@ test("SSE subscriptions watch the session until the connection closes", async ()
   const calls: string[] = [];
   const released: string[] = [];
   const watchPlugin = { id: "watch-test", server() { return { watch(id: string) { calls.push(id); return () => released.push(id); } }; } };
-  const watchRuntime = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, watchPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const watchRuntime = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, watchPlugin], llm, git: makeGit });
   const watchServer = createHttpServer(watchRuntime);
   await new Promise<void>((resolve) => watchServer.listen(0, "127.0.0.1", resolve));
   const session = watchRuntime.store.createSession({ worktree: repo.dir, repoDir: `${repo.dir}/.git`, title: "watch" });

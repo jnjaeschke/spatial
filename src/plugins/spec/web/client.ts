@@ -2,7 +2,7 @@ import { getJson as get, postJson as post } from "../../../web/plugin-api.ts";
 import type { SpecOpenedData, SpecTraceData, TraceCodeRef, TraceQuestion } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
 import type { EngineMapping } from "../shared/types.ts";
-import type { Engine } from "../../../plugin-api.ts";
+import type { Engine } from "../shared/types.ts";
 import type { ImplementationsData } from "../shared/types.ts";
 
 /** HTTP calls of the spec explorer. */

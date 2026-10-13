@@ -2,13 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../src/runtime/store.ts";
 import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
-import { BusyError, Runtime, defineTask, TaskFailedError, TaskCancelledError, PhaseBusyError, type Phase, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
+import { BusyError, Runtime, defineTask, TaskFailedError, TaskCancelledError, PhaseBusyError, type Phase, type GitCapability } from "../../src/runtime/tasks.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { RuntimeEvent } from "../../src/shared/types.ts";
 
 const fakeGit = {} as GitCapability;
-const webspec = {} as WebspecCapability;
-const searchfox = {} as SearchfoxCapability;
 const fakeLlm: LlmService = {
   defaultSelection: { backend: "claude", model: "m", effort: "low" },
   async run(selection, prompt) {
@@ -42,7 +40,7 @@ const parent = defineTask<{ child: string }, unknown>({ kind: "parent", run: (ct
 
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, boom, slow, parent] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, boom, slow, parent] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
@@ -85,7 +83,7 @@ test("LLM activity becomes task.activity events, listed per task; the task's own
   } };
   const seen: string[] = [];
   const watcher = defineTask<null, null>({ kind: "watcher", async run(ctx) { await ctx.llm.run({ prompt: "p", tools: "read-only", onEvent: (e) => seen.push(e.kind) }); return null; } });
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, watcher] }], llm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo, watcher] }], llm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const events: RuntimeEvent[] = [];
   rt.onEvent((e) => events.push(e));
@@ -108,7 +106,7 @@ test("live input reaches the session's run that accepts it, and nothing once tha
     return fakeLlm.run(selection, prompt, new AbortController().signal);
   } };
   const agent = defineTask<null, null>({ kind: "agent", async run(ctx) { await ctx.llm.run({ prompt: "p", tools: "write", liveInput: true }); return null; } });
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [agent] }], llm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [agent] }], llm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const other = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "u" });
   const { taskId, done } = rt.start(session.id, "agent", null);
@@ -133,7 +131,7 @@ test("failing task: status failed, TaskFailedError, task.failed event", async ()
 test("repo context errors fail the task and emit task.failed", async () => {
   const store = new Store(":memory:");
   const rt = new Runtime({
-    store, plugins: [{ id: "test", tasks: [echo] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox,
+    store, plugins: [{ id: "test", tasks: [echo] }], llm: fakeLlm, git: () => fakeGit,
     repoContext: () => { throw new Error("bad repo context"); },
   });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
@@ -203,7 +201,7 @@ test("tasks read the knowledge store and cannot write it", async () => {
     return { value: read.state === "current" ? read.entry.value : null, listed: ctx.knowledge.list("global", "spec", "").length, canPut: "put" in ctx.knowledge };
   } });
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [peek] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox, knowledge });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [peek] }], llm: fakeLlm, git: () => fakeGit, knowledge });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   assert.deepEqual(await rt.run(session.id, "peek", null), { value: 1, listed: 1, canPut: false });
 });
@@ -215,13 +213,13 @@ test("unknown task kind and unknown session throw synchronously", () => {
 });
 
 test("duplicate task kinds are rejected", () => {
-  assert.throws(() => new Runtime({ store: new Store(":memory:"), plugins: [{ id: "test", tasks: [echo, echo] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox }), /Duplicate task kind: echo/);
+  assert.throws(() => new Runtime({ store: new Store(":memory:"), plugins: [{ id: "test", tasks: [echo, echo] }], llm: fakeLlm, git: () => fakeGit }), /Duplicate task kind: echo/);
 });
 
 test("phases stamp tasks and artifacts and each run opens a new epoch", async () => {
   const store = new Store(":memory:");
   const phase: Phase<null> = { id: "work", async run(rt, sessionId) { await rt.run(sessionId, "echo", { v: "phase" }); } };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo], phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [echo], phases: [phase] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const first = await rt.runPhase(session.id, "work", null);
   const firstTask = store.listTasks(session.id)[0];
@@ -235,7 +233,7 @@ test("a session cannot start another phase while its epoch is running", async ()
   const store = new Store(":memory:");
   let finish!: () => void;
   const phase: Phase<null> = { id: "slow", run: async () => new Promise<void>((resolve) => { finish = resolve; }) };
-  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const pending = rt.runPhase(session.id, "slow", null);
   assert.throws(() => rt.runPhase(session.id, "slow", null), (e: unknown) => e instanceof PhaseBusyError && e.message === `Session ${session.id} is running epoch 1 (slow)`);
@@ -249,7 +247,7 @@ test("failed phases retry in place and succeeded phases cannot retry", async () 
   const store = new Store(":memory:");
   let calls = 0;
   const phase: Phase<{ value: string }> = { id: "sometimes", async run() { calls++; if (calls === 1) throw new Error("kaput"); } };
-  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   await assert.rejects(rt.runPhase(session.id, "sometimes", { value: "saved" }), /kaput/);
   const failed = store.listEpochs(session.id)[0];
@@ -265,7 +263,7 @@ test("failed phases retry in place and succeeded phases cannot retry", async () 
 test("cancelEpoch aborts the tasks the running phase started and resolves once the phase stopped; other tasks of the session keep running", async () => {
   const store = new Store(":memory:");
   const phase: Phase<null> = { id: "work", async run(rt, sessionId) { await rt.run(sessionId, "slow", null); } };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [slow], phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [slow], phases: [phase] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   await assert.rejects(rt.cancelEpoch(session.id), /no running epoch/);
   const running = rt.runPhase(session.id, "work", null);
@@ -287,7 +285,7 @@ test("cancelEpoch refuses an epoch whose phase has no running task", async () =>
   const store = new Store(":memory:");
   let finish!: () => void;
   const phase: Phase<null> = { id: "idle", run: () => new Promise<void>((resolve) => { finish = resolve; }) };
-  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", phases: [phase] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const pending = rt.runPhase(session.id, "idle", null);
   await assert.rejects(rt.cancelEpoch(session.id), /has no running task/);
@@ -304,7 +302,7 @@ test("task contexts carry their epoch, the session's repoDir and the recent prog
     return { epoch: ctx.epoch, repoDir: ctx.repoDir, recent: ctx.events.recent(ctx.taskId, 2), other: ctx.events.recent("nope", 5) };
   } });
   const phase: Phase<null> = { id: "probing", async run(rt, sessionId) { await rt.run(sessionId, "probe", null); } };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [probe], phases: [phase] }], llm: fakeLlm, git: () => fakeGit, webspec, searchfox });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [probe], phases: [phase] }], llm: fakeLlm, git: () => fakeGit });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   assert.equal((await rt.run<{ epoch: number | null }>(session.id, "probe", null)).epoch, null);
   await rt.runPhase(session.id, "probing", null);

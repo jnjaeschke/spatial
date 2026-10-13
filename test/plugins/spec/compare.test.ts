@@ -6,7 +6,7 @@ import { comparisonView, startCompare } from "../../../src/plugins/spec/runtime/
 import { updateMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { EngineDifference, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
-import type { Engine } from "../../../src/shared/types.ts";
+import type { Engine } from "../../../src/plugins/spec/shared/types.ts";
 import { BusyError, type Runtime } from "../../../src/runtime/tasks.ts";
 import { fakeCode } from "./fake-code.ts";
 import { putAlgorithm, specRuntime } from "./spec-runtime.ts";

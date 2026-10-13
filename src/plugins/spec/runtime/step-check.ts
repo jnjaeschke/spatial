@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import type { SpecStep } from "../shared/steps.ts";
 import type { StepLink } from "../shared/types.ts";
-import type { StepCommentCheck, WebspecCapability } from "../../../plugin-api.ts";
+import type { StepCommentCheck, WebspecCapability } from "./webspec.ts";
 import { describedStep } from "../shared/step-comments.ts";
 
 export type StepProblem = { severity: "high" | "medium" | "low"; title: string; body: string };

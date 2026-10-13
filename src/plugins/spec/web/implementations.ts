@@ -1,4 +1,5 @@
-import type { Engine, TaskRecord } from "../../../plugin-api.ts";
+import type { TaskRecord } from "../../../plugin-api.ts";
+import type { Engine } from "../shared/types.ts";
 import { engineActivity, engineTasks } from "../shared/engine.ts";
 import type { EngineDifference, ImplementationsData } from "../shared/types.ts";
 import { usedSites } from "../shared/engine.ts";

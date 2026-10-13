@@ -18,7 +18,7 @@ The current mapping of a `SPEC#anchor` ref in an engine, or null when there is n
 
 ### engine
 
-[`Engine`](../../../../shared/types/type-aliases/Engine.md)
+[`Engine`](../../shared/types/type-aliases/Engine.md)
 
 ### ref
 

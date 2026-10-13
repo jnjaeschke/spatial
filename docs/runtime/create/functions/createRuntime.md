@@ -12,10 +12,6 @@
 
 ### opts
 
-#### chromiumSearchBin?
-
-`string`
-
 #### claudeBin?
 
 `string`
@@ -35,14 +31,6 @@
 #### defaultLlm?
 
 [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md)
-
-#### searchfoxBin?
-
-`string`
-
-#### webspecBin?
-
-`string`
 
 ## Returns
 

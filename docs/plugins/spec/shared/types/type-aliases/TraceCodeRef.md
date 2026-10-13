@@ -12,4 +12,4 @@
 
 ### engine
 
-> **engine**: [`Engine`](../../../../../shared/types/type-aliases/Engine.md)
+> **engine**: [`Engine`](Engine.md)

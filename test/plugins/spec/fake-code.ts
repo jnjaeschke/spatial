@@ -1,6 +1,6 @@
-import { enclosingFunction } from "../../../src/runtime/brace-scan.ts";
-import type { CodeSearch } from "../../../src/runtime/code-search.ts";
-import type { Engine, GeckoSpecRef } from "../../../src/shared/types.ts";
+import { enclosingFunction } from "../../../src/plugins/spec/runtime/brace-scan.ts";
+import type { CodeSearch } from "../../../src/plugins/spec/runtime/code-search.ts";
+import type { Engine, GeckoSpecRef } from "../../../src/plugins/spec/shared/types.ts";
 
 /** An in-memory `CodeSearch` over `files` (path → text) returning `refs`; functions by brace scan; Blink is unpinned and heuristic. `calls` logs every call. */
 export function fakeCode(files: Record<string, string>, refs: GeckoSpecRef[], opts: { engine?: Engine; rev?: () => string; repoBase?: string } = {}) {

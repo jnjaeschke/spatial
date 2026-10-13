@@ -1,6 +1,7 @@
 import type { ChatReplyField } from "../../../plugin-api.ts";
 import { isSpecRef } from "../shared/refs.ts";
 import type { TraceQuestion } from "../shared/types.ts";
+import { specServices } from "./services.ts";
 const SHAPE_ERROR = "specExplore needs 1 to 5 SPEC#anchor refs";
 
 /** Chat reply field proposing a spec exploration; the reply shows an Explore button for it. */
@@ -14,7 +15,7 @@ Set \`specExplore\` only when the question is about how a web spec algorithm flo
     const anchors = typeof value === "object" && value !== null ? (value as { anchors?: unknown }).anchors : undefined;
     if (!Array.isArray(anchors) || anchors.length < 1 || anchors.length > 5 || !anchors.every((anchor) => typeof anchor === "string" && isSpecRef(anchor))) return { ok: false, error: SHAPE_ERROR };
     for (const anchor of anchors as string[]) {
-      const result = await ctx.webspec.query(anchor, ctx.signal);
+      const result = await specServices(ctx).webspec.query(anchor, ctx.signal);
       if (!result.found) return { ok: false, error: `unknown spec section ${anchor}: ${result.reason}` };
     }
     const question = (value as { question?: unknown }).question;

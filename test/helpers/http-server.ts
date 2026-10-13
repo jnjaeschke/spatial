@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
+import { Runtime } from "../../src/runtime/tasks.ts";
 import { definePlugin } from "../../src/plugin-api.ts";
 import type { ChatReplyField } from "../../src/runtime/plugins.ts";
 import { makeGit } from "../../src/runtime/git.ts";
@@ -38,7 +38,7 @@ const task6Plugin = definePlugin({ id: "http-task6-test", chatReplyFields: [runR
   { id: "p", async run() {} },
   { id: "blocking", async run() { await new Promise<void>((resolve) => { state.unblockPhase = resolve; }); } },
 ] });
-export const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+export const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit });
 export const server = createHttpServer(rt, { staticDir });
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 export const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

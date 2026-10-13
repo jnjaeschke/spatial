@@ -14,7 +14,7 @@ webspec-index lookup of one URL. One failing lookup (webspec-index can crash on 
 
 ### env
 
-`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"webspec"` \| `"signal"`\>
+`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"services"` \| `"signal"`\>
 
 ### url
 

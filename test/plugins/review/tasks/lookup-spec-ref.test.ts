@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../../src/runtime/tasks.ts";
+import type { WebspecCapability } from "../../../../src/plugins/spec/runtime/webspec.ts";
 import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { SpecReferenceData } from "../../../../src/plugins/spec/api.ts";
 import { lookupSpecRef } from "../../../../src/plugins/review/tasks/lookup-spec-ref/task.ts";
+import { specTestServices } from "../../../helpers/spec-services.ts";
 
 function setup(found: boolean) {
   const store = new Store(":memory:");
@@ -12,7 +14,7 @@ function setup(found: boolean) {
     ? { found: true, spec: { spec: "HTML", anchor: "setup", title: "The setup", type: "section", url: "https://html.spec.whatwg.org/#setup", content: "A setup." } }
     : { found: false, reason: "no such section" };
   } };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [lookupSpecRef] }], llm: {} as LlmService, git: () => ({}) as never, webspec, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [lookupSpecRef] }], llm: {} as LlmService, git: () => ({}) as never, services: specTestServices({ webspec }) });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { store, rt, session };
 }

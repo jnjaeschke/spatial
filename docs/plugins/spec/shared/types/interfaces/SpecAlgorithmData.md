@@ -24,13 +24,13 @@ Data of a `SpecAlgorithm` artifact (verified source fact): one webspec-index sec
 
 ### effects
 
-> **effects**: [`SpecEffect`](../../../../../shared/types/interfaces/SpecEffect.md)[]
+> **effects**: [`SpecEffect`](SpecEffect.md)[]
 
 ***
 
 ### effectsStatus
 
-> **effectsStatus**: [`SpecEffectsStatus`](../../../../../shared/types/interfaces/SpecEffectsStatus.md)
+> **effectsStatus**: [`SpecEffectsStatus`](SpecEffectsStatus.md)
 
 ***
 

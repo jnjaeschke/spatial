@@ -31,4 +31,5 @@
 - [artifactKinds](functions/artifactKinds.md)
 - [defineMcpTool](functions/defineMcpTool.md)
 - [pluginRegistry](functions/pluginRegistry.md)
+- [pluginServices](functions/pluginServices.md)
 - [searchKinds](functions/searchKinds.md)

@@ -40,7 +40,7 @@ function setup(opts: { trailer?: boolean; remotes?: ReturnType<typeof remote>[];
     if (method === "user.search") return { data: [{ phid: "U1", fields: { username: "alice" } }] };
     throw new Error(`unexpected ${method}`);
   } } as unknown as ConduitClient;
-  const runtime = new Runtime({ store, plugins: [corePlugin, ...plugins], llm: (opts.llm ?? {}) as never, webspec: {} as never, searchfox: {} as never,
+  const runtime = new Runtime({ store, plugins: [corePlugin, ...plugins], llm: (opts.llm ?? {}) as never,
     git: () => ({ diff: async (base: string, head: string) => opts.texts?.[`${base}..${head}`] ?? local } as unknown as GitCapability) });
   const watcher = { watchedSessions: () => [session.id] };
   const events: RuntimeEvent[] = [];

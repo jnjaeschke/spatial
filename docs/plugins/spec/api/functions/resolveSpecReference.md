@@ -14,7 +14,7 @@ Resolves a spec URL exactly as `resolveSpecRefs` does for a citation.
 
 ### env
 
-`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"webspec"` \| `"searchfox"` \| `"repo"` \| `"signal"`\>
+`Pick`\<[`TaskContext`](../../../../runtime/tasks/interfaces/TaskContext.md), `"services"` \| `"repo"` \| `"signal"`\>
 
 ### url
 

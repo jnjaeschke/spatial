@@ -5,7 +5,7 @@ import { stepLinks } from "../../../src/plugins/spec/shared/steps.ts";
 import { asyncEffectIds, checkHops, witnessKey, type TraceFacts } from "../../../src/plugins/spec/shared/trace-check.ts";
 import { stepEffects } from "../../../src/plugins/spec/shared/effects.ts";
 import type { SpecAlgorithmData, SpecTraceEntry, StepEffect } from "../../../src/plugins/spec/shared/types.ts";
-import type { SpecEffect, SpecHop } from "../../../src/shared/types.ts";
+import type { SpecEffect, SpecHop } from "../../../src/plugins/spec/shared/types.ts";
 
 const algorithm = (ref: string, content: string, stepEffectsByPath: Record<string, StepEffect[]> = {}, effects: SpecEffect[] = []): SpecAlgorithmData => ({ ref, spec: ref.split("#")[0]!, anchor: ref.split("#")[1]!, title: ref, type: "algorithm", url: `https://x/#${ref}`, content, sha: "s", outgoingRefs: 0, effects, effectsStatus: { state: "ready", semantics: "may", issues: [], omitted: 0 }, stepEffects: stepEffectsByPath });
 const effect = (id: string, kind: string): SpecEffect => ({ id, kind, params: {}, execution: ["separate"] });

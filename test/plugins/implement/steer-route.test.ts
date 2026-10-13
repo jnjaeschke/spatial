@@ -19,7 +19,7 @@ function setup(scope = "repo") {
   const distill = defineTask<{ steerId: string; taskId: string | null }, unknown>({ kind: "distillSteer", run: async () => ({ action: "add", key: "use-helpers", scope, memory: { situation: "s", observed: "o", wanted: "w", why: null, phases: ["implement"], kinds: [] } }) });
   const phase = (id: string): Phase<unknown> => ({ id, async run(rt, sessionId) { await rt.run(sessionId, "hang", null); } });
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [hang, distill], phases: [phase("implement"), phase("review")] }], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [hang, distill], phases: [phase("implement"), phase("review")] }], llm: {} as LlmService, git: () => ({}) as GitCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "implement" });
   const start = store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", data: { via: "command", workflow: "implement", params: {}, title: "t", prompt: "p" }, provenance: { taskId: "user" } });
   return { rt, store, session, start, runs: () => runs, routes: implementRoutes(rt) };

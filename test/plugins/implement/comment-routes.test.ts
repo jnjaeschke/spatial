@@ -12,7 +12,7 @@ import { createHttpServer } from "../../../src/server/http.ts";
 
 test("reviewer comment routes validate triage and require a reviewer comments epoch", async () => {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm: {} as never, git: () => ({}) as GitCapability, webspec: {} as never, searchfox: {} as never });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm: {} as never, git: () => ({}) as GitCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t", workflow: "implement" });
   const comment = store.putArtifact({ sessionId: session.id, type: "PhabComment", status: "verified", data: { phid: "PHID-XCMT-1" }, provenance: { taskId: "test" } });
   const server = createHttpServer(rt);

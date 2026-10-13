@@ -1,4 +1,4 @@
-import type { Engine } from "../../../plugin-api.ts";
+import type { Engine } from "./types.ts";
 import type { SpecStep } from "./steps.ts";
 import type { EngineDifference } from "./types.ts";
 import { quoteProblem } from "./engine.ts";

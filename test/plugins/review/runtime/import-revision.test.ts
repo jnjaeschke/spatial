@@ -63,7 +63,7 @@ function setup(closedD1 = false) {
   } };
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: a.dir, repoDir: join(a.dir, ".git"), title: "t" });
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [] }], llm: {} as never, git: makeGit, webspec: {} as never, searchfox: {} as never });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [] }], llm: {} as never, git: makeGit });
   return { a, b, baseSha, c1, c2, raw1, raw2, calls, conduit: conduit as unknown as Conduit, rt, session, store,
     setInvalidSecondPatch(v: boolean) { invalidSecondPatch = v; }, setMissingBase(v: boolean) { missingBase = v; },
     setFail(v: boolean) { fail = v; }, setBranching(v: boolean) { branching = v; } };
@@ -91,7 +91,7 @@ test("imports a stacked revision as local commits without changing checkout stat
   assert.deepEqual(snapshot(x.a), before);
   assert.ok(x.calls.every((method) => READ_ONLY_METHODS.has(method)));
   assert.ok(!x.calls.includes("differential.createinline"));
-  const diffRuntime = new Runtime({ store: x.store, plugins: [{ id: "test", tasks: [importDiff] }], llm: {} as never, git: makeGit, webspec: {} as never, searchfox: {} as never });
+  const diffRuntime = new Runtime({ store: x.store, plugins: [{ id: "test", tasks: [importDiff] }], llm: {} as never, git: makeGit });
   const { diffId } = await diffRuntime.run<{ diffId: string }>(x.session.id, "importDiff", { base, head });
   const diff = x.store.getArtifact<DiffData>(diffId).data;
   assert.deepEqual(diff.commits.map(commitRevision), [{ host, id: 1 }, { host, id: 2 }]);

@@ -1,4 +1,4 @@
-import type { SearchfoxCapability } from "../../../src/runtime/tasks.ts";
+import type { SearchfoxCapability } from "../../../src/plugins/spec/runtime/searchfox.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 export const NAVIGATE = { symbol: "_ZN7mozilla3dom15BrowsingContext8NavigateEv", signature: "void BrowsingContext::Navigate(" };

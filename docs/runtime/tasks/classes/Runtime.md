@@ -30,25 +30,17 @@
 
 ***
 
+### services
+
+> `readonly` **services**: `Readonly`\<`Record`\<`string`, `unknown`\>\>
+
+***
+
 ### workflows
 
 > `readonly` **workflows**: `ReadonlyMap`\<`string`, [`Workflow`](../../plugins/interfaces/Workflow.md)\<`any`\>\>
 
 ## Accessors
-
-### codeSearch
-
-#### Get Signature
-
-> **get** **codeSearch**(): `Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
-
-Read-only code search per engine, for server code outside tasks.
-
-##### Returns
-
-`Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
-
-***
 
 ### knowledge
 
@@ -73,18 +65,6 @@ Plugin data that outlives sessions.
 ##### Returns
 
 [`LlmService`](../../llm/types/interfaces/LlmService.md)
-
-***
-
-### searchfox
-
-#### Get Signature
-
-> **get** **searchfox**(): [`SearchfoxCapability`](../interfaces/SearchfoxCapability.md)
-
-##### Returns
-
-[`SearchfoxCapability`](../interfaces/SearchfoxCapability.md)
 
 ***
 

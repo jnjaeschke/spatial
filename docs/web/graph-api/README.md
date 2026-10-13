@@ -80,18 +80,6 @@ Re-exports [Draft](../plugin-api/interfaces/Draft.md)
 
 ***
 
-### ENGINE\_LABEL
-
-Re-exports [ENGINE_LABEL](../../plugin-api/variables/ENGINE_LABEL.md)
-
-***
-
-### ENGINES
-
-Re-exports [ENGINES](../../plugin-api/variables/ENGINES.md)
-
-***
-
 ### escapeRegex
 
 Re-exports [escapeRegex](../../plugin-api/functions/escapeRegex.md)

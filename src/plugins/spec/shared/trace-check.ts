@@ -1,4 +1,4 @@
-import type { SpecHop } from "../../../plugin-api.ts";
+import type { SpecHop } from "./types.ts";
 import type { EngineMapping } from "./types.ts";
 import type { HopResult, SpecAlgorithmData, SpecTraceEntry } from "./types.ts";
 import { parseSteps, stepLinks } from "./steps.ts";

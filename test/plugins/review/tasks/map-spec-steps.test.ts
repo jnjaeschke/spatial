@@ -2,13 +2,15 @@ import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/t
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
+import type { WebspecCapability } from "../../../../src/plugins/spec/runtime/webspec.ts";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { SpecReferenceData, SpecStepMapData } from "../../../../src/plugins/spec/api.ts";
 import type { DiffData, LlmSelection } from "../../../../src/shared/types.ts";
 
 import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
 import { mappableSpecs, mapSpecSteps } from "../../../../src/plugins/review/tasks/map-spec-steps/task.ts";
+import { specTestServices } from "../../../helpers/spec-services.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const STEPS = "To navigate:\n\n1. Fire *navigate*.\n2. If the commit is pending:\n\n    1. Defer the event.\n3. Fire navigatesuccess.";
@@ -28,7 +30,7 @@ function setup(reply: unknown, opts: { head?: string; checks?: { line: number; s
     async analyze() { if (opts.analyzeFails) throw new Error("analysis failed"); return opts.checks ?? []; },
     async resolve(url: string) { return { found: true as const, spec: { spec: opts.otherSpec ? "OTHER" : "HTML", anchor: "navigate", title: "navigate", type: "algorithm", url: opts.otherSpec ? "https://example.com/#other" : url, content: STEPS } }; },
   } as WebspecCapability;
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [mapSpecSteps] }], llm, git: () => git, webspec, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [mapSpecSteps] }], llm, git: () => git, services: specTestServices({ webspec }) });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = <T>(type: string, data: T, status: "verified" | "proposed" = "verified") => store.putArtifact({ sessionId: session.id, type, status, data, provenance: { taskId: "x" } });
   const diff = put<DiffData>("Diff", { baseSha: "B", headSha: "H", commits: [], files: [

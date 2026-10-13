@@ -28,7 +28,7 @@
  *   kind of repository: commit style, message rule, check and test commands, phases after Accept. Workflows
  *   pick one per session; any plugin can add one.
  * - The **knowledge store** (`Runtime.knowledge`, `Knowledge`) keeps plugin data across sessions in its own SQLite file (`knowledge.db` next to the session database): versioned entries by scope, namespace and key. A `null` value is a tombstone; nothing is deleted through any API. Tasks read it through `TaskContext.knowledge` (read-only); plugin runtime code writes.
- * - **Code search** (`Runtime.codeSearch`, `TaskContext.codeSearch`, `CodeSearch`): spec links, enclosing functions, file reads and the revision per engine (Gecko and WebKit through searchfox, Blink through chromium-search and a brace scan).
+ * - **Services** (`Plugin.services`, `Runtime.services`, `TaskContext.services`, `McpToolContext.services`): a plugin builds its capabilities (tool binaries) from the process environment once per process; the runtime and the session MCP server build them the same way, and `RuntimeOptions.services` overrides them per plugin id (tests). A plugin reads its own through a typed accessor such as `specServices`.
  *
  * The web side of a plugin registers phase views and canvas node kinds through
  * `src/web/plugin-api.ts`, and builds canvas graphs from `src/web/graph-api.ts`; its registry is
@@ -57,21 +57,14 @@ export type { ArtifactKind, ChatReplyField, McpTool, McpToolContext, ParseResult
 /** Typed plugin MCP tools. */
 export { defineMcpTool } from "./runtime/plugins.ts";
 export { BusyError, PhaseBusyError, defineTask } from "./runtime/tasks.ts";
-export type { Phase, TaskContext, TaskDefinition, GitCapability, WebspecCapability, WebspecLookup, SearchfoxCapability, BlameEntry, StepCommentCheck } from "./runtime/tasks.ts";
+export type { Phase, TaskContext, TaskDefinition, GitCapability, BlameEntry } from "./runtime/tasks.ts";
 export type { Runtime } from "./runtime/tasks.ts";
 export type { Knowledge, KnowledgeEntry, KnowledgeProvenance, KnowledgeRead } from "./runtime/knowledge.ts";
-/** Read-only code search per engine, and the brace scan used where no code index exists. */
-export { specUrlParts } from "./runtime/code-search.ts";
-export { ENGINE_LABEL, ENGINES } from "./shared/engines.ts";
 export { escapeRegex } from "./shared/regex.ts";
 export { plural } from "./shared/plural.ts";
 export { latestArtifact } from "./shared/artifacts.ts";
 export { chosenDecision } from "./shared/decisions.ts";
 export { isActive, taskState } from "./shared/task-state.ts";
-export type { CodeSearch } from "./runtime/code-search.ts";
-export { makeChromiumSearch } from "./runtime/chromium-search.ts";
-export { declarationAt, enclosingFunction, functionsIn } from "./runtime/brace-scan.ts";
-export type { ScannedFunction } from "./runtime/brace-scan.ts";
 export type { SessionView, SearchDoc, WorkflowView } from "./runtime/render-ref.ts";
 export { HttpError, send, readJson, str, text, llmField, startTask, requireSession, requireArtifact, putUserArtifact } from "./server/http.ts";
 /** Creates a session after resolving its repository path. */
@@ -95,7 +88,7 @@ export { LlmOutputError } from "./runtime/llm/types.ts";
 export { commandRunData } from "./runtime/command-run.ts";
 export { fetchBugMarkdown } from "./runtime/moz-mcp.ts";
 export { prependRepoContext, readRepoSkill } from "./runtime/repo-context.ts";
-export { isGeckoRepo } from "./runtime/searchfox.ts";
+export { isGeckoRepo } from "./runtime/gecko-repo.ts";
 export { revisedText } from "./shared/revisions.ts";
 export { plainText } from "./shared/plain-text.ts";
 export { numberLines, fileRows } from "./shared/diff-lines.ts";

@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
-import { ENGINE_LABEL, ErrorText, useAction } from "../../../web/plugin-api.ts";
+import { ErrorText, useAction } from "../../../web/plugin-api.ts";
+import { ENGINE_LABEL } from "../shared/engines.ts";
 import type { EngineMapping } from "../shared/types.ts";
 import type { TraceCodeRef } from "../shared/types.ts";
 import { mappingStepSite } from "../shared/trace-check.ts";

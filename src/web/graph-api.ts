@@ -8,7 +8,6 @@ export { plainText } from "../shared/plain-text.ts";
 export { escapeRegex } from "../shared/regex.ts";
 export { plural } from "../shared/plural.ts";
 export { latestArtifact } from "../shared/artifacts.ts";
-export { ENGINE_LABEL, ENGINES } from "../shared/engines.ts";
 export { fileUrl } from "../shared/searchfox-url.ts";
 /** Task busy state: whether a task is active; busy, else the latest failure, of a set of tasks. */
 export { isActive, taskState } from "../shared/task-state.ts";

@@ -1,4 +1,4 @@
-import type { SpecHop } from "../../../plugin-api.ts";
+import type { SpecHop } from "./types.ts";
 import { specRef } from "./refs.ts";
 
 /** The boxes a witness path opens, in order: each algorithm it enters, from the step of the hop's call site; hops within one algorithm are skipped. */

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import type { DiffData } from "../../../../src/plugin-api.ts";
 import type { LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { IntroducedSymbolsData } from "../../../../src/plugins/review/shared/types.ts";
@@ -15,7 +15,7 @@ test("introducedSymbols stores only new defined names and links the Diff", async
     async wordsAt(_rev: string, words: string[]) { searched.push(...words); return new Set(words.filter((word) => word === "ExistingThing")); },
   } as unknown as GitCapability;
   const llm = { defaultSelection: { backend: "claude" as const, model: "m", effort: "low" as const }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } } as LlmService;
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [introducedSymbols] }], llm, git: () => git, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [introducedSymbols] }], llm, git: () => git });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diff: DiffData = { baseSha: "base", headSha: "head", commits: [{ sha: "commit", subject: "add", body: "" }], files: [{ path: "a.h", status: "modified", binary: false, hunks: [{ id: "h0", header: "", oldStart: 1, oldLines: 0, newStart: 1, newLines: 4, lines: [
     { kind: "add", text: "void ExistingThing();" }, { kind: "add", text: "void NewThing();" }, { kind: "add", text: "CallOnlyName();" }, { kind: "add", text: "void LocalThing(int);" },

@@ -1,6 +1,7 @@
 import { useId } from "react";
-import { ENGINE_LABEL, ErrorText, IconButton, useAction } from "../../../web/plugin-api.ts";
-import type { Engine } from "../../../plugin-api.ts";
+import { ErrorText, IconButton, useAction } from "../../../web/plugin-api.ts";
+import { ENGINE_LABEL } from "../shared/engines.ts";
+import type { Engine } from "../shared/types.ts";
 import type { EngineMapping, EngineSite } from "../shared/types.ts";
 import { codeUrl, isDeclaration, siteKey, siteName } from "../shared/engine.ts";
 import { CodePeek } from "./CodePeek.tsx";

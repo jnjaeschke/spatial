@@ -24,7 +24,7 @@ The structured reply of task `traceSpec`.
 
 #### hop
 
-> **hop**: `"start"` \| `"return"` \| `"call"` \| `"next"` \| `"async"`
+> **hop**: `"start"` \| `"call"` \| `"return"` \| `"next"` \| `"async"`
 
 #### note
 

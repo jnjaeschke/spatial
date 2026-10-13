@@ -52,6 +52,14 @@ Read-only tools for the session MCP server; names are unique across plugins and 
 
 ***
 
+### readOnlyCommands?
+
+> `optional` **readOnlyCommands?**: `string`[]
+
+Shell commands (such as `tool sub`) a read-only LLM run may execute.
+
+***
+
 ### repoProfiles?
 
 > `optional` **repoProfiles?**: [`RepoProfile`](RepoProfile.md)[]
@@ -133,6 +141,24 @@ The upstream revision this plugin's session content is based on for code links, 
 #### Returns
 
 [`PluginServer`](PluginServer.md)
+
+***
+
+### services()?
+
+> `optional` **services**(`env`): `unknown`
+
+Builds this plugin's service object (capabilities such as tool binaries) from the process environment; called once per process. Tasks and MCP tools read it as `services[id]`.
+
+#### Parameters
+
+##### env
+
+`Readonly`\<`Record`\<`string`, `string` \| `undefined`\>\>
+
+#### Returns
+
+`unknown`
 
 ***
 

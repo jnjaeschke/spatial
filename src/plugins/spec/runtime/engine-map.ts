@@ -1,5 +1,9 @@
 import { basename } from "node:path";
-import { declarationAt, enclosingFunction, escapeRegex, functionsIn, type CodeScope, type CodeSearch, type GeckoSpecRef, type WebspecCapability } from "../../../plugin-api.ts";
+import { escapeRegex } from "../../../plugin-api.ts";
+import { declarationAt, enclosingFunction, functionsIn } from "./brace-scan.ts";
+import type { CodeScope, GeckoSpecRef } from "../shared/types.ts";
+import type { CodeSearch } from "./code-search.ts";
+import type { WebspecCapability } from "./webspec.ts";
 import type { EngineSite, EngineStep, EngineTest } from "../shared/types.ts";
 import { byPlace, followQuote, fromLinks, fragmentOf, innermostFunction, isCodePath, linksAnchor, quoteProblem, shiftSteps, siteKey } from "../shared/engine.ts";
 

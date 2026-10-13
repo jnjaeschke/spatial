@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseNumbered } from "../../../src/runtime/chromium-search.ts";
+import { parseNumbered } from "../../../src/plugins/spec/runtime/chromium-search.ts";
 import { addSteps, definitionOf, carryOver, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
 import { fakeCode } from "./fake-code.ts";
 import type { EngineSite } from "../../../src/plugins/spec/shared/types.ts";
-import type { CodeSearch } from "../../../src/runtime/code-search.ts";
-import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
-import type { CodeScope, GeckoSpecRef } from "../../../src/shared/types.ts";
+import type { CodeSearch } from "../../../src/plugins/spec/runtime/code-search.ts";
+import type { StepCommentCheck } from "../../../src/plugins/spec/runtime/webspec.ts";
+import type { CodeScope, GeckoSpecRef } from "../../../src/plugins/spec/shared/types.ts";
 
 const signal = new AbortController().signal;
 const NAVIGATE = { symbol: "_ZN7mozilla3dom15BrowsingContext8NavigateEv", signature: "void BrowsingContext::Navigate(" };

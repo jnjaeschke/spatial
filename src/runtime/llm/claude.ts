@@ -5,15 +5,16 @@ import { claudeEventReader } from "./events.ts";
 import { LlmOutputError, type LlmBackend, type LlmRequest, type LlmResult } from "./types.ts";
 
 const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
-/** What a read-only run may execute: searchfox-cli, chromium-search (every subcommand reads), and webspec-index's query subcommands (not `update`, `reparse` or `clear-db`, which rewrite its index). */
-const READ_ONLY_COMMANDS = ["searchfox-cli", "chromium-search", ...["query", "search", "refs", "anchors", "idl", "trace", "effects", "exists"].map((sub) => `webspec-index ${sub}`)].map((command) => `Bash(${command}:*)`);
 
 export class ClaudeBackend implements LlmBackend {
   readonly id = "claude" as const;
   #bin: string;
+  #readOnlyCommands: string[];
 
-  constructor(opts: { bin?: string } = {}) {
+  /** `readOnlyCommands`: the shell commands a read-only run may execute (`Plugin.readOnlyCommands`). */
+  constructor(opts: { bin?: string; readOnlyCommands?: string[] } = {}) {
     this.#bin = opts.bin ?? "claude";
+    this.#readOnlyCommands = (opts.readOnlyCommands ?? []).map((command) => `Bash(${command}:*)`);
   }
 
   async listModels(): Promise<ModelInfo[]> {
@@ -34,7 +35,7 @@ export class ClaudeBackend implements LlmBackend {
     if (write) args.push("--permission-mode", mode === "full" ? "bypassPermissions" : "auto");
     if (req.tools !== "none") {
       const mcpTools = Object.keys(req.mcpServers ?? {}).map((name) => `mcp__${name}__*`);
-      const allowed = [...(req.tools === "read-only" ? READ_ONLY_COMMANDS : []), ...mcpTools];
+      const allowed = [...(req.tools === "read-only" ? this.#readOnlyCommands : []), ...mcpTools];
       if (allowed.length) args.push("--allowedTools", allowed.join(" "));
     }
     if (req.mcpServers && Object.keys(req.mcpServers).length) {

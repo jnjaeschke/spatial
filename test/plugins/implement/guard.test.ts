@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import type { NotifyPayload, RuntimeEvent, WorkflowStartData } from "../../../src/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
@@ -12,7 +12,7 @@ import { implementWorkflow } from "../../../src/plugins/implement/workflow/imple
 const llm: LlmService = { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unused"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin], llm, git: () => ({}) as GitCapability });
   const make = (worktree: string) => store.createSession({ worktree, repoDir: `${worktree}/.git`, title: "t", workflow: "implement" });
   return { store, rt, make };
 }

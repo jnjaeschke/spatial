@@ -1,12 +1,11 @@
 import type { Id, SessionState } from "../shared/types.ts";
 import type { Store } from "./store.ts";
-import type { SearchfoxCapability } from "./tasks.ts";
-import { isGeckoRepo } from "./searchfox.ts";
+import { isGeckoRepo } from "./gecko-repo.ts";
 import { selectLinkRev } from "./link-rev.ts";
 import { sessionView } from "./render-ref.ts";
 import type { PluginRegistry } from "./plugins.ts";
 
-export async function buildSessionState(store: Store, searchfoxCapability: SearchfoxCapability, hooks: Pick<PluginRegistry, "linkRevs" | "textLinks">, sessionId: Id): Promise<SessionState> {
+export async function buildSessionState(store: Store, searchfoxCapability: { tip(): Promise<{ repoBase: string; rev: string }> }, hooks: Pick<PluginRegistry, "linkRevs" | "textLinks">, sessionId: Id): Promise<SessionState> {
   const session = store.getSession(sessionId);
   const view = sessionView(store, sessionId);
   let searchfox: SessionState["searchfox"] = null;

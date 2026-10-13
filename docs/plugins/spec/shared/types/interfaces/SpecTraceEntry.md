@@ -22,7 +22,7 @@
 
 ### hop?
 
-> `optional` **hop?**: `"start"` \| `"return"` \| `"call"` \| `"next"` \| `"async"`
+> `optional` **hop?**: `"start"` \| `"call"` \| `"return"` \| `"next"` \| `"async"`
 
 ***
 

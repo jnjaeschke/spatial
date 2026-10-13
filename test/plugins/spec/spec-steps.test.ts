@@ -8,7 +8,7 @@ import remarkRehype from "remark-rehype";
 import type { Root, RootContent } from "hast";
 import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
 import { rehypeSpecSteps } from "../../../src/plugins/spec/web/spec-steps.ts";
-import type { SpecSite } from "../../../src/shared/types.ts";
+import type { SpecSite } from "../../../src/plugins/spec/shared/types.ts";
 
 function steps(markdown: string): { path: string; text: string }[] {
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype).use(rehypeSpecSteps);

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { describedStep } from "../../../src/plugins/spec/shared/step-comments.ts";
 import { parseSteps } from "../../../src/plugins/spec/shared/steps.ts";
-import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";
+import type { StepCommentCheck } from "../../../src/plugins/spec/runtime/webspec.ts";
 import type { StepLink } from "../../../src/plugins/spec/api.ts";
 import { checkStepComment, commentBlock, misplacedStepComment } from "../../../src/plugins/spec/runtime/step-check.ts";
 

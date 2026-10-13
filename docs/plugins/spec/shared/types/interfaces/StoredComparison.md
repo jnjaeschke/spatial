@@ -12,7 +12,7 @@ A verified comparison and a digest per engine of the sites it used.
 
 ### basedOn
 
-> **basedOn**: `Partial`\<`Record`\<[`Engine`](../../../../../shared/types/type-aliases/Engine.md), `string`\>\>
+> **basedOn**: `Partial`\<`Record`\<[`Engine`](../type-aliases/Engine.md), `string`\>\>
 
 ***
 

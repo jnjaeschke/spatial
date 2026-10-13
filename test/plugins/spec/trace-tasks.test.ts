@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import type { McpServerSpec } from "../../../src/runtime/llm/types.ts";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
 import type { GeneratedTrace, SpecTraceData } from "../../../src/plugins/spec/shared/types.ts";
 import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 

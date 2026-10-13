@@ -2,18 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { codeWindow, specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import { openSpec } from "../../../src/plugins/spec/runtime/open.ts";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { routeCall } from "../../helpers/route-call.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 function setup() {
   const webspec = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, services: specTestServices({ webspec }) });
   const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   rt.store.putArtifact({ sessionId: session.id, type: "WorkflowStart", status: "verified", provenance: { taskId: "user" }, data: { via: "command", workflow: "explore", params: { query: "HTML#navigate" }, title: "t", prompt: "HTML#navigate" } });
   return { rt, session, routes: specRoutes(rt) };

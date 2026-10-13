@@ -1,5 +1,7 @@
-import { ENGINES, HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Engine, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
-import type { SpecHop } from "../../../plugin-api.ts";
+import { HttpError, putUserArtifact, readJson, requireArtifact, requireSession, send, text, type Artifact, type Id, type Route, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES } from "../shared/engines.ts";
+import type { Engine } from "../shared/types.ts";
+import type { SpecHop } from "../shared/types.ts";
 import type { SpecAlgorithmData, SpecExploreRequestData, SpecOpenedData, SpecTraceData, TraceCodeRef } from "../shared/types.ts";
 import { openSpec } from "../runtime/open.ts";
 import { summaryKey, summaryViews } from "../runtime/summaries.ts";
@@ -18,6 +20,7 @@ import { traceStatus } from "../shared/traces.ts";
 import { addMappingStep, MappingStepConflict, generateTrace, openTraceBoxes, startTraceCheck, type TraceRequest } from "../runtime/traces.ts";
 import { loadTraceFacts } from "../tasks/check-trace/task.ts";
 import { TRACE_HOPS, type TraceQuestion } from "../shared/types.ts";
+import { specServices } from "../runtime/services.ts";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const HOPS = new Set<string>(TRACE_HOPS);
@@ -177,7 +180,7 @@ export function specRoutes(rt: Runtime): Route[] {
       const path = url.searchParams.get("path") ?? "", line = Number(url.searchParams.get("line")), quote = url.searchParams.get("quote");
       if (!path || !Number.isInteger(line) || line < 1) throw new HttpError(400, "path and a positive line are required");
       let text;
-      try { text = await rt.codeSearch[engine].file(path, new AbortController().signal); }
+      try { text = await specServices(rt).codeSearch[engine].file(path, new AbortController().signal); }
       catch (error) { throw new HttpError(502, (error as Error).message); }
       if (text === null) throw new HttpError(404, `${engine} has no file ${path}`);
       return codeWindow(text.split("\n"), line, quote);

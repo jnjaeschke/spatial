@@ -3,7 +3,8 @@ import type { useClosed } from "../../../web/plugin-api.ts";
 import type { SpecOpenedData, TraceCodeRef } from "../shared/types.ts";
 import type { SummaryView } from "../runtime/summaries.ts";
 import type { EngineMapping } from "../shared/types.ts";
-import type { Engine, TaskRecord } from "../../../plugin-api.ts";
+import type { TaskRecord } from "../../../plugin-api.ts";
+import type { Engine } from "../shared/types.ts";
 
 /** A step to highlight; the box is revealed once per `nonce`. */
 export interface SpecFocus { anchor: string; step: string; nonce: number }

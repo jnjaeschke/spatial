@@ -1,8 +1,6 @@
 import type { z } from "zod";
 import type { DecisionData, DecisionOption, Id, LlmSelection, WorkflowInfo } from "../shared/types.ts";
-import type { Runtime, TaskContext, TaskDefinition, Phase, WebspecCapability } from "./tasks.ts";
-import type { CodeSearch } from "./code-search.ts";
-import type { Engine } from "../shared/types.ts";
+import type { Runtime, TaskContext, TaskDefinition, Phase } from "./tasks.ts";
 import type { Artifact, Ref, TextLink } from "../shared/types.ts";
 import type { SearchDoc, SessionView, WorkflowView } from "./render-ref.ts";
 import type { Route } from "../server/http.ts";
@@ -87,8 +85,8 @@ export interface ChatReplyField {
   /** Validates the value and returns artifacts to store and link to the reply, and optionally a phase for the runtime to start after the turn (one per reply). */
   accept(ctx: TaskContext, value: unknown): Promise<{ ok: true; artifacts: { type: string; data: unknown }[]; run?: { phase: string; input: unknown } } | { ok: false; error: string }>;
 }
-/** What a plugin MCP tool may use: the session, its work tree, read-only capabilities and the call's abort signal. */
-export interface McpToolContext { sessionId: Id; repo: string; webspec: WebspecCapability; knowledge: Pick<Knowledge, "get">; codeSearch: Record<Engine, CodeSearch>; signal: AbortSignal }
+/** What a plugin MCP tool may use: the session, its work tree, the plugins' services, read-only knowledge and the call's abort signal. */
+export interface McpToolContext { sessionId: Id; repo: string; services: Readonly<Record<string, unknown>>; knowledge: Pick<Knowledge, "get">; signal: AbortSignal }
 /** A read-only tool a plugin adds to the session MCP server (`spatial`), which LLM tasks reach through `ctx.sessionMcp`. `input` is the zod shape of its arguments; `run` returns the text answer and throws for an error answer. */
 export interface McpTool<S extends z.ZodRawShape = z.ZodRawShape> { name: string; description: string; input: S; run(ctx: McpToolContext, input: z.infer<z.ZodObject<S>>): Promise<string> }
 /** An `McpTool` whose `run` input is typed from its `input` shape. */
@@ -113,6 +111,10 @@ export interface Plugin {
   linkRev?(view: SessionView): string | null;
   /** Rules linking text (such as bug references) to the tracker of the repository at `repo`; empty when this plugin has none for it. */
   textLinks?(repo: string): TextLink[];
+  /** Builds this plugin's service object (capabilities such as tool binaries) from the process environment; called once per process. Tasks and MCP tools read it as `services[id]`. */
+  services?(env: Readonly<Record<string, string | undefined>>): unknown;
+  /** Shell commands (such as `tool sub`) a read-only LLM run may execute. */
+  readOnlyCommands?: string[];
   /** Read-only tools for the session MCP server; names are unique across plugins and must not be a core tool's name. */
   mcpTools?: McpTool[];
   server?(rt: Runtime, opts: { intervalMs?: number }): PluginServer;
@@ -131,6 +133,14 @@ export interface PluginRegistry {
   textLinks: ((repo: string) => TextLink[])[];
   mcpTools: McpTool[];
   repoProfiles: Map<string, RepoProfile>;
+  readOnlyCommands: string[];
+}
+
+/** The services of `plugins`: an override per plugin id wins over the plugin's own, built from `env`. */
+export function pluginServices(plugins: Plugin[], env: Readonly<Record<string, string | undefined>>, overrides: Record<string, unknown> = {}): Readonly<Record<string, unknown>> {
+  const services: Record<string, unknown> = { ...overrides };
+  for (const plugin of plugins) if (!Object.hasOwn(services, plugin.id) && plugin.services) services[plugin.id] = plugin.services(env);
+  return Object.freeze(services);
 }
 
 export function artifactKinds(plugins: Plugin[]): Record<string, ArtifactKind> {
@@ -172,5 +182,5 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     done.add(id);
   };
   for (const plugin of plugins) visit(plugin.id, []);
-  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], linkRevs: plugins.flatMap((plugin) => plugin.linkRev ? [plugin.linkRev] : []), textLinks: plugins.flatMap((plugin) => plugin.textLinks ? [plugin.textLinks] : []), mcpTools: [...mcpTools.values()], repoProfiles };
+  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], linkRevs: plugins.flatMap((plugin) => plugin.linkRev ? [plugin.linkRev] : []), textLinks: plugins.flatMap((plugin) => plugin.textLinks ? [plugin.textLinks] : []), mcpTools: [...mcpTools.values()], repoProfiles, readOnlyCommands: plugins.flatMap((plugin) => plugin.readOnlyCommands ?? []) };
 }

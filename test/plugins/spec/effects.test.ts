@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stepEffects } from "../../../src/plugins/spec/shared/effects.ts";
-import type { SpecEffect, SpecHop } from "../../../src/shared/types.ts";
+import type { SpecEffect, SpecHop } from "../../../src/plugins/spec/shared/types.ts";
 
 const here = { spec: "HTML", anchor: "navigate" };
 const effect = (id: string, location: SpecEffect["location"], other: SpecEffect["other_locations"] = []): SpecEffect => ({ id, kind: "fire_event", params: { name: id }, execution: ["inline"], location, other_locations: other });

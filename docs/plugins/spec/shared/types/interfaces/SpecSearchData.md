@@ -18,4 +18,4 @@ Data of a `SpecSearch` artifact: the results of a search phrase, best first.
 
 ### results
 
-> **results**: [`SpecSearchResult`](../../../../../shared/types/interfaces/SpecSearchResult.md)[]
+> **results**: [`SpecSearchResult`](SpecSearchResult.md)[]

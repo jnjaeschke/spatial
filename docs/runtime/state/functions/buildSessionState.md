@@ -16,7 +16,7 @@
 
 ### searchfoxCapability
 
-[`SearchfoxCapability`](../../tasks/interfaces/SearchfoxCapability.md)
+#### tip
 
 ### hooks
 

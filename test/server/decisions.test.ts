@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type Phase, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability, type Phase } from "../../src/runtime/tasks.ts";
 import type { Workflow } from "../../src/runtime/plugins.ts";
 import type { LlmService } from "../../src/runtime/llm/types.ts";
 import type { Artifact, DecisionData } from "../../src/shared/types.ts";
@@ -31,7 +31,7 @@ const asking = workflow("asking", (view) => {
 const retrying = workflow("retrying", (view) => view.epochs.length === 0 ? { run: "flaky", input: null } : null);
 const guarded: Workflow<Record<string, never>> = { ...asking, id: "guarded", checkAnswer: (_view, decision, option) => option === "stop" && decision.data.key === "go" ? "Nothing to stop" : null };
 const store = new Store(":memory:");
-const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [asking, retrying, guarded], phases: [phase("a"), phase("flaky")] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+const rt = new Runtime({ store, plugins: [{ id: "t", workflows: [asking, retrying, guarded], phases: [phase("a"), phase("flaky")] }], llm, git: () => ({}) as GitCapability });
 const server = createHttpServer(rt);
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

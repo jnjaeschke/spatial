@@ -14,7 +14,7 @@ A Step comment whose block the step map links only to unrelated steps (neither s
 
 ### check
 
-[`StepCommentCheck`](../../../../runtime/tasks/interfaces/StepCommentCheck.md)
+[`StepCommentCheck`](../../runtime/webspec/interfaces/StepCommentCheck.md)
 
 ### spec
 

@@ -9,7 +9,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../../src/runtime/tasks.ts";
+import type { WebspecCapability } from "../../../../src/plugins/spec/runtime/webspec.ts";
 import { makeGit } from "../../../../src/runtime/git.ts";
 import { corePlugin } from "../../../../src/runtime/create.ts";
 import { plugins } from "../../../../src/plugins/index.ts";
@@ -21,6 +22,7 @@ import { reviewRoutes } from "../../../../src/plugins/review/server/routes.ts";
 import { lookupSpecRef } from "../../../../src/plugins/review/tasks/lookup-spec-ref/task.ts";
 import { makeRepo } from "../../../helpers/git-fixture.ts";
 import { CHAT_REPLY, NARRATIVE, base, llm, newSession, post, put, repo, replyFor, reviewFor, rt, staticDir, state, waitFor } from "../../../helpers/http-server.ts";
+import { specTestServices } from "../../../helpers/spec-services.ts";
 
 test("reviewed marks validate narrative and change, then create a user artifact", async () => {
   const session = await newSession();
@@ -199,7 +201,7 @@ test("narrate rejects a second request while narration is running", async () => 
       return { text: "hi", json: prompt.schema ? chat ? CHAT_REPLY : review ? { findings: [], verdicts: [] } : NARRATIVE : undefined, providerSessionId: "p", selection: selection ?? this.defaultSelection };
     },
   };
-  const gatedRt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm: gatedLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const gatedRt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins], llm: gatedLlm, git: makeGit });
   const gatedServer = createHttpServer(gatedRt, { staticDir });
   await new Promise<void>((resolve) => gatedServer.listen(0, "127.0.0.1", resolve));
   try {
@@ -477,7 +479,7 @@ test("spec ref lookup reuses existing sections and caches newly linked sections"
     async query() { throw new Error("not used"); }, async search() { throw new Error("not used"); }, async refs() { throw new Error("not used"); }, async idl() { throw new Error("not used"); }, async effectPaths() { throw new Error("not used"); },
     async resolve(ref) { const anchor = ref.split("#").at(-1)!; return { found: true, spec: { spec: "HTML", anchor, title: anchor, type: "section", url: `https://html.spec.whatwg.org/#${anchor}`, content: "Section." } }; },
   };
-  const routeRuntime = new Runtime({ store: routeStore, plugins: [{ id: "route-test", tasks: [lookupSpecRef] }], llm, git: () => ({}) as never, webspec: routeWebspec, searchfox: {} as SearchfoxCapability });
+  const routeRuntime = new Runtime({ store: routeStore, plugins: [{ id: "route-test", tasks: [lookupSpecRef] }], llm, git: () => ({}) as never, services: specTestServices({ webspec: routeWebspec }) });
   const session = routeStore.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const resolved = { spec: "HTML", anchor: "existing", title: "Existing", type: "section", url: "https://html.spec.whatwg.org/#existing", content: "Existing." };
   const existing = routeStore.putArtifact({ sessionId: session.id, type: "SpecReference", status: "verified", data: { url: resolved.url, resolved, origin: "code", geckoRefs: [] }, provenance: { taskId: "x" } });

@@ -1,5 +1,7 @@
-import type { CodeScope, Engine, TaskRecord } from "../../../plugin-api.ts";
-import { ENGINE_LABEL, fileUrl, isActive, plural } from "../../../web/graph-api.ts";
+import type { TaskRecord } from "../../../plugin-api.ts";
+import type { CodeScope, Engine } from "./types.ts";
+import { fileUrl, isActive, plural } from "../../../web/graph-api.ts";
+import { ENGINE_LABEL } from "./engines.ts";
 import type { EngineMapping, EngineSite, EngineStep } from "./types.ts";
 
 /** Knowledge key (namespace `spec`) of an algorithm's mapping in one engine. */

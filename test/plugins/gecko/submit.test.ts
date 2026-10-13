@@ -5,7 +5,7 @@ import { chmodSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Artifact, DecisionData, Epoch, WorkflowView } from "../../../src/plugin-api.ts";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../src/runtime/tasks.ts";
 import { makeGit } from "../../../src/runtime/git.ts";
 import type { LlmSelection } from "../../../src/shared/types.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
@@ -35,7 +35,7 @@ function setup() {
   repo.commit({ "dom/b.txt": "b\n" }, "Bug 1 - B");
   const store = new Store(":memory:");
   const llm: LlmService = { defaultSelection: selection, async run(chosen) { return { text: "", json: null, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };
-  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [specPlugin, reviewPlugin, implementPlugin, geckoPlugin], llm, git: makeGit });
   const session = store.createSession({ worktree: repo.dir, repoDir: join(repo.dir, ".git"), title: "t" });
   return { repo, base, head: repo.git("rev-parse", "HEAD").trim(), rt, store, session };
 }

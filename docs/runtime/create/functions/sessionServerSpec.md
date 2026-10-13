@@ -6,9 +6,9 @@
 
 # Function: sessionServerSpec()
 
-> **sessionServerSpec**(`dbPath`, `sessionId`, `bins`): [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)
+> **sessionServerSpec**(`dbPath`, `sessionId`): [`McpServerSpec`](../../llm/types/type-aliases/McpServerSpec.md)
 
-The session MCP server: a stdio child reading the session database, with the tool binaries the runtime uses.
+The session MCP server: a stdio child reading the session database. It builds the plugin services from its environment, so the `SPATIAL_<TOOL>_BIN` variables set here are forwarded to it.
 
 ## Parameters
 
@@ -17,20 +17,6 @@ The session MCP server: a stdio child reading the session database, with the too
 `string`
 
 ### sessionId
-
-`string`
-
-### bins
-
-#### chromiumSearchBin?
-
-`string`
-
-#### searchfoxBin?
-
-`string`
-
-#### webspecBin?
 
 `string`
 

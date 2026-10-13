@@ -1,4 +1,4 @@
-import type { Engine, Id, LlmSelection } from "../shared/types.ts";
+import type { Id, LlmSelection } from "../shared/types.ts";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { plugins } from "../plugins/index.ts";
@@ -9,12 +9,9 @@ import { ClaudeBackend } from "./llm/claude.ts";
 import { CodexBackend } from "./llm/codex.ts";
 import { LlmManager } from "./llm/manager.ts";
 import { Store } from "./store.ts";
-import { Runtime, type SearchfoxCapability } from "./tasks.ts";
+import { pluginRegistry } from "./plugins.ts";
+import { Runtime } from "./tasks.ts";
 import { loadRepoContext } from "./repo-context.ts";
-import { makeSearchfox, searchfoxCodeSearch } from "./searchfox.ts";
-import { makeChromiumSearch } from "./chromium-search.ts";
-import type { CodeSearch } from "./code-search.ts";
-import { makeWebspec } from "./webspec.ts";
 import { KnowledgeStore } from "./knowledge.ts";
 import { fileURLToPath } from "node:url";
 import type { McpServerSpec } from "./llm/types.ts";
@@ -26,19 +23,15 @@ export function defaultDbPath(): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial", "runtime.sqlite");
 }
 
-/** The session MCP server: a stdio child reading the session database, with the tool binaries the runtime uses. */
-export function sessionServerSpec(dbPath: string, sessionId: Id, bins: { webspecBin?: string; searchfoxBin?: string; chromiumSearchBin?: string }): McpServerSpec {
-  return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", dbPath, "--session", sessionId, ...(bins.webspecBin ? ["--webspec-bin", bins.webspecBin] : []), ...(bins.searchfoxBin ? ["--searchfox-bin", bins.searchfoxBin] : []), ...(bins.chromiumSearchBin ? ["--chromium-search-bin", bins.chromiumSearchBin] : [])] };
+/** The session MCP server: a stdio child reading the session database. It builds the plugin services from its environment, so the `SPATIAL_<TOOL>_BIN` variables set here are forwarded to it. */
+export function sessionServerSpec(dbPath: string, sessionId: Id): McpServerSpec {
+  const bins = Object.entries(process.env).filter((entry): entry is [string, string] => /^SPATIAL_\w+_BIN$/.test(entry[0]) && !!entry[1]);
+  return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--db", dbPath, "--session", sessionId], ...(bins.length ? { env: Object.fromEntries(bins) } : {}) };
 }
 
 /** The `spatial` MCP server in repo mode, for LLM work before a session exists. */
 export function repoServerSpec(repo: string): McpServerSpec {
   return { type: "stdio", command: process.execPath, args: [fileURLToPath(new URL("../mcp/session-server.ts", import.meta.url)), "--repo", repo] };
-}
-
-/** The code search of every engine: Gecko over `searchfox`, WebKit over searchfox's `wubkat` repository, Blink over chromium-search. */
-export function makeCodeSearch(searchfox: SearchfoxCapability, bins: { searchfoxBin?: string; chromiumSearchBin?: string }): Record<Engine, CodeSearch> {
-  return { gecko: searchfoxCodeSearch("gecko", searchfox), webkit: searchfoxCodeSearch("webkit", makeSearchfox({ bin: bins.searchfoxBin, repo: "wubkat" })), blink: makeChromiumSearch({ bin: bins.chromiumSearchBin }) };
 }
 
 export function createRuntime(opts: {
@@ -47,21 +40,17 @@ export function createRuntime(opts: {
   claudeBin?: string;
   codexBin?: string;
   codexHome?: string;
-  webspecBin?: string;
-  searchfoxBin?: string;
-  chromiumSearchBin?: string;
 }): Runtime {
+  const allPlugins = [corePlugin, ...plugins];
   const llm = new LlmManager(
-    [new ClaudeBackend({ bin: opts.claudeBin }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
+    [new ClaudeBackend({ bin: opts.claudeBin, readOnlyCommands: pluginRegistry(allPlugins).readOnlyCommands }), new CodexBackend({ bin: opts.codexBin, codexHome: opts.codexHome })],
     opts.defaultLlm ?? DEFAULT_LLM,
   );
-  const searchfox = makeSearchfox({ bin: opts.searchfoxBin });
   return new Runtime({
-    store: new Store(opts.dbPath), plugins: [corePlugin, ...plugins], llm, git: makeGit,
-    webspec: makeWebspec({ bin: opts.webspecBin }), searchfox, codeSearch: makeCodeSearch(searchfox, { searchfoxBin: opts.searchfoxBin, chromiumSearchBin: opts.chromiumSearchBin }),
+    store: new Store(opts.dbPath), plugins: allPlugins, llm, git: makeGit,
     repoContext: loadRepoContext,
     knowledge: new KnowledgeStore(opts.dbPath === ":memory:" ? ":memory:" : join(dirname(opts.dbPath), "knowledge.db")),
-    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId, { webspecBin: opts.webspecBin, searchfoxBin: opts.searchfoxBin, chromiumSearchBin: opts.chromiumSearchBin }) }),
+    sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId) }),
     repoMcp: (repo) => ({ spatial: repoServerSpec(repo) }),
   });
 }

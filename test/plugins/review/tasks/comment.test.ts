@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import type { ReviewCommentData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { ChatMessageData, LlmSelection } from "../../../../src/shared/types.ts";
 import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
@@ -20,8 +20,7 @@ function setup(reply: unknown) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [comment] }], llm, git: () => ({}) as GitCapability,
-    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [comment] }], llm, git: () => ({}) as GitCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const finding = store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed",
     data: { anchor: "diff#f0h0", quote: "mFlag = true", lines: { path: "dom/A.cpp", side: "new", start: 8, end: 8 },

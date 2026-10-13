@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type WebspecCapability, type SearchfoxCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime } from "../../../../src/runtime/tasks.ts";
 import { makeGit, createSession } from "../../../../src/runtime/git.ts";
 import { importDiff } from "../../../../src/plugins/review/tasks/import-diff/task.ts";
 import type { LlmService } from "../../../../src/runtime/llm/types.ts";
@@ -18,7 +18,7 @@ const noLlm = {
 async function setup() {
   const r = makeRepo();
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff] }], llm: noLlm, git: makeGit, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [importDiff] }], llm: noLlm, git: makeGit });
   const session = await createSession(store, r.dir, "t", "review");
   return { r, store, rt, session };
 }

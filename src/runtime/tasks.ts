@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type {
-  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, GeckoSpecRef, Id, Link, LinkKind, LlmActivity, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
+  Actor, Artifact, ArtifactStatus, Commit, DecisionData, Epoch, Id, Link, LinkKind, LlmActivity, LlmSelection, Progress, Ref, RuntimeEvent, TaskRecord,
 } from "../shared/types.ts";
 import type { LlmEvent, LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";
@@ -8,57 +8,9 @@ import { MAX_RESULT_OUTPUT } from "./llm/events.ts";
 import { capOutput } from "./process.ts";
 import { renderRef, searchDocs, sessionOverview, sessionView, workflowView, type SessionView, type WorkflowView } from "./render-ref.ts";
 import type { RepoContext, RepoSkill } from "./repo-context.ts";
-import { pluginRegistry, type Plugin, type PluginRegistry, type RepoProfile, type Step, type Workflow } from "./plugins.ts";
+import { pluginRegistry, pluginServices, type Plugin, type PluginRegistry, type RepoProfile, type Step, type Workflow } from "./plugins.ts";
 import { KnowledgeStore, type Knowledge } from "./knowledge.ts";
-import { missingCodeSearch, type CodeSearch } from "./code-search.ts";
-import { searchfoxCodeSearch } from "./searchfox.ts";
 import { isActive } from "../shared/task-state.ts";
-
-/** webspec-index's verdict on one Step comment: `line` is 1-based, `step` dotted ("4.2"), `url` the spec link whose scope the comment is in. */
-export interface StepCommentCheck { line: number; step: string; text: string; result: "exact" | "fuzzy" | "mismatch" | "not_found"; url: string }
-
-/** A read-only webspec-index lookup whose text output goes to an LLM tool. */
-export type WebspecLookup =
-  | { command: "query"; ref: string; steps: string | null }
-  | { command: "refs"; ref: string; direction: "incoming" | "outgoing"; limit: number }
-  | { command: "effects"; ref: string; step: string | null }
-  | { command: "flow"; ref: string }
-  | { command: "state"; selector: string };
-
-export interface WebspecCapability {
-  readonly effect: "read-only";
-  /** Text output of a read-only lookup for LLM tools: markdown for `query` and `state`, JSON for `refs` and `effects` (compact), a mermaid chart for `flow`. */
-  lookup(request: WebspecLookup, signal: AbortSignal): Promise<string>;
-  resolve(url: string, signal: AbortSignal): Promise<{ found: true; spec: ResolvedSpec } | { found: false; reason: string }>;
-  /** One section (`webspec-index query <ref>`); `ref` is a `SPEC#anchor` or a spec URL. */
-  query(ref: string, signal: AbortSignal): Promise<{ found: true; section: SpecSection } | { found: false; reason: string }>;
-  /** Sections matching a phrase, best first. */
-  search(phrase: string, signal: AbortSignal): Promise<SpecSearchResult[]>;
-  /** Sections whose steps link `ref` (`incoming`) and that `ref`'s steps link (`outgoing`), as `SPEC#anchor` refs without repeats (`webspec-index refs <ref> --kind step`). */
-  refs(ref: string, signal: AbortSignal): Promise<{ incoming: string[]; outgoing: string[] }>;
-  /** IDL members matching a query, `SPEC#anchor` or URL (`webspec-index idl`); empty when the section is no IDL member. */
-  idl(query: string, signal: AbortSignal): Promise<SpecIdlMember[]>;
-  /** The effects of `ref` with their witness paths: of one effect, or of all of them when `effectId` is null. */
-  effectPaths(ref: string, effectId: string | null, signal: AbortSignal): Promise<SpecEffectPaths>;
-  /** Step comments of a source file checked against the spec algorithms it links (`webspec-index analyze`, as its LSP does). `name` is the file's base name. */
-  analyze(name: string, text: string, signal: AbortSignal): Promise<StepCommentCheck[]>;
-}
-
-export interface SearchfoxCapability {
-  readonly effect: "read-only";
-  /** Resolve a symbol to its definition at Searchfox's current indexed revision. Network. */
-  define(symbol: string, signal: AbortSignal): Promise<{ path: string; line: number; text: string } | null>;
-  /** Existing Gecko lines referencing a spec section, at most `limit` (default 30); Searchfox matches fragments as prefixes. Network. */
-  specRefs(url: string, signal: AbortSignal, limit?: number): Promise<GeckoSpecRef[]>;
-  /** Lines whose text matches `query` (case-insensitive), at most `limit` (default 30). Network. */
-  search(query: string, signal: AbortSignal, limit?: number): Promise<{ path: string; line: number; snippet: string }[]>;
-  /** The scopes enclosing a line, innermost first; empty at file scope. Network. */
-  functionAt(path: string, line: number, signal: AbortSignal): Promise<CodeScope[]>;
-  /** A file's text at Searchfox's current indexed revision. Network. */
-  file(path: string, signal: AbortSignal): Promise<string>;
-  /** Searchfox repository base and indexed revision; cached for at most an hour after success. Network. */
-  tip(): Promise<{ repoBase: string; rev: string }>;
-}
 
 export interface BlameEntry { line: number; sha: string; origLine: number; path: string }
 
@@ -98,12 +50,10 @@ export interface TaskContext {
   repo: string;
   signal: AbortSignal;
   git: GitCapability;
-  webspec: WebspecCapability;
-  searchfox: SearchfoxCapability;
+  /** Plugin services by plugin id (`Plugin.services`, or the `RuntimeOptions.services` override); plugins read their own through a typed accessor. */
+  services: Readonly<Record<string, unknown>>;
   /** The knowledge store, read-only: tasks return proposals, plugin runtime code writes them. */
   knowledge: Pick<Knowledge, "get" | "list">;
-  /** Read-only code search per engine. */
-  codeSearch: Record<Engine, CodeSearch>;
   llm: { run(prompt: LlmPrompt, selection?: LlmSelection): Promise<LlmRunResult>; readonly defaultSelection: LlmSelection };
   /** Runs a child task: it records this task as its parent, is cancelled with it, and its failure rejects here. */
   run<O = unknown>(kind: string, input: unknown): Promise<O>;
@@ -188,10 +138,8 @@ export interface RuntimeOptions {
   plugins: Plugin[];
   llm: LlmService;
   git: (repo: string) => GitCapability;
-  webspec: WebspecCapability;
-  searchfox: SearchfoxCapability;
-  /** Code search per engine; Gecko defaults to `searchfox`, engines without a tool to a code search that fails every call. */
-  codeSearch?: Partial<Record<Engine, CodeSearch>>;
+  /** Per-plugin-id service objects that replace what `Plugin.services` would build (tests). */
+  services?: Record<string, unknown>;
   /** Plugin data that outlives sessions; defaults to an in-memory store. */ knowledge?: Knowledge;
   sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>;
   /** MCP servers for LLM work in a repository before any session exists. */
@@ -215,9 +163,7 @@ export class Runtime {
   readonly workflows: ReadonlyMap<string, Workflow<any>>;
   #llm: LlmService;
   #git: (repo: string) => GitCapability;
-  #webspec: WebspecCapability;
-  #searchfox: SearchfoxCapability;
-  #codeSearch: Record<Engine, CodeSearch>;
+  readonly services: Readonly<Record<string, unknown>>;
   #knowledge: Knowledge;
   #sessionMcp: (sessionId: Id) => Record<string, McpServerSpec>;
   #repoMcp: (repo: string) => Record<string, McpServerSpec>;
@@ -240,9 +186,7 @@ export class Runtime {
     }
     this.#llm = opts.llm;
     this.#git = opts.git;
-    this.#webspec = opts.webspec;
-    this.#searchfox = opts.searchfox;
-    this.#codeSearch = { gecko: searchfoxCodeSearch("gecko", opts.searchfox), blink: missingCodeSearch("blink"), webkit: missingCodeSearch("webkit"), ...opts.codeSearch };
+    this.services = pluginServices(opts.plugins, process.env, opts.services);
     this.#knowledge = opts.knowledge ?? new KnowledgeStore(":memory:");
     this.#sessionMcp = opts.sessionMcp ?? (() => ({}));
     this.#repoMcp = opts.repoMcp ?? (() => ({}));
@@ -274,15 +218,6 @@ export class Runtime {
 
   get llm(): LlmService {
     return this.#llm;
-  }
-
-  get searchfox(): SearchfoxCapability {
-    return this.#searchfox;
-  }
-
-  /** Read-only code search per engine, for server code outside tasks. */
-  get codeSearch(): Record<Engine, CodeSearch> {
-    return this.#codeSearch;
   }
 
   /** Plugin data that outlives sessions. */
@@ -343,13 +278,11 @@ export class Runtime {
       repo: session.worktree,
       signal: controller.signal,
       git: this.#git(session.worktree),
-      webspec: this.#webspec,
-      searchfox: this.#searchfox,
+      services: this.services,
       knowledge: {
         get: (scope, namespace, key) => this.#knowledge.get(scope, namespace, key),
         list: (scope, namespace, keyPrefix) => this.#knowledge.list(scope, namespace, keyPrefix),
       },
-      codeSearch: Object.freeze({ ...this.#codeSearch }),
       llm: {
         run: async (prompt, selection) => {
           const onEvent = (event: LlmEvent) => {

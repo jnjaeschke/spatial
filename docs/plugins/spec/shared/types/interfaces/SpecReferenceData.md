@@ -12,7 +12,7 @@ Data of a `SpecReference` artifact. `resolved` null means webspec-index could no
 
 ### geckoRefs
 
-> **geckoRefs**: [`GeckoSpecRef`](../../../../../shared/types/interfaces/GeckoSpecRef.md)[]
+> **geckoRefs**: [`GeckoSpecRef`](GeckoSpecRef.md)[]
 
 ***
 
@@ -38,7 +38,7 @@ Whether the reference was found in changed code, inferred by the narrative, or f
 
 ### resolved
 
-> **resolved**: [`ResolvedSpec`](../../../../../shared/types/interfaces/ResolvedSpec.md) \| `null`
+> **resolved**: [`ResolvedSpec`](ResolvedSpec.md) \| `null`
 
 ***
 

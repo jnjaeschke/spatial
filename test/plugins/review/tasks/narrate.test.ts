@@ -2,7 +2,7 @@ import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/t
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
 import type { DiffData, LlmSelection } from "../../../../src/shared/types.ts";
 
@@ -137,7 +137,7 @@ function setup(responses: unknown[]) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const diffId = store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: DIFF, provenance: { taskId: "x" } }).id;
   return { store, rt, session, diffId, prompts, sel };
@@ -188,7 +188,6 @@ test("narrate: passes session and repo MCP servers with read-only tools", async 
   };
   const rt = new Runtime({
     store, plugins: [{ id: "test", tasks: [narrate] }], llm, git: () => ({}) as GitCapability,
-    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability,
     sessionMcp: () => ({ spatial: { type: "stdio", command: "node", args: ["session-server"] } }),
     repoContext: () => ({ mcpServers: { moz: { type: "http", url: "https://example.com/mcp" } }, requestableMcpServers: {},
       skills: [{ name: "narrate-skill", description: "Group changes." }], instructions: "Follow narration rules." }),

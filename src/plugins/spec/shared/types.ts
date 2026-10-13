@@ -1,4 +1,45 @@
-import type { Engine, GeckoSpecRef, Id, ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSearchResult } from "../../../plugin-api.ts";
+import type { Id } from "../../../plugin-api.ts";
+export interface ResolvedSpec {
+  spec: string;
+  anchor: string;
+  title: string;
+  type: string;
+  /** Canonical URL from webspec-index. */
+  url: string;
+  /** Section text as markdown with `[text](SPEC#anchor)` links. */
+  content: string;
+}
+
+/** A location in a specification, optionally narrowed to a step path. */
+export interface SpecSite { spec: string; anchor: string; step_path?: number[] }
+/** An effect extracted from a specification algorithm. */
+export interface SpecEffect { id: string; kind: string; params: Record<string, string | number | boolean | null>; execution: string[]; location?: SpecSite & { url: string }; other_locations?: (SpecSite & { url: string })[]; additional_locations?: number }
+/** Coverage and extraction status for a section's effects. */
+export interface SpecEffectsStatus { state: string; semantics: string; coverage?: string; issues: string[]; omitted: number }
+/** A specification section with its extracted effects and content hash. */
+export interface SpecSection { spec: string; anchor: string; title: string; type: string; url: string; content: string; outgoingRefs: number; effects: SpecEffect[]; effectsStatus: SpecEffectsStatus; sha: string }
+/** A specification section matching a search phrase. */
+export interface SpecSearchResult { spec: string; anchor: string; title: string; type: string; snippet: string }
+/** An IDL member as webspec-index knows it. */
+export interface SpecIdlMember { spec: string; anchor: string; kind: string; name: string; owner: string; canonicalName: string }
+/** One hop in an effect witness path. */
+export interface SpecHop { from: SpecSite; to: SpecSite; site: SpecSite }
+/** Effects and their witness paths. */
+export interface SpecEffectPaths { effects: SpecEffect[]; explanations: { effectId: string; witnesses: SpecHop[][] }[] }
+
+export interface GeckoSpecRef {
+  group: string;
+  path: string;
+  line: number;
+  url: string;
+}
+
+/** One scope enclosing a source line (`searchfox-cli --function-at`): its Searchfox symbol and the first line of its definition. */
+export interface CodeScope { symbol: string; signature: string }
+
+/** A browser engine whose source the runtime can search. */
+export type Engine = "gecko" | "blink" | "webkit";
+
 import type { SpecStep } from "./steps.ts";
 
 /** The effects attributed to one step: `direct` at the effect's own site, `path` where a witness path leaves the algorithm. */

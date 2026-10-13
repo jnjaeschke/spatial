@@ -1,4 +1,6 @@
-import { defineTask, type Artifact, type CodeSearch, type Engine, type Id, type SpecHop } from "../../../../plugin-api.ts";
+import { defineTask, type Artifact, type Id } from "../../../../plugin-api.ts";
+import type { CodeSearch } from "../../runtime/code-search.ts";
+import type { Engine, SpecHop } from "../../shared/types.ts";
 import type { NoteResult, SpecAlgorithmData, SpecTraceCheckData, SpecTraceData, SpecTraceEntry, TraceCodeRef } from "../../shared/types.ts";
 import { asyncEffectIds, checkHops, witnessKey, type TraceFacts } from "../../shared/trace-check.ts";
 import { hopOf } from "../../shared/traces.ts";
@@ -7,6 +9,7 @@ import { citedText } from "../../shared/summary-check.ts";
 import { SpecNotFoundError } from "../load-spec-algorithm/task.ts";
 import { NoWitnessError } from "../load-effect-path/task.ts";
 import { codeUrl, quoteProblem } from "../../shared/engine.ts";
+import { specServices } from "../../runtime/services.ts";
 
 /** Whether each code reference's quote is at its line in the engine's current source, with its permalink; each file and engine revision is read once. */
 export async function checkCodeRefs(codeSearch: Record<Engine, Pick<CodeSearch, "file" | "tip">>, refs: TraceCodeRef[], signal: AbortSignal): Promise<({ ok: true; url: string } | { ok: false; reason: string })[]> {
@@ -66,7 +69,7 @@ export const checkTrace = defineTask<{ traceId: string; traceArtifactId: Id }, {
     const steps = new Map([...facts.algorithms].map(([ref, algorithm]) => [ref, parseSteps(algorithm.content)]));
     const missing = (entry: SpecTraceEntry) => facts.unknown.has(entry.anchor) ? `${entry.anchor} is not a known spec section` : steps.get(entry.anchor)!.some((step) => step.number === entry.step) ? null : `${entry.anchor} has no step ${entry.step}`;
     const refs = entries.flatMap((entry, e) => (entry.code ?? []).map((code, r) => ({ e, r, code })));
-    const results = refs.length ? await checkCodeRefs(ctx.codeSearch, refs.map((x) => x.code), ctx.signal) : [];
+    const results = refs.length ? await checkCodeRefs(specServices(ctx).codeSearch, refs.map((x) => x.code), ctx.signal) : [];
     const code = refs.flatMap((item, index) => results[index]!.ok ? [{ entry: item.e, ref: item.r, url: (results[index] as { ok: true; url: string }).url }] : []);
     const droppedCode = refs.flatMap((item, index) => results[index]!.ok ? [] : [{ entry: item.e, ref: item.r, reason: (results[index] as { ok: false; reason: string }).reason }]);
     const asked = entries.flatMap((entry, index) => entry.note.trim() && missing(entry) === null ? [index] : []);

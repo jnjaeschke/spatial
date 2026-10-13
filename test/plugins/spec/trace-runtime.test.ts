@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import type { WebspecCapability } from "../../../src/runtime/tasks.ts";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import type { WebspecCapability } from "../../../src/plugins/spec/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { fakeCode } from "./fake-code.ts";
-import type { CodeSearch } from "../../../src/runtime/code-search.ts";
+import type { CodeSearch } from "../../../src/plugins/spec/runtime/code-search.ts";
 import { generateTrace } from "../../../src/plugins/spec/runtime/traces.ts";
 import { addMappingStep } from "../../../src/plugins/spec/runtime/traces.ts";
 import { ensureMapping, storedMapping, updateMapping } from "../../../src/plugins/spec/runtime/mappings.ts";

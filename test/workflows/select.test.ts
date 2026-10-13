@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
 import type { LlmSelection } from "../../src/shared/types.ts";
 import type { Plugin } from "../../src/runtime/plugins.ts";
@@ -25,8 +25,7 @@ function setup(json: unknown, extra: Plugin[] = []) {
     },
     async listModels() { return { claude: { models: [] }, codex: { models: [] } }; },
   };
-  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins, ...extra], llm, repoMcp: (repo) => ({ spatial: { type: "stdio", command: "spatial", args: ["--repo", repo] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability,
-    webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [corePlugin, ...plugins, ...extra], llm, repoMcp: (repo) => ({ spatial: { type: "stdio", command: "spatial", args: ["--repo", repo] } }), repoContext: () => ({ mcpServers: {}, requestableMcpServers: {}, skills: [], instructions: "Repository instructions: inspect carefully." }), git: () => ({}) as GitCapability });
   const select = (prompt: string, round = 0) => selectWorkflow(rt, "/repo", prompt, round, undefined, new AbortController().signal);
   return { store, select, get call() { return call; } };
 }

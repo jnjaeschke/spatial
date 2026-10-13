@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
+import type { SearchfoxCapability } from "../../../src/plugins/spec/runtime/searchfox.ts";
 import { KnowledgeStore } from "../../../src/runtime/knowledge.ts";
 import type { LlmService } from "../../../src/runtime/llm/types.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
@@ -14,6 +15,7 @@ import { routeCall } from "../../helpers/route-call.ts";
 import { codeUrl } from "../../../src/plugins/spec/shared/engine.ts";
 import { fakeCode } from "./fake-code.ts";
 import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const FILE = ["// https://html.spec.whatwg.org/#setup", "void Setup() {", "  // Step 1. Edit the line.", "  Edit();", "  // Step 2. Add the files.", "}", ""].join("\n");
@@ -38,7 +40,7 @@ function setup() {
     async effectPaths() { return { effects: [], explanations: [] }; },
     async analyze(_name: string, text: string) { return text.split("\n").flatMap((line, index) => { const match = /\/\/ Step (\d+)\. (.*)/.exec(line); return match ? [{ line: index + 1, step: match[1]!, text: match[2]!, result: match[2] === "Edit the line." ? "exact" as const : "mismatch" as const, url: "https://html.spec.whatwg.org/#setup" }] : []; }); },
   } as never;
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, webspec, searchfox, knowledge: new KnowledgeStore(":memory:") });
+  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm: {} as LlmService, git: () => ({}) as GitCapability, services: specTestServices({ webspec, searchfox }), knowledge: new KnowledgeStore(":memory:") });
   const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { rt, session, calls, tip, gate };
 }

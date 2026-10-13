@@ -2,7 +2,7 @@ import type { PatchNarrativeData } from "../../../../src/plugins/review/shared/t
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../../src/runtime/tasks.ts";
 import type { FindingCarryData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { ArtifactStatus, DiffData } from "../../../../src/shared/types.ts";
 
@@ -15,7 +15,7 @@ const narrativeData = (diffId: string, changes = [{ id: "c1", title: "change", e
 
 function setup() {
   const store = new Store(":memory:");
-  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [carryFindings] }], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unexpected LLM call"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } }, git: () => ({}) as GitCapability, webspec: {} as WebspecCapability, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store, plugins: [{ id: "test", tasks: [carryFindings] }], llm: { defaultSelection: { backend: "claude", model: "m", effort: "low" }, async run() { throw new Error("unexpected LLM call"); }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } }, git: () => ({}) as GitCapability });
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const put = <T,>(type: string, data: T, status: ArtifactStatus = "verified") => store.putArtifact({ sessionId: session.id, type, status, data, provenance: { taskId: "x" } });
   return { store, rt, session, put };

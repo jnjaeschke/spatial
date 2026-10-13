@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { BusyError, ENGINES, type Artifact, type Id, type Runtime } from "../../../plugin-api.ts";
+import { BusyError, type Artifact, type Id, type Runtime } from "../../../plugin-api.ts";
+import { ENGINES } from "../shared/engines.ts";
 import type { ComparisonView, EngineMapping, SpecAlgorithmData, StoredComparison } from "../shared/types.ts";
 import { usedSites } from "../shared/engine.ts";
 import { inputRef, storedMapping } from "./mappings.ts";

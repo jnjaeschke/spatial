@@ -14,14 +14,13 @@ import { makeRepo } from "../helpers/git-fixture.ts";
 import { z } from "zod";
 import { defineMcpTool } from "../../src/runtime/plugins.ts";
 import { sessionServerSpec } from "../../src/runtime/create.ts";
-import { makeWebspec } from "../../src/runtime/webspec.ts";
+import { specTestServices } from "../helpers/spec-services.ts";
 import { MAX_TOOL_OUTPUT } from "../../src/runtime/git.ts";
-import type { WebspecCapability } from "../../src/runtime/tasks.ts";
 import { KnowledgeStore } from "../../src/runtime/knowledge.ts";
-import type { CodeSearch } from "../../src/runtime/code-search.ts";
+import type { CodeSearch } from "../../src/plugins/spec/runtime/code-search.ts";
 
 const code = {} as CodeSearch;
-const caps = { webspec: makeWebspec(), knowledge: new KnowledgeStore(":memory:"), codeSearch: { gecko: code, blink: code, webkit: code } };
+const caps = { services: specTestServices({ codeSearch: { gecko: code, blink: code, webkit: code } }), knowledge: new KnowledgeStore(":memory:") };
 
 const text = (result: Awaited<ReturnType<Client["callTool"]>>) => (result.content as { text: string }[])[0]!.text;
 const registry = pluginRegistry([corePlugin, ...plugins]);
@@ -183,10 +182,10 @@ test("read_skill returns indexed skill content and rejects unindexed names", asy
   }
 });
 
-const echo = (seen: unknown[], webspec: WebspecCapability) => defineMcpTool({
+const echo = (seen: unknown[], services: Readonly<Record<string, unknown>>) => defineMcpTool({
   name: "echo_ref", description: "Echo a ref", input: { ref: z.string() },
   async run(ctx, { ref }) {
-    seen.push([ctx.sessionId, ctx.repo, ctx.webspec === webspec, ctx.signal instanceof AbortSignal]);
+    seen.push([ctx.sessionId, ctx.repo, ctx.services === services, ctx.signal instanceof AbortSignal]);
     if (ref === "bad") throw new Error("no such ref");
     return ref === "huge" ? "x".repeat(MAX_TOOL_OUTPUT + 1) : `got ${ref}`;
   },
@@ -196,8 +195,8 @@ test("plugin MCP tools are registered read-only, run with the session context an
   const store = new Store(":memory:");
   const session = store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   const seen: unknown[] = [];
-  const webspec = makeWebspec();
-  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, webspec)] }]), store, session.id, "/repo", { webspec, knowledge: new KnowledgeStore(":memory:"), codeSearch: caps.codeSearch });
+  const services = { probe: {} };
+  const server = createSessionServer(pluginRegistry([corePlugin, { id: "probe", mcpTools: [echo(seen, services)] }]), store, session.id, "/repo", { services, knowledge: new KnowledgeStore(":memory:") });
   const client = new Client({ name: "test", version: "1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -215,18 +214,26 @@ test("plugin MCP tools are registered read-only, run with the session context an
 });
 
 test("pluginRegistry rejects duplicate MCP tool names", () => {
-  const tool = echo([], makeWebspec());
+  const tool = echo([], {});
   assert.throws(() => pluginRegistry([{ id: "a", mcpTools: [tool] }, { id: "b", mcpTools: [tool] }]), /Duplicate MCP tool: echo_ref/);
 });
 
-test("the session server spec passes the webspec binary when one is configured", () => {
-  const args = (spec: ReturnType<typeof sessionServerSpec>) => {
-    if (spec.type !== "stdio") throw new Error("Expected a stdio session server");
-    return spec.args.slice(1);
+test("the session server spec forwards the SPATIAL_*_BIN variables that are set", () => {
+  const spec = (env: Record<string, string>) => {
+    const saved = Object.fromEntries(Object.keys(process.env).filter((key) => /^SPATIAL_\w+_BIN$/.test(key)).map((key) => [key, process.env[key]]));
+    for (const key of Object.keys(saved)) delete process.env[key];
+    Object.assign(process.env, env);
+    try {
+      const out = sessionServerSpec("/d/db.sqlite", "S");
+      if (out.type !== "stdio") throw new Error("Expected a stdio session server");
+      return out;
+    } finally {
+      for (const key of Object.keys(env)) delete process.env[key];
+      Object.assign(process.env, saved);
+    }
   };
-  assert.deepEqual(args(sessionServerSpec("/d/db.sqlite", "S", { webspecBin: "/bin/ws" })), ["--db", "/d/db.sqlite", "--session", "S", "--webspec-bin", "/bin/ws"]);
-  assert.deepEqual(args(sessionServerSpec("/d/db.sqlite", "S", {})), ["--db", "/d/db.sqlite", "--session", "S"]);
-  const configured = sessionServerSpec("/d/db.sqlite", "S", { searchfoxBin: "/bin/sf", chromiumSearchBin: "/bin/cs" });
-  if (configured.type !== "stdio") throw new Error("Expected a stdio session server");
-  assert.deepEqual(configured.args.slice(5), ["--searchfox-bin", "/bin/sf", "--chromium-search-bin", "/bin/cs"]);
+  const none = spec({});
+  assert.deepEqual(none.args.slice(1), ["--db", "/d/db.sqlite", "--session", "S"]);
+  assert.deepEqual(none.env ?? {}, {});
+  assert.deepEqual(spec({ SPATIAL_WEBSPEC_BIN: "/bin/ws", SPATIAL_CHROMIUM_SEARCH_BIN: "/bin/cs", SPATIAL_OTHER: "x" }).env, { SPATIAL_WEBSPEC_BIN: "/bin/ws", SPATIAL_CHROMIUM_SEARCH_BIN: "/bin/cs" });
 });

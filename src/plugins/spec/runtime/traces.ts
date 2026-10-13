@@ -6,6 +6,7 @@ import { siteKey } from "../shared/engine.ts";
 import { checkCodeRefs } from "../tasks/check-trace/task.ts";
 import { storedMapping, updateMapping } from "./mappings.ts";
 import { siteAtTip } from "./engine-map.ts";
+import { specServices } from "./services.ts";
 
 /** A question for the tracer; `anchors` are the open boxes, `contextTraceId` the active trace. */
 export interface TraceRequest { traceId: string; mode: TraceQuestion["mode"]; question: string; anchors: string[]; contextTraceId: string | null }
@@ -53,14 +54,14 @@ export class MappingStepConflict extends Error {}
 export async function addMappingStep(rt: Runtime, sessionId: Id, proposal: { ref: string; step: string; code: TraceCodeRef }): Promise<KnowledgeEntry> {
   const { engine, path, line, quote } = proposal.code;
   const signal = new AbortController().signal;
-  const [result] = await checkCodeRefs(rt.codeSearch, [proposal.code], signal);
+  const [result] = await checkCodeRefs(specServices(rt).codeSearch, [proposal.code], signal);
   if (!result!.ok) throw new MappingStepConflict(result!.reason);
   const stored = storedMapping(rt.knowledge, engine, proposal.ref);
   if (!stored) throw new MappingStepConflict(`No ${engine} mapping of ${proposal.ref} is stored`);
   let target: { key: string; line: number; at: number; fnLine: number } | null = null;
   for (const site of stored.sites) {
     if (site.stale || site.path !== path) continue;
-    const found = await siteAtTip(rt.codeSearch[engine], site, signal);
+    const found = await siteAtTip(specServices(rt).codeSearch[engine], site, signal);
     if (found?.fn && found.fn.line <= line && line <= found.fn.end && (!target || found.fn.line > target.fnLine)) target = { key: siteKey(site), line: site.line, at: found.at, fnLine: found.fn.line };
   }
   if (!target) throw new MappingStepConflict(`No ${engine} site of ${proposal.ref} holds ${path}:${line} at the current revision`);

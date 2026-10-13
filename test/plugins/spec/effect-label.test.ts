@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { effectLabel } from "../../../src/plugins/spec/shared/effect-label.ts";
-import type { SpecEffect } from "../../../src/shared/types.ts";
+import type { SpecEffect } from "../../../src/plugins/spec/shared/types.ts";
 
 const base = (overrides: Partial<SpecEffect> = {}): SpecEffect => ({ id: "ef_test", kind: "fire_event", params: { name: "load", target: null }, execution: ["inline"], ...overrides });
 

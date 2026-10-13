@@ -140,14 +140,6 @@ Everything a task may touch. Tasks get capabilities only through this.
 
 ***
 
-### codeSearch
-
-> **codeSearch**: `Record`\<[`Engine`](../../../shared/types/type-aliases/Engine.md), [`CodeSearch`](../../code-search/interfaces/CodeSearch.md)\>
-
-Read-only code search per engine.
-
-***
-
 ### epoch
 
 > **epoch**: `number` \| `null`
@@ -304,9 +296,11 @@ Repo skills available through the session MCP server.
 
 ***
 
-### searchfox
+### services
 
-> **searchfox**: [`SearchfoxCapability`](SearchfoxCapability.md)
+> **services**: `Readonly`\<`Record`\<`string`, `unknown`\>\>
+
+Plugin services by plugin id (`Plugin.services`, or the `RuntimeOptions.services` override); plugins read their own through a typed accessor.
 
 ***
 
@@ -331,12 +325,6 @@ Repo skills available through the session MCP server.
 ### taskId
 
 > **taskId**: `string`
-
-***
-
-### webspec
-
-> **webspec**: [`WebspecCapability`](WebspecCapability.md)
 
 ***
 

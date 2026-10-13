@@ -4,7 +4,7 @@ import type { LineRange, SpecReferenceData, SpecStepMapData, StepLink, UnmappedL
 import { lookupSpec, type SpecLookup } from "../../../spec/api.ts";
 import {type Artifact, type DiffData, type Id, type Link, type LlmSelection, defineTask} from "../../../../plugin-api.ts";
 import { numberLines } from "../../../../plugin-api.ts";
-import { parseSteps, checkStepComment, commentBlock, misplacedStepComment, stepComments } from "../../../spec/api.ts";
+import { parseSteps, checkStepComment, commentBlock, misplacedStepComment, stepComments, specServices } from "../../../spec/api.ts";
 import { findingStates } from "../../shared/findings.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
@@ -119,7 +119,7 @@ export const mapSpecSteps = defineTask<{ narrativeId: Id; specId: Id; llm?: LlmS
     for (const [path, hunkByLine] of mappedByFile) {
       const text = await ctx.git.show(diff.data.headSha, path);
       let checks;
-      try { checks = await stepComments(ctx.webspec, path, text, hunkByLine.keys(), ctx.signal); }
+      try { checks = await stepComments(specServices(ctx).webspec, path, text, hunkByLine.keys(), ctx.signal); }
       catch (error) { if (ctx.signal.aborted) throw error; stepCheckErrors.push(`${path}: ${(error as Error).message}`); continue; }
       const lines = text.split("\n"), commentLines = new Set(checks.map((check) => check.line));
       for (const check of checks) {

@@ -1,13 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 import { loadSpecAlgorithm } from "../../../src/plugins/spec/tasks/load-spec-algorithm/task.ts";
 import type { SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
 
 const webspec = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 const ctxWith = (stored: { id: string; type: string; data: unknown }[]) => ({
-  webspec, signal: new AbortController().signal,
+  services: specTestServices({ webspec }), signal: new AbortController().signal,
   artifacts: { view: () => ({ artifacts: stored, links: [] }), put: (type: string, status: string, data: unknown) => { const a = { id: `A${stored.length + 1}`, type, status, data }; stored.push(a); return a; } },
 }) as never;
 

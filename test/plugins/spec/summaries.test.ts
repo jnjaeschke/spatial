@@ -2,16 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { Store } from "../../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability } from "../../../src/runtime/tasks.ts";
+import { Runtime, type GitCapability } from "../../../src/runtime/tasks.ts";
 import type { LlmPrompt, LlmService } from "../../../src/runtime/llm/types.ts";
 import { corePlugin } from "../../../src/runtime/create.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
-import { makeWebspec } from "../../../src/runtime/webspec.ts";
+import { makeWebspec } from "../../../src/plugins/spec/runtime/webspec.ts";
 import { ensureSummary, summaryKey, summaryViews } from "../../../src/plugins/spec/runtime/summaries.ts";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
 import type { Artifact } from "../../../src/shared/types.ts";
 import { routeCall } from "../../helpers/route-call.ts";
+import { specTestServices } from "../../helpers/spec-services.ts";
 
 const webspec = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 function setup(replies: { summary: unknown; verdicts?: unknown }) {
@@ -21,7 +22,7 @@ function setup(replies: { summary: unknown; verdicts?: unknown }) {
     async run(selection, prompt) { prompts.push(prompt); const verify = prompt.system!.startsWith("You check"); return { text: "", json: verify ? replies.verdicts : replies.summary, providerSessionId: "p", selection: selection ?? this.defaultSelection }; },
     async listModels() { return { claude: { models: [] }, codex: { error: "" } }; },
   } as LlmService;
-  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm, git: () => ({}) as GitCapability, webspec, searchfox: {} as SearchfoxCapability });
+  const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, specPlugin], llm, git: () => ({}) as GitCapability, services: specTestServices({ webspec }) });
   const session = rt.store.createSession({ worktree: "/repo", repoDir: "/repo/.git", title: "t" });
   return { rt, session, prompts };
 }

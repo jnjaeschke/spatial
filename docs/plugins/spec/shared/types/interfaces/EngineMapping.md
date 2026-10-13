@@ -18,7 +18,7 @@ Knowledge value under `spec` / `impl|<engine>|<SPEC#anchor>`: an algorithm's sit
 
 ### engine
 
-> **engine**: [`Engine`](../../../../../shared/types/type-aliases/Engine.md)
+> **engine**: [`Engine`](../type-aliases/Engine.md)
 
 ***
 
