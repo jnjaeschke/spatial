@@ -1,4 +1,4 @@
-import type { Artifact, ArtifactKind, CommandRunData } from "../../../plugin-api.ts";
+import type { ArtifactKind } from "../../../plugin-api.ts";
 import type { CheckResultsData, CommentInterpretationData, CommentTriageData, InvestigationData, InvestigationLocation } from "../shared/types.ts";
 import { describeCheck } from "../shared/acceptance.ts";
 
@@ -34,11 +34,6 @@ export function renderInvestigation(data: InvestigationData, subId?: string): st
 export const artifactKinds: Record<string, ArtifactKind> = {
   Abandoned: { render: () => "# Abandoned\n\nThe user gave this implement session up; its checkout is free." },
   Investigation: { render: (_view, artifact, subId) => renderInvestigation(artifact.data as InvestigationData, subId) },
-  CommandRun: { render: (_view, artifact: Artifact, subId) => {
-    if (subId !== undefined) return null;
-    const d = artifact.data as CommandRunData;
-    return `# Command run\n\n\`${d.command}\` exited ${d.exitCode} in ${d.durationMs} ms\n\n\`\`\`\n${d.output}\n\`\`\``;
-  } },
   CheckResults: { render: (_view, artifact, subId) => subId !== undefined ? null : `# Check results\n\n${(artifact.data as CheckResultsData).results.map((r) => `- ${r.ok ? "passed" : "failed"}: ${r.label} - ${r.message}`).join("\n")}` },
   CommentInterpretation: { render: (_view, artifact) => { const d = artifact.data as CommentInterpretationData; return `# Interpretation of ${d.phid}\n\nAsks: ${d.asks}\n\nProposal: ${d.proposal}\n\nSuggested: ${d.action}${d.reply !== null ? `\n\nReply draft: ${d.reply}` : ""}`; } },
   CommentTriage: { render: (_view, artifact) => { const d = artifact.data as CommentTriageData; return `# Marked ${d.action}: ${d.phid}${d.text !== null ? `\n\n${d.text}` : ""}`; } },

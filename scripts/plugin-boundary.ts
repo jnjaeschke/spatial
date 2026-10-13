@@ -4,12 +4,9 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
 const PLUGIN_KIND_ALLOWLIST: { file: string; name: string; reason: string }[] = [
-  { file: "src/runtime/command-run.ts", name: "CommandRun", reason: "Shared runtime helper constructs the implement command artifact." },
   { file: "src/runtime/plugins.ts", name: "investigate", reason: "Workflow's default phase id is consumed by the core runtime contract." },
   { file: "src/server/http.ts", name: "Diff", reason: "The code-links route reads review's upstream revision; a later boundary plan must move this lookup." },
-  { file: "src/shared/types.ts", name: "CommandRun", reason: "The command artifact data shape is currently shared with core runtime and UI." },
   { file: "src/shared/types.ts", name: "Diff", reason: "The Diff data shape is currently shared with core runtime and UI." },
-  { file: "src/web/ActivityStrip.tsx", name: "CommandRun", reason: "The shared activity log expands command output from this artifact." },
   { file: "src/web/SessionView.tsx", name: "comment", reason: "The shared canvas represents comment drafts with this draft kind." },
   { file: "src/web/chat-context.ts", name: "comment", reason: "The shared chat context exposes review comment drafts." },
   { file: "src/web/graph.ts", name: "comment", reason: "The shared graph omits comment drafts from chat nodes." },

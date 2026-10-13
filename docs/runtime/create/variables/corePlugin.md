@@ -10,6 +10,14 @@
 
 ## Type Declaration
 
+### artifactKinds
+
+> **artifactKinds**: `object`
+
+#### artifactKinds.CommandRun
+
+> **CommandRun**: [`ArtifactKind`](../../plugins/interfaces/ArtifactKind.md) = `commandRunKind`
+
 ### id
 
 > **id**: `string` = `"core"`

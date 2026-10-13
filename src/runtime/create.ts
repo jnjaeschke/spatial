@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { plugins } from "../plugins/index.ts";
 import { chatTurn } from "../tasks/chat-turn/task.ts";
+import { commandRunKind } from "./command-run.ts";
 import { makeGit } from "./git.ts";
 import { ClaudeBackend } from "./llm/claude.ts";
 import { CodexBackend } from "./llm/codex.ts";
@@ -19,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import type { McpServerSpec } from "./llm/types.ts";
 
 export const DEFAULT_LLM: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
-export const corePlugin = { id: "core", tasks: [chatTurn] };
+export const corePlugin = { id: "core", tasks: [chatTurn], artifactKinds: { CommandRun: commandRunKind } };
 
 export function defaultDbPath(): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "spatial", "runtime.sqlite");
