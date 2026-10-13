@@ -77,15 +77,26 @@ export function parseNewestDiff(result: unknown, id: number): RemoteDiff {
   const root = object(result, `diff search for D${id}`);
   if (!Array.isArray(root.data)) malformed(`diff search data for D${id}`);
   if (root.data.length === 0) throw new Error(`No diffs found on D${id}`);
-  const item = object(root.data[0], `newest diff on D${id}`);
-  const fields = object(item.fields, `newest diff fields on D${id}`);
-  if (!Number.isSafeInteger(item.id)) malformed(`newest diff id on D${id}`);
+  return parseDiff(root.data[0], id, "newest diff");
+}
+
+function parseDiff(raw: unknown, id: number, what: string): RemoteDiff {
+  const item = object(raw, `${what} on D${id}`);
+  const fields = object(item.fields, `${what} fields on D${id}`);
+  if (!Number.isSafeInteger(item.id)) malformed(`${what} id on D${id}`);
   if (typeof fields.dateCreated !== "number" || !Number.isFinite(fields.dateCreated)) malformed(`dateCreated on D${id}`);
   if (!Array.isArray(fields.refs)) malformed(`refs on D${id}`);
   const baseRef = fields.refs.map((ref) => object(ref, `diff ref on D${id}`)).find((ref) => ref.type === "base");
   const base = baseRef?.identifier;
   if (typeof base !== "string" || !/^[a-f0-9]{7,64}$/.test(base)) throw new Error(`Diff on D${id} records no base commit`);
   return { id: item.id as number, base, dateCreated: fields.dateCreated };
+}
+
+/** Every diff in a `differential.diff.search` result, in the result's order. */
+export function parseDiffs(result: unknown, id: number): RemoteDiff[] {
+  const root = object(result, `diff search for D${id}`);
+  if (!Array.isArray(root.data)) malformed(`diff search data for D${id}`);
+  return root.data.map((raw, index) => parseDiff(raw, id, `diff ${index}`));
 }
 
 /** Returns the open stack ancestors in root-first order. */
@@ -125,4 +136,17 @@ export async function fetchStack(conduit: Conduit, id: number): Promise<StackEnt
     entries.push({ revision, diff: parseNewestDiff(result, revision.id) });
   }
   return entries;
+}
+
+/** Each revision with all its diffs, newest first, in `ids` order. */
+export async function fetchRevisionHistory(conduit: Conduit, ids: number[]): Promise<{ revision: RemoteRevision; diffs: RemoteDiff[] }[]> {
+  const revisions = parseRevisions(await conduit.call("differential.revision.search", { constraints: { ids }, limit: 100 }));
+  const history: { revision: RemoteRevision; diffs: RemoteDiff[] }[] = [];
+  for (const id of ids) {
+    const revision = revisions.find((item) => item.id === id);
+    if (!revision) throw new Error(`D${id} not found`);
+    const diffs = parseDiffs(await conduit.call("differential.diff.search", { constraints: { revisionPHIDs: [revision.phid] }, order: "newest", limit: 100 }), id);
+    history.push({ revision, diffs });
+  }
+  return history;
 }

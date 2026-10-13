@@ -9,10 +9,17 @@
 ## Interfaces
 
 - [ReviewPhaseInput](interfaces/ReviewPhaseInput.md)
+- [RoundDiff](interfaces/RoundDiff.md)
+
+## Variables
+
+- [ROUND\_WINDOW\_SECONDS](variables/ROUND_WINDOW_SECONDS.md)
 
 ## Functions
 
+- [groupRounds](functions/groupRounds.md)
 - [postInlineReplies](functions/postInlineReplies.md)
+- [roundStack](functions/roundStack.md)
 
 ## References
 
@@ -28,9 +35,21 @@ Re-exports [commitRevision](../shared/phabricator/functions/commitRevision.md)
 
 ***
 
+### Conduit
+
+Re-exports [Conduit](../runtime/phab-revision/type-aliases/Conduit.md)
+
+***
+
 ### defaultReviewRange
 
 Re-exports [defaultReviewRange](../workflow/review-range/functions/defaultReviewRange.md)
+
+***
+
+### fetchRevisionHistory
+
+Re-exports [fetchRevisionHistory](../runtime/phab-revision/functions/fetchRevisionHistory.md)
 
 ***
 
@@ -103,6 +122,12 @@ Re-exports [PostedCommentData](../shared/types/interfaces/PostedCommentData.md)
 ### PostedReplyData
 
 Re-exports [PostedReplyData](../shared/types/interfaces/PostedReplyData.md)
+
+***
+
+### readOnly
+
+Re-exports [readOnly](../runtime/phab-revision/functions/readOnly.md)
 
 ***
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseNewestDiff, parseRevisions, readOnly, StackShapeError, stackOrder, fetchStack, type Conduit } from "../../../../src/plugins/review/runtime/phab-revision.ts";
+import { parseNewestDiff, parseRevisions, readOnly, StackShapeError, stackOrder, fetchStack, fetchRevisionHistory, type Conduit } from "../../../../src/plugins/review/runtime/phab-revision.ts";
 
 function rev(id: number, parents: number[] = [], closed = false) {
   const phid = `PHID-DREV-${id}`;
@@ -93,4 +93,26 @@ test("readOnly permits only the three read methods", async () => {
   }
   for (const method of ["differential.revision.search", "differential.diff.search", "differential.getrawdiff"]) await wrapped.call(method, {});
   assert.deepEqual(called, ["differential.revision.search", "differential.diff.search", "differential.getrawdiff"]);
+});
+
+test("fetchRevisionHistory returns every diff of each revision, newest first", async () => {
+  const diff = (id: number, base: string, dateCreated: number) => ({ id, fields: { dateCreated, refs: [{ type: "base", identifier: base }] } });
+  const calls: [string, unknown][] = [];
+  const conduit = { async call(method: string, params: Record<string, unknown>) {
+    calls.push([method, params]);
+    if (method === "differential.revision.search") return { data: [
+      { id: 1, phid: "PHID-1", fields: { title: "Part 1", status: { closed: false } } },
+      { id: 2, phid: "PHID-2", fields: { title: "Part 2", status: { closed: false } } },
+    ] };
+    const phid = (params.constraints as { revisionPHIDs: string[] }).revisionPHIDs[0];
+    return { data: phid === "PHID-1" ? [diff(30, "a".repeat(40), 300), diff(10, "a".repeat(40), 100)] : [diff(31, "a".repeat(40), 301)] };
+  } };
+  const history = await fetchRevisionHistory(conduit as never, [1, 2]);
+  assert.deepEqual(history.map((h) => [h.revision.title, h.diffs.map((x) => x.id)]), [["Part 1", [30, 10]], ["Part 2", [31]]]);
+  assert.deepEqual(calls[1]![1], { constraints: { revisionPHIDs: ["PHID-1"] }, order: "newest", limit: 100 });
+});
+
+test("fetchRevisionHistory rejects an id Conduit did not return", async () => {
+  const conduit = { async call() { return { data: [] }; } };
+  await assert.rejects(fetchRevisionHistory(conduit as never, [7]), /D7 not found/);
 });

@@ -26,7 +26,9 @@
 
 ## Functions
 
+- [fetchRevisionHistory](functions/fetchRevisionHistory.md)
 - [fetchStack](functions/fetchStack.md)
+- [parseDiffs](functions/parseDiffs.md)
 - [parseNewestDiff](functions/parseNewestDiff.md)
 - [parseRevisions](functions/parseRevisions.md)
 - [readOnly](functions/readOnly.md)

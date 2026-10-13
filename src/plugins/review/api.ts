@@ -8,3 +8,7 @@ export { postInlineReplies } from "./runtime/post-replies.ts";
 export type { ReviewPhaseInput } from "./workflow/review.ts";
 export { commitRevision } from "./shared/phabricator.ts";
 export type { PhabRevision } from "./shared/phabricator.ts";
+export { groupRounds, roundStack, ROUND_WINDOW_SECONDS } from "./shared/rounds.ts";
+export type { RoundDiff } from "./shared/rounds.ts";
+export { fetchRevisionHistory, readOnly } from "./runtime/phab-revision.ts";
+export type { Conduit } from "./runtime/phab-revision.ts";
