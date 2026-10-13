@@ -5,8 +5,9 @@ import {
 } from "@xyflow/react";
 import type { ModelsResponse, SessionState } from "../shared/types.ts";
 import { ChatActionsContext, type Draft } from "./chat-context.ts";
-import { closeGraph, fitMinZoom, hostedThreads, layout, placeSatellites, sessionGraph, visibleGraph, isSatellite, SATELLITE_WIDTH, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode } from "./graph.ts";
-import { quoteRange } from "./quote-range.ts";
+import { closeGraph, fitMinZoom, hostedThreads, sessionGraph, visibleGraph, isSatellite, SATELLITE_WIDTH, type ChatNodeData, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type PlacedNode } from "./graph.ts";
+import { arrangeCanvas, nodeWidth } from "./canvas-layout.ts";
+import { useQuoteHighlights } from "./quote-highlights.ts";
 import { CollapseContext, useCollapsed } from "./collapse.ts";
 import { ClosedContext, useClosed } from "./closed.ts";
 import { UndoClose } from "./UndoClose.tsx";
@@ -92,12 +93,9 @@ export interface CanvasModel {
   PanelExtras?: ComponentType;
 }
 const NO_STEPS: GuideStep[] = [];
+const NO_QUOTES = (_data: GraphNodeData): { id: string; kind: string; anchor: string; quote: string; lines?: ChatNodeData["lines"] }[] => [];
 const MIN_NODE_WIDTH = 240;
 const NO_PROVIDER: ComponentType<CanvasProviderProps> = ({ children }) => <>{children}</>;
-
-/** The `quote` of a node, highlighted in the text of its `anchor`: chat threads, and plugin nodes (findings) that carry both. */
-const quoteOf = (data: GraphNodeData) => "quote" in data && typeof data.quote === "string" && data.quote && "anchor" in data && typeof data.anchor === "string"
-  ? { kind: data.kind, anchor: data.anchor, quote: data.quote, lines: ("lines" in data ? data.lines : undefined) as ChatNodeData["lines"] } : null;
 
 const ResizeContext = createContext<{ textScale: number; resized(id: string, from: ResizeParams, to: ResizeParams): void } | null>(null);
 function ResizableNode(props: NodeProps) {
@@ -236,26 +234,10 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     knownRevealed.current = next;
     if (added && shown.nodes.some((n) => n.id === added)) anchor.current = added;
   }, [revealedIds, shown]);
-  const rangeOwner = useRef(new Map<AbstractRange, string>());
-  const quoteHighlightNames = useRef<string[]>([]);
-  const quoted = useMemo(() => {
-    const entries: { id: string; anchors: string[]; data: { kind: string; anchor: string; quote: string; lines?: ChatNodeData["lines"] } }[] = [];
-    for (const node of graph.nodes) {
-      const quote = quoteOf(node.data);
-      if (quote) entries.push({ id: node.id, anchors: node.anchors ?? [], data: quote });
-      for (const { id, ...data } of model.quotes?.(node.data) ?? []) entries.push({ id, anchors: [node.id], data });
-      for (const thread of hostedThreads(node.data) ?? []) if (thread.quote) entries.push({ id: thread.threadId ?? thread.draftId!, anchors: [node.id], data: { kind: "chat", anchor: thread.anchor, quote: thread.quote, lines: thread.lines } });
-    }
-    return entries;
-  }, [model, graph]);
-  const [hoveredChat, setHoveredChat] = useState<string | null>(null);
-  const [focusedChat, setFocusedChat] = useState<string | null>(null);
-  const [hoveredQuote, setHoveredQuote] = useState<string | null>(null);
-  // Open quoted boxes only: a box removed by collapsing gets no pointerout or focusout.
-  const quotedBoxIds = useMemo(() => new Set(quoted.filter((item) => item.data.kind !== "chat" || !collapsed.has(item.id)).filter((item) => shown.nodes.some((node) => node.id === item.anchors[0])).map((item) => item.id)), [quoted, shown, collapsed]);
-  const activeQuote = hoveredQuote ?? (hoveredChat && quotedBoxIds.has(hoveredChat) ? hoveredChat
-    : focusedChat && quotedBoxIds.has(focusedChat) ? focusedChat : null);
-  const rangeOf = (n: typeof quoted[number]) => container.current && quoteRange(container.current, n.data.anchor, n.data.quote, n.data.lines);
+  const shownNodeIds = useMemo(() => new Set(shown.nodes.map((node) => node.id)), [shown]);
+  const { quoteAt } = useQuoteHighlights({
+    nodes: graph.nodes, quoteEntries: model.quotes ?? NO_QUOTES, container, shownNodeIds, collapsed,
+  });
   const satelliteAnchors = useMemo(() => new Map(shown.nodes.filter(isSatellite).map((n) => [n.id, n.anchors ?? []])), [shown]);
   const edges = useMemo<Edge[]>(() => shown.edges.map(({ title, ...e }) => {
     const edge = title ? { ...e, label: <>{e.label}<title>{title}</title></> } : e;
@@ -355,7 +337,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
   const nodeStyle = (n: PlacedNode | GraphNode) => {
     const kind = nodeKinds[n.data.kind]!;
     const size = sizeOf(n.data.kind, n.id);
-    const width = kind.resizable === false ? kind.size(n.data).width : size.width ?? (isSatellite(n) ? SATELLITE_WIDTH : kind.size(n.data).width);
+    const width = nodeWidth({ resizable: kind.resizable !== false, defaultWidth: kind.size(n.data).width, storedWidth: size.width, satellite: isSatellite(n), satelliteWidth: SATELLITE_WIDTH });
     return { width: width * textScale, ...(size.height !== undefined ? { height: size.height * textScale } : {}) };
   };
   const keepPosition = (id: string, position: { x: number; y: number }) => {
@@ -395,39 +377,6 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
   }, []);
   useEffect(() => offsets.current.clear(), [graph]);
 
-  const arrange = (all: { id: string; width: number; height: number }[]) => {
-    const free = new Map(shown.nodes.filter((n) => n.position).map((n) => [n.id, n.position!]));
-    // Satellites hanging (directly or through other satellites) off a freely placed node sit beside that node.
-    const rootOf = new Map<string, string>();
-    for (let grew = true; grew;) {
-      grew = false;
-      for (const [id, anchors] of satelliteAnchors) {
-        if (rootOf.has(id) || free.has(id) || !anchors.length) continue;
-        const root = free.has(anchors[0]!) ? anchors[0]! : rootOf.get(anchors[0]!);
-        if (root) { rootOf.set(id, root); grew = true; }
-      }
-    }
-    const freePlaced = new Map<string, { x: number; y: number }>();
-    for (const root of new Set(rootOf.values())) {
-      const rootSize = all.find((n) => n.id === root)!;
-      const rects = new Map([[root, { ...free.get(root)!, width: rootSize.width, height: rootSize.height }]]);
-      const satellites = all.filter((n) => rootOf.get(n.id) === root).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)!.slice(0, 1) }));
-      for (const [id, p] of placeSatellites(rects, satellites)) freePlaced.set(id, p);
-    }
-    const sized = all.filter((n) => !free.has(n.id) && !rootOf.has(n.id));
-    if (model.stack?.is(shown, place)) {
-      const byId = new Map(shown.nodes.map((n) => [n.id, n]));
-      return new Map([...model.stack.layout(sized.map((s) => { const n = byId.get(s.id)!; return { ...s, data: n.data, anchors: n.anchors ?? [] }; }), shown.edges), ...free, ...freePlaced]);
-    }
-    const main = sized.filter((n) => !satelliteAnchors.has(n.id));
-    const mainEdges = shown.edges.filter((e) => !satelliteAnchors.has(e.source));
-    const layoutEdges = model.layoutEdges?.(shown.nodes, mainEdges) ?? mainEdges;
-    const mainPos = layout(main, layoutEdges);
-    const rects = new Map(main.map((n) => [n.id, { ...mainPos.get(n.id)!, width: n.width, height: n.height }]));
-    const satellites = sized.filter((n) => satelliteAnchors.has(n.id)).map((n) => ({ ...n, anchors: satelliteAnchors.get(n.id)! }));
-    return new Map([...mainPos, ...placeSatellites(rects, satellites), ...free, ...freePlaced]);
-  };
-
   const sizeBasis = useRef("");
   // A layout effect, so the new node widths are committed before the frame's ResizeObserver delivery; a passive
   // effect would flush inside that delivery's callback and resize the nodes there.
@@ -446,11 +395,11 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
       const kind = nodeKinds[n.data.kind];
       if (!kind) throw new Error(`Unknown node kind: ${n.data.kind}`);
       const estimate = kind.size(n.data);
-      const width = isSatellite(n) ? SATELLITE_WIDTH : estimate.width;
       const size = sizeOf(n.data.kind, n.id);
-      return { id: n.id, width: size.width !== undefined ? size.width * textScale : m?.width ?? width * textScale, height: m?.height ?? (size.height ?? estimate.height) * textScale };
+      const width = nodeWidth({ resizable: kind.resizable !== false, defaultWidth: m?.width ?? estimate.width * textScale, storedWidth: size.width === undefined ? undefined : size.width * textScale, satellite: !m && isSatellite(n), satelliteWidth: SATELLITE_WIDTH * textScale });
+      return { id: n.id, width, height: m?.height ?? (size.height ?? estimate.height) * textScale };
     });
-    const pos = arrange(sized);
+    const pos = arrangeCanvas({ all: sized, nodes: shown.nodes, edges: shown.edges, satelliteAnchors, stack: model.stack, graph: shown, place, layoutEdges: model.layoutEdges });
     basePos.current = pos;
     laidOutKey.current = "";
     setNodes(shown.nodes.map((n) => ({
@@ -478,7 +427,12 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     const key = `${sizeKey}#${JSON.stringify(sizes)}`;
     if (key === laidOutKey.current) return;
     laidOutKey.current = key;
-    const pos = arrange(nodes.map((n) => ({ id: n.id, width: sizeOf(n.type!, n.id).width !== undefined ? sizeOf(n.type!, n.id).width! * textScale : n.measured!.width!, height: n.measured!.height! })));
+    const all = nodes.map((n) => {
+      const kind = nodeKinds[n.type!]!;
+      const size = sizeOf(n.type!, n.id);
+      return { id: n.id, width: nodeWidth({ resizable: kind.resizable !== false, defaultWidth: n.measured!.width!, storedWidth: size.width === undefined ? undefined : size.width * textScale, satellite: false, satelliteWidth: 0 }), height: n.measured!.height! };
+    });
+    const pos = arrangeCanvas({ all, nodes: shown.nodes, edges: shown.edges, satelliteAnchors, stack: model.stack, graph: shown, place, layoutEdges: model.layoutEdges });
     basePos.current = pos;
     setNodes((ns) => ns.map((n) => ({ ...n, position: offsetPosition(n.id, pos.get(n.id)!) })));
     const draftToFocus = focusDraft.current;
@@ -515,7 +469,7 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
       }
       if (savePlaceView.current) {
         savePlaceView.current = false;
-        void centered.then(persistView);
+        void centered.then(() => persistView());
       }
     } else if (autoFit.current) {
       if (storedView.current) {
@@ -533,20 +487,8 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
   useEffect(() => {
     if (autoFit.current) return;
     const { x, y, zoom } = rf.getViewport();
-    saveViewState(viewKey, { x, y, zoom, place, guideStep });
-    saveHistoryView({ x, y, zoom, place, guideStep, focusedRow, label: labelRef.current });
+    persistView({ x, y, zoom }, place, guideStep, focusedRow);
   }, [place, guideStep, focusedRow, rf, viewKey]);
-
-  const quoteAt = (x: number, y: number) => {
-    for (const hit of CSS.highlights.highlightsFromPoint(x, y)) {
-      if (!quoteHighlightNames.current.some((name) => name.endsWith("-quote") && CSS.highlights.get(name) === hit.highlight)) continue;
-      for (const range of hit.ranges) {
-        const id = rangeOwner.current.get(range);
-        if (id) return id;
-      }
-    }
-    return null;
-  };
 
   useEffect(() => {
     const el = container.current;
@@ -569,7 +511,6 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
   useEffect(() => {
     const el = container.current;
     if (!el) return;
-    let frame = 0;
     const click = (event: MouseEvent) => {
       if (!getSelection()?.isCollapsed) return;
       const id = quoteAt(event.clientX, event.clientY);
@@ -585,50 +526,20 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
         toggle(id);
       }
     };
-    const move = (event: PointerEvent) => {
-      const id = quoteAt(event.clientX, event.clientY);
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        setHoveredQuote(id);
-        el.classList.toggle("over-collapsed-quote", id !== null && collapsed.has(id));
-      });
-    };
     const stopAutoFit = () => { autoFit.current = false; };
-    const leave = () => {
-      cancelAnimationFrame(frame);
-      setHoveredQuote(null);
-      el.classList.remove("over-collapsed-quote");
-    };
     el.addEventListener("click", click);
-    el.addEventListener("pointermove", move);
     el.addEventListener("pointerdown", stopAutoFit, true);
     el.addEventListener("wheel", stopAutoFit, true);
-    el.addEventListener("pointerleave", leave);
     return () => {
       el.removeEventListener("click", click);
-      el.removeEventListener("pointermove", move);
-      el.removeEventListener("pointerleave", leave);
       el.removeEventListener("pointerdown", stopAutoFit, true);
       el.removeEventListener("wheel", stopAutoFit, true);
-      cancelAnimationFrame(frame);
-      el.classList.remove("over-collapsed-quote");
     };
   }, [collapsed, toggle, inlineStates, graph]);
 
   useEffect(() => {
     const el = container.current;
     if (!el) return;
-    const chatAt = (target: EventTarget | null) => {
-      if (!(target instanceof Element)) return null;
-      const id = target.closest<HTMLElement>("[data-testid^='chat-']")?.dataset.testid?.slice(5) ?? target.closest(".react-flow__node")?.getAttribute("data-id") ?? null;
-      return id && quotedBoxIds.has(id) ? id : null;
-    };
-    const over = (event: PointerEvent) => setHoveredChat(chatAt(event.target));
-    const out = (event: PointerEvent) => {
-      if (chatAt(event.relatedTarget)) return;
-      setHoveredChat(null);
-    };
-    const focus = (event: FocusEvent) => setFocusedChat(chatAt(event.target));
     const selectFocusedNode = (event: FocusEvent) => {
       if (!(event.target instanceof Element)) return;
       const node = event.target.closest<HTMLElement>(".react-flow__node[data-id]");
@@ -636,65 +547,11 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
       if (!id) return;
       setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === id })));
     };
-    const blur = (event: FocusEvent) => {
-      if (chatAt(event.relatedTarget)) return;
-      setFocusedChat(null);
-    };
-    el.addEventListener("pointerover", over);
-    el.addEventListener("pointerout", out);
-    el.addEventListener("focusin", focus);
     el.addEventListener("focusin", selectFocusedNode);
-    el.addEventListener("focusout", blur);
     return () => {
-      el.removeEventListener("pointerover", over);
-      el.removeEventListener("pointerout", out);
-      el.removeEventListener("focusin", focus);
       el.removeEventListener("focusin", selectFocusedNode);
-      el.removeEventListener("focusout", blur);
     };
-  }, [quotedBoxIds]);
-
-  useEffect(() => {
-    const el = container.current;
-    if (!el) return;
-    let frame = 0;
-    const build = () => {
-      const byKind = new Map<string, { ranges: Range[]; active: Range[] }>();
-      rangeOwner.current.clear();
-      for (const n of quoted) {
-        const group = byKind.get(n.data.kind) ?? { ranges: [], active: [] };
-        byKind.set(n.data.kind, group);
-        const range = rangeOf(n);
-        if (!range) continue;
-        group.ranges.push(range);
-        rangeOwner.current.set(range, n.id);
-        if (n.id === activeQuote) group.active.push(range);
-      }
-      const names: string[] = [];
-      for (const [kind, group] of byKind) {
-        const name = `${kind}-quote`, activeName = `${kind}-quote-active`;
-        CSS.highlights.set(name, new Highlight(...group.ranges));
-        const active = new Highlight(...group.active);
-        active.priority = 1;
-        CSS.highlights.set(activeName, active);
-        names.push(name, activeName);
-      }
-      quoteHighlightNames.current = names;
-    };
-    // Synchronous: the previous run's cleanup deleted the highlights, and a click in this frame must still hit them.
-    build();
-    const observer = new MutationObserver(() => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(build);
-    });
-    observer.observe(el, { childList: true, subtree: true, characterData: true });
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-      for (const name of quoteHighlightNames.current) CSS.highlights.delete(name);
-      quoteHighlightNames.current = [];
-    };
-  }, [quoted, activeQuote]);
+  }, []);
 
   useEffect(() => {
     const el = container.current;
@@ -723,15 +580,14 @@ function CanvasInner({ state, model, viewKey: viewKeyProp, closed: sharedClosed,
     return () => el.removeEventListener("keydown", keydown);
   }, [rf]);
 
-  const persistView = () => {
-    const view = { ...rf.getViewport(), place: placeRef.current, guideStep: guideStepRef.current };
+  const persistView = (viewport = rf.getViewport(), currentPlace = placeRef.current, currentGuideStep = guideStepRef.current, currentFocusedRow = focusedRowRef.current) => {
+    const view = { ...viewport, place: currentPlace, guideStep: currentGuideStep };
     saveViewState(viewKey, view);
-    saveHistoryView({ ...view, focusedRow: focusedRowRef.current, label: labelRef.current });
+    saveHistoryView({ ...view, focusedRow: currentFocusedRow, label: labelRef.current });
   };
   const onMoveEnd = (_: unknown, vp: Viewport) => {
     if (autoFit.current) return;
-    saveViewState(viewKey, { ...vp, place, guideStep });
-    saveHistoryView({ ...vp, place, guideStep, focusedRow, label: labelRef.current });
+    persistView(vp, place, guideStep, focusedRow);
   };
   const historyView = (): HistoryView => ({ ...rf.getViewport(), place: placeRef.current, guideStep, focusedRow, label: labelRef.current });
   useViewHistory(routeContext?.sessionId ?? null, (view, urlPlace) => {
