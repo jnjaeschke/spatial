@@ -8,6 +8,9 @@
 
 ## Interfaces
 
+- [AdoptBranch](interfaces/AdoptBranch.md)
+- [AdoptInput](interfaces/AdoptInput.md)
+- [AdoptPlanData](interfaces/AdoptPlanData.md)
 - [AgentSessionData](interfaces/AgentSessionData.md)
 - [CheckResult](interfaces/CheckResult.md)
 - [CheckResultsData](interfaces/CheckResultsData.md)
@@ -30,5 +33,6 @@
 ## Type Aliases
 
 - [AcceptanceCheck](type-aliases/AcceptanceCheck.md)
+- [AdoptMode](type-aliases/AdoptMode.md)
 - [CommentAction](type-aliases/CommentAction.md)
 - [MemoryScope](type-aliases/MemoryScope.md)

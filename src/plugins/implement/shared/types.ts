@@ -1,5 +1,15 @@
-import type { DiagramData, Id, LlmSelection } from "../../../plugin-api.ts";
+import type { Commit, DiagramData, Id, LlmSelection } from "../../../plugin-api.ts";
 import type { SpecReferenceData } from "../../spec/api.ts";
+import type { RoundDiff } from "../../review/api.ts";
+
+/** How an adopt finds branches: the session's branch moved, it is gone and related branches exist, or the user chooses. */
+export type AdoptMode = "moved" | "renamed" | "choose";
+/** `ref`: the local branch the user named under "Other…". */
+export interface AdoptInput { mode: AdoptMode; ref?: string }
+/** A branch an adopt can take over: `commits` are `base..tip`, oldest first, at most 200. */
+export interface AdoptBranch { branch: string; base: string; tip: string; commits: Commit[] }
+/** What an adopt can take over (artifact `AdoptPlan`, verified). `diffs` contains every Phabricator diff for trailer revisions; `missingBases` are diff bases absent locally; history errors preserve local adoption without rounds. */
+export interface AdoptPlanData { mode: AdoptMode; host: string | null; branches: AdoptBranch[]; revisions: { id: number; title: string; latestDiffId: number }[]; diffs: RoundDiff[]; missingBases: string[]; refError: string | null; historyError: string | null }
 
 /** Comment phids to interpret in the order shown, with an optional model choice. */
 export interface ReviewerCommentsInput { comments: string[]; llm?: LlmSelection }

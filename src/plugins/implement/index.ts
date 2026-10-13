@@ -9,6 +9,7 @@ import { implementWorkflow } from "./workflow/implement.ts";
 import { CommentWatcher } from "./runtime/comment-watcher.ts";
 import { implementRoutes } from "./server/routes.ts";
 import { distillSteer } from "./tasks/distill-steer/task.ts";
+import { adoptPlan } from "./tasks/adopt-plan/task.ts";
 
 function server(rt: Runtime) {
   const watcher = new CommentWatcher(rt);
@@ -16,4 +17,4 @@ function server(rt: Runtime) {
 }
 
 /** Implementation workflow plugin. */
-export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments, distillSteer], artifactKinds, server });
+export const implementPlugin = definePlugin({ id: "implement", dependsOn: ["review", "spec"], workflows: [implementWorkflow], phases: [investigatePhase, implementPhase, reviewerCommentsPhase], tasks: [implementStart, investigate, implement, interpretComments, distillSteer, adoptPlan], artifactKinds, server });

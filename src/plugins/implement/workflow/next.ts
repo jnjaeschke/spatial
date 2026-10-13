@@ -15,7 +15,7 @@ const planInvalidQuestion = (reason: string) => `The implement agent reports tha
 const fixQuestion = (count: number) => `Fix ${plural(count, "high finding")}`;
 const REVIEW_KEYS = new Set(["review-fix", "reviewed"]);
 
-const decisionsOf = (view: WorkflowView) => view.artifacts.filter((a) => a.type === "Decision") as Artifact<DecisionData>[];
+const decisionsOf = (view: { artifacts: Artifact[] }) => view.artifacts.filter((a) => a.type === "Decision") as Artifact<DecisionData>[];
 
 function ruleRounds(decisions: Artifact<DecisionData>[]): number {
   let count = 0;
@@ -31,6 +31,12 @@ function bugOf(decisions: Artifact<DecisionData>[], investigation: Artifact<Inve
   if (investigation.data.bug !== null) return investigation.data.bug;
   const text = decisions.findLast((a) => a.data.key === "approve" && a.data.chosen?.option === "approve")?.data.chosen?.text;
   return text ? Number(text) : null;
+}
+
+/** The session's bug: the investigation's, or the number given when approving it. */
+export function sessionBug(view: { artifacts: Artifact[] }): number | null {
+  const investigation = latestArtifact<InvestigationData>(view.artifacts, "Investigation");
+  return investigation ? bugOf(decisionsOf(view), investigation) : null;
 }
 
 function chosenImplementLlm(decisions: Artifact<DecisionData>[]): LlmSelection | undefined {

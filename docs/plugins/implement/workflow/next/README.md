@@ -16,4 +16,5 @@
 - [implementCheckAnswer](functions/implementCheckAnswer.md)
 - [implementNext](functions/implementNext.md)
 - [isActive](functions/isActive.md)
+- [sessionBug](functions/sessionBug.md)
 - [workInQuestion](functions/workInQuestion.md)
