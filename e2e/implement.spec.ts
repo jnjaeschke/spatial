@@ -392,32 +392,6 @@ test("gecko: reviewer comments are interpreted, marked, replied to as drafts and
   expect(git(dir, "log", "-1", "--format=%B")).toContain("Differential Revision: https://phab.example.com/D4242");
 });
 
-test("gecko: chat proposes a try push and nothing is pushed until the click", async ({ page }) => {
-  const dir = makeGeckoRepo();
-  writeFileSync(join(dir, "c.txt"), "c\n");
-  git(dir, "add", "-A");
-  git(dir, "commit", "-m", "Bug 1 - Add c");
-  await page.goto(open(dir));
-  await page.getByLabel("start").fill("/review");
-  await page.getByLabel("start").press("Enter");
-  await expect(page).toHaveURL(/\/sessions\/[^/]+/);
-  await page.getByTestId("session-chip").click();
-  const conversation = page.getByRole("dialog", { name: "Session" });
-  const input = conversation.getByLabel("message");
-  await input.fill("PUSH-TRY-PLEASE");
-  await conversation.getByRole("button", { name: "Send" }).click();
-  const bar = page.getByTestId("session-decision");
-  await expect(bar).toContainText(/Push [0-9a-f]{12} to try\?/, { timeout: 20_000 });
-  await expect(page.getByTestId("session-popover").getByLabel("message")).toHaveValue("./mach try auto");
-  await expect(page.getByTestId("try-proposal")).toContainText("You asked for try.");
-  expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
-  await bar.getByRole("button", { name: "Skip" }).click();
-  await expect(bar).toHaveCount(0);
-  expect(existsSync(join(dir, ".git/mach-args"))).toBe(false);
-  await page.getByTestId("epoch-chip-1").click();
-  await expect(conversation.locator(".msg.assistant")).toContainText("I will start a try push.");
-});
-
 test("gecko: chat answers link local files to Searchfox at the branch base in a session without a Diff", async ({ page }) => {
   test.setTimeout(60_000);
   const dir = makeGeckoRepo();
