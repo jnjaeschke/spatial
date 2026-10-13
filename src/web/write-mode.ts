@@ -4,7 +4,7 @@ import type { WriteMode } from "../shared/types.ts";
 export const WRITE_MODES: { id: WriteMode; label: string; title: string }[] = [
   { id: "auto", label: "Auto", title: "The agent edits files and runs commands; the CLI's own safety checks decide what needs approval." },
   { id: "full", label: "Full access", title: "The agent edits files and runs commands without approvals or sandboxing." },
-  { id: "editsOnly", label: "Edits only", title: "The agent edits files only; spatial builds, runs the plan's tests and commits." },
+  { id: "editsOnly", label: "Edits only", title: "The agent edits files only; spatial builds, runs the plan's tests and commits. The build and tests run the edited code without a sandbox." },
 ];
 const key = (repoDir: string) => `spatial:write-mode:${repoDir}`;
 export function readWriteMode(storage: Pick<Storage, "getItem">, repoDir: string): WriteMode {
