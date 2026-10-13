@@ -9,3 +9,7 @@
 ## Classes
 
 - [Store](classes/Store.md)
+
+## Variables
+
+- [STORE\_MIGRATIONS](variables/STORE_MIGRATIONS.md)

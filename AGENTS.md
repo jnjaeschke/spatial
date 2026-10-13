@@ -28,6 +28,7 @@
 - Keep code simple, direct, and readable.
 - Comments should explain why, non-obvious constraints, invariants, or surprising behavior. Do not narrate obvious code.
 - Be sparse with comments.
+- A change to the SQLite schema or to the shape of stored artifact or knowledge data needs a new migration appended to `STORE_MIGRATIONS` or `KNOWLEDGE_MIGRATIONS`; released migrations are never edited.
 - Public APIs and non-obvious contracts should be documented briefly.
 - Do not add boilerplate documentation that merely restates names or types.
 - Prefer explicit errors to silent fallback behavior.

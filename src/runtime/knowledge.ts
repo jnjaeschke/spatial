@@ -2,16 +2,20 @@ import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Id } from "../shared/types.ts";
 import { dirname, join } from "node:path";
+import { assertSchemaVersion, migrate, type Migration } from "./migrate.ts";
 
 /** Path of the knowledge database beside the session database. */
 export const knowledgeDbPath = (dbPath: string): string => dbPath === ":memory:" ? ":memory:" : join(dirname(dbPath), "knowledge.db");
 
-const SCHEMA = `
+const SCHEMA_V1 = `
 CREATE TABLE IF NOT EXISTS entries (
   id TEXT PRIMARY KEY, scope TEXT NOT NULL, namespace TEXT NOT NULL, key TEXT NOT NULL,
   value TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL, superseded_by TEXT);
 CREATE UNIQUE INDEX IF NOT EXISTS entries_current ON entries(scope, namespace, key) WHERE superseded_by IS NULL;
 `;
+
+/** Schema history of the knowledge database; append a migration for every change to the table or to the shape of stored values. */
+export const KNOWLEDGE_MIGRATIONS: readonly Migration[] = [(db) => db.exec(SCHEMA_V1)];
 
 /** Who wrote a knowledge entry, and in which session. */
 export type KnowledgeProvenance = { by: "plugin" | "user"; sessionId: Id } | { by: "llm"; taskId: Id; sessionId: Id };
@@ -40,15 +44,18 @@ function assertJson(value: unknown, path = "value"): void {
   if (typeof value === "object" && value !== null) for (const [key, item] of Object.entries(value)) assertJson(item, `${path}.${key}`);
 }
 
-/** `Knowledge` in its own SQLite file, apart from the disposable session database. Read-only stores (the session MCP server) only read; the file must exist. */
+/** `Knowledge` in its own SQLite file, apart from the session database. Read-only stores (the session MCP server) only read; the file must exist. */
 export class KnowledgeStore implements Knowledge {
   #db: DatabaseSync;
 
   constructor(path: string, opts: { readOnly?: boolean } = {}) {
     this.#db = new DatabaseSync(path, { timeout: 5000, readOnly: opts.readOnly ?? false });
-    if (opts.readOnly) return;
+    if (opts.readOnly) {
+      assertSchemaVersion(this.#db, path, KNOWLEDGE_MIGRATIONS.length);
+      return;
+    }
+    migrate(this.#db, path, KNOWLEDGE_MIGRATIONS);
     if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
-    this.#db.exec(SCHEMA);
   }
 
   close(): void {

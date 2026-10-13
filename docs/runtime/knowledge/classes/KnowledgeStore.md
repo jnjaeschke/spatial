@@ -6,7 +6,7 @@
 
 # Class: KnowledgeStore
 
-`Knowledge` in its own SQLite file, apart from the disposable session database. Read-only stores (the session MCP server) only read; the file must exist.
+`Knowledge` in its own SQLite file, apart from the session database. Read-only stores (the session MCP server) only read; the file must exist.
 
 ## Implements
 

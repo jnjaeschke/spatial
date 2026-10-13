@@ -143,7 +143,7 @@ test("old session schema is rejected", () => {
   const dir = mkdtempSync(join(tmpdir(), "store-old-schema-"));
   const path = join(dir, "db.sqlite");
   new DatabaseSync(path).exec("CREATE TABLE sessions (id TEXT PRIMARY KEY, repo TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL)");
-  assert.throws(() => new Store(path), /outdated schema/);
+  assert.throws(() => new Store(path), /created by an older development version/);
 });
 
 test("old task and artifact schemas are rejected", () => {
@@ -154,7 +154,7 @@ test("old task and artifact schemas are rejected", () => {
     CREATE TABLE tasks (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, input TEXT NOT NULL, output TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
     CREATE TABLE artifacts (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL, provenance TEXT NOT NULL, created_at TEXT NOT NULL);`);
   db.close();
-  assert.throws(() => new Store(path), /outdated schema/);
+  assert.throws(() => new Store(path), /created by an older development version/);
 });
 
 test("listTasks and lastEventId", () => {

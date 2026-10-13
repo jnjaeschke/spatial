@@ -77,6 +77,7 @@
 - [runtime/llm/events](runtime/llm/events/README.md)
 - [runtime/llm/manager](runtime/llm/manager/README.md)
 - [runtime/llm/types](runtime/llm/types/README.md)
+- [runtime/migrate](runtime/migrate/README.md)
 - [runtime/plugins](runtime/plugins/README.md)
 - [runtime/render-ref](runtime/render-ref/README.md)
 - [runtime/repo-context](runtime/repo-context/README.md)

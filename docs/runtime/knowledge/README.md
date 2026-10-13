@@ -20,6 +20,10 @@
 - [KnowledgeProvenance](type-aliases/KnowledgeProvenance.md)
 - [KnowledgeRead](type-aliases/KnowledgeRead.md)
 
+## Variables
+
+- [KNOWLEDGE\_MIGRATIONS](variables/KNOWLEDGE_MIGRATIONS.md)
+
 ## Functions
 
 - [knowledgeDbPath](functions/knowledgeDbPath.md)

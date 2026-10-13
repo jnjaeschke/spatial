@@ -4,10 +4,10 @@ import type {
   Actor, Artifact, ArtifactStatus, Epoch, EpochStatus, Id, Link, LinkKind, Provenance, Ref, WorkflowId,
   LlmActivity, Progress, RuntimeEvent, Session, SessionListing, TaskRecord, TaskStatus,
 } from "../shared/types.ts";
+import { assertSchemaVersion, migrate, type Migration } from "./migrate.ts";
 import type { SearchDoc } from "./render-ref.ts";
 
-const SCHEMA = `
-PRAGMA foreign_keys = ON;
+const SCHEMA_V1 = `
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY, worktree TEXT NOT NULL, repo_dir TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL, workflow TEXT);
 CREATE TABLE IF NOT EXISTS tasks (
@@ -36,6 +36,15 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
 );
 `;
 
+/** Schema history of the session database; append a migration for every change to the tables or to the shape of stored artifact data. */
+export const STORE_MIGRATIONS: readonly Migration[] = [
+  (db) => {
+    db.exec(SCHEMA_V1);
+    const columns = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((r) => r.name).join(",");
+    if (columns("sessions") !== SESSION_COLUMNS || columns("artifacts") !== "id,session_id,type,status,data,provenance,created_at,epoch" || columns("tasks") !== "id,session_id,kind,status,input,output,error,created_at,updated_at,epoch,parent_id") throw new Error("Database was created by an older development version; delete it and restart");
+  },
+];
+
 type Row = Record<string, unknown>;
 const SESSION_COLUMNS = "id,worktree,repo_dir,title,created_at,workflow";
 const now = () => new Date().toISOString();
@@ -51,14 +60,13 @@ export class Store {
 
   constructor(path: string, opts: { readOnly?: boolean } = {}) {
     this.#db = opts.readOnly ? new DatabaseSync(path, { readOnly: true }) : new DatabaseSync(path);
-    if (!opts.readOnly) {
-      if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
-      this.#db.exec(SCHEMA);
-      const columns = (this.#db.prepare("PRAGMA table_info(sessions)").all() as Row[]).map((r) => r.name).join(",");
-      const artifactColumns = (this.#db.prepare("PRAGMA table_info(artifacts)").all() as Row[]).map((r) => r.name).join(",");
-      const taskColumns = (this.#db.prepare("PRAGMA table_info(tasks)").all() as Row[]).map((r) => r.name).join(",");
-      if (columns !== SESSION_COLUMNS || artifactColumns !== "id,session_id,type,status,data,provenance,created_at,epoch" || taskColumns !== "id,session_id,kind,status,input,output,error,created_at,updated_at,epoch,parent_id") throw new Error(`Database ${path} has an outdated schema (sessions are disposable): delete it and restart`);
+    if (opts.readOnly) {
+      assertSchemaVersion(this.#db, path, STORE_MIGRATIONS.length);
+      return;
     }
+    this.#db.exec("PRAGMA foreign_keys = ON;");
+    migrate(this.#db, path, STORE_MIGRATIONS);
+    if (path !== ":memory:") this.#db.exec("PRAGMA journal_mode = WAL;");
   }
 
   close(): void {
