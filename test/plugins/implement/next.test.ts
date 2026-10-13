@@ -381,8 +381,24 @@ test("an adopted stack gets a seeded investigation after its rounds, then contin
   assert.equal(ask.decide.options.some((option) => option.id === "approve"), false);
 });
 
-test("a regular re-investigation after adopt-invalid still asks for approval", () => {
+test("an investigation after an adopt that was not seeded by it still asks for approval", () => {
   const inv = investigation(null, 5);
   const step = decide(next(view([start(), branch(), inv], [{ ...epoch(4, "adopt"), input: { mode: "moved" } }, { ...epoch(5, "investigate"), input: {} }])));
   assert.equal(step.decide.key, "approve");
+});
+
+test("with Phabricator rounds the session goes idle after the seeded investigation, and an investigated session needs none", () => {
+  const H = "https://phab.example.com";
+  const plan = art("AdoptPlan", {
+    mode: "moved", host: H, refError: null, historyError: null, missingBases: [],
+    branches: [{ branch: "topic", base: "BASE", tip: "c1", commits: [{ sha: "c1", subject: "Bug 5 - one", body: `Differential Revision: ${H}/D1` }] }],
+    revisions: [{ id: 1, title: "Bug 5 - one", latestDiffId: 20 }],
+    diffs: [{ revision: 1, diffId: 20, base: "BASE", dateCreated: 9000 }],
+  }, 4);
+  const range = { ...epoch(5, "adoptRange"), input: { planId: plan.id, branch: "topic", head: "c1" } };
+  const lastRound = run(next(view([start(), branch(), plan], [epoch(4, "adopt"), range])));
+  const epochs = [epoch(4, "adopt"), range, { ...epoch(6, "round"), input: lastRound.input }];
+  assert.equal(run(next(view([start(), branch(), plan], epochs))).run, "investigate");
+  assert.equal(next(view([start(), branch(), plan, investigation(5, 7)], [...epochs, { ...epoch(7, "investigate"), input: { adopted: true } }])), null);
+  assert.equal(next(view([start(), branch(), investigation(5, 1), plan], [epoch(1, "investigate"), ...epochs])), null);
 });
