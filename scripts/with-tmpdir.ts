@@ -1,13 +1,14 @@
 // Runs a command with a TMPDIR of its own and removes it afterwards: tests create temp repos and databases through
 // os.tmpdir() without cleaning up, and thousands of leftover git repos exhaust the inodes of a tmpfs /tmp.
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const [command, ...args] = process.argv.slice(2);
 if (!command) throw new Error("usage: with-tmpdir.ts <command> [args...]");
-const dir = mkdtempSync(join(tmpdir(), "spatial-test-"));
+// Resolved, because a child's process.cwd() is: macOS's /var/folders is really /private/var/folders.
+const dir = realpathSync(mkdtempSync(join(tmpdir(), "spatial-test-")));
 try {
   const run = spawnSync(command, args, { stdio: "inherit", env: { ...process.env, TMPDIR: dir } });
   if (run.error) throw run.error;

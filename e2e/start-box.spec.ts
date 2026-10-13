@@ -119,7 +119,7 @@ test("the model last used starts out selected in the next model picker", async (
   await box.fill("/chat Remember my model");
   await box.press("Enter");
   await expect(page).toHaveURL(/\/sessions\/[^/]+/);
-  await expect(page.getByTestId("conversation")).toContainText("Remember my model", { timeout: 10_000 });
+  await expect(page.getByTestId("conversation")).toContainText("Codex stub answer.", { timeout: 10_000 });
   await openStartBox(page, request);
   await expect(page.getByLabel("backend")).toHaveValue("codex");
 });

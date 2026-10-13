@@ -10,13 +10,13 @@ const FILES = {
 };
 const args = process.argv.slice(2);
 const write = (value) => process.stdout.write(value);
-const fail = () => { process.stderr.write("Error: Request failed: 404 Not Found\n"); process.exit(1); };
+// Sets the exit code instead of calling process.exit, which drops unflushed output on macOS, where pipes are asynchronous.
+const fail = () => { process.stderr.write("Error: Request failed: 404 Not Found\n"); process.exitCode = 1; };
 
 if (args[0] === "-R" && args[1] === "wubkat") {
   if (args[2] === "--spec-refs") write("No references found in wubkat.\n");
   else if (args[2] === "--get-file" && args[3] === "CMakeLists.txt" && args.includes("--permalink")) write(`https://searchfox.org/wubkat/rev/${"b".repeat(40)}/CMakeLists.txt#1\n`);
   else fail();
-  process.exit(0);
 } else if (args[0] === "--spec-refs") {
   const url = new URL(args[1]);
   if (url.hash !== "#navigate") write("## Gecko references\n\n0 reference(s) in mozilla-central\n");

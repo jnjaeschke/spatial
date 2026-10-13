@@ -35,12 +35,11 @@ if (streamInput) void (async () => {
     replay(text);
   }
 })();
-if (env.FAKE_LLM_FAIL_ON && stdin.includes(env.FAKE_LLM_FAIL_ON)) {
-  process.stderr.write("stub failure");
-  process.exit(1);
-}
+const failing = env.FAKE_LLM_FAIL_ON && stdin.includes(env.FAKE_LLM_FAIL_ON);
 const hang = env.FAKE_LLM_HANG_ON && Object.entries(JSON.parse(env.FAKE_LLM_HANG_ON)).find(([needle]) => matches(needle, request));
-if (hang) {
+// Exits once stderr is flushed: macOS pipes are asynchronous, and an immediate process.exit would drop the message.
+if (failing) process.stderr.write("stub failure", () => process.exit(1));
+else if (hang) {
   process.stdout.write(readFileSync(hang[1], "utf8"));
   setInterval(() => {}, 1 << 30);
 } else {
