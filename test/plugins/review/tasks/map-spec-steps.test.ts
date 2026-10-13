@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { ReviewFindingData } from "../../src/plugins/review/shared/types.ts";
-import type { SpecReferenceData, SpecStepMapData } from "../../src/plugins/spec/api.ts";
-import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
-import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import { mappableSpecs, mapSpecSteps } from "../../src/plugins/review/tasks/map-spec-steps/task.ts";
+import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
+import type { SpecReferenceData, SpecStepMapData } from "../../../../src/plugins/spec/api.ts";
+import type { DiffData, LlmSelection, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
+import { mappableSpecs, mapSpecSteps } from "../../../../src/plugins/review/tasks/map-spec-steps/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const STEPS = "To navigate:\n\n1. Fire *navigate*.\n2. If the commit is pending:\n\n    1. Defer the event.\n3. Fire navigatesuccess.";

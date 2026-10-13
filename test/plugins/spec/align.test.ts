@@ -6,8 +6,8 @@ import { startAlign } from "../../../src/plugins/spec/runtime/align.ts";
 import { storedMapping, updateMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import { siteKey } from "../../../src/plugins/spec/shared/engine.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
-import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { fakeCode } from "./fake-code.ts";
+import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 import { routeCall } from "../../helpers/route-call.ts";
 import { BusyError } from "../../../src/runtime/tasks.ts";
 

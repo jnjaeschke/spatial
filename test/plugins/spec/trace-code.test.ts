@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkCodeRefs } from "../../../src/plugins/spec/tasks/check-trace/task.ts";
 import { missingCodeSearch } from "../../../src/runtime/code-search.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
+import { fakeCode } from "./fake-code.ts";
 
 const FILE = "int a;\nvoid Navigate() {\n  if (!doc) return;\n}";
 const ref = (line: number, quote: string, path = "a.cc") => ({ engine: "gecko" as const, path, line, quote });

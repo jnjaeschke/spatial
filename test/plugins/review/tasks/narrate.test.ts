@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
-import { narrate, MAX_PROMPT_CHARS } from "../../src/plugins/review/tasks/narrate/task.ts";
-import { renderDiffForPrompt } from "../../src/plugins/review/tasks/narrate/render.ts";
-import { validateNarrative } from "../../src/plugins/review/tasks/narrate/validate.ts";
-import schema from "../../src/plugins/review/tasks/narrate/schema.json" with { type: "json" };
+import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type WebspecCapability, type SearchfoxCapability } from "../../../../src/runtime/tasks.ts";
+import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
+import type { DiffData, LlmSelection, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import { narrate, MAX_PROMPT_CHARS } from "../../../../src/plugins/review/tasks/narrate/task.ts";
+import { renderDiffForPrompt } from "../../../../src/plugins/review/tasks/narrate/render.ts";
+import { validateNarrative } from "../../../../src/plugins/review/tasks/narrate/validate.ts";
+import schema from "../../../../src/plugins/review/tasks/narrate/schema.json" with { type: "json" };
 
 const DIFF: DiffData = {
   baseSha: "b".repeat(40),

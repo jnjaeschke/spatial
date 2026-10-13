@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarizePhabThread } from "../../src/plugins/review/tasks/summarize-phab-thread/task.ts";
-import type { PhabCommentData } from "../../src/plugins/review/shared/types.ts";
+import { summarizePhabThread } from "../../../../src/plugins/review/tasks/summarize-phab-thread/task.ts";
+import type { PhabCommentData } from "../../../../src/plugins/review/shared/types.ts";
 
 const comment = (phid: string, txId: number, replyTo?: string) => ({ id: phid, type: "PhabComment", data: { revision: 42, phid, version: 1, author: `author${txId}`, bot: false, byMe: false, body: `body ${txId}`, replyTo, own: false, done: false, txId, dateCreated: txId } as PhabCommentData });
 

@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { FindingCarryData, ReviewFindingData } from "../../src/plugins/review/shared/types.ts";
-import type { ArtifactStatus, DiffData, PatchNarrativeData } from "../../src/shared/types.ts";
-import { carryFindings } from "../../src/plugins/review/tasks/carry-findings/task.ts";
+import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import type { FindingCarryData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
+import type { ArtifactStatus, DiffData, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import { carryFindings } from "../../../../src/plugins/review/tasks/carry-findings/task.ts";
 
 const diff = (text: string, line: number): DiffData => ({ baseSha: "b", headSha: text, commits: [], files: [{ path: "a.cpp", status: "modified", binary: false, hunks: [
   { id: "f0h0", header: "@@", oldStart: line, oldLines: 1, newStart: line, newLines: 1, lines: [{ kind: "add", text }] },

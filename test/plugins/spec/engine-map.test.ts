@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseNumbered } from "../../../src/runtime/chromium-search.ts";
 import { addSteps, definitionOf, carryOver, specLinkSites } from "../../../src/plugins/spec/runtime/engine-map.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
+import { fakeCode } from "./fake-code.ts";
 import type { EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
 import type { StepCommentCheck } from "../../../src/runtime/tasks.ts";

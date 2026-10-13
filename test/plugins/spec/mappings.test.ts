@@ -12,8 +12,8 @@ import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { EngineMapping, EngineSite, SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
 import { routeCall } from "../../helpers/route-call.ts";
 import { codeUrl } from "../../../src/plugins/spec/shared/engine.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
-import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { fakeCode } from "./fake-code.ts";
+import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const FILE = ["// https://html.spec.whatwg.org/#setup", "void Setup() {", "  // Step 1. Edit the line.", "  Edit();", "  // Step 2. Add the files.", "}", ""].join("\n");

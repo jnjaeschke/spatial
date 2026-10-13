@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import { Store } from "../../src/runtime/store.ts";
-import type { LlmService } from "../../src/runtime/llm/types.ts";
-import { importRevision } from "../../src/plugins/review/tasks/import-revision/task.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import { Store } from "../../../../src/runtime/store.ts";
+import type { LlmService } from "../../../../src/runtime/llm/types.ts";
+import { importRevision } from "../../../../src/plugins/review/tasks/import-revision/task.ts";
 
 test("host resolution failure is recorded as a failed importRevision task", async () => {
   const repo = mkdtempSync(join(tmpdir(), "import-revision-task-"));

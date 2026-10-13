@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { McpServerSpec } from "../../../src/runtime/llm/types.ts";
 import { makeWebspec } from "../../../src/runtime/webspec.ts";
 import type { GeneratedTrace, SpecTraceData } from "../../../src/plugins/spec/shared/types.ts";
-import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 
 const SPATIAL: McpServerSpec = { type: "stdio", command: "node", args: ["session-server.ts"] };
 const webspec = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });

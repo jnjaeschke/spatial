@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { DiffData } from "../../src/plugin-api.ts";
-import type { LlmService } from "../../src/runtime/llm/types.ts";
-import type { IntroducedSymbolsData } from "../../src/plugins/review/shared/types.ts";
-import { introducedSymbols } from "../../src/plugins/review/tasks/introduced-symbols/task.ts";
+import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import type { DiffData } from "../../../../src/plugin-api.ts";
+import type { LlmService } from "../../../../src/runtime/llm/types.ts";
+import type { IntroducedSymbolsData } from "../../../../src/plugins/review/shared/types.ts";
+import { introducedSymbols } from "../../../../src/plugins/review/tasks/introduced-symbols/task.ts";
 
 test("introducedSymbols stores only new defined names and links the Diff", async () => {
   const store = new Store(":memory:");

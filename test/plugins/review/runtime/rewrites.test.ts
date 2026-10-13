@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import type { Commit, DiffFile } from "../../../../src/shared/types.ts";
 import type { GitCapability } from "../../../../src/runtime/tasks.ts";
 import { parseUnifiedDiff } from "../../../../src/runtime/diff-parse.ts";
+import { makeGit } from "../../../../src/runtime/git.ts";
+import { attribute } from "../../../../src/plugins/review/runtime/attribution.ts";
 import { findRewrites } from "../../../../src/plugins/review/runtime/rewrites.ts";
+import { makeRepo } from "../../../helpers/git-fixture.ts";
 
 const base = "0".repeat(40), a = "a".repeat(40), b = "b".repeat(40), c = "c".repeat(40);
 const commits: Commit[] = [a, b, c].map((sha) => ({ sha, subject: "", body: "" }));
@@ -74,4 +77,30 @@ test("single commit does not request per-commit diffs or blame", async () => {
   const git = { async diff() { called = true; return ""; }, async blame() { called = true; return []; } } as unknown as GitCapability;
   await findRewrites(git, base, [commits[0]!], []);
   assert.equal(called, false);
+});
+
+// REQUIRES_REAL_GIT
+test("per-commit rewrite detection flags replaced additions, not base-line changes", async () => {
+  const r = makeRepo();
+  r.commit({ "a.txt": "base\nkeep\n" }, "base");
+  r.commit({ "a.txt": "base\nL\nkeep\n" }, "first");
+  const head = r.commit({ "a.txt": "base\nchanged\nkeep\n" }, "second");
+  const git = makeGit(r.dir);
+  const commits = await git.log(await git.resolve("HEAD~2"), head);
+  const allFiles = parseUnifiedDiff(await git.diff(await git.resolve("HEAD~2"), head));
+  const base = await git.resolve("HEAD~2");
+  await attribute(git, base, head, commits, allFiles);
+  await findRewrites(git, base, commits, allFiles);
+  assert.deepEqual(allFiles[0]!.hunks[0]!.rewrites, [{ by: 1, of: 0, lines: 1 }]);
+
+  const onlyBaseChange = makeRepo();
+  onlyBaseChange.commit({ "a.txt": "base\nkeep\n" }, "base");
+  onlyBaseChange.commit({ "a.txt": "base\nkeep\n", "b.txt": "first\n" }, "first");
+  const changed = onlyBaseChange.commit({ "a.txt": "BASE\nkeep\n" }, "second");
+  const onlyGit = makeGit(onlyBaseChange.dir);
+  const onlyBase = await onlyGit.resolve("HEAD~2");
+  const onlyCommits = await onlyGit.log(onlyBase, changed);
+  const onlyFiles = parseUnifiedDiff(await onlyGit.diff(onlyBase, changed));
+  await findRewrites(onlyGit, onlyBase, onlyCommits, onlyFiles);
+  assert.equal(onlyFiles[0]!.hunks[0]!.rewrites, undefined);
 });

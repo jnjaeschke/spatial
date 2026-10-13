@@ -1,11 +1,11 @@
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService, McpServerSpec } from "../../src/runtime/llm/types.ts";
-import type { CodeSearch } from "../../src/runtime/code-search.ts";
-import { corePlugin } from "../../src/runtime/create.ts";
-import { specPlugin } from "../../src/plugins/spec/index.ts";
-import type { SpecAlgorithmData } from "../../src/plugins/spec/shared/types.ts";
-import type { Artifact, Engine, Id } from "../../src/shared/types.ts";
+import { Store } from "../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../src/runtime/tasks.ts";
+import type { LlmPrompt, LlmService, McpServerSpec } from "../../../src/runtime/llm/types.ts";
+import type { CodeSearch } from "../../../src/runtime/code-search.ts";
+import { corePlugin } from "../../../src/runtime/create.ts";
+import { specPlugin } from "../../../src/plugins/spec/index.ts";
+import type { SpecAlgorithmData } from "../../../src/plugins/spec/shared/types.ts";
+import type { Artifact, Engine, Id } from "../../../src/shared/types.ts";
 
 /** A runtime with the spec plugin, the given code search, webspec fakes and session MCP servers, and an LLM answering each prompt with `reply(prompt)`. */
 export function specRuntime(opts: { codeSearch?: Partial<Record<Engine, CodeSearch>>; webspec?: Partial<WebspecCapability>; sessionMcp?: (sessionId: Id) => Record<string, McpServerSpec>; reply?(prompt: LlmPrompt): unknown } = {}) {

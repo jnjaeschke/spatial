@@ -8,8 +8,8 @@ import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import type { EngineDifference, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 import type { Engine } from "../../../src/shared/types.ts";
 import { BusyError, type Runtime } from "../../../src/runtime/tasks.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
-import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { fakeCode } from "./fake-code.ts";
+import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 import { routeCall } from "../../helpers/route-call.ts";
 
 const CONTENT = "1. Let *x* be the [node](DOM#concept-node).\n2. Fire `load` at *x*.";

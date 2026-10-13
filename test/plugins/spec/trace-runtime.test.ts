@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import type { WebspecCapability } from "../../../src/runtime/tasks.ts";
 import { makeWebspec } from "../../../src/runtime/webspec.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
+import { fakeCode } from "./fake-code.ts";
 import type { CodeSearch } from "../../../src/runtime/code-search.ts";
 import { generateTrace } from "../../../src/plugins/spec/runtime/traces.ts";
 import { addMappingStep } from "../../../src/plugins/spec/runtime/traces.ts";
@@ -12,7 +12,7 @@ import { mappingKey } from "../../../src/plugins/spec/shared/engine.ts";
 import { mappingStepSite } from "../../../src/plugins/spec/shared/trace-check.ts";
 import { traceStatus } from "../../../src/plugins/spec/shared/traces.ts";
 import type { EngineMapping, GeneratedTrace, NoteResult, SpecOpenedData, SpecTraceCheckData, SpecTraceData } from "../../../src/plugins/spec/shared/types.ts";
-import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 
 const fake = makeWebspec({ bin: fileURLToPath(new URL("../../stubs/fake-webspec.mjs", import.meta.url)) });
 const TRACE: GeneratedTrace = { title: "Snapshot before origin", entries: [

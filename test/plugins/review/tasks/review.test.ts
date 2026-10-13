@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import type { FindingVerdictData, ReviewFindingData } from "../../src/plugins/review/shared/types.ts";
-import type { DiffData, LlmSelection, PatchNarrativeData } from "../../src/shared/types.ts";
-import { findingStates } from "../../src/plugins/review/shared/findings.ts";
-import { reviewPlugin } from "../../src/plugins/review/index.ts";
-import { specPlugin } from "../../src/plugins/spec/index.ts";
+import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
+import type { FindingVerdictData, ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
+import type { DiffData, LlmSelection, PatchNarrativeData } from "../../../../src/shared/types.ts";
+import { findingStates } from "../../../../src/plugins/review/shared/findings.ts";
+import { reviewPlugin } from "../../../../src/plugins/review/index.ts";
+import { specPlugin } from "../../../../src/plugins/spec/index.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 const diffData: DiffData = {

@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store } from "../../src/runtime/store.ts";
-import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../src/runtime/tasks.ts";
-import type { PhabCommentData, SuggestedReplyData } from "../../src/plugins/review/shared/types.ts";
-import type { ChatMessageData, LlmSelection } from "../../src/shared/types.ts";
-import type { LlmPrompt, LlmService } from "../../src/runtime/llm/types.ts";
-import { draftPhabReply } from "../../src/plugins/review/tasks/draft-phab-reply/task.ts";
+import { Store } from "../../../../src/runtime/store.ts";
+import { Runtime, type GitCapability, type SearchfoxCapability, type WebspecCapability } from "../../../../src/runtime/tasks.ts";
+import type { PhabCommentData, SuggestedReplyData } from "../../../../src/plugins/review/shared/types.ts";
+import type { ChatMessageData, LlmSelection } from "../../../../src/shared/types.ts";
+import type { LlmPrompt, LlmService } from "../../../../src/runtime/llm/types.ts";
+import { draftPhabReply } from "../../../../src/plugins/review/tasks/draft-phab-reply/task.ts";
 
 const selection: LlmSelection = { backend: "claude", model: "sonnet", effort: "medium" };
 

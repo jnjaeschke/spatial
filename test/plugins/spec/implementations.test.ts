@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { specRoutes } from "../../../src/plugins/spec/server/routes.ts";
 import { storedMapping } from "../../../src/plugins/spec/runtime/mappings.ts";
 import type { ImplementationsData } from "../../../src/plugins/spec/shared/types.ts";
-import { fakeCode } from "../../helpers/fake-code.ts";
-import { putAlgorithm, specRuntime } from "../../helpers/spec-runtime.ts";
+import { fakeCode } from "./fake-code.ts";
+import { putAlgorithm, specRuntime } from "./spec-runtime.ts";
 import { routeCall } from "../../helpers/route-call.ts";
 
 test("ensure maps every engine it can, a missing tool fails only its own task, and the GET projects what is stored", async () => {
