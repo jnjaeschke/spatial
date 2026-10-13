@@ -29,7 +29,7 @@ test("applyRevisions strikes each span and preserves surrounding text", () => {
 });
 
 test("revisionsOf returns linked revisions oldest first", () => {
-  const artifacts = ["r1", "r2", "r3"].map((id, i) => ({ id, type: "Revision", data: { quote: id, correction: "x" } as RevisionData } as Artifact<RevisionData>));
+  const artifacts = ["r1", "r2", "r3"].map((id) => ({ id, type: "Revision", data: { quote: id, correction: "x" } as RevisionData } as Artifact<RevisionData>));
   const links = [
     { from: "r1", to: "m", kind: "revises" }, { from: "r2", to: "other", kind: "revises" }, { from: "r3", to: "m", kind: "revises" },
   ] as Link[];

@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Artifact, DecisionData, DecisionOption, Epoch, EpochStatus, LlmSelection, RepoProfile, Step, WorkflowView } from "../../../src/plugin-api.ts";
 import { implementCheckAnswer, implementNext, workInQuestion } from "../../../src/plugins/implement/workflow/next.ts";
-import type { CommentPlanItem } from "../../../src/plugins/implement/shared/comment-plan.ts";
 
 let n = 0;
 const art = (type: string, data: unknown, epoch: number | null): Artifact => ({ id: `${type}${++n}`, sessionId: "s", type, status: "verified", data, provenance: { taskId: "t" }, epoch, createdAt: "" });

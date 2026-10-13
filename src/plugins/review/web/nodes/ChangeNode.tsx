@@ -7,7 +7,7 @@ import { IconButton, InlineText, AskContext, ChatActionsContext, api, Box, Error
 export type ChangeFlowNode = Node<ChangeNodeData & { sessionId: string } & Record<string, unknown>, "change">;
 
 /** The change as a card of its patch: what it does and why, without its diff; the hunks are at its Change place. */
-export function ChangeNode({ id: nodeId, data }: NodeProps<ChangeFlowNode>) {
+export function ChangeNode({ data }: NodeProps<ChangeFlowNode>) {
   const { change, files, hunks, diffId } = data;
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);

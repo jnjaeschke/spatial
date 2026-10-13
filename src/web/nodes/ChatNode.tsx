@@ -24,7 +24,7 @@ import { OpenActivityLogContext } from "../activity-log-context.ts";
 
 export type ChatFlowNode = Node<ChatNodeData & Record<string, unknown>, "chat">;
 
-export function ChatNode({ id: nodeId, data }: NodeProps<ChatFlowNode>) {
+export function ChatNode({ data }: NodeProps<ChatFlowNode>) {
   const closer = useContext(ClosedContext);
   const actions = useContext(ChatActionsContext);
   const id = data.threadId ?? data.draftId!;

@@ -7,11 +7,11 @@ import type { Artifact, Link, PatchNarrativeData } from "../../../../src/shared/
 const a = <T,>(id: string, type: string, data: T): Artifact<T> => ({ id, sessionId: "S", type, status: "verified", data, provenance: { taskId: "t" }, createdAt: id, epoch: null});
 const link = (from: string, to: string, kind: Link["kind"]): Link => ({ id: `${from}-${to}-${kind}`, sessionId: "S", from, to, kind });
 const narrative = (id: string, diffId: string): Artifact<PatchNarrativeData> => a(id, "PatchNarrative", { diffId, summary: "", changes: [] });
-const finding = (id: string, narrativeId: string): Artifact<ReviewFindingData> => a(id, "ReviewFinding", { anchor: "D1#f0h0", quote: "code", lines: { path: "a", side: "new", start: 1, end: 1 }, category: "style", severity: "low", title: id, body: "body" });
+const finding = (id: string): Artifact<ReviewFindingData> => a(id, "ReviewFinding", { anchor: "D1#f0h0", quote: "code", lines: { path: "a", side: "new", start: 1, end: 1 }, category: "style", severity: "low", title: id, body: "body" });
 
 test("findingStates combines own and latest carried state, decisions, and verdicts", () => {
-  const f = finding("F", "N1");
-  const f2 = finding("F2", "N1");
+  const f = finding("F");
+  const f2 = finding("F2");
   const artifacts = [a("D1", "Diff", {}), narrative("N1", "D1"), a("D2", "Diff", {}), narrative("N2", "D2"), f, f2,
     a("C1", "FindingCarry", { finding: "F", toDiff: "D2", hunkId: "old" }),
     a("C2", "FindingCarry", { finding: "F", toDiff: "D2", hunkId: "f0h0", lines: { path: "a", side: "new", start: 20, end: 20 } }),
@@ -34,7 +34,7 @@ test("findingStates combines own and latest carried state, decisions, and verdic
 });
 
 test("findingStates keeps only carried prior findings and applies verdict collapse defaults", () => {
-  const f = finding("F", "N1"), noCarry = finding("G", "N1"), addressed = a("V", "FindingVerdict", { finding: "F", verdict: "addressed", reason: "done" });
+  const f = finding("F"), noCarry = finding("G"), addressed = a("V", "FindingVerdict", { finding: "F", verdict: "addressed", reason: "done" });
   const artifacts = [a("D1", "Diff", {}), narrative("N1", "D1"), a("D2", "Diff", {}), narrative("N2", "D2"), f, noCarry, a("C", "FindingCarry", { finding: "F", toDiff: "D2", hunkId: "h" }), addressed];
   const links = [link("F", "N1", "derivedFrom"), link("G", "N1", "derivedFrom"), link("C", "F", "about"), link("V", "F", "about")];
   assert.equal(findingStates({ artifacts, links }, "N2").length, 1);

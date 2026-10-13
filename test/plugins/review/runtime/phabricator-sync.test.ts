@@ -12,7 +12,7 @@ import { corePlugin } from "../../../../src/runtime/create.ts";
 const local = "diff --git a/a.txt b/a.txt\n@@ -1 +1 @@\n-old\n+new\n";
 const remote = (id: number, text = local) => ({ id, phid: `PHID-DIFF-${id}`, text });
 const transactions = (comments: unknown[] = []) => ({ data: comments, cursor: { limit: "50", after: null, before: null } });
-const tx = (id: number, phid: string, body: string, version = 1, done = false) => ({
+const tx = (id: number, phid: string, body: string, version = 1) => ({
   id, type: "comment", dateCreated: id, comments: [{ phid, version, authorPHID: "U1", content: { raw: body }, removed: false }], fields: {},
 });
 const inlineTx = (id: number, done: boolean) => ({

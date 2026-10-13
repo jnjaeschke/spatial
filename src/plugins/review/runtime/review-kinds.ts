@@ -1,5 +1,5 @@
 import type { PhabCommentData, ReviewDraftData, ReviewFindingData, UserCommentData } from "../shared/types.ts";
-import type { Artifact, DiffData, PatchNarrativeData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
+import type { DiffData, PatchNarrativeData, ArtifactKind, SessionView } from "../../../plugin-api.ts";
 import type { SpecReferenceData } from "../../spec/api.ts";
 import { renderHunk } from "../tasks/narrate/render.ts";
 import { findingStates } from "../shared/findings.ts";
@@ -36,7 +36,7 @@ const search: ArtifactKind["search"] = (view, artifact) => {
   return [];
 };
 
-const render: ArtifactKind["render"] = (view, artifact, subId, renderRef) => {
+const render: ArtifactKind["render"] = (view, artifact, subId, _renderRef) => {
   if (artifact.type === "PhabComment" && subId === undefined) {
     const comments = phabThread(view.artifacts, artifact.id);
     if (!comments.length) return null;

@@ -1,5 +1,5 @@
 import type { DiagramData, DiffData, ChatReplyField } from "../../../plugin-api.ts";
-import { diagramSchema, isDiagram, verifySequence, type SequenceProposal } from "../../../plugin-api.ts";
+import { diagramSchema, isDiagram, verifySequence } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
 
 export const diagramField: ChatReplyField = {

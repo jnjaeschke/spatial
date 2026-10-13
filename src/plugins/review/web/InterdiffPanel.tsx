@@ -1,6 +1,5 @@
 import type { InterdiffData } from "../shared/types.ts";
 import type { Artifact } from "../../../web/plugin-api.ts";
-import { IconButton } from "../../../web/plugin-api.ts";
 import { numberLines, DiffRows, SidePanel } from "../../../web/plugin-api.ts";
 
 export function InterdiffPanel({ interdiff, epoch, onClose, onBack }: { interdiff: Artifact<InterdiffData>; epoch: number; onClose(): void; onBack?: () => void }) {

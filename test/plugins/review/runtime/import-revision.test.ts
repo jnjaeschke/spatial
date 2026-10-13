@@ -15,7 +15,6 @@ import { hunkCommit } from "../../../../src/plugins/review/shared/review-path.ts
 import type { DiffData } from "../../../../src/shared/types.ts";
 
 const host = "https://phab.example.com";
-const identity = { name: "T", email: "t@t" };
 const snapshot = (repo: ReturnType<typeof makeRepo>) => ({
   head: repo.git("rev-parse", "HEAD"), branch: repo.git("symbolic-ref", "HEAD"),
   status: repo.git("status", "--porcelain"), refs: repo.git("for-each-ref", "--exclude=refs/spatial", "--format=%(refname) %(objectname)"),

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { BugReportData, BugSummaryData } from "../../shared/types.ts";
-import { type Artifact, type JsonSchema, type LlmSelection, defineTask, runStructured } from "../../../../plugin-api.ts";
+import { type JsonSchema, type LlmSelection, defineTask, runStructured } from "../../../../plugin-api.ts";
 
 const SYSTEM = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 const SCHEMA = JSON.parse(readFileSync(new URL("./schema.json", import.meta.url), "utf8")) as JsonSchema;

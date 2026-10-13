@@ -31,7 +31,7 @@ function setup() {
   chmodSync(join(repo.dir, "mach"), 0o755);
   repo.git("commit", "--amend", "--no-edit");
   const base = repo.git("rev-parse", "HEAD").trim();
-  const head = repo.commit({ "dom/a.txt": "a\n" }, "Bug 1 - A");
+  repo.commit({ "dom/a.txt": "a\n" }, "Bug 1 - A");
   repo.commit({ "dom/b.txt": "b\n" }, "Bug 1 - B");
   const store = new Store(":memory:");
   const llm: LlmService = { defaultSelection: selection, async run(chosen) { return { text: "", json: null, providerSessionId: "p", selection: chosen ?? selection }; }, async listModels() { return { claude: { models: [] }, codex: { models: [] } }; } };

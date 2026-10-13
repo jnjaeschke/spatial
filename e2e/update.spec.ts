@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { expandItem, openChange, openPatch, revealNode, startReview } from "./canvas.ts";
 
 const repoDirs: string[] = [];
@@ -29,7 +29,7 @@ function amend(dir: string) {
   git(dir, "commit", "--amend", "--no-edit");
 }
 
-async function openNarrated(page: Page, request: APIRequestContext) {
+async function openNarrated(page: Page) {
   const dir = mkdtempSync(join(tmpdir(), "spatial-update-"));
   repoDirs.push(dir);
   git(dir, "init", "-b", "main");
@@ -60,8 +60,8 @@ async function updateAndOpenInterdiff(page: Page) {
   return page.getByTestId("interdiff-panel");
 }
 
-test("author amends: toast, update, epoch 2, interdiff shows only the author's change", async ({ page, request }) => {
-  const { dir } = await openNarrated(page, request);
+test("author amends: toast, update, epoch 2, interdiff shows only the author's change", async ({ page }) => {
+  const { dir } = await openNarrated(page);
   amend(dir);
 
   const panel = await updateAndOpenInterdiff(page);
@@ -71,8 +71,8 @@ test("author amends: toast, update, epoch 2, interdiff shows only the author's c
   await expect(panel).not.toContainText("c.txt");
 });
 
-test("interdiff Back returns to the file opened from a hunk header", async ({ page, request }) => {
-  const { dir } = await openNarrated(page, request);
+test("interdiff Back returns to the file opened from a hunk header", async ({ page }) => {
+  const { dir } = await openNarrated(page);
   amend(dir);
   const toast = page.getByTestId(/^toast-revision:/);
   await expect(toast).toBeVisible({ timeout: 10_000 });
@@ -88,8 +88,8 @@ test("interdiff Back returns to the file opened from a hunk header", async ({ pa
   await expect(page.getByTestId("file-panel")).toBeVisible();
 });
 
-test("author rebases onto a moved base: interdiff excludes the base's own changes", async ({ page, request }) => {
-  const { dir } = await openNarrated(page, request);
+test("author rebases onto a moved base: interdiff excludes the base's own changes", async ({ page }) => {
+  const { dir } = await openNarrated(page);
   git(dir, "checkout", "main");
   const mainLines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
   mainLines[4] = "FIVE";
@@ -110,8 +110,8 @@ test("author rebases onto a moved base: interdiff excludes the base's own change
   await expect(panel.locator(".interdiff-conflicts")).toHaveCount(0);
 });
 
-test("second round: statuses, carried findings, verdict", async ({ page, request }) => {
-  const { dir } = await openNarrated(page, request);
+test("second round: statuses, carried findings, verdict", async ({ page }) => {
+  const { dir } = await openNarrated(page);
   const chip = (title: string) => page.getByTestId(/finding-chip/).filter({ hasText: title });
   await openChange(page, "change-c1");
   await expect(chip("Magic number")).toBeVisible({ timeout: 15_000 });

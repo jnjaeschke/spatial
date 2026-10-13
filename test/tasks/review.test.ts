@@ -174,7 +174,7 @@ test("an unparsable reply fails the task", async () => {
 });
 
 test("epoch two prompt includes carried prior states and only epoch two adds sections", async () => {
-  const { store, session, diffId, narrativeId, calls, run } = setup([
+  const { store, session, narrativeId, calls, run } = setup([
     { findings: [
       { anchor: "c1", quote: "mFlag", category: "correctness", severity: "high", title: "Accepted finding", body: "Accepted body." },
       { anchor: "c2", quote: null, category: "style", severity: "low", title: "Dismissed finding", body: "Dismissed body." },
@@ -210,7 +210,7 @@ test("epoch two prompt includes carried prior states and only epoch two adds sec
 });
 
 test("valid verdict is stored and changes finding state", async () => {
-  const { store, session, diffId, narrativeId, run } = setup([
+  const { store, session, narrativeId, run } = setup([
     { findings: [{ anchor: "c1", quote: null, category: "correctness", severity: "high", title: "Prior", body: "x" }], verdicts: [] },
     { findings: [], verdicts: [{ finding: "F1", verdict: "addressed", reason: "The code now handles it." }, { finding: "F1", verdict: "partially", reason: "duplicate" }] },
   ]);

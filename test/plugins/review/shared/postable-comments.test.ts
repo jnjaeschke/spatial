@@ -88,7 +88,7 @@ test("postableComments uses carried lines and excludes outdated or addressed fin
   for (const f of [f1, f2, f3, f4]) links.push({ id: `${f.id}-n1`, sessionId: "S", from: f.id, to: "N1", kind: "derivedFrom" });
   carry("C1", "F1", "f0h0"); carry("C2", "F2", null); carry("C3", "F3", "f0h0"); carry("C4", "F4", "f0h0");
   const addDecision = (id: string, f: Artifact, decision: "accepted") => {
-    const a = put(id, "FindingDecision", "verified", { finding: f.id, decision });
+    put(id, "FindingDecision", "verified", { finding: f.id, decision });
     links.push({ id: `${id}-about`, sessionId: "S", from: id, to: f.id, kind: "about" });
   };
   addDecision("DEC1", f1, "accepted"); addDecision("DEC2", f2, "accepted"); addDecision("DEC3", f3, "accepted"); addDecision("DEC4", f4, "accepted");

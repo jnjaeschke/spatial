@@ -16,7 +16,7 @@ export function useCollapsed(sessionId: string, defaults: ReadonlySet<string>) {
     localStorage.setItem(key, JSON.stringify({ collapsed: [...next.collapsed], expanded: [...next.expanded] }));
     return next;
   }), [defaults, key]);
-  const expandAll = useCallback(() => setExplicit((prev) => {
+  const expandAll = useCallback(() => setExplicit(() => {
     const next = expandAllExplicit(defaults);
     localStorage.setItem(key, JSON.stringify({ collapsed: [...next.collapsed], expanded: [...next.expanded] }));
     return next;

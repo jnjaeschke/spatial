@@ -2,7 +2,7 @@ import type { PhabCommentData, PhabSyncData, ReviewCommentData, ReviewFindingDat
 import type { PostedCommentData } from "../../../plugin-api.ts";
 import { type Artifact, type DiffData, type DiffFile, type Id, type NotifyPayload, parseUnifiedDiff, type Runtime } from "../../../plugin-api.ts";
 import { latestDiff } from "../shared/diffs.ts";
-import { commitRevision, phabRevision } from "../shared/phabricator.ts";
+import { commitRevision } from "../shared/phabricator.ts";
 import { latestPhabSync } from "../shared/phab-anchor.ts";
 import { currentSummary, phabThreads } from "../shared/phab-threads.ts";
 import { checkDrift } from "./drift.ts";

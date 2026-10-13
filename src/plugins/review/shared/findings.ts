@@ -1,4 +1,4 @@
-import { diffNumber, narrativeOf } from "./diffs.ts";
+import { diffNumber } from "./diffs.ts";
 import type { FindingCarryData, FindingDecisionData, FindingVerdictData, ReviewFindingData } from "./types.ts";
 import type { Artifact, ChatThreadData, Id, Link, PatchNarrativeData, Ref } from "../../../plugin-api.ts";
 

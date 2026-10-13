@@ -2,7 +2,7 @@ import type { BugReportData, BugSummaryData, FindingDecisionData, FindingVerdict
 import type { SpecReferenceData } from "../../spec/api.ts";
 import type { FocusedRow, PostedCommentData } from "../../../web/plugin-api.ts";
 import type { Artifact, ChatThreadData, Commit, DiagramData, DiffData, DiffFile, Hunk, Id, PatchNarrativeData, Ref, SemanticChange, SequenceStep, SessionState } from "../../../web/plugin-api.ts";
-import { NODE_WIDTH, SATELLITE_WIDTH, cascade, isCoreKind, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type DiagramNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
+import { NODE_WIDTH, isCoreKind, isSatellite, latestStart, layout, lines, numberLines, placeSatellites, rootThread, rootGraph, subgraph, diagramsByMessage as diagramsByMessageOf, threadContent, type ChatNodeData, type DiagramNodeData, type Draft, type Graph, type GraphEdge, type GraphNode, type GraphNodeData, type HostedThread, type PlacedNode } from "../../../web/graph-api.ts";
 import { postableComments, reviewDraft } from "../shared/postable-comments.ts";
 import { postPlan } from "../shared/post-plan.ts";
 import { diffNumber, latestDiff, narrativeOf } from "../shared/diffs.ts";
@@ -505,7 +505,6 @@ export function reviewGraph(state: SessionState, drafts: Draft[]): Graph | null 
   const start = latestStart(state);
   const root = start ? rootThread(state, start.id) : undefined;
   if (start) {
-    const summaryId = latest.narrative.id;
     nodeIds.add(start.id);
     if (root) { nodeIds.add(root.id); hostOf.set(root.id, start.id); }
   }

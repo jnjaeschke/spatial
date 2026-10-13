@@ -7,7 +7,7 @@ import { ChatItem, FindingItem, PhabItem, SpecItem } from "../InlineItem.tsx";
 export type ChangeHeaderFlowNode = Node<ChangeHeaderNodeData & { sessionId: string } & Record<string, unknown>, "changeHeader">;
 
 /** The change at its Change place: what it does and why, above its hunk cards. */
-export function ChangeHeaderNode({ id: nodeId, data }: NodeProps<ChangeHeaderFlowNode>) {
+export function ChangeHeaderNode({ data }: NodeProps<ChangeHeaderFlowNode>) {
   const { change, hunks, diffId } = data;
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);

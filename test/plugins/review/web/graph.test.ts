@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ReviewFindingData } from "../../../../src/plugins/review/shared/types.ts";
 import type { Artifact, DiagramData, DiffData, PatchNarrativeData, SessionState, WorkflowStartData } from "../../../../src/shared/types.ts";
-import { closeGraph, conversationGraph, diagramSize, isCoreKind, layout, placeSatellites, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
+import { closeGraph, conversationGraph, diagramSize, isCoreKind, layout, sessionGraph as buildSessionGraph, NODE_WIDTH, type GraphNode, type GraphNodeData } from "../../../../src/web/graph.ts";
 import type { Draft } from "../../../../src/web/chat-context.ts";
 import type { FreePosition } from "../../../../src/web/free-positions.ts";
 import { anchorNodeId, diagramLayoutEdges, findingsOf, diagramStepTarget, introducedSymbolEdges, isReviewKind, latestNarrative, layerGraph, minimapMarks, narrativeGraph, reviewGraph, reviewIsEmpty, reviewPlaces, reviewSize, stackLayout, stepNodeId, type ChangeNodeData } from "../../../../src/plugins/review/web/graph.ts";
@@ -404,7 +404,7 @@ test("stackLayout shifts wide diagrams right so they do not overlap", () => {
   }
   const sized = graph.nodes.map((node) => ({ id: node.id, data: node.data, anchors: node.anchors ?? [], ...estimateSize(node.data) }));
   const pos = stackLayout(sized, graph.edges);
-  const first = sized.find((node) => node.id === "diagram-1")!, second = sized.find((node) => node.id === "diagram-2")!;
+  const first = sized.find((node) => node.id === "diagram-1")!;
   assert.ok(pos.get("diagram-1")!.x + first.width <= pos.get("diagram-2")!.x);
 });
 

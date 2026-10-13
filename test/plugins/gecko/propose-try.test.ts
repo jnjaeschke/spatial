@@ -11,7 +11,6 @@ import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
 import { geckoPlugin } from "../../../src/plugins/gecko/index.ts";
-import type { Plugin } from "../../../src/plugin-api.ts";
 import type { TryProposalData } from "../../../src/plugins/gecko/shared/types.ts";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 

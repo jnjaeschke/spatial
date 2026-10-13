@@ -1,5 +1,5 @@
 import { commentPlan } from "../shared/comment-plan.ts";
-import type { CommentTriageData, ReviewerCommentsInput, SteerData } from "../shared/types.ts";
+import type { CommentTriageData, SteerData } from "../shared/types.ts";
 import { HttpError, readJson, requireArtifact, requireSession, send, workflowView, putUserArtifact, text as requireText, type Artifact, type Runtime, type Route, type Epoch } from "../../../plugin-api.ts";
 import type { PhabCommentData } from "../../review/api.ts";
 import { postInlineReplies } from "../../review/api.ts";

@@ -28,7 +28,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
       thread = ctx.artifacts.get<ChatThreadData>(threadId);
       if (thread.type !== "ChatThread") throw new Error(`Artifact ${threadId} is not a ChatThread`);
     } else {
-      buildAnchorContext(view, anchor!, contextOptions());
+      buildAnchorContext(anchor!, contextOptions());
       thread = ctx.artifacts.put<ChatThreadData>("ChatThread", "verified", { anchor: anchor!, ...(aside ? { aside: true } : {}), quote, lines });
       ctx.links.put(thread.id, anchor!, "about");
     }
@@ -42,7 +42,7 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
     const prompt = resume
       ? text
       : [
-          buildAnchorContext(view, thread.data.anchor, contextOptions(), thread.data.quote === undefined ? undefined : { quote: thread.data.quote, lines: thread.data.lines }),
+          buildAnchorContext(thread.data.anchor, contextOptions(), thread.data.quote === undefined ? undefined : { quote: thread.data.quote, lines: thread.data.lines }),
           ...(history.length ? ["# Conversation so far", "", ...history.map((m) => `${m.data.role === "user" ? "User" : "Assistant"}: ${revisedText(view, m)}`), ""] : []),
           "# Question", "", text,
         ].join("\n");

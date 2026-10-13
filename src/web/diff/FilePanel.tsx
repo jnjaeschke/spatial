@@ -2,7 +2,7 @@ import { IconButton } from "../IconButton.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Artifact, DiffData } from "../../shared/types.ts";
 import { loadFileLines } from "../file-lines.ts";
-import { FileViewContext, type FileViewRequest } from "../file-view-context.ts";
+import { type FileViewRequest } from "../file-view-context.ts";
 import { SidePanel } from "../SidePanel.tsx";
 import { fileRows, numberLines } from "../../shared/diff-lines.ts";
 import { DiffRows, changeStarts } from "./DiffRows.tsx";

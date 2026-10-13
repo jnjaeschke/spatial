@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type {
-  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, EpochStatus, GeckoSpecRef, Id, Link, LinkKind, LlmActivity, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
+  Actor, Artifact, ArtifactStatus, CodeScope, Commit, DecisionData, Engine, Epoch, GeckoSpecRef, Id, Link, LinkKind, LlmActivity, LlmSelection, Progress, Ref, ResolvedSpec, RuntimeEvent, SpecEffectPaths, SpecIdlMember, SpecSearchResult, SpecSection, TaskRecord,
 } from "../shared/types.ts";
 import type { LlmEvent, LlmPrompt, LlmRunResult, LlmService, McpServerSpec } from "./llm/types.ts";
 import type { Store } from "./store.ts";

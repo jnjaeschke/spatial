@@ -1,4 +1,4 @@
-import type { DetailedHTMLProps, HTMLAttributes, ReactNode } from "react";
+import type { DetailedHTMLProps, ReactNode } from "react";
 
 declare module "react" {
   namespace JSX {

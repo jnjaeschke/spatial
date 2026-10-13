@@ -296,8 +296,7 @@ test("recent repos lists each live checkout with its own sessions, newest first"
   const otherRepo = makeRepo();
   const other = await post("/api/sessions", { repo: otherRepo.dir, title: "other" });
   assert.equal(other.status, 201);
-  const firstResponse = await post("/api/sessions", { repo: recentRepo.dir, title: "first" });
-  const first = await firstResponse.json() as Session;
+  assert.equal((await post("/api/sessions", { repo: recentRepo.dir, title: "first" })).status, 201);
   await new Promise((resolve) => setTimeout(resolve, 2));
   const secondResponse = await post("/api/sessions", { repo: recentRepo.dir, title: "second" });
   const second = await secondResponse.json() as Session;
@@ -739,7 +738,7 @@ test("review-submit posts inline drafts then submits the review action", async (
   const previousDiff = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: { ...diffData, headSha: "previous" }, provenance: { taskId: "test" } });
   const previousNarrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: previousDiff.id, summary: "previous", changes: [] }, provenance: { taskId: "test" } });
   const diff = rt.store.putArtifact({ sessionId: session.id, type: "Diff", status: "verified", data: diffData, provenance: { taskId: "test" } });
-  const narrative = rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: diff.id, summary: "s", changes: [] }, provenance: { taskId: "test" } });
+  rt.store.putArtifact({ sessionId: session.id, type: "PatchNarrative", status: "proposed", data: { diffId: diff.id, summary: "s", changes: [] }, provenance: { taskId: "test" } });
   const finding = rt.store.putArtifact({ sessionId: session.id, type: "ReviewFinding", status: "proposed", data: {
     anchor: `${previousDiff.id}#f0h0`, lines: { path: "a.txt", side: "new", start: 1, end: 1 }, category: "correctness", severity: "high", title: "Finding", body: "Details",
   }, provenance: { taskId: "test" } });
@@ -857,7 +856,6 @@ test("import-revision materializes a remote patch and starts narration", async (
     for await (const chunk of req) body += chunk;
     const method = req.url!.slice("/api/".length);
     calls.push(method);
-    const params = JSON.parse(new URLSearchParams(body).get("params")!);
     const result = method === "differential.revision.search" ? { data: [{ phid: "PHID-DREV-1", id: 1, fields: { title: "Remote change", status: { closed: false }, stackGraph: { "PHID-DREV-1": [] } } }] }
       : method === "differential.diff.search" ? { data: [{ id: 7, fields: { dateCreated: 1791278237, refs: [{ type: "base", identifier: baseSha }] } }] }
         : method === "differential.getrawdiff" ? rawDiff : null;

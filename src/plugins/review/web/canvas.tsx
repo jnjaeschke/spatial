@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type MutableRefObject } from "react";
-import { type Artifact, type CanvasModel, type CanvasProviderProps, DiagramStepContext, api } from "../../../web/plugin-api.ts";
+import { type CanvasModel, type CanvasProviderProps, DiagramStepContext, api } from "../../../web/plugin-api.ts";
 import { LAYERS, changeLayoutEdges, diagramLayoutEdges, diagramStepTarget, focusLabel, guideEntries, findingsOf, isReviewKind, layerGraph, minimapMarks, reviewGraph, reviewIsEmpty, reviewPlaces, stackLayout, type Layer } from "./graph.ts";
 import type { HunkRow } from "../../../web/plugin-api.ts";
 import { InlineStatesContext } from "../../../web/plugin-api.ts";

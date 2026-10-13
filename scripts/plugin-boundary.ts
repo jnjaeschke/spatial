@@ -1,6 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { dirname, join, normalize, relative, resolve } from "node:path";
+import { dirname, join, normalize, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();

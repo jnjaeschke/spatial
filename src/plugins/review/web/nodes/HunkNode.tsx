@@ -1,8 +1,7 @@
 import { useContext } from "react";
-import { Position, type Node, type NodeProps } from "@xyflow/react";
+import { type Node, type NodeProps } from "@xyflow/react";
 import type { HunkNodeData } from "../graph.ts";
 import { Box, DiffView, commitColors, type Row } from "../../../../web/plugin-api.ts";
-import { UserCommentBox } from "../UserCommentBox.tsx";
 import { SpecStepContext } from "../SpecPanel.tsx";
 import { commentId } from "../CommentDetails.tsx";
 import { ChatItem, FindingItem, PhabItem, UserCommentItem } from "../InlineItem.tsx";
@@ -13,7 +12,7 @@ import { SymbolMarkContext } from "../SymbolCard.tsx";
 export type HunkFlowNode = Node<HunkNodeData & { sessionId: string } & Record<string, unknown>, "hunk">;
 
 /** One hunk of a change with the chats and comments anchored in it. */
-export function HunkNode({ id, data }: NodeProps<HunkFlowNode>) {
+export function HunkNode({ data }: NodeProps<HunkFlowNode>) {
   const { file, hunk, diffId, sessionId, commit } = data;
   const selection = useContext(SpecStepContext);
   const details = useContext(DetailsContext);

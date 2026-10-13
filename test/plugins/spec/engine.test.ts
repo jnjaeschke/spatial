@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFunctionAt, parseSpecRefs } from "../../../src/runtime/searchfox.ts";
-import { byPlace, codeUrl, engineActivity, engineMapping, engineTasks, followQuote, nothingFound, fragmentOf, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
+import { codeUrl, engineActivity, engineMapping, engineTasks, followQuote, nothingFound, fragmentOf, innermostFunction, isCodePath, keepAlignedSteps, linksAnchor, mappedSteps, mappingKey, mergeLatest, quoteProblem, siteKey, siteName } from "../../../src/plugins/spec/shared/engine.ts";
 import type { EngineMapping, EngineSite } from "../../../src/plugins/spec/shared/types.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`../../fixtures/searchfox/${name}`, import.meta.url), "utf8");

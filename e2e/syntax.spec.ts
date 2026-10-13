@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { test, expect } from "@playwright/test";
 import { openChange, startReview } from "./canvas.ts";
 
-const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 4178}`;
 let dir = "";
 
 test.afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -16,7 +15,7 @@ function git(...args: string[]) {
 
 const painted = (name: string) => [...(CSS.highlights.get(name) ?? [])].map((range) => (range as Range).toString());
 
-test("C++ code in a hunk is painted through the highlight registry", async ({ page, request }) => {
+test("C++ code in a hunk is painted through the highlight registry", async ({ page }) => {
   dir = mkdtempSync(join(tmpdir(), "spatial-syntax-"));
   git("init", "-b", "main");
   writeFileSync(join(dir, "a.cpp"), "int f() {\n  return 1;\n}\n");

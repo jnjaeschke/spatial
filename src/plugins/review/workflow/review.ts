@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { Id, LlmSelection, Epoch, Runtime, Phase, Workflow, SessionView } from "../../../plugin-api.ts";
+import type { Id, LlmSelection, Epoch, Runtime, Phase, Workflow } from "../../../plugin-api.ts";
 import { parseRevisionRef } from "../shared/phabricator.ts";
-import { diffsOf, interdiffOf, narrativeOf } from "../shared/diffs.ts";
+import { diffsOf, interdiffOf } from "../shared/diffs.ts";
 import { narrateDiff } from "./narrate-patch.ts";
 import { reviewOverview } from "../runtime/review-kinds.ts";
 

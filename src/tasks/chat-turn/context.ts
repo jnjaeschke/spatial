@@ -1,5 +1,4 @@
 import type { ChatThreadData, Ref } from "../../shared/types.ts";
-import type { SessionView } from "../../runtime/render-ref.ts";
 
 export interface SelectedText { quote: string; lines?: ChatThreadData["lines"] }
 
@@ -11,6 +10,6 @@ function renderSelection(selection: SelectedText): string {
 }
 
 /** The minimal chat context: session overview, the anchored ref, and the user's selection. Throws on an unknown anchor. */
-export function buildAnchorContext(view: SessionView, anchor: Ref, opts: { overview: string[]; context: string[]; render(ref: Ref): string }, selection?: SelectedText): string {
+export function buildAnchorContext(anchor: Ref, opts: { overview: string[]; context: string[]; render(ref: Ref): string }, selection?: SelectedText): string {
   return ["# Session", opts.overview.join("\n\n"), ...opts.context, "# You are asked about", opts.render(anchor), ...(selection ? [renderSelection(selection)] : [])].filter(Boolean).join("\n\n");
 }

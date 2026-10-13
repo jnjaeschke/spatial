@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecIdlMember, SpecSite, SpecSearchResult } from "../shared/types.ts";
+import type { ResolvedSpec, SpecEffect, SpecEffectsStatus, SpecSite, SpecSearchResult } from "../shared/types.ts";
 import { runChecked, runProcess } from "./process.ts";
 import type { StepCommentCheck, WebspecCapability, WebspecLookup } from "./tasks.ts";
 

@@ -8,7 +8,7 @@ import { ChatItem, FindingItem } from "../InlineItem.tsx";
 
 export type CommitFlowNode = Node<CommitNodeData & Record<string, unknown>, "commit">;
 
-export function CommitNode({ id, data }: NodeProps<CommitFlowNode>) {
+export function CommitNode({ data }: NodeProps<CommitFlowNode>) {
   const ask = useContext(AskContext);
   const actions = useContext(ChatActionsContext);
   const { busy, error, run } = useAction();
