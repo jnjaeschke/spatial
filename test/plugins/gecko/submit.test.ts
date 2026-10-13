@@ -45,7 +45,7 @@ const answer = (chosen: DecisionData["chosen"]) => art("Decision", { key: "submi
 test("submit suggests reviewers for changed files and asks Submit, Submit as WIP or Not yet", async () => {
   const { repo, base, head, rt, store, session } = setup();
   await rt.runPhase(session.id, "submit", { base, head });
-  assert.deepEqual(readFileSync(join(repo.dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean), ["file-info", "reviewers", "--format", "json", "dom/a.txt", "dom/b.txt"]);
+  assert.deepEqual(readFileSync(join(repo.dir, ".git/mach-args"), "utf8").split("\n").filter(Boolean), ["file-info", "reviewers", "--format", "json", "--", "dom/a.txt", "dom/b.txt"]);
   const suggestion = store.listArtifacts(session.id, "ReviewerSuggestion").at(-1)!.data as ReviewerSuggestionData;
   assert.deepEqual(suggestion, { files: ["dom/a.txt", "dom/b.txt"], commits: 2, suggested: ["#dom-core"], candidates: [], error: null });
   const step = rt.nextStep(session.id);

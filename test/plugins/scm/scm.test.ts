@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, realpathSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { changedFiles, commitDetail, diffFiles, hasCommitGraph, logPage, refs } from "../../../src/plugins/scm/runtime/scm.ts";
@@ -162,4 +162,17 @@ test("fileLines returns the lines of a file at a revision", async () => {
   assert.deepEqual(await fileLines(r.dir, root, "old name.txt"), ["keep", "this", "file"]);
   await assert.rejects(fileLines(r.dir, root, "missing.txt"));
   await assert.rejects(fileLines(r.dir, root, "/etc/passwd"), /Invalid path/);
+});
+
+test("diffFiles does not run a repository's textconv program", async () => {
+  const r = makeRepo();
+  const marker = join(r.dir, "..", `scm-textconv-${Date.now()}`);
+  const script = `${marker}.sh`;
+  writeFileSync(script, `#!/bin/sh\ntouch ${marker}\ncat "$1"\n`, { mode: 0o755 });
+  writeFileSync(join(r.dir, ".gitattributes"), "*.txt diff=evil\n");
+  r.git("config", "diff.evil.textconv", script);
+  const a = r.commit({ "a.txt": "1\n" }, "a");
+  const b = r.commit({ "a.txt": "2\n" }, "b");
+  assert.equal((await diffFiles(r.dir, a, b)).length, 1);
+  assert.equal(existsSync(marker), false);
 });

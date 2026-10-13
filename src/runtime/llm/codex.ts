@@ -31,14 +31,13 @@ export class CodexBackend implements LlmBackend {
   }
 
   async run(req: LlmRequest): Promise<LlmResult> {
-    const write = req.tools === "write";
     const mode = req.writeMode ?? "auto";
     const common = [
       "--json", "--skip-git-repo-check", "--ignore-user-config",
       "-m", req.model,
       "-c", `model_reasoning_effort=${req.effort}`,
     ];
-    const sandbox = sandboxArgs(write, mode, Boolean(req.resumeProviderSession));
+    const sandbox = sandboxArgs(req.tools, mode, Boolean(req.resumeProviderSession));
     const args = req.resumeProviderSession
       ? ["exec", "resume", ...common, ...sandbox]
       : ["exec", ...common, ...sandbox, ...(req.cwd ? ["-C", req.cwd] : [])];
@@ -73,12 +72,17 @@ export class CodexBackend implements LlmBackend {
   }
 }
 
+const NO_SHELL = ["--disable", "shell_tool", "--disable", "unified_exec"];
+
 /** `exec resume` accepts neither `--sandbox`, `--approve-for-me` nor `-C`: a resumed run states the same policy as `-c` overrides (auto mode: workspace-write sandbox, approval requests routed to automatic review) and works in the process cwd. */
-function sandboxArgs(write: boolean, mode: WriteMode, resumed: boolean): string[] {
-  if (!write) return resumed ? ["-c", 'sandbox_mode="read-only"'] : ["--sandbox", "read-only"];
+function sandboxArgs(tools: LlmRequest["tools"], mode: WriteMode, resumed: boolean): string[] {
+  if (tools !== "write") {
+    const readOnly = resumed ? ["-c", 'sandbox_mode="read-only"'] : ["--sandbox", "read-only"];
+    return tools === "none" ? [...readOnly, ...NO_SHELL] : readOnly;
+  }
   if (mode === "full") return ["--dangerously-bypass-approvals-and-sandbox"];
   const workspace = resumed ? ["-c", 'sandbox_mode="workspace-write"'] : ["--sandbox", "workspace-write"];
-  if (mode === "editsOnly") return [...workspace, "--disable", "shell_tool", "--disable", "unified_exec"];
+  if (mode === "editsOnly") return [...workspace, ...NO_SHELL];
   return resumed ? [...workspace, "-c", 'approval_policy="on-request"', "-c", 'approvals_reviewer="auto_review"'] : ["--approve-for-me"];
 }
 

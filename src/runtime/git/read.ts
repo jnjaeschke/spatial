@@ -54,6 +54,7 @@ export function makeGit(repo: string, signal?: AbortSignal): GitCapability {
       return (await statusLines(repo, signal)).length > 0;
     },
     async resolve(rev) {
+      safeRevision(rev, "revision");
       try {
         return (await git(["rev-parse", "--verify", "--quiet", `${rev}^{commit}`])).trim();
       } catch {
@@ -63,7 +64,9 @@ export function makeGit(repo: string, signal?: AbortSignal): GitCapability {
     },
     async isAncestor(ancestor, descendant) {
       try {
-        await git(["merge-base", "--is-ancestor", ancestor, descendant]);
+        safeRevision(ancestor, "revision");
+        safeRevision(descendant, "revision");
+        await git(["merge-base", "--is-ancestor", "--end-of-options", ancestor, descendant]);
         return true;
       } catch (e) {
         if (hasExitCode(e, 1)) return false;
@@ -71,6 +74,8 @@ export function makeGit(repo: string, signal?: AbortSignal): GitCapability {
       }
     },
     async mergeBase(a, b) {
+      safeRevision(a, "revision");
+      safeRevision(b, "revision");
       try {
         await git(["rev-parse", "--verify", "--quiet", `${b}^{commit}`]);
       } catch {
@@ -84,25 +89,34 @@ export function makeGit(repo: string, signal?: AbortSignal): GitCapability {
       return out.split("\n").filter(Boolean);
     },
     async log(baseSha, headSha) {
-      const out = await git(["log", "--reverse", "--format=%H%x00%s%x00%b%x1e", `${baseSha}..${headSha}`]);
+      safeRevision(baseSha, "base");
+      safeRevision(headSha, "head");
+      const out = await git(["log", "--reverse", "--format=%H%x00%s%x00%b%x1e", "--end-of-options", `${baseSha}..${headSha}`]);
       return out.split("\x1e").map((r) => r.replace(/^\n/, "")).filter((r) => r.length > 0).map((r): Commit => {
         const [sha, subject, body] = r.split("\x00");
         return { sha, subject, body: body.trim() };
       });
     },
     async diff(baseSha, headSha) {
-      return git(["diff", "--no-color", "--no-ext-diff", "-M", "-U3", baseSha, headSha]);
+      safeRevision(baseSha, "base");
+      safeRevision(headSha, "head");
+      return git(["diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", "-U3", "--end-of-options", baseSha, headSha]);
     },
     async blame(baseSha, rev, file, direction) {
-      const args = ["blame", "--porcelain"];
+      safeRevision(baseSha, "base");
+      safeRevision(rev, "revision");
+      const args = ["blame", "--no-textconv", "--porcelain"];
       if (direction === "reverse") args.push("--reverse");
       args.push(`${baseSha}..${rev}`, "--", file);
       return parseBlame(await git(args), file);
     },
     async replay(oldBase, newBase, oldHead) {
+      safeRevision(oldBase, "old base");
+      safeRevision(newBase, "new base");
+      safeRevision(oldHead, "old head");
       let out: string;
       try {
-        out = await git(["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", `--merge-base=${oldBase}`, newBase, oldHead]);
+        out = await git(["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", `--merge-base=${oldBase}`, "--end-of-options", newBase, oldHead]);
       } catch (e) {
         if (!hasExitCode(e, 1)) throw e;
         out = (e as { stdout: string }).stdout;

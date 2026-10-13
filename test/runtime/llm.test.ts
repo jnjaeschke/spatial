@@ -149,6 +149,7 @@ test("codex: args, system prepended, schema file, parsed JSON", async () => {
   assert.equal(flag("-m"), "m1");
   assert.equal(flag("-c"), "model_reasoning_effort=high");
   assert.equal(flag("--sandbox"), "read-only");
+  assert.deepEqual(a.slice(a.indexOf("--disable")), ["--disable", "shell_tool", "--disable", "unified_exec", "-C", dir, "--output-schema", flag("--output-schema")]);
   assert.equal(flag("-C"), dir);
   assert.ok(flag("--output-schema").endsWith(".json"));
 });
@@ -230,6 +231,17 @@ test("claude: tools none has no allowedTools and no resume by default", async ()
   assert.ok(!a.includes("--resume"));
 });
 
+test("codex: read-only runs keep their sandboxed shell", async () => {
+  stdout(codexOut("answer"));
+  await new CodexBackend({ bin: STUB }).run(req({ tools: "read-only", cwd: dir }));
+  await new CodexBackend({ bin: STUB }).run(req({ tools: "read-only", cwd: dir, resumeProviderSession: "th-0" }));
+  for (const call of calls()) {
+    const a: string[] = call.argv;
+    assert.ok(a.includes("read-only") || a.includes('sandbox_mode="read-only"'));
+    assert.ok(!a.includes("--disable"));
+  }
+});
+
 test("codex: resume uses `exec resume`, sandbox via -c, prompt from stdin", async () => {
   stdout(codexOut("answer"));
   const r = await new CodexBackend({ bin: STUB }).run(req({ resumeProviderSession: "th-0", cwd: dir, system: "SYS" }));
@@ -240,7 +252,7 @@ test("codex: resume uses `exec resume`, sandbox via -c, prompt from stdin", asyn
   assert.ok(!a.includes("--sandbox"));
   assert.ok(!a.includes("-C"));
   assert.ok(a.includes('sandbox_mode="read-only"'));
-  assert.deepEqual(a.slice(-2), ["th-0", "-"]);
+  assert.deepEqual(a.slice(-6), ["--disable", "shell_tool", "--disable", "unified_exec", "th-0", "-"]);
   assert.equal(call.stdin, "PROMPT");
   assert.equal(call.cwd, dir);
 });

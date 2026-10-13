@@ -189,3 +189,17 @@ test("checks are described for prompts and the UI, and test paths exclude measur
   assert.equal(isWptTest("testing/web-platform/tests/dom/a.html"), true);
   assert.equal(isWptTest("dom/a.html"), false);
 });
+
+test("verifyChecks drops test paths that leave the repository or could be read as an option", async () => {
+  const show = async () => "";
+  const { verified, dropped } = await verifyChecks([
+    { kind: "new-test", path: "--help" },
+    { kind: "covering-test", path: "-x/test.js" },
+    { kind: "failing-test", path: "../outside.js", subtests: [] },
+    { kind: "new-test", path: "/etc/passwd" },
+  ], async () => { throw new Error("missing"); });
+  assert.deepEqual(verified, []);
+  assert.equal(dropped.length, 4);
+  assert.ok(dropped.every((reason) => /invalid path/.test(reason)));
+  assert.equal((await verifyChecks([{ kind: "covering-test", path: "t/ok.js" }], show)).verified.length, 1);
+});

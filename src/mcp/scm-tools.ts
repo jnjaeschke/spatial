@@ -57,7 +57,7 @@ export async function scmBlame(repo: string, rev: string, path: string, start: n
   safeRevision(rev, "revision");
   safeRepoPath(path);
   if (!Number.isInteger(start) || start < 1 || !Number.isInteger(end) || end < start) throw new Error("Invalid line range");
-  const out = await runGit(repo, ["blame", "--line-porcelain", "-L", `${start},${Math.min(end, start + 399)}`, rev, "--", path], { timeout: SCM_SEARCH_TIMEOUT_MS });
+  const out = await runGit(repo, ["blame", "--no-textconv", "--line-porcelain", "-L", `${start},${Math.min(end, start + 399)}`, rev, "--", path], { timeout: SCM_SEARCH_TIMEOUT_MS });
   const rows = parseBlameLines(out, path).map((entry) => `${entry.sha.slice(0, 12)} ${new Date(entry.authorTime * 1000).toISOString().slice(0, 10)} ${entry.author} ${entry.line}: ${entry.text}`);
   return capWholeLines(rows).text;
 }
@@ -74,7 +74,7 @@ export async function scmShow(repo: string, rev: string): Promise<string> {
 
 export async function scmDiff(repo: string, rev: string, path?: string): Promise<string> {
   safeRevision(rev, "revision");
-  const args = ["show", "--format=", "-U5", "--end-of-options", rev];
+  const args = ["show", "--format=", "--no-ext-diff", "--no-textconv", "-U5", "--end-of-options", rev];
   if (path !== undefined) args.push("--", safeRepoPath(path));
   const lines = (await runGit(repo, args)).trimEnd().split("\n");
   const { text, kept } = capWholeLines(lines);
@@ -83,7 +83,7 @@ export async function scmDiff(repo: string, rev: string, path?: string): Promise
 
 export async function scmRangeDiff(repo: string, a: string, b: string, path?: string): Promise<string> {
   safeRevision(a, "revision"); safeRevision(b, "revision");
-  const args = ["diff", "--no-color", "--no-ext-diff", "-M", "-U5", "--end-of-options", a, b];
+  const args = ["diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", "-U5", "--end-of-options", a, b];
   if (path !== undefined) args.push("--", safeRepoPath(path));
   const lines = (await runGit(repo, args)).trimEnd().split("\n");
   const { text, kept } = capWholeLines(lines);

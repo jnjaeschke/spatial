@@ -51,6 +51,9 @@ async function commitTree(repo: string, env: Record<string, string>, tree: strin
   return sha.trim();
 }
 
+/** Config for commands that would run repository hooks, which may have been planted. */
+const NO_HOOKS = ["-c", "core.hooksPath=/dev/null"];
+
 export function makeGitWriter(repo: string): GitWriter {
   const git = (args: string[], env?: Record<string, string>) => runGit(repo, args, env ? { env } : {});
   return {
@@ -73,13 +76,13 @@ export function makeGitWriter(repo: string): GitWriter {
     },
     async commitAll(message) {
       await git(["add", "-A"]);
-      await git(["commit", "-q", "-m", message]);
+      await git([...NO_HOOKS, "commit", "-q", "-m", message]);
       return (await git(["rev-parse", "HEAD"])).trim();
     },
     async fixup(target, base) {
       await git(["add", "-A"]);
-      await git(["commit", "-q", `--fixup=${target}`]);
-      try { await git(["rebase", "-i", "--autosquash", base], { GIT_SEQUENCE_EDITOR: "true" }); }
+      await git([...NO_HOOKS, "commit", "-q", `--fixup=${target}`]);
+      try { await git([...NO_HOOKS, "rebase", "-i", "--autosquash", base], { GIT_SEQUENCE_EDITOR: "true" }); }
       catch (e) {
         await git(["rebase", "--abort"]).catch(() => undefined);
         await git(["reset", "-q", "HEAD~1"]);
@@ -114,7 +117,7 @@ export function makeGitWriter(repo: string): GitWriter {
     },
     async createBranch(name, base) {
       if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) || name.includes("..")) throw new Error(`Invalid branch name: ${name}`);
-      try { await git(["switch", "-c", name, base]); }
+      try { await git([...NO_HOOKS, "switch", "-c", name, base]); }
       catch (e) { throw new Error(`git switch -c ${name} failed: ${gitMessage(e)}`); }
     },
     async snapshotWorktree(identity) {

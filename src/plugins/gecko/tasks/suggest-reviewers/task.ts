@@ -12,7 +12,7 @@ export const suggestReviewers = defineTask<SubmitInput, { suggestionId: Id }>({
     const files = changedFiles(diff);
     let data: ReviewerSuggestionData = { files, commits: commits.length, suggested: [], candidates: [], error: null };
     try {
-      const out = await runChecked("./mach", ["file-info", "reviewers", "--format", "json", ...files], { stdin: "", cwd: ctx.repo, signal: ctx.signal, label: "./mach file-info reviewers", tail: 500 });
+      const out = await runChecked("./mach", ["file-info", "reviewers", "--format", "json", "--", ...files], { stdin: "", cwd: ctx.repo, signal: ctx.signal, label: "./mach file-info reviewers", tail: 500 });
       data = { ...data, ...parseReviewerJson(out.stdout) };
     } catch (e) {
       if (ctx.signal.aborted) throw e;

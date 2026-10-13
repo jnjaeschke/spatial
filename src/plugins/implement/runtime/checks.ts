@@ -1,4 +1,4 @@
-import { plural } from "../../../plugin-api.ts";
+import { plural, safeRepoPath } from "../../../plugin-api.ts";
 import type { AcceptanceCheck } from "../shared/types.ts";
 import { WPT_TESTS_PREFIX, isWptTest } from "../shared/acceptance.ts";
 
@@ -78,7 +78,9 @@ export function wptBaseEvidence(meta: Map<string, WptSection>, subtests: string[
   return count > 0 ? { evidence: `${label()}: ${plural(count, "subtest")}` } : { problem: "the metadata expects no failure" };
 }
 
-/** Checks each check against the base: a `new-test` path must not exist; a `covering-test` or `failing-test` path must (a `covering-test` may also name a path in `added`, the files earlier steps add); a web-platform `failing-test` needs metadata that expects its failure and gets `baseEvidence`; a `measure` needs a command and a goal. Invalid checks are dropped with a reason. `show` reads a file at the base and rejects when it is missing. */
+const isRepoPath = (path: string) => { try { safeRepoPath(path); return true; } catch { return false; } };
+
+/** Checks each check against the base: a `new-test` path must not exist; a `covering-test` or `failing-test` path must (a `covering-test` may also name a path in `added`, the files earlier steps add); a web-platform `failing-test` needs metadata that expects its failure and gets `baseEvidence`; a `measure` needs a command and a goal. Invalid checks, a path outside the repository or one starting with `-` included, are dropped with a reason. `show` reads a file at the base and rejects when it is missing. */
 export async function verifyChecks(checks: AcceptanceCheck[], show: (path: string) => Promise<string>, added: ReadonlySet<string> = new Set()): Promise<{ verified: AcceptanceCheck[]; dropped: string[] }> {
   const verified: AcceptanceCheck[] = [], dropped: string[] = [];
   const read = (path: string) => show(path).catch(() => null);
@@ -89,6 +91,7 @@ export async function verifyChecks(checks: AcceptanceCheck[], show: (path: strin
       continue;
     }
     if (!check.path.trim()) { dropped.push(`${check.kind}: needs a path`); continue; }
+    if (check.path.startsWith("-") || !isRepoPath(check.path)) { dropped.push(`${check.kind} ${check.path}: invalid path`); continue; }
     const exists = (check.kind === "covering-test" && added.has(check.path)) || (await read(check.path)) !== null;
     if (check.kind === "new-test") {
       if (exists) dropped.push(`new-test ${check.path}: the file already exists at the base`);

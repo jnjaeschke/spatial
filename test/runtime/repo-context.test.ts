@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { loadRepoContext } from "../../src/runtime/repo-context.ts";
+import { loadRepoContext, readRepoSkill } from "../../src/runtime/repo-context.ts";
 
 function tempRepo(t: { after(callback: () => void): void }): string {
   const root = mkdtempSync(join(tmpdir(), "spatial-repo-context-"));
@@ -184,4 +184,39 @@ test("loadInstructions: missing include target throws", (t) => {
 test("loadInstructions: neither instructions file gives null", (t) => {
   const root = tempRepo(t);
   assert.equal(loadRepoContext(root).instructions, null);
+});
+
+test("loadInstructions: an include outside the repository throws", (t) => {
+  const root = tempRepo(t);
+  const outside = tempRepo(t);
+  write(outside, "secret.md", "secret\n");
+  write(root, "CLAUDE.md", `@${join("..", outside.split("/").pop()!, "secret.md")}\n`);
+  assert.throws(() => loadRepoContext(root), /outside the repository/);
+});
+
+test("loadInstructions: an include that is a symlink out of the repository throws", (t) => {
+  const root = tempRepo(t);
+  const outside = tempRepo(t);
+  write(outside, "secret.md", "secret\n");
+  symlinkSync(join(outside, "secret.md"), join(root, "link.md"));
+  write(root, "CLAUDE.md", "@link.md\n");
+  assert.throws(() => loadRepoContext(root), /outside the repository/);
+});
+
+test("loadInstructions: an include that is a symlink within the repository is read", (t) => {
+  const root = tempRepo(t);
+  write(root, "rules.md", "Rules.\n");
+  symlinkSync(join(root, "rules.md"), join(root, "link.md"));
+  write(root, "CLAUDE.md", "@link.md\n");
+  assert.equal(loadRepoContext(root).instructions, "Rules.");
+});
+
+test("skills: a SKILL.md symlinked out of the repository is not read", (t) => {
+  const root = tempRepo(t);
+  const outside = tempRepo(t);
+  write(outside, "SKILL.md", "---\nname: evil\ndescription: Outside.\n---\nbody\n");
+  mkdirSync(join(root, ".agents", "skills", "evil"), { recursive: true });
+  symlinkSync(join(outside, "SKILL.md"), join(root, ".agents", "skills", "evil", "SKILL.md"));
+  assert.throws(() => loadRepoContext(root), /outside the repository/);
+  assert.throws(() => readRepoSkill(root, "evil"), /outside the repository/);
 });

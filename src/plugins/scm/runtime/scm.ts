@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { localMainline, parseUnifiedDiff, remoteDefaultRef, resolveRepo, runGit, safeRepoPath, safeRevision, type CommitDetail, type CommitFileStat, type DiffFile, type FileStatus, type LogRow, type LogScope, type RefRow } from "../../../plugin-api.ts";
+import { localMainline, parseUnifiedDiff, remoteDefaultRef, resolveRepo, runGit as run, safeRepoPath, safeRevision, type CommitDetail, type CommitFileStat, type DiffFile, type FileStatus, type LogRow, type LogScope, type RefRow } from "../../../plugin-api.ts";
+
+const GIT_TIMEOUT_MS = 60_000;
+const runGit = (repo: string, args: string[]) => run(repo, args, { timeout: GIT_TIMEOUT_MS });
 
 const LOG_FORMAT = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x1e";
 
@@ -140,7 +143,7 @@ export async function changedFiles(repo: string, a: string | null, b: string): P
 export async function diffFiles(repo: string, a: string | null, b: string, paths?: string[]): Promise<DiffFile[]> {
   safeRevision(b, "revision");
   const from = a === null ? await emptyTree(repo) : safeRevision(a, "revision");
-  const args = ["diff", "--no-color", "--no-ext-diff", "-M", "-U3", "--end-of-options", from, b];
+  const args = ["diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", "-U3", "--end-of-options", from, b];
   if (paths?.length) args.push("--", ...paths.map(safeRepoPath));
   return parseUnifiedDiff(await runGit(repo, args));
 }

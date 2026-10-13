@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, sep } from "node:path";
 import type { McpServerSpec } from "./llm/types.ts";
 
 export interface RepoSkill {
@@ -40,6 +40,14 @@ export function prependRepoContext(system: string, context: { repoInstructions: 
   return parts.length ? `${parts.join("\n\n")}\n\n${system}` : system;
 }
 
+/** Reads `path`, which must resolve (symlinks included) to a file inside `repoRoot`. */
+function readInsideRepo(repoRoot: string, path: string): string {
+  const real = realpathSync(path);
+  const rel = relative(realpathSync(repoRoot), real);
+  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error(`${path} resolves outside the repository`);
+  return readFileSync(real, "utf8");
+}
+
 /** Reads a skill only when its frontmatter name appears in the repo skill index. */
 export function readRepoSkill(repoRoot: string, name: string): string {
   const base = join(repoRoot, ".agents", "skills");
@@ -48,7 +56,7 @@ export function readRepoSkill(repoRoot: string, name: string): string {
       if (!entry.isDirectory()) continue;
       const path = join(base, entry.name, "SKILL.md");
       if (!existsSync(path)) continue;
-      const content = readFileSync(path, "utf8");
+      const content = readInsideRepo(repoRoot, path);
       const frontmatter = parseFrontmatter(path, content);
       if (frontmatter.name === name && frontmatter.description) return content;
     }
@@ -94,7 +102,7 @@ function loadSkills(repoRoot: string): RepoSkill[] {
     if (!entry.isDirectory()) continue;
     const skillPath = join(base, entry.name, "SKILL.md");
     if (!existsSync(skillPath)) continue;
-    const content = readFileSync(skillPath, "utf8");
+    const content = readInsideRepo(repoRoot, skillPath);
     const frontmatter = parseFrontmatter(skillPath, content);
     if (!frontmatter.name || !frontmatter.description) {
       throw new Error(`SKILL.md at ${skillPath} missing name or description in frontmatter`);
@@ -146,7 +154,7 @@ function loadInstructions(repoRoot: string): string | null {
       if (!existsSync(included)) {
         throw new Error(`${name} includes ${content} but ${included} does not exist`);
       }
-      content = readFileSync(included, "utf8").trim();
+      content = readInsideRepo(repoRoot, included).trim();
     }
     return content;
   }

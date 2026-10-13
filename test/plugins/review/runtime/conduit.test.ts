@@ -23,6 +23,17 @@ test("ConduitClient.call sends the token inside the params JSON", async () => {
   assert.equal(form!.has("api.token"), false);
 });
 
+test("ConduitClient.call bounds the request with a timeout signal", async () => {
+  let signal: AbortSignal | null | undefined;
+  const fake = async (_url: string | URL | Request, init?: RequestInit) => {
+    signal = init?.signal;
+    return new Response(JSON.stringify({ error_code: null, error_info: null, result: null }));
+  };
+  await new ConduitClient("https://phab.example.com", "tok", fake as typeof fetch).call("some.method", {});
+  assert.ok(signal instanceof AbortSignal);
+  assert.equal(signal.aborted, false);
+});
+
 test("ConduitClient.call throws on Conduit error", async () => {
   const fake = async () => new Response(JSON.stringify({ error_code: "ERR", error_info: "Bad", result: null }));
   const client = new ConduitClient("https://phab.example.com", "tok", fake);

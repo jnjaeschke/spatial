@@ -15,7 +15,7 @@ export interface GitRunOptions {
 
 /** Runs git in `repo` with the settings every read here uses; resolves with stdout and rejects with git's error. */
 export async function runGit(repo: string, args: string[], { env, timeout, signal }: GitRunOptions = {}): Promise<string> {
-  const { stdout } = await exec("git", ["-C", repo, "-c", "core.quotePath=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}), ...(timeout ? { timeout } : {}), ...(signal ? { signal } : {}) });
+  const { stdout } = await exec("git", ["-C", repo, "-c", "core.quotePath=false", "-c", "log.showSignature=false", ...args], { maxBuffer: MAX_BUFFER, encoding: "utf8", ...(env ? { env: { ...process.env, ...env } } : {}), ...(timeout ? { timeout } : {}), ...(signal ? { signal } : {}) });
   return stdout;
 }
 

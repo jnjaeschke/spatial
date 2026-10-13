@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeGit, resolveRepo } from "../../src/runtime/git/read.ts";
@@ -290,4 +290,64 @@ test("an aborted signal rejects a git run and a capability call", async () => {
   await assert.rejects(makeGit(r.dir, controller.signal).isDirty());
   await assert.rejects(makeGit(r.dir, controller.signal).mergeBase("HEAD", "HEAD"), /task cancelled|abort/i);
   assert.equal(await makeGit(r.dir).isDirty(), false);
+});
+
+// REQUIRES_REAL_GIT
+test("runGit overrides a repository's log.showSignature", async () => {
+  const r = makeRepo();
+  r.git("config", "log.showSignature", "true");
+  assert.equal((await runGit(r.dir, ["config", "--get", "log.showSignature"])).trim(), "false");
+});
+
+// REQUIRES_REAL_GIT
+test("makeGit.diff and blame do not run a repository's textconv program", async () => {
+  const r = makeRepo();
+  const marker = join(r.dir, "..", `textconv-${Date.now()}`);
+  const script = join(r.dir, "..", `textconv-${Date.now()}.sh`);
+  writeFileSync(script, `#!/bin/sh\ntouch ${marker}\ncat "$1"\n`, { mode: 0o755 });
+  writeFileSync(join(r.dir, ".gitattributes"), "*.txt diff=evil\n");
+  r.git("config", "diff.evil.textconv", script);
+  const a = r.commit({ "a.txt": "1\n" }, "a");
+  const b = r.commit({ "a.txt": "2\n" }, "b");
+  const diff = await makeGit(r.dir).diff(a, b);
+  assert.match(diff, /^\+2$/m);
+  await makeGit(r.dir).blame(a, b, "a.txt", "forward");
+  assert.equal(existsSync(marker), false);
+});
+
+// REQUIRES_REAL_GIT
+test("makeGit rejects revisions that git could read as options", async () => {
+  const r = makeRepo();
+  const head = r.commit({ "a.txt": "1\n" }, "a");
+  const git = makeGit(r.dir);
+  const bad = "--output=/tmp/should-not-exist";
+  await assert.rejects(git.log(bad, head), /Invalid/);
+  await assert.rejects(git.log(head, bad), /Invalid/);
+  await assert.rejects(git.diff(bad, head), /Invalid/);
+  await assert.rejects(git.diff(head, bad), /Invalid/);
+  await assert.rejects(git.isAncestor(bad, head), /Invalid/);
+  await assert.rejects(git.isAncestor(head, bad), /Invalid/);
+  await assert.rejects(git.blame(bad, head, "a.txt", "forward"), /Invalid/);
+  await assert.rejects(git.blame(head, bad, "a.txt", "forward"), /Invalid/);
+  await assert.rejects(git.replay(bad, head, head), /Invalid/);
+  await assert.rejects(git.replay(head, bad, head), /Invalid/);
+  await assert.rejects(git.replay(head, head, bad), /Invalid/);
+});
+
+// REQUIRES_REAL_GIT
+test("the writer's commits and rebases do not run repository hooks", async () => {
+  const r = makeRepo();
+  const base = r.commit({ "a.txt": "1\n" }, "base");
+  const target = r.commit({ "b.txt": "1\n" }, "target");
+  const marker = join(r.dir, "..", `hook-${Date.now()}`);
+  for (const name of ["pre-commit", "commit-msg", "post-commit", "pre-rebase", "post-rewrite"]) {
+    const hook = join(r.dir, ".git", "hooks", name);
+    writeFileSync(hook, `#!/bin/sh\ntouch ${marker}\n`, { mode: 0o755 });
+  }
+  const writer = makeGitWriter(r.dir);
+  writeFileSync(join(r.dir, "a.txt"), "1\n2\n");
+  await writer.commitAll("work");
+  writeFileSync(join(r.dir, "b.txt"), "1\n2\n");
+  await writer.fixup(target, base);
+  assert.equal(existsSync(marker), false);
 });
