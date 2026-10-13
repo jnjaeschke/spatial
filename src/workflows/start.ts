@@ -20,8 +20,8 @@ export async function runWorkflow(rt: Runtime, sessionId: Id, startId: Id, llm?:
 /** A start box request: new text, or the answer to an open `StartQuestion` (an option index, or text when the question has no options). */
 export type StartRequest = { path: string; text: string; llm?: LlmSelection; writeMode?: WriteMode } | { question: string; answer: number | string };
 
-interface StartBase { path: string; worktree: string; llm?: LlmSelection; writeMode?: WriteMode }
-type Chosen = Omit<WorkflowStartData, "llm" | "writeMode">;
+export interface StartBase { path: string; worktree: string; llm?: LlmSelection; writeMode?: WriteMode }
+export type Chosen = Omit<WorkflowStartData, "llm" | "writeMode">;
 /** A start waiting in the start box: the selector's clarifying question, or the chosen workflow's precheck. */
 export type PendingStart = { base: StartBase; question: string } & (
   | { prompt: string; round: number }

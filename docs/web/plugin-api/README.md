@@ -135,13 +135,10 @@
 - [putJson](functions/putJson.md)
 - [rootGraph](functions/rootGraph.md)
 - [rootThread](functions/rootThread.md)
-- [routeUrl](functions/routeUrl.md)
 - [rowSegments](functions/rowSegments.md)
 - [searchfoxLinks](functions/searchfoxLinks.md)
 - [Segmented](functions/Segmented.md)
 - [SequenceDiagram](functions/SequenceDiagram.md)
-- [sequenceLayout](functions/sequenceLayout.md)
-- [showSessionView](functions/showSessionView.md)
 - [SidePanel](functions/SidePanel.md)
 - [subgraph](functions/subgraph.md)
 - [TaskControls](functions/TaskControls.md)
@@ -530,6 +527,12 @@ Re-exports [Rewrite](../../shared/types/interfaces/Rewrite.md)
 
 ***
 
+### routeUrl
+
+Re-exports [routeUrl](../routes/functions/routeUrl.md)
+
+***
+
 ### Row
 
 Re-exports [Row](../../plugin-api/type-aliases/Row.md)
@@ -551,6 +554,12 @@ Re-exports [SemanticChange](../../shared/types/interfaces/SemanticChange.md)
 ### SequenceLane
 
 Re-exports [SequenceLane](../../shared/types/interfaces/SequenceLane.md)
+
+***
+
+### sequenceLayout
+
+Re-exports [sequenceLayout](../sequence-layout/functions/sequenceLayout.md)
 
 ***
 
@@ -581,6 +590,12 @@ Re-exports [SessionListing](../../shared/types/interfaces/SessionListing.md)
 ### SessionState
 
 Re-exports [SessionState](../../shared/types/interfaces/SessionState.md)
+
+***
+
+### showSessionView
+
+Re-exports [showSessionView](../routes/functions/showSessionView.md)
 
 ***
 

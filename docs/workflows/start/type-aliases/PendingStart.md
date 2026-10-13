@@ -6,7 +6,7 @@
 
 # Type Alias: PendingStart
 
-> **PendingStart** = `object` & \{ `prompt`: `string`; `round`: `number`; \} \| \{ `options`: [`PrecheckQuestion`](../../../runtime/plugins/interfaces/PrecheckQuestion.md)\<`unknown`\>\[`"options"`\]; `selection?`: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md); `start`: `Chosen`; \}
+> **PendingStart** = `object` & \{ `prompt`: `string`; `round`: `number`; \} \| \{ `options`: [`PrecheckQuestion`](../../../runtime/plugins/interfaces/PrecheckQuestion.md)\<`unknown`\>\[`"options"`\]; `selection?`: [`LlmSelection`](../../../shared/types/interfaces/LlmSelection.md); `start`: [`Chosen`](Chosen.md); \}
 
 A start waiting in the start box: the selector's clarifying question, or the chosen workflow's precheck.
 
@@ -14,7 +14,7 @@ A start waiting in the start box: the selector's clarifying question, or the cho
 
 ### base
 
-> **base**: `StartBase`
+> **base**: [`StartBase`](../interfaces/StartBase.md)
 
 ### question
 

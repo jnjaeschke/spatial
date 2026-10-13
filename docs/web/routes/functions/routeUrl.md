@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../README.md) / [web/plugin-api](../README.md) / routeUrl
+[spatial](../../../README.md) / [web/routes](../README.md) / routeUrl
 
 # Function: routeUrl()
 
@@ -14,7 +14,7 @@ Formats an app route as a same-origin path and query.
 
 ### route
 
-`Route`
+[`Route`](../type-aliases/Route.md)
 
 ## Returns
 

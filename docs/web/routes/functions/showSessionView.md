@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../README.md) / [web/plugin-api](../README.md) / showSessionView
+[spatial](../../../README.md) / [web/routes](../README.md) / showSessionView
 
 # Function: showSessionView()
 

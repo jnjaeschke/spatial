@@ -2,7 +2,7 @@
 
 ***
 
-[spatial](../../../README.md) / [web/plugin-api](../README.md) / sequenceLayout
+[spatial](../../../README.md) / [web/sequence-layout](../README.md) / sequenceLayout
 
 # Function: sequenceLayout()
 
@@ -26,7 +26,7 @@ Grid placement of `steps` over `lanes` (lane ids): a phase label row before the 
 
 ### cells
 
-> **cells**: `SequenceCell`[]
+> **cells**: [`SequenceCell`](../interfaces/SequenceCell.md)[]
 
 ### rowCount
 

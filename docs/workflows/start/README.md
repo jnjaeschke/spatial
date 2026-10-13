@@ -6,8 +6,13 @@
 
 # workflows/start
 
+## Interfaces
+
+- [StartBase](interfaces/StartBase.md)
+
 ## Type Aliases
 
+- [Chosen](type-aliases/Chosen.md)
 - [PendingStart](type-aliases/PendingStart.md)
 - [StartRequest](type-aliases/StartRequest.md)
 

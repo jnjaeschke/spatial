@@ -2,7 +2,7 @@ import { z } from "zod";
 import { definePlugin, type Workflow, type Phase, type Runtime, type Id, type LlmSelection, type SessionView, type Artifact, type ChatMessageData, type WorkflowView } from "../../plugin-api.ts";
 
 const params = z.strictObject({});
-interface ChatPhaseInput { anchor: Id; text: string; llm: LlmSelection }
+export interface ChatPhaseInput { anchor: Id; text: string; llm: LlmSelection }
 /** After a chat epoch, the phase its reply asked for, if any. */
 export const chatPhase: Phase<ChatPhaseInput> = {
   id: "chat",
