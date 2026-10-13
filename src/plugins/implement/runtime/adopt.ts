@@ -1,9 +1,15 @@
-import type { GitCapability, LocalBranch } from "../../../plugin-api.ts";
+import type { Commit, GitCapability, LocalBranch } from "../../../plugin-api.ts";
 import type { LlmSelection } from "../../../plugin-api.ts";
 import { commitRevision, groupRounds, roundStack, type RoundEntry, type RoundPhaseInput } from "../../review/api.ts";
 import type { AdoptPlanData, AdoptRangeInput } from "../shared/types.ts";
 
 const MAINLINE = new Set(["main", "master"]);
+
+/** The investigate request for adopted work: the user's request plus the commits that already implement it. */
+export function adoptedRequest(request: string, branch: string, base: string, commits: Commit[]): string {
+  const lines = commits.map((c) => { const rev = commitRevision(c); return `- ${c.subject} (${c.sha.slice(0, 12)})${rev ? ` D${rev.id}` : ""}`; });
+  return `${request}\n\n# Existing work\n\nBranch ${branch} already holds this work, made outside spatial and submitted for review: ${commits.length} commits since ${base.slice(0, 12)}.\n${lines.join("\n")}\n\nInvestigate this as the implementation that exists: plan one step per commit as these commits take them, with the acceptance checks that verify them. Later rounds change these commits in response to review comments.`;
+}
 
 /** The newest merge-base of `tip` with any of `refs` (unresolvable refs are skipped): a stale remote ref then cannot widen the range. */
 export async function adoptBase(git: GitCapability, refs: string[], tip: string): Promise<string | null> {

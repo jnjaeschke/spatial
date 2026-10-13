@@ -1,8 +1,9 @@
 import { type Artifact, type DecisionData, type DecisionOption, type DiffData, type Epoch, type Id, type LlmSelection, type RepoProfile, type Runtime, type Step, type WorkflowContext, type WorkflowStartData, type WorkflowView } from "../../../plugin-api.ts";
 import type { AdoptInput, AdoptPlanData, AdoptRangeInput, ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
+import { adoptedRequest, adoptRounds } from "../runtime/adopt.ts";
+import type { InvestigateInput } from "../tasks/investigate/task.ts";
 import type { ImplementInput } from "../tasks/implement/task.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
-import { adoptRounds } from "../runtime/adopt.ts";
 import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
@@ -94,8 +95,31 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
   const implementLlm = chosenImplementLlm(decisions) ?? start.data.llm;
   const again = (investigation: Artifact<InvestigationData>, text: string | null, ignorePlanInvalid = false): Step =>
     implementStep({ branch, investigation, bug: bugOf(decisions, investigation), text, fix: open.map((finding) => finding.id), ignorePlanInvalid, llm: implementLlm, start });
+  const adoptedTail = (rangeEpoch: Epoch): Step | null => {
+    const range = rangeEpoch.input as AdoptRangeInput;
+    const plan = view.artifacts.find((a) => a.id === range.planId) as Artifact<AdoptPlanData> | undefined;
+    if (!plan) return null;
+    const rounds = adoptRounds(plan.data, range, start.data.llm);
+    const lastRound = rounds.at(-1)!.round;
+    if (lastRound.kind === "local" && lastRound.phab) return null;
+    const choice = chosenDecision(view, last.n, "adopted");
+    if (!choice) {
+      const commits = latestArtifact<DiffData>(view.artifacts, "Diff")?.data.commits.length ?? 0;
+      return decisionStep("adopted", `Adopted ${plural(commits, "commit")} from ${range.branch}. What next?`, [
+        { id: "self-review", label: "Self-review" }, { id: "revise", label: "Revise", takesText: true, requiresText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" },
+      ]);
+    }
+    if (choice.option === "self-review" && result) return { run: "review", input: { base: branch.data.baseSha, head: result.data.head, update: true, ...llm(start.data.llm) } satisfies ReviewPhaseInput };
+    if (choice.option === "revise" && investigation && result) return again(investigation, choice.text ?? null);
+    if (choice.option === "accept" && result) return afterAcceptStep(view, profile, branch, result, start, last.n);
+    return null;
+  };
   if (last.phase === investigatePhase) {
     if (!investigation) return null;
+    if ((last.input as Partial<InvestigateInput> | null)?.adopted) {
+      const rangeEpoch = view.epochs.findLast((e) => e.phase === "adoptRange" && e.n < last.n);
+      return rangeEpoch ? adoptedTail(rangeEpoch) : null;
+    }
     if (!approve) {
       const needsBug = Boolean(profile.requiresBug && investigation.data.bug === null);
       return decisionStep("approve", APPROVE, [
@@ -154,19 +178,13 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     const rounds = adoptRounds(plan.data, range, start.data.llm);
     const done = view.epochs.filter((e) => e.phase === "round" && e.n > rangeEpoch.n).length;
     if (done < rounds.length) return { run: "round", input: rounds[done] };
-    const lastRound = rounds.at(-1)!.round;
-    if (lastRound.kind === "local" && lastRound.phab) return null;
-    const choice = chosenDecision(view, last.n, "adopted");
-    if (!choice) {
-      const commits = latestArtifact<DiffData>(view.artifacts, "Diff")?.data.commits.length ?? 0;
-      return decisionStep("adopted", `Adopted ${plural(commits, "commit")} from ${range.branch}. What next?`, [
-        { id: "self-review", label: "Self-review" }, { id: "revise", label: "Revise", takesText: true, requiresText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" },
-      ]);
+    if (!investigation) {
+      const chosen = plan.data.branches.find((b) => b.branch === range.branch)!;
+      const commits = chosen.commits.slice(0, chosen.commits.findIndex((c) => c.sha === range.head) + 1);
+      const params = start.data.params as { request: string };
+      return { run: investigatePhase, input: { request: adoptedRequest(params.request, range.branch, branch.data.baseSha, commits), baseSha: branch.data.baseSha, branch: range.branch, adopted: true, ...llm(start.data.llm) } satisfies InvestigateInput };
     }
-    if (choice.option === "self-review" && result) return { run: "review", input: { base: branch.data.baseSha, head: result.data.head, update: true, ...llm(start.data.llm) } satisfies ReviewPhaseInput };
-    if (choice.option === "revise" && investigation && result) return again(investigation, choice.text ?? null);
-    if (choice.option === "accept" && result) return afterAcceptStep(view, profile, branch, result, start, last.n);
-    return null;
+    return adoptedTail(rangeEpoch);
   }
   return null;
 }

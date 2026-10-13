@@ -292,7 +292,9 @@ test("adopt asks for a branch, records the selected range, and replays rounds", 
   assert.equal((secondRound.input as { round: { kind: string }; narrate: boolean }).round.kind, "local");
   assert.equal((secondRound.input as { narrate: boolean }).narrate, true);
   const round2 = { ...epoch(7, "round"), input: secondRound.input };
-  assert.equal(next(view([start(), branch(), roundsPlan], [adoptEpoch, recorded, round1, round2])), null);
+  const seeded = run(next(view([start(), branch(), roundsPlan], [adoptEpoch, recorded, round1, round2])));
+  assert.equal(seeded.run, "investigate");
+  assert.equal((seeded.input as { adopted: boolean }).adopted, true);
 });
 
 test("a single-commit adopt skips choices and stale review decisions do not override adopt", () => {
@@ -356,4 +358,31 @@ test("an adopt without trailers asks what next: self-review, revise or accept", 
   assert.equal((revise.input as { text: string }).text, "split it");
   assert.equal(run(next(view([...base("stack"), answer("accept")], epochs))).run, "x");
   assert.equal(next(view([...base(), answer("cancel")], epochs)), null);
+});
+
+test("an adopted stack gets a seeded investigation after its rounds, then continues without approval", () => {
+  const plan = art("AdoptPlan", { mode: "moved", host: null, refError: null, historyError: null, missingBases: [], revisions: [], diffs: [], branches: [{ branch: "topic", base: "BASE", tip: "c2", commits: [
+    { sha: "c1", subject: "Bug 2072138 - part 1", body: "" }, { sha: "c2", subject: "part 2", body: "" }, { sha: "c3", subject: "later", body: "" },
+  ] }] }, 4);
+  const range = { ...epoch(5, "adoptRange"), input: { planId: plan.id, branch: "topic", head: "c2" } };
+  const local = { round: { kind: "local", base: "BASE", head: "c2", host: null, phab: null }, narrate: true };
+  const round = { ...epoch(6, "round"), input: local };
+  const seeded = run(next(view([start(), branch(), plan], [{ ...epoch(4, "adopt"), input: { mode: "moved" } }, range, round])));
+  assert.equal(seeded.run, "investigate");
+  assert.deepEqual(seeded.input, { request: "fix it\n\n# Existing work\n\nBranch topic already holds this work, made outside spatial and submitted for review: 2 commits since BASE.\n- Bug 2072138 - part 1 (c1)\n- part 2 (c2)\n\nInvestigate this as the implementation that exists: plan one step per commit as these commits take them, with the acceptance checks that verify them. Later rounds change these commits in response to review comments.", baseSha: "BASE", branch: "topic", adopted: true, llm: START });
+  const inv = art("Investigation", { kind: "bugfix", bug: 2072138 }, 7);
+  const adopted = decision("adopted", "Adopted 2 commits from topic. What next?", null, 7);
+  const afterInvestigation = decide(next(view([start(), branch(), plan, inv, adopted], [{ ...epoch(4, "adopt"), input: { mode: "moved" } }, range, round, { ...epoch(7, "investigate"), input: { adopted: true } }])));
+  assert.equal(afterInvestigation.decide.key, "adopted");
+  const noPhabPlan = art("AdoptPlan", { mode: "moved", host: null, refError: null, historyError: null, missingBases: [], revisions: [], diffs: [], branches: [{ branch: "topic", base: "BASE", tip: "c2", commits: [{ sha: "c1", subject: "one", body: "" }, { sha: "c2", subject: "two", body: "" }] }] }, 4);
+  const adoptedRound = { ...epoch(6, "round"), input: { round: { kind: "local", base: "BASE", head: "c2", host: null, phab: null }, narrate: true } };
+  const ask = decide(next(view([start(), branch(), noPhabPlan, inv], [{ ...epoch(4, "adopt"), input: { mode: "moved" } }, { ...range, input: { planId: noPhabPlan.id, branch: "topic", head: "c2" } }, adoptedRound, { ...epoch(7, "investigate"), input: { adopted: true } }])));
+  assert.equal(ask.decide.key, "adopted");
+  assert.equal(ask.decide.options.some((option) => option.id === "approve"), false);
+});
+
+test("a regular re-investigation after adopt-invalid still asks for approval", () => {
+  const inv = investigation(null, 5);
+  const step = decide(next(view([start(), branch(), inv], [{ ...epoch(4, "adopt"), input: { mode: "moved" } }, { ...epoch(5, "investigate"), input: {} }])));
+  assert.equal(step.decide.key, "approve");
 });

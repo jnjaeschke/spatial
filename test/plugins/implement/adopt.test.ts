@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 import { testRuntime } from "../../helpers/runtime.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
-import { adoptBase, adoptRounds, relatedBranches } from "../../../src/plugins/implement/runtime/adopt.ts";
+import { adoptBase, adoptRounds, adoptedRequest, relatedBranches } from "../../../src/plugins/implement/runtime/adopt.ts";
 import type { AdoptPlanData } from "../../../src/plugins/implement/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
@@ -96,6 +96,19 @@ test("adoptPlan keeps the local plan when the Phabricator token is missing", asy
 
 const H = "https://phab.example.com";
 const commit = (sha: string, rev?: number) => ({ sha, subject: `s ${sha}`, body: rev ? `Differential Revision: ${H}/D${rev}` : "" });
+
+test("adoptedRequest describes existing commits and preserves bug numbers from subjects", () => {
+  const commits = [
+    { sha: "a".repeat(40), subject: "Bug 2072138, part 1 - first", body: `Differential Revision: ${H}/D7` },
+    { sha: "b".repeat(40), subject: "part 2 - second", body: "" },
+  ];
+  const request = adoptedRequest("implement bug 2072138.", "topic", "a".repeat(40), commits);
+  assert.match(request, /^implement bug 2072138\./);
+  assert.match(request, /Branch topic already holds this work.*2 commits since a{12}\./);
+  assert.match(request, /- Bug 2072138, part 1 - first \(a{12}\) D7/);
+  assert.match(request, /- part 2 - second \(b{12}\)/);
+  assert.match(request, /Investigate this as the implementation that exists: plan one step per commit/);
+});
 const roundPlan = (over: Partial<AdoptPlanData> = {}): AdoptPlanData => ({
   mode: "moved", host: H, refError: null, historyError: null, missingBases: [],
   branches: [{ branch: "topic", base: "BASE", tip: "c3", commits: [commit("c1", 1), commit("c2", 2), commit("c3")] }],

@@ -76,6 +76,7 @@ export * from "./shared/types.ts";
 export { searchDocs, sessionView, workflowView } from "./runtime/render-ref.ts";
 export { Store } from "./runtime/store.ts";
 export { makeGitWriter } from "./runtime/git/writer.ts";
+export { makeGit } from "./runtime/git/read.ts";
 export { resolveRepo } from "./runtime/git/read.ts";
 export { fileLines, localMainline, remoteDefaultRef } from "./runtime/git/read.ts";
 export { runGit, safeRepoPath, safeRevision } from "./runtime/git/run.ts";

@@ -56,6 +56,41 @@ test("start refuses a detached HEAD and edits-only without a test command", asyn
   await assert.rejects(start({ request: "x", checkout: "current-branch" }), /detached/);
 });
 
+test("precheck offers adopt on a branch with commits beyond its fork", async () => {
+  const { repo, rt } = setup();
+  repo.git("switch", "-c", "topic");
+  repo.commit({ "b.txt": "work\n" }, "work");
+  const question = await implementWorkflow.precheck!(repo.dir, params, rt);
+  assert.deepEqual(question?.options.map((option) => [option.label, option.params]), [
+    ["Adopt the work on topic (its commits and review rounds)", { checkout: "adopt-branch" }],
+    ["Continue on topic", { checkout: "current-branch" }],
+    ["Start fresh on a new branch from the default branch", { checkout: "new-branch" }],
+    ["Cancel", undefined],
+  ]);
+  writeFileSync(join(repo.dir, "a.txt"), "changed\n");
+  const dirty = await implementWorkflow.precheck!(repo.dir, params, rt);
+  assert.equal(dirty?.options[0]?.label, "Adopt the work on topic (its commits and review rounds) with the uncommitted changes");
+  repo.git("switch", "main");
+  const noAhead = await implementWorkflow.precheck!(repo.dir, params, rt);
+  assert.equal(noAhead?.options.some((option) => option.params?.checkout === "adopt-branch"), false);
+});
+
+test("start adopts the current branch after implementStart", async () => {
+  const calls: unknown[][] = [];
+  const rt = {
+    store: { getSession: () => ({ worktree: "/repo" }), getArtifact: () => ({ data: { writeMode: null } }), listSessions: () => [] },
+    run: async (...args: unknown[]) => { calls.push(["run", ...args]); },
+    runPhase: async (...args: unknown[]) => { calls.push(["runPhase", ...args]); },
+  } as unknown as Parameters<NonNullable<typeof implementWorkflow.start>>[0];
+  await implementWorkflow.start!(rt, "s", { params: { request: "take over", profile: null, checkout: "adopt-branch" }, startId: "start", prompt: "take over" });
+  assert.deepEqual(calls.map((call) => call.slice(0, 3)), [
+    ["run", "s", "implementStart"],
+    ["runPhase", "s", "adopt"],
+  ]);
+  assert.deepEqual(calls[0]![3], { request: "take over", checkout: "current-branch" });
+  assert.deepEqual(calls[1]![3], { mode: "moved" });
+});
+
 test("precheck asks only when the checkout is unclear and dirty or off main", async () => {
   const { repo, rt } = setup();
   const precheck = (dir: string, p: typeof params | { request: string; profile: null; checkout: "new-branch" }) => implementWorkflow.precheck!(dir, p, rt);

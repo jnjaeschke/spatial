@@ -14,7 +14,7 @@ const SCHEMA = { ...BASE_SCHEMA, required: [...BASE_SCHEMA.required, "diagram"],
 const MAX_RETRIES = 2;
 
 /** Input of the investigate phase and task. `previous` is set on a revision: the Investigation to improve and the user's text. */
-export interface InvestigateInput { request: string; baseSha: string; branch: string; previous?: { id: Id; text: string | null }; llm?: LlmSelection }
+export interface InvestigateInput { request: string; baseSha: string; branch: string; /** Seeded from adopted commits: the investigation describes existing work; it is not asked for approval and the session continues where the adopt left it. */ adopted?: boolean; previous?: { id: Id; text: string | null }; llm?: LlmSelection }
 
 interface RawCheck { kind: AcceptanceCheck["kind"]; path: string | null; subtests: string[]; command: string | null; goal: string | null }
 /** The check a reply entry names, or why it is unusable. */

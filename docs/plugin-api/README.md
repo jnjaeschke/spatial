@@ -433,6 +433,12 @@ Re-exports [LogScope](../shared/types/type-aliases/LogScope.md)
 
 ***
 
+### makeGit
+
+Re-exports [makeGit](../runtime/git/read/functions/makeGit.md)
+
+***
+
 ### makeGitWriter
 
 Re-exports [makeGitWriter](../runtime/git/writer/functions/makeGitWriter.md)
