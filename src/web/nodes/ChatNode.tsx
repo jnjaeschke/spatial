@@ -124,10 +124,11 @@ export function Conversation(data: ConversationProps) {
         {failed && <div className="msg failed">{failed.error}</div>}
         {cancelled && <div className="msg cancelled">Cancelled</div>}
       </div>
-      {actions && data.threadId !== null && data.mcpRequests.map((server) => (
-        <div key={server} className="enable-mcp-request">
-          <span>Enable <code>{server}</code> for this chat?</span>
-          <button className="enable-mcp nodrag" type="button" onClick={() => void run(() => api.enableMcpServer(actions.sessionId, data.threadId!, server))}>Enable</button>
+      {actions && data.threadId !== null && data.mcpRequests.map(({ server, command }) => (
+        <div key={`${server}\n${command}`} className="enable-mcp-request">
+          <span>Enable <code>{server}</code> for this chat? It runs:</span>
+          <code className="mcp-command">{command}</code>
+          <button className="enable-mcp nodrag" type="button" onClick={() => void run(() => api.enableMcpServer(actions.sessionId, data.threadId!, server, command))}>Enable</button>
         </div>
       ))}
       {actions && <form className="nodrag nopan" onSubmit={(e) => {

@@ -49,7 +49,7 @@ export function createRuntime(opts: {
   );
   return new Runtime({
     store: new Store(opts.dbPath), plugins: allPlugins, llm, git: makeGit,
-    repoContext: (repo) => loadRepoContext(repo, registry.deniedMcpServers),
+    repoContext: (repo) => loadRepoContext(repo),
     knowledge: new KnowledgeStore(knowledgeDbPath(opts.dbPath)),
     sessionMcp: opts.dbPath === ":memory:" ? undefined : (sessionId) => ({ spatial: sessionServerSpec(opts.dbPath, sessionId) }),
     repoMcp: (repo) => ({ spatial: repoServerSpec(repo) }),

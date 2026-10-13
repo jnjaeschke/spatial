@@ -48,8 +48,8 @@ export const api = {
   turn: (sessionId: string, body: { threadId?: string; anchor?: string; text: string; llm: LlmSelection; quote?: string; lines?: ChatThreadData["lines"] }) =>
     post<{ taskId: string }>(`/api/sessions/${sessionId}/turns`, body),
   note: (sessionId: string, body: string) => post<{ artifactId: string }>(`/api/sessions/${sessionId}/notes`, { body }),
-  enableMcpServer: (sessionId: string, threadId: string, server: string) =>
-    post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server }),
+  enableMcpServer: (sessionId: string, threadId: string, server: string, command: string) =>
+    post<{ artifactId: string }>(`/api/sessions/${sessionId}/threads/${threadId}/enable-mcp-server`, { server, command }),
   cancel: (taskId: string) => post<void>(`/api/tasks/${taskId}/cancel`, {}),
   taskActivity: (sessionId: string, taskId: string) => get<TaskActivityResponse>(`/api/sessions/${sessionId}/tasks/${taskId}/activity`),
   decide: (sessionId: string, decisionId: string, option: string, body: { text?: string; llm?: LlmSelection } = {}) =>

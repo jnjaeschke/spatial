@@ -92,7 +92,15 @@ Collapsing the node leaves only a highlight of its quote.
 
 ### mcpRequests
 
-> **mcpRequests**: `string`[]
+> **mcpRequests**: `object`[]
+
+#### command
+
+> **command**: `string`
+
+#### server
+
+> **server**: `string`
 
 ***
 

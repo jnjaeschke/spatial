@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, normalize, sep } from "node:path";
 import type { Artifact, ChatMessageData, DecisionData, DirectoryListing, HealthResponse, LlmSelection, McpServerData, ModelsResponse, NoteData, NotifyPayload, RecentRepo, RepoInfo, Session, SessionListing, StartQuestion, TaskActivityResponse, UsageRun, WorkflowInfo, WriteMode } from "../shared/types.ts";
 import { resolveRepo } from "../runtime/git/read.ts";
+import { mcpCommand } from "../runtime/repo-context.ts";
 import { buildSessionState } from "../runtime/state.ts";
 import { BusyError, type Runtime } from "../runtime/tasks.ts";
 import { workflowView } from "../runtime/render-ref.ts";
@@ -243,9 +244,12 @@ export function createHttpServer(rt: Runtime, opts: { staticDir?: string; backgr
       const threadId = params[1]!;
       const body = await readJson(req);
       const server = str(body.server, "server");
+      const command = str(body.command, "command");
       requireArtifact(rt, session.id, threadId, "ChatThread", "thread");
-      if (!rt.repoContext(session.worktree).requestableMcpServers[server]) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
-      const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server } satisfies McpServerData, threadId);
+      const spec = rt.repoContext(session.worktree).requestableMcpServers[server];
+      if (!spec) throw new HttpError(400, `Not an on-request MCP server: ${server}`);
+      if (command !== mcpCommand(spec)) throw new HttpError(409, `The command of ${server} changed; ask again`);
+      const artifact = putUserArtifact(rt, session.id, "McpServerEnabled", { server, command } satisfies McpServerData, threadId);
       send(res, 201, { artifactId: artifact.id });
     }],
     ["GET", /^\/api\/sessions\/([^/]+)\/tasks\/([^/]+)\/activity$/, async ({ params }): Promise<TaskActivityResponse> => {

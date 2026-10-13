@@ -40,7 +40,7 @@ const task6Plugin = definePlugin({ id: "http-task6-test", chatReplyFields: [runR
   { id: "p", async run() {} },
   { id: "blocking", async run() { await new Promise<void>((resolve) => { state.unblockPhase = resolve; }); } },
 ] });
-export const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit, repoContext: (repo) => loadRepoContext(repo, ["firefox-devtools"]) });
+export const rt = new Runtime({ store: new Store(":memory:"), plugins: [corePlugin, ...plugins, task6Plugin], llm, git: makeGit, repoContext: (repo) => loadRepoContext(repo) });
 export const server = createHttpServer(rt, { staticDir });
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 export const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

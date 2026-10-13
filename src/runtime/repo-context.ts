@@ -16,15 +16,15 @@ export interface RepoContext {
 
 /**
  * Loads MCP servers, skills, and instructions from a repository root.
- * Servers named in `denied` are only requestable. Malformed files and unresolved instruction includes throw instead of being skipped.
+ * Only `http` servers are active; `stdio` servers run commands from the repository, so they are only requestable and run once the user enables them for a chat thread.
+ * Malformed files, unsafe or reserved server names, and unresolved instruction includes throw instead of being skipped.
  */
-export function loadRepoContext(repoRoot: string, denied: readonly string[] = []): RepoContext {
+export function loadRepoContext(repoRoot: string): RepoContext {
   const all = loadMcpServers(repoRoot);
-  const mcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => !denied.includes(name)));
-  const requestableMcpServers = Object.fromEntries(Object.entries(all).filter(([name]) => denied.includes(name)));
+  const entries = Object.entries(all);
   return {
-    mcpServers,
-    requestableMcpServers,
+    mcpServers: Object.fromEntries(entries.filter(([, spec]) => spec.type === "http")),
+    requestableMcpServers: Object.fromEntries(entries.filter(([, spec]) => spec.type === "stdio")),
     skills: loadSkills(repoRoot),
     instructions: loadInstructions(repoRoot),
   };
@@ -38,6 +38,13 @@ export function prependRepoContext(system: string, context: { repoInstructions: 
     parts.push("Use `read_skill(name)` on the `spatial` MCP server to retrieve the full skill instructions.");
   }
   return parts.length ? `${parts.join("\n\n")}\n\n${system}` : system;
+}
+
+/** The text the user is shown and approves for a server: the environment and command line of a stdio spec, the URL of an http spec. */
+export function mcpCommand(spec: McpServerSpec): string {
+  if (spec.type === "http") return spec.url;
+  const quote = (value: string) => /[\s"']/.test(value) ? JSON.stringify(value) : value;
+  return [...Object.entries(spec.env ?? {}).map(([name, value]) => `${name}=${quote(value)}`), spec.command, ...spec.args.map(quote)].join(" ");
 }
 
 /** Reads `path`, which must resolve (symlinks included) to a file inside `repoRoot`. */
@@ -64,7 +71,7 @@ export function readRepoSkill(repoRoot: string, name: string): string {
   throw new Error(`Skill not found: ${name}`);
 }
 
-/** Loads and expands every repo MCP server spec before applying the denylist. */
+/** Loads and expands every repo MCP server spec. Names reach the Claude CLI's space-separated `--allowedTools`, and `spatial` is the app's own server. */
 function loadMcpServers(repoRoot: string): Record<string, McpServerSpec> {
   const path = join(repoRoot, ".mcp.json");
   if (!existsSync(path)) return {};
@@ -72,6 +79,7 @@ function loadMcpServers(repoRoot: string): Record<string, McpServerSpec> {
   const raw = JSON.parse(readFileSync(path, "utf8")) as { mcpServers?: Record<string, unknown> };
   const out: Record<string, McpServerSpec> = {};
   for (const [name, spec] of Object.entries(raw.mcpServers ?? {})) {
+    if (!/^[A-Za-z0-9_-]+$/.test(name) || name === "spatial") throw new Error(`Invalid MCP server name ${JSON.stringify(name)} in ${path}`);
     const server = spec as Record<string, unknown>;
     if (server.type === "http" && typeof server.url === "string") {
       out[name] = { type: "http", url: server.url };

@@ -3,7 +3,7 @@ import type { Artifact, ChatMessageData, ChatThreadData, LlmSelection, McpServer
 import { defineTask } from "../../runtime/tasks.ts";
 import { buildAnchorContext, type SelectedText } from "./context.ts";
 import { findSpan, revisedText, revisionsOf } from "../../shared/revisions.ts";
-import { prependRepoContext } from "../../runtime/repo-context.ts";
+import { mcpCommand, prependRepoContext } from "../../runtime/repo-context.ts";
 import { sessionProfile } from "../../runtime/profiles.ts";
 import { loadSchema, runStructured, type JsonSchema } from "../../runtime/structured.ts";
 
@@ -44,8 +44,9 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
 
     const enabledNames = (ctx.artifacts.linkedTo(thread.id, "about") as Artifact<McpServerData>[])
       .filter((artifact) => artifact.type === "McpServerEnabled")
+      .filter((artifact) => { const spec = ctx.repoRequestableMcp[artifact.data.server]; return spec && mcpCommand(spec) === artifact.data.command; })
       .map((artifact) => artifact.data.server);
-    const enabledRepoMcp = Object.fromEntries([...new Set(enabledNames)].filter((name) => ctx.repoRequestableMcp[name]).map((name) => [name, ctx.repoRequestableMcp[name]!]));
+    const enabledRepoMcp = Object.fromEntries([...new Set(enabledNames)].map((name) => [name, ctx.repoRequestableMcp[name]!]));
     const requestableNames = Object.keys(ctx.repoRequestableMcp);
     const notes = (await sessionProfile(ctx.repoProfiles, view, ctx.repo)).promptNotes;
     const systemBody = SYSTEM + (notes ? `\n\n${notes}` : "") + ctx.chat.replyFields.map((field) => "\n\n" + field.prompt).join("");
@@ -57,11 +58,12 @@ export const chatTurn = defineTask<{ threadId?: string; anchor?: string; aside?:
     const { json, result: r } = await runStructured<Reply>(ctx.llm, { prompt, system, schema: schema as JsonSchema, cwd: ctx.repo, tools: "read-only", resumeProviderSession: resume, mcpServers: { ...ctx.mcpServers(), ...enabledRepoMcp }, label: "Chat reply" }, llm);
 
     const existingRequests = new Set((ctx.artifacts.linkedTo(thread.id, "about") as Artifact<McpServerData>[])
-      .filter((artifact) => artifact.type === "McpServerRequest").map((artifact) => artifact.data.server));
+      .filter((artifact) => artifact.type === "McpServerRequest").map((artifact) => JSON.stringify([artifact.data.server, artifact.data.command])));
     for (const name of new Set(json.requestMcpServers)) {
       if (!ctx.repoRequestableMcp[name]) continue;
-      if (existingRequests.has(name)) continue;
-      const request = ctx.artifacts.put<McpServerData>("McpServerRequest", "proposed", { server: name });
+      const command = mcpCommand(ctx.repoRequestableMcp[name]!);
+      if (existingRequests.has(JSON.stringify([name, command]))) continue;
+      const request = ctx.artifacts.put<McpServerData>("McpServerRequest", "proposed", { server: name, command });
       ctx.links.put(request.id, thread.id, "about");
     }
 

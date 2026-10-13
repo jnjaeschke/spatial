@@ -331,7 +331,7 @@ test("chat stores requests only for on-request repo MCP servers and lists them i
   const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "Inspect", llm: SONNET });
   const requests = store.listArtifacts(session.id, "McpServerRequest");
   assert.equal(requests.length, 1);
-  assert.deepEqual(requests[0]!.data, { server: "firefox-devtools" });
+  assert.deepEqual(requests[0]!.data, { server: "firefox-devtools", command: "node firefox-devtools.js" });
   assert.ok(store.listLinks(session.id).some((link) => link.from === requests[0]!.id && link.to === threadId && link.kind === "about"));
   assert.match(calls[0]!.prompt.system!, /Repo MCP servers available on request/);
   assert.match(calls[0]!.prompt.system!, /firefox-devtools/);
@@ -349,11 +349,38 @@ test("non-requestable MCP names in a reply create no request", async () => {
 test("enabled on-request MCP server is merged on the next turn of that thread", async () => {
   const { store, turn, narrativeId, calls, session } = setup({ repoRequestable: ["firefox-devtools"] });
   const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "First", llm: SONNET });
-  const enabled = store.putArtifact({ sessionId: session.id, type: "McpServerEnabled", status: "verified", data: { server: "firefox-devtools" } satisfies McpServerData, provenance: { taskId: "user" } });
+  const enabled = store.putArtifact({ sessionId: session.id, type: "McpServerEnabled", status: "verified", data: { server: "firefox-devtools", command: "node firefox-devtools.js" } satisfies McpServerData, provenance: { taskId: "user" } });
   store.putLink({ sessionId: session.id, from: enabled.id, to: threadId, kind: "about" });
   await turn({ threadId, text: "Second", llm: SONNET });
   assert.deepEqual(calls[1]!.prompt.mcpServers?.["firefox-devtools"], { type: "stdio", command: "node", args: ["firefox-devtools.js"] });
   assert.equal(calls[0]!.prompt.mcpServers?.["firefox-devtools"], undefined);
+});
+
+test("an enable for a different command than the current spec does not activate the server", async () => {
+  const { store, turn, narrativeId, calls, session } = setup({ repoRequestable: ["firefox-devtools"] });
+  const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "First", llm: SONNET });
+  const enabled = store.putArtifact({ sessionId: session.id, type: "McpServerEnabled", status: "verified", data: { server: "firefox-devtools", command: "node old.js" } satisfies McpServerData, provenance: { taskId: "user" } });
+  store.putLink({ sessionId: session.id, from: enabled.id, to: threadId, kind: "about" });
+  await turn({ threadId, text: "Second", llm: SONNET });
+  assert.equal(calls[1]!.prompt.mcpServers?.["firefox-devtools"], undefined);
+});
+
+test("a request is stored again when its command differs from the earlier request", async () => {
+  const { store, turn, narrativeId, session } = setup({
+    repoRequestable: ["firefox-devtools"],
+    replies: [
+      { answer: "Hi", questions: [], revisions: [], requestMcpServers: [] },
+      { answer: "Need access", questions: [], revisions: [], requestMcpServers: ["firefox-devtools"] },
+      { answer: "Still", questions: [], revisions: [], requestMcpServers: ["firefox-devtools"] },
+    ],
+  });
+  const { threadId } = await turn({ anchor: `${narrativeId}#c1`, text: "First", llm: SONNET });
+  const old = store.putArtifact({ sessionId: session.id, type: "McpServerRequest", status: "proposed", data: { server: "firefox-devtools", command: "node old.js" } satisfies McpServerData, provenance: { taskId: "t" } });
+  store.putLink({ sessionId: session.id, from: old.id, to: threadId, kind: "about" });
+  await turn({ threadId, text: "Second", llm: SONNET });
+  assert.equal(store.listArtifacts(session.id, "McpServerRequest").length, 2);
+  await turn({ threadId, text: "Third", llm: SONNET });
+  assert.equal(store.listArtifacts(session.id, "McpServerRequest").length, 2);
 });
 
 test("selection is stored on the thread and reused for fresh prompts", async () => {

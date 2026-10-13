@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { expandItem, openChange, startReview } from "./canvas.ts";
 
-test("chat can request a denylisted repo server and enable it for that thread", async ({ page, request }) => {
+test("chat can request a stdio repo server and enable it for that thread", async ({ page, request }) => {
   const sessions = await (await request.get("http://127.0.0.1:4178/api/sessions")).json() as { title: string; worktree: string }[];
   const fixture = sessions.find((session) => session.title === "fixture")!;
   await startReview(page, fixture.worktree, "HEAD~1..HEAD");
@@ -15,6 +15,7 @@ test("chat can request a denylisted repo server and enable it for that thread", 
 
   const enable = finding.getByRole("button", { name: "Enable" });
   await expect(enable).toBeVisible({ timeout: 10_000 });
+  await expect(finding.locator(".mcp-command")).toHaveText("node server.js");
   await enable.click();
   await expect(enable).not.toBeVisible({ timeout: 5_000 });
 });

@@ -168,7 +168,8 @@ export interface ChatThreadData {
 }
 
 /** Data for a requested or user-enabled MCP server; artifacts link about → chat thread. */
-export interface McpServerData { server: string }
+/** `command` is what the user is asked about and approves (`mcpCommand` of the repo's spec); an approval holds only while the spec still yields it. */
+export interface McpServerData { server: string; command: string }
 
 /** A user-authored note attached to a session request. */
 export interface NoteData { body: string }

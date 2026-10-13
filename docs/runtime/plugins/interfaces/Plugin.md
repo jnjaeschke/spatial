@@ -24,14 +24,6 @@ Extra fields of the structured chat reply.
 
 ***
 
-### deniedMcpServers?
-
-> `optional` **deniedMcpServers?**: `string`[]
-
-MCP server names from a repo's `.mcp.json` that are never offered to the LLM unprompted; the user can enable them per chat thread.
-
-***
-
 ### dependsOn?
 
 > `optional` **dependsOn?**: `string`[]

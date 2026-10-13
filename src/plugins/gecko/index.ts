@@ -23,4 +23,4 @@ function server(rt: Runtime, opts: { intervalMs?: number }) {
 }
 
 /** Gecko repo profile, Searchfox code links, try and Phabricator submit phases. */
-export const geckoPlugin = definePlugin({ id: "gecko", dependsOn: ["implement", "review", "spec"], repoProfiles: [geckoProfile], deniedMcpServers: ["firefox-devtools"], phases: [tryPhase, tryPushPhase, submitPhase, phabSubmitPhase], tasks: [proposeTry, tryPush, suggestReviewers, phabSubmit], artifactKinds, chatReplyFields: [tryField, submitField], textLinks, sessionState: geckoSessionState, server });
+export const geckoPlugin = definePlugin({ id: "gecko", dependsOn: ["implement", "review", "spec"], repoProfiles: [geckoProfile], phases: [tryPhase, tryPushPhase, submitPhase, phabSubmitPhase], tasks: [proposeTry, tryPush, suggestReviewers, phabSubmit], artifactKinds, chatReplyFields: [tryField, submitField], textLinks, sessionState: geckoSessionState, server });

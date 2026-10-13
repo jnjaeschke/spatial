@@ -125,8 +125,6 @@ export interface Plugin {
   services?(env: Readonly<Record<string, string | undefined>>): unknown;
   /** Shell commands (such as `tool sub`) a read-only LLM run may execute. */
   readOnlyCommands?: string[];
-  /** MCP server names from a repo's `.mcp.json` that are never offered to the LLM unprompted; the user can enable them per chat thread. */
-  deniedMcpServers?: string[];
   /** Read-only tools for the session MCP server; names are unique across plugins and must not be a core tool's name. */
   mcpTools?: McpTool[];
   server?(rt: Runtime, opts: { intervalMs?: number }): PluginServer;
@@ -145,7 +143,6 @@ export interface PluginRegistry {
   mcpTools: McpTool[];
   repoProfiles: Map<string, RepoProfile>;
   readOnlyCommands: string[];
-  deniedMcpServers: string[];
 }
 
 /** The services of `plugins`: an override per plugin id wins over the plugin's own, built from `env`. */
@@ -194,5 +191,5 @@ export function pluginRegistry(plugins: Plugin[]): PluginRegistry {
     done.add(id);
   };
   for (const plugin of plugins) visit(plugin.id, []);
-  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], textLinks: plugins.flatMap((plugin) => plugin.textLinks ? [plugin.textLinks] : []), mcpTools: [...mcpTools.values()], repoProfiles, readOnlyCommands: plugins.flatMap((plugin) => plugin.readOnlyCommands ?? []), deniedMcpServers: plugins.flatMap((plugin) => plugin.deniedMcpServers ?? []) };
+  return { plugins, workflows, phases, tasks, artifactKinds: artifactKinds(plugins), searchKinds: searchKinds(plugins), chatContext: plugins.flatMap((plugin) => plugin.chatContext ? [plugin.chatContext] : []), chatReplyFields: [...fields.values()], textLinks: plugins.flatMap((plugin) => plugin.textLinks ? [plugin.textLinks] : []), mcpTools: [...mcpTools.values()], repoProfiles, readOnlyCommands: plugins.flatMap((plugin) => plugin.readOnlyCommands ?? []) };
 }

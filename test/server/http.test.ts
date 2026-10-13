@@ -367,24 +367,28 @@ test("enable MCP server is scoped to a chat thread and records user provenance",
   const session = await newSession();
   writeFileSync(join(repo.dir, ".mcp.json"), JSON.stringify({ mcpServers: {
     "firefox-devtools": { type: "stdio", command: "node", args: ["server.js"] },
-    allowed: { type: "stdio", command: "node", args: ["allowed.js"] },
+    allowed: { type: "http", url: "https://example.test/mcp" },
   } }));
   const thread = rt.store.putArtifact({ sessionId: session.id, type: "ChatThread", status: "verified", data: { anchor: "anchor" }, provenance: { taskId: "task" } });
   const path = `/api/sessions/${session.id}/threads/${thread.id}/enable-mcp-server`;
-  const enabled = await post(path, { server: "firefox-devtools" });
+  const stale = await post(path, { server: "firefox-devtools", command: "node other.js" });
+  assert.equal(stale.status, 409);
+  assert.deepEqual(await stale.json(), { error: "The command of firefox-devtools changed; ask again" });
+  assert.equal(rt.store.listArtifacts(session.id, "McpServerEnabled").length, 0);
+  const enabled = await post(path, { server: "firefox-devtools", command: "node server.js" });
   assert.equal(enabled.status, 201);
   const { artifactId } = await enabled.json() as { artifactId: string };
   const artifact = rt.store.getArtifact(artifactId);
   assert.equal(artifact.type, "McpServerEnabled");
   assert.equal(artifact.status, "verified");
-  assert.deepEqual(artifact.data, { server: "firefox-devtools" });
+  assert.deepEqual(artifact.data, { server: "firefox-devtools", command: "node server.js" });
   assert.deepEqual(artifact.provenance, { taskId: "user" });
   assert.ok(rt.store.listLinks(session.id).some((link) => link.from === artifactId && link.to === thread.id && link.kind === "about"));
-  const nonRequestable = await post(path, { server: "allowed" });
+  const nonRequestable = await post(path, { server: "allowed", command: "https://example.test/mcp" });
   assert.equal(nonRequestable.status, 400);
   assert.deepEqual(await nonRequestable.json(), { error: "Not an on-request MCP server: allowed" });
-  assert.equal((await post(`/api/sessions/${session.id}/threads/missing/enable-mcp-server`, { server: "firefox-devtools" })).status, 404);
-  const blank = await post(path, { server: " " });
+  assert.equal((await post(`/api/sessions/${session.id}/threads/missing/enable-mcp-server`, { server: "firefox-devtools", command: "node server.js" })).status, 404);
+  const blank = await post(path, { server: " ", command: "node server.js" });
   assert.equal(blank.status, 400);
   assert.deepEqual(await blank.json(), { error: "Not an on-request MCP server:  " });
 });

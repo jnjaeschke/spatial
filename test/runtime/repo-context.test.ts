@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { loadRepoContext, readRepoSkill } from "../../src/runtime/repo-context.ts";
+import { loadRepoContext, mcpCommand, readRepoSkill } from "../../src/runtime/repo-context.ts";
 
 function tempRepo(t: { after(callback: () => void): void }): string {
   const root = mkdtempSync(join(tmpdir(), "spatial-repo-context-"));
@@ -30,10 +30,10 @@ test("loadRepoContext: parses an http server", (t) => {
   });
 });
 
-test("loadRepoContext: parses an explicitly typed stdio server", (t) => {
+test("loadRepoContext: parses an explicitly typed stdio server as requestable", (t) => {
   const root = tempRepo(t);
   write(root, ".mcp.json", JSON.stringify({ mcpServers: { local: { type: "stdio", command: "node", args: ["server.js"] } } }));
-  assert.deepEqual(loadRepoContext(root).mcpServers, {
+  assert.deepEqual(loadRepoContext(root).requestableMcpServers, {
     local: { type: "stdio", command: "node", args: ["server.js"] },
   });
 });
@@ -41,23 +41,36 @@ test("loadRepoContext: parses an explicitly typed stdio server", (t) => {
 test("loadRepoContext: parses legacy stdio specs without a type as stdio", (t) => {
   const root = tempRepo(t);
   write(root, ".mcp.json", JSON.stringify({ mcpServers: { local: { command: "node", args: ["server.js"] } } }));
-  assert.deepEqual(loadRepoContext(root).mcpServers, {
+  assert.deepEqual(loadRepoContext(root).requestableMcpServers, {
     local: { type: "stdio", command: "node", args: ["server.js"] },
   });
 });
 
-test("loadRepoContext: denied servers are only requestable", (t) => {
+test("loadRepoContext: only http servers are active; stdio servers are requestable", (t) => {
   const root = tempRepo(t);
   write(root, ".mcp.json", JSON.stringify({ mcpServers: {
-    "denied-server": { type: "stdio", command: "node", args: [] },
-    allowed: { type: "stdio", command: "node", args: [] },
+    web: { type: "http", url: "https://example.test/mcp" },
+    local: { type: "stdio", command: "node", args: [] },
   } }));
-  assert.deepEqual(loadRepoContext(root, ["denied-server"]).mcpServers, {
-    allowed: { type: "stdio", command: "node", args: [] },
-  });
-  assert.deepEqual(loadRepoContext(root, ["denied-server"]).requestableMcpServers, {
-    "denied-server": { type: "stdio", command: "node", args: [] },
-  });
+  const context = loadRepoContext(root);
+  assert.deepEqual(context.mcpServers, { web: { type: "http", url: "https://example.test/mcp" } });
+  assert.deepEqual(context.requestableMcpServers, { local: { type: "stdio", command: "node", args: [] } });
+});
+
+test("loadRepoContext: server names that are unsafe or reserved throw", (t) => {
+  for (const name of ["a b", "x mcp__spatial__*", "", "a.b", "spatial"]) {
+    const root = tempRepo(t);
+    write(root, ".mcp.json", JSON.stringify({ mcpServers: { [name]: { type: "http", url: "https://example.test/mcp" } } }));
+    assert.throws(() => loadRepoContext(root), (error: Error) => error.message.includes(".mcp.json") && error.message.includes(JSON.stringify(name)), name);
+  }
+});
+
+test("mcpCommand: joins environment, command and args, quoting only values with whitespace or quotes", () => {
+  assert.equal(mcpCommand({ type: "stdio", command: "node", args: ["server.js", "--port=1"] }), "node server.js --port=1");
+  assert.equal(mcpCommand({ type: "stdio", command: "sh", args: ["-c", "echo hi"] }), 'sh -c "echo hi"');
+  assert.equal(mcpCommand({ type: "stdio", command: "node", args: ['a"b'] }), 'node "a\\"b"');
+  assert.equal(mcpCommand({ type: "stdio", command: "node", args: ["server.js"], env: { LD_PRELOAD: "/tmp/x.so", NAME: "a b" } }), "LD_PRELOAD=/tmp/x.so NAME=\"a b\" node server.js");
+  assert.equal(mcpCommand({ type: "http", url: "https://example.test/mcp" }), "https://example.test/mcp");
 });
 
 test("loadRepoContext: malformed MCP server specs throw", (t) => {
@@ -80,18 +93,18 @@ test("loadRepoContext: expands stdio vars and defaults", (t) => {
       command: "${SET_VAR:-x}",
       args: ["${UNSET:-python3}", "${UNSET}"],
     },
-    "denied-server": {
+    remote: {
       type: "stdio",
       command: "${SET_VAR}",
       args: ["${UNSET:-devtools.js}"],
     },
   } }));
-  assert.deepEqual(loadRepoContext(root).mcpServers.local, {
+  assert.deepEqual(loadRepoContext(root).requestableMcpServers.local, {
     type: "stdio",
     command: "configured-value",
     args: ["python3", ""],
   });
-  assert.deepEqual(loadRepoContext(root, ["denied-server"]).requestableMcpServers["denied-server"], {
+  assert.deepEqual(loadRepoContext(root).requestableMcpServers.remote, {
     type: "stdio",
     command: "configured-value",
     args: ["devtools.js"],

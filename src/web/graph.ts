@@ -26,7 +26,7 @@ export interface ChatNodeData {
   foldsToQuote?: boolean;
   messages: Artifact<ChatMessageData>[];
   revisions: Record<Id, RevisionData[]>;
-  mcpRequests: string[];
+  mcpRequests: { server: string; command: string }[];
   /** Current review diagrams created by each assistant message. */
   diagramsByMessage?: Record<Id, Id[]>;
 }
@@ -124,13 +124,15 @@ export function conversationNode(state: SessionState, start: Artifact<WorkflowSt
   } };
 }
 
-function mcpRequestsFor(state: SessionState, threadId: string): string[] {
+function mcpRequestsFor(state: SessionState, threadId: string): { server: string; command: string }[] {
   const linked = state.links.filter((link) => link.kind === "about" && link.to === threadId)
     .map((link) => state.artifacts.find((artifact) => artifact.id === link.from))
     .filter((artifact): artifact is Artifact<McpServerData> => !!artifact && (artifact.type === "McpServerRequest" || artifact.type === "McpServerEnabled"));
-  const enabled = new Set(linked.filter((artifact) => artifact.type === "McpServerEnabled").map((artifact) => artifact.data.server));
-  return [...new Set(linked.filter((artifact) => artifact.type === "McpServerRequest")
-    .map((artifact) => artifact.data.server).filter((server) => !enabled.has(server)))];
+  const key = ({ server, command }: McpServerData) => JSON.stringify([server, command]);
+  const enabled = new Set(linked.filter((artifact) => artifact.type === "McpServerEnabled").map((artifact) => key(artifact.data)));
+  const requests = new Map(linked.filter((artifact) => artifact.type === "McpServerRequest" && !enabled.has(key(artifact.data)))
+    .map((artifact) => [key(artifact.data), { server: artifact.data.server, command: artifact.data.command }]));
+  return [...requests.values()];
 }
 
 export function threadContent(state: SessionState, thread: Artifact<ChatThreadData>, diagramsByMessage?: Record<Id, Id[]>) {

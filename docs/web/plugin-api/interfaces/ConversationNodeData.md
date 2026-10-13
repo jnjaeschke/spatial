@@ -88,7 +88,15 @@ Whether an epoch of the session is running: the conversation offers Stop & steer
 
 ### mcpRequests
 
-> **mcpRequests**: `string`[]
+> **mcpRequests**: `object`[]
+
+#### command
+
+> **command**: `string`
+
+#### server
+
+> **server**: `string`
 
 #### Inherited from
 

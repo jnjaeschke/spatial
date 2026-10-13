@@ -539,23 +539,28 @@ test("sessionGraph shows a saved reply in its Phabricator thread, not as a hunk 
 
 test("sessionGraph exposes unenabled MCP requests per thread", () => {
   const thread = { id: "T", sessionId: "S", type: "ChatThread", status: "verified" as const, createdAt: "4", provenance: { taskId: "t" }, data: { anchor: "N#c1" } , epoch: null};
-  const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools" } , epoch: null};
+  const request = { id: "REQ", sessionId: "S", type: "McpServerRequest", status: "proposed" as const, createdAt: "5", provenance: { taskId: "t" }, data: { server: "firefox-devtools", command: "node server.js" } , epoch: null};
   const st = state([diff, narrative("N"), thread, request]);
   st.links = [{ id: "about", sessionId: "S", from: "REQ", to: "T", kind: "about" }];
   const hosted = sessionGraph(st)!.nodes.find((node) => node.id === "N#c1")!.data;
   assert.equal(hosted.kind, "change");
-  if (isReviewKind(hosted, "change")) assert.deepEqual(hosted.threads[0].mcpRequests, ["firefox-devtools"]);
+  if (isReviewKind(hosted, "change")) assert.deepEqual(hosted.threads[0].mcpRequests, [{ server: "firefox-devtools", command: "node server.js" }]);
 
-  const enabled = { id: "EN", sessionId: "S", type: "McpServerEnabled", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { server: "firefox-devtools" } , epoch: null};
+  const enabled = { id: "EN", sessionId: "S", type: "McpServerEnabled", status: "verified" as const, createdAt: "6", provenance: { taskId: "user" }, data: { server: "firefox-devtools", command: "node server.js" } , epoch: null};
   st.artifacts.push(enabled);
   st.links.push({ id: "enabled-about", sessionId: "S", from: "EN", to: "T", kind: "about" });
   const afterEnable = sessionGraph(st)!.nodes.find((node) => node.id === "N#c1")!.data;
   if (isReviewKind(afterEnable, "change")) assert.deepEqual(afterEnable.threads[0].mcpRequests, []);
 
-  st.artifacts.push({ ...thread, id: "T2", data: { anchor: "N#c2" } }, { ...request, id: "REQ2", data: { server: "firefox-devtools" } });
+  st.artifacts.push({ ...thread, id: "T2", data: { anchor: "N#c2" } }, { ...request, id: "REQ2", data: { server: "firefox-devtools", command: "node server.js" } });
   st.links.push({ id: "about2", sessionId: "S", from: "REQ2", to: "T2", kind: "about" });
   const otherThread = sessionGraph(st)!.nodes.find((node) => node.id === "N#c2")!.data;
-  if (isReviewKind(otherThread, "change")) assert.deepEqual(otherThread.threads[0].mcpRequests, ["firefox-devtools"]);
+  if (isReviewKind(otherThread, "change")) assert.deepEqual(otherThread.threads[0].mcpRequests, [{ server: "firefox-devtools", command: "node server.js" }]);
+
+  st.artifacts.push({ ...request, id: "REQ3", data: { server: "firefox-devtools", command: "node rewritten.js" } });
+  st.links.push({ id: "about3", sessionId: "S", from: "REQ3", to: "T", kind: "about" });
+  const rewritten = sessionGraph(st)!.nodes.find((node) => node.id === "N#c1")!.data;
+  if (isReviewKind(rewritten, "change")) assert.deepEqual(rewritten.threads[0].mcpRequests, [{ server: "firefox-devtools", command: "node rewritten.js" }]);
 });
 
 test("sessionGraph ignores spec refs of older narratives", () => {

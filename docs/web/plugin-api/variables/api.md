@@ -104,7 +104,7 @@
 
 ### enableMcpServer
 
-> **enableMcpServer**: (`sessionId`, `threadId`, `server`) => `Promise`\<\{ `artifactId`: `string`; \}\>
+> **enableMcpServer**: (`sessionId`, `threadId`, `server`, `command`) => `Promise`\<\{ `artifactId`: `string`; \}\>
 
 #### Parameters
 
@@ -117,6 +117,10 @@
 `string`
 
 ##### server
+
+`string`
+
+##### command
 
 `string`
 

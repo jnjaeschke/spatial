@@ -6,9 +6,15 @@
 
 # Interface: McpServerData
 
-Data for a requested or user-enabled MCP server; artifacts link about → chat thread.
+`command` is what the user is asked about and approves (`mcpCommand` of the repo's spec); an approval holds only while the spec still yields it.
 
 ## Properties
+
+### command
+
+> **command**: `string`
+
+***
 
 ### server
 

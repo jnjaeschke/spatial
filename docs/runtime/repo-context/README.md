@@ -14,5 +14,6 @@
 ## Functions
 
 - [loadRepoContext](functions/loadRepoContext.md)
+- [mcpCommand](functions/mcpCommand.md)
 - [prependRepoContext](functions/prependRepoContext.md)
 - [readRepoSkill](functions/readRepoSkill.md)

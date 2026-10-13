@@ -34,7 +34,7 @@ Chat content of a thread; the conversation node of a session start; notes and ch
 
 ### mcpRequests
 
-> **mcpRequests**: `string`[]
+> **mcpRequests**: `object`[]
 
 ### messages
 
