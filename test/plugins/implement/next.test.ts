@@ -260,3 +260,46 @@ test("an implement round is asked to fix the findings open when it was started, 
   const cleanReview = view([...baseArtifacts(), result(2), result(4)], [epoch(1, "investigate"), epoch(2, "implement"), epoch(3, "review"), { ...epoch(4, "implement"), input: clean.input }]);
   assert.equal("recheck" in (run(next(cleanReview)).input as object), false);
 });
+
+test("adopt asks for a branch, records the selected range, and replays rounds", () => {
+  const planData = {
+    mode: "moved", host: "https://phab.example.com", refError: null, historyError: null, missingBases: ["OLD"],
+    branches: [
+      { branch: "b0", base: "BASE", tip: "c2", commits: [{ sha: "c1", subject: "one", body: "Differential Revision: https://phab.example.com/D1" }, { sha: "c2", subject: "two", body: "Differential Revision: https://phab.example.com/D2" }] },
+      { branch: "b1", base: "BASE", tip: "d1", commits: [{ sha: "d1", subject: "other", body: "" }] },
+    ],
+    revisions: [{ id: 1, title: "Part 1", latestDiffId: 20 }, { id: 2, title: "Part 2", latestDiffId: 21 }],
+    diffs: [{ revision: 1, diffId: 10, base: "OLD", dateCreated: 0 }, { revision: 2, diffId: 11, base: "OLD", dateCreated: 5 }, { revision: 1, diffId: 20, base: "NEW", dateCreated: 9000 }, { revision: 2, diffId: 21, base: "NEW", dateCreated: 9005 }],
+  };
+  const adoptEpoch = { ...epoch(4, "adopt"), input: { mode: "renamed" } };
+  const plan = art("AdoptPlan", planData, 4);
+  const initial = decide(next(view([start(), branch(), plan], [adoptEpoch])));
+  assert.equal(initial.decide.key, "adopt-branch");
+  assert.deepEqual(initial.decide.options.map((o) => o.id), ["b0", "b1", "other", "cancel"]);
+  const selected = decision("adopt-branch", "Adopt which branch?", { option: "b0", by: "user" }, 4);
+  const head = decide(next(view([start(), branch(), plan, selected], [adoptEpoch])));
+  assert.equal(head.decide.key, "adopt-head");
+  assert.match(head.decide.question, /git fetch origin OLD/);
+  assert.deepEqual(head.decide.options.slice(0, 2).map((o) => o.id), ["c2", "c1"]);
+  const roundsPlan = art("AdoptPlan", { ...planData, missingBases: [] }, 4);
+  const range = { planId: roundsPlan.id, branch: "b0", head: "c2" };
+  const recorded = { ...epoch(5, "adoptRange"), input: range };
+  const firstRound = run(next(view([start(), branch(), roundsPlan], [adoptEpoch, recorded])));
+  assert.equal(firstRound.run, "round");
+  assert.equal((firstRound.input as { round: { kind: string } }).round.kind, "phabricator");
+  const round1 = { ...epoch(6, "round"), input: firstRound.input };
+  const secondRound = run(next(view([start(), branch(), roundsPlan], [adoptEpoch, recorded, round1])));
+  assert.equal((secondRound.input as { round: { kind: string }; narrate: boolean }).round.kind, "local");
+  assert.equal((secondRound.input as { narrate: boolean }).narrate, true);
+  const round2 = { ...epoch(7, "round"), input: secondRound.input };
+  assert.equal(next(view([start(), branch(), roundsPlan], [adoptEpoch, recorded, round1, round2])), null);
+});
+
+test("a single-commit adopt skips choices and stale review decisions do not override adopt", () => {
+  const plan = art("AdoptPlan", { mode: "moved", host: null, refError: null, historyError: null, missingBases: [], branches: [{ branch: "topic", base: "BASE", tip: "c1", commits: [{ sha: "c1", subject: "one", body: "" }] }], revisions: [], diffs: [] }, 4);
+  const old = decision("reviewed", REVIEWED, { option: "accept", by: "user" }, 3);
+  const adoptEpoch = { ...epoch(4, "adopt"), input: { mode: "moved" } };
+  const range = run(next(view([start(), branch(), plan, old], [epoch(3, "review"), adoptEpoch])));
+  assert.equal(range.run, "adoptRange");
+  assert.deepEqual(range.input, { planId: plan.id, branch: "topic", head: "c1" });
+});

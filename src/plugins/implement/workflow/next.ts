@@ -1,7 +1,8 @@
-import { type Artifact, type DecisionData, type DecisionOption, type Id, type LlmSelection, type RepoProfile, type Runtime, type Step, type WorkflowContext, type WorkflowStartData, type WorkflowView } from "../../../plugin-api.ts";
-import type { ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
+import { type Artifact, type DecisionData, type DecisionOption, type DiffData, type Epoch, type Id, type LlmSelection, type RepoProfile, type Runtime, type Step, type WorkflowContext, type WorkflowStartData, type WorkflowView } from "../../../plugin-api.ts";
+import type { AdoptInput, AdoptPlanData, AdoptRangeInput, ImplementBranchData, ImplementResultData, InvestigationData } from "../shared/types.ts";
 import type { ImplementInput } from "../tasks/implement/task.ts";
 import type { ReviewPhaseInput } from "../../review/api.ts";
+import { adoptRounds } from "../runtime/adopt.ts";
 import { openHighFindings } from "../runtime/findings.ts";
 import { commentPlan } from "../shared/comment-plan.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
@@ -72,7 +73,7 @@ function afterAcceptStep(view: WorkflowView, profile: RepoProfile, branch: Artif
   return null;
 }
 
-const ownPhases = (profile: RepoProfile) => new Set([profile.investigatePhase ?? "investigate", "implement", "review", "reviewerComments"]);
+const ownPhases = (profile: RepoProfile) => new Set([profile.investigatePhase ?? "investigate", "implement", "review", "reviewerComments", "adopt", "adoptRange", "round"]);
 
 /** Chooses the next implement workflow phase or decision from stored session state. */
 export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | null {
@@ -143,7 +144,61 @@ export function implementNext(view: WorkflowView, ctx: WorkflowContext): Step | 
     const text = choice.option === "work" ? commentsFeedback(items) : null;
     return text && investigation && result ? again(investigation, text) : null;
   }
+  if (last.phase === "adopt") return adoptStep(view, last, decisionStep);
+  if (last.phase === "adoptRange" || last.phase === "round") {
+    const rangeEpoch = view.epochs.findLast((e) => e.phase === "adoptRange" && e.n <= last.n);
+    if (!rangeEpoch) return null;
+    const range = rangeEpoch.input as AdoptRangeInput;
+    const plan = view.artifacts.find((a) => a.id === range.planId) as Artifact<AdoptPlanData> | undefined;
+    if (!plan) return null;
+    const rounds = adoptRounds(plan.data, range, start.data.llm);
+    const done = view.epochs.filter((e) => e.phase === "round" && e.n > rangeEpoch.n).length;
+    if (done < rounds.length) return { run: "round", input: rounds[done] };
+    const lastRound = rounds.at(-1)!.round;
+    if (lastRound.kind === "local" && lastRound.phab) return null;
+    const choice = chosenDecision(view, last.n, "adopted");
+    if (!choice) {
+      const commits = latestArtifact<DiffData>(view.artifacts, "Diff")?.data.commits.length ?? 0;
+      return decisionStep("adopted", `Adopted ${plural(commits, "commit")} from ${range.branch}. What next?`, [
+        { id: "self-review", label: "Self-review" }, { id: "revise", label: "Revise", takesText: true, requiresText: true }, { id: "accept", label: "Accept" }, { id: "cancel", label: "Cancel" },
+      ]);
+    }
+    if (choice.option === "self-review" && result) return { run: "review", input: { base: branch.data.baseSha, head: result.data.head, update: true, ...llm(start.data.llm) } satisfies ReviewPhaseInput };
+    if (choice.option === "revise" && investigation && result) return again(investigation, choice.text ?? null);
+    if (choice.option === "accept" && result) return afterAcceptStep(view, profile, branch, result, start, last.n);
+    return null;
+  }
   return null;
+}
+
+function adoptStep(view: WorkflowView, last: Epoch, decide: (key: string, question: string, options: DecisionOption[]) => Step): Step | null {
+  const plan = view.artifacts.findLast((a) => a.type === "AdoptPlan" && a.epoch === last.n) as Artifact<AdoptPlanData> | undefined;
+  if (!plan) return null;
+  const input = last.input as AdoptInput;
+  const cancel = { id: "cancel", label: "Cancel" };
+  let chosen = plan.data.branches[0];
+  if (plan.data.branches.length > 1 || (plan.data.mode === "choose" && input.ref === undefined) || plan.data.refError) {
+    const answer = chosenDecision(view, last.n, "adopt-branch");
+    if (!answer) return decide("adopt-branch", `${plan.data.refError ? `${plan.data.refError}. ` : ""}Adopt which branch?`, [
+      ...plan.data.branches.map((b, i) => ({ id: `b${i}`, label: `${b.branch} (${b.commits.at(-1)?.subject ?? b.tip.slice(0, 12)})` })),
+      { id: "other", label: "Other…", takesText: true, requiresText: true, textPattern: "^[A-Za-z0-9][A-Za-z0-9._/-]*$" }, cancel,
+    ]);
+    if (answer.option === "cancel") return null;
+    if (answer.option === "other") return { run: "adopt", input: { mode: "choose", ref: (answer.text ?? "").trim() } satisfies AdoptInput };
+    chosen = plan.data.branches[Number(answer.option.slice(1))];
+  }
+  if (!chosen) return null;
+  const heads = chosen.commits.slice(-10).reverse();
+  if (heads.length === 0) return null;
+  if (heads.length === 1) return { run: "adoptRange", input: { planId: plan.id, branch: chosen.branch, head: heads[0]!.sha } satisfies AdoptRangeInput };
+  const answer = chosenDecision(view, last.n, "adopt-head");
+  if (!answer) {
+    const missing = plan.data.missingBases.length ? ` Some review rounds need commits missing locally; run \`git fetch origin ${plan.data.missingBases.join(" ")}\` and adopt again to include them.` : "";
+    const history = plan.data.historyError ? ` The Phabricator history could not be read (${plan.data.historyError}); the review rounds are left out.` : "";
+    return decide("adopt-head", `Adopt which commits of ${chosen.branch}?${missing}${history}`, [...heads.map((c) => ({ id: c.sha, label: `Up to ${c.subject} (${c.sha.slice(0, 12)})` })), cancel]);
+  }
+  if (answer.option === "cancel") return null;
+  return { run: "adoptRange", input: { planId: plan.id, branch: chosen.branch, head: answer.option } satisfies AdoptRangeInput };
 }
 
 /** Refuses Work in when no reviewer comment is marked Address: the answer would start nothing and consume the decision. */

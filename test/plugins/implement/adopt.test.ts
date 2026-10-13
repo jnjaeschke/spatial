@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { makeRepo } from "../../helpers/git-fixture.ts";
 import { testRuntime } from "../../helpers/runtime.ts";
 import { makeGit } from "../../../src/runtime/git/read.ts";
-import { adoptBase, relatedBranches } from "../../../src/plugins/implement/runtime/adopt.ts";
+import { adoptBase, adoptRounds, relatedBranches } from "../../../src/plugins/implement/runtime/adopt.ts";
+import type { AdoptPlanData } from "../../../src/plugins/implement/shared/types.ts";
 import { implementPlugin } from "../../../src/plugins/implement/index.ts";
 import { reviewPlugin } from "../../../src/plugins/review/index.ts";
 import { specPlugin } from "../../../src/plugins/spec/index.ts";
@@ -89,4 +90,45 @@ test("adoptPlan keeps the local plan when the Phabricator token is missing", asy
   } finally {
     if (old === undefined) delete process.env.SPATIAL_ARCRC_PATH; else process.env.SPATIAL_ARCRC_PATH = old;
   }
+});
+
+const H = "https://phab.example.com";
+const commit = (sha: string, rev?: number) => ({ sha, subject: `s ${sha}`, body: rev ? `Differential Revision: ${H}/D${rev}` : "" });
+const roundPlan = (over: Partial<AdoptPlanData> = {}): AdoptPlanData => ({
+  mode: "moved", host: H, refError: null, historyError: null, missingBases: [],
+  branches: [{ branch: "topic", base: "BASE", tip: "c3", commits: [commit("c1", 1), commit("c2", 2), commit("c3")] }],
+  revisions: [{ id: 1, title: "Part 1", latestDiffId: 20 }, { id: 2, title: "Part 2", latestDiffId: 21 }],
+  diffs: [{ revision: 1, diffId: 10, base: "OLD", dateCreated: 0 }, { revision: 2, diffId: 11, base: "OLD", dateCreated: 5 }, { revision: 1, diffId: 20, base: "NEW", dateCreated: 9000 }, { revision: 2, diffId: 21, base: "NEW", dateCreated: 9005 }],
+  ...over,
+});
+
+test("adoptRounds rebuilds earlier rounds and ends with the newest local diffs", () => {
+  const rounds = adoptRounds(roundPlan(), { planId: "p", branch: "topic", head: "c2" });
+  assert.equal(rounds.length, 2);
+  assert.deepEqual(rounds[0], { round: { kind: "phabricator", host: H, stack: [
+    { revision: 1, diffId: 10, base: "OLD", dateCreated: 0, title: "Part 1", latestDiffId: 20 },
+    { revision: 2, diffId: 11, base: "OLD", dateCreated: 5, title: "Part 2", latestDiffId: 21 },
+  ] }, narrate: false });
+  assert.deepEqual(rounds[1]!.round.kind === "local" && rounds[1]!.round.phab?.map((e) => e.diffId), [20, 21]);
+  assert.equal(rounds[1]!.narrate, true);
+  assert.deepEqual(rounds[1]!.round.kind === "local" && [rounds[1]!.round.base, rounds[1]!.round.head], ["BASE", "c2"]);
+});
+
+test("adoptRounds includes only revisions with trailers in the adopted range", () => {
+  const rounds = adoptRounds(roundPlan(), { planId: "p", branch: "topic", head: "c1" });
+  assert.deepEqual(rounds.map((r) => r.round.kind === "phabricator" ? r.round.stack.map((e) => e.revision) : r.round.phab?.map((e) => e.revision)), [[1], [1]]);
+});
+
+test("adoptRounds skips rounds whose base is missing locally", () => {
+  assert.equal(adoptRounds(roundPlan({ missingBases: ["OLD"] }), { planId: "p", branch: "topic", head: "c2" }).length, 1);
+});
+
+test("without trailers adoptRounds returns one local round without Phabricator diffs", () => {
+  const rounds = adoptRounds(roundPlan({ host: null, revisions: [], diffs: [], branches: [{ branch: "topic", base: "BASE", tip: "c3", commits: [commit("c3")] }] }), { planId: "p", branch: "topic", head: "c3" });
+  assert.deepEqual(rounds, [{ round: { kind: "local", base: "BASE", head: "c3", host: null, phab: null }, narrate: true }]);
+});
+
+test("trailers without readable history adopt one local round", () => {
+  const rounds = adoptRounds(roundPlan({ revisions: [], diffs: [], historyError: "No arcrc token" }), { planId: "p", branch: "topic", head: "c2" });
+  assert.deepEqual(rounds, [{ round: { kind: "local", base: "BASE", head: "c2", host: null, phab: null }, narrate: true }]);
 });

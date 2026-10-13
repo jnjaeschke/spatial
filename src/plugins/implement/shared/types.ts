@@ -10,6 +10,8 @@ export interface AdoptInput { mode: AdoptMode; ref?: string }
 export interface AdoptBranch { branch: string; base: string; tip: string; commits: Commit[] }
 /** What an adopt can take over (artifact `AdoptPlan`, verified). `diffs` contains every Phabricator diff for trailer revisions; `missingBases` are diff bases absent locally; history errors preserve local adoption without rounds. */
 export interface AdoptPlanData { mode: AdoptMode; host: string | null; branches: AdoptBranch[]; revisions: { id: number; title: string; latestDiffId: number }[]; diffs: RoundDiff[]; missingBases: string[]; refError: string | null; historyError: string | null }
+/** The branch range selected from an adopt plan. */
+export interface AdoptRangeInput { planId: Id; branch: string; head: string }
 
 /** Comment phids to interpret in the order shown, with an optional model choice. */
 export interface ReviewerCommentsInput { comments: string[]; llm?: LlmSelection }

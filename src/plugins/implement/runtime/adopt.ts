@@ -1,4 +1,7 @@
 import type { GitCapability, LocalBranch } from "../../../plugin-api.ts";
+import type { LlmSelection } from "../../../plugin-api.ts";
+import { commitRevision, groupRounds, roundStack, type RoundEntry, type RoundPhaseInput } from "../../review/api.ts";
+import type { AdoptPlanData, AdoptRangeInput } from "../shared/types.ts";
 
 const MAINLINE = new Set(["main", "master"]);
 
@@ -30,3 +33,20 @@ export async function relatedBranches(git: GitCapability, branches: LocalBranch[
 
 /** The branches offered when the user chooses: the checked-out one, then the newest. */
 export const recentBranches = (branches: LocalBranch[]): string[] => branches.slice(0, 8).map((branch) => branch.name);
+
+/** The round epochs of an adopted range: rebuilt Phabricator rounds, then the local commits matched to the newest diffs. */
+export function adoptRounds(plan: AdoptPlanData, range: AdoptRangeInput, llm?: LlmSelection): RoundPhaseInput[] {
+  const branch = plan.branches.find((b) => b.branch === range.branch);
+  if (!branch) throw new Error(`Branch ${range.branch} is not in the adopt plan`);
+  const commits = branch.commits.slice(0, branch.commits.findIndex((c) => c.sha === range.head) + 1);
+  const order = [...new Set(commits.map(commitRevision).filter((r) => r !== null && r.host === plan.host).map((r) => r!.id))];
+  const extra = llm ? { llm } : {};
+  if (!plan.host || !plan.diffs.some((d) => order.includes(d.revision))) return [{ round: { kind: "local", base: branch.base, head: range.head, host: null, phab: null }, narrate: true, ...extra }];
+  const meta = new Map(plan.revisions.map((r) => [r.id, r]));
+  const entry = (d: (typeof plan.diffs)[number]): RoundEntry => ({ ...d, title: meta.get(d.revision)!.title, latestDiffId: meta.get(d.revision)!.latestDiffId });
+  const rounds = groupRounds(plan.diffs.filter((d) => order.includes(d.revision)));
+  const stacks = rounds.map((_, k) => roundStack(rounds, k, order));
+  const history = stacks.slice(0, -1).filter((stack) => !plan.missingBases.includes(stack[0]!.base))
+    .map((stack): RoundPhaseInput => ({ round: { kind: "phabricator", host: plan.host!, stack: stack.map(entry) }, narrate: false }));
+  return [...history, { round: { kind: "local", base: branch.base, head: range.head, host: plan.host, phab: stacks.at(-1)!.map(entry) }, narrate: true, ...extra }];
+}

@@ -11,6 +11,7 @@
 - [AdoptBranch](interfaces/AdoptBranch.md)
 - [AdoptInput](interfaces/AdoptInput.md)
 - [AdoptPlanData](interfaces/AdoptPlanData.md)
+- [AdoptRangeInput](interfaces/AdoptRangeInput.md)
 - [AgentSessionData](interfaces/AgentSessionData.md)
 - [CheckResult](interfaces/CheckResult.md)
 - [CheckResultsData](interfaces/CheckResultsData.md)

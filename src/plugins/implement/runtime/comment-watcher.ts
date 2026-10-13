@@ -1,11 +1,20 @@
 import { PhaseBusyError, latestArtifact, workflowView, type Artifact, type Epoch, type Id, type Runtime, type WorkflowStartData } from "../../../plugin-api.ts";
 import { latestByPhid } from "../../review/api.ts";
 import type { ReviewerCommentsInput } from "../shared/types.ts";
+import type { RoundPhaseInput } from "../../review/api.ts";
+
+/** After an adopt, comments created before the latest round submit belong to work done outside spatial. */
+function historyCutoff(epochs: Epoch[]): number {
+  const round = epochs.findLast((e) => e.phase === "round")?.input as RoundPhaseInput | undefined;
+  const phab = round?.round.kind === "local" ? round.round.phab : null;
+  return phab?.length ? Math.max(...phab.map((entry) => entry.dateCreated)) : -Infinity;
+}
 
 /** Reviewer comments not yet interpreted: latest version per phid, not by the user or done, and in no earlier comments epoch. */
 export function newReviewerComments(view: { artifacts: Artifact[]; epochs: Epoch[] }): string[] {
+  const cutoff = historyCutoff(view.epochs);
   const seen = new Set(view.epochs.filter((e) => e.phase === "reviewerComments").flatMap((e) => (e.input as ReviewerCommentsInput).comments));
-  return [...latestByPhid(view.artifacts).values()].map((a) => a.data).filter((c) => !c.byMe && !c.done && !seen.has(c.phid)).map((c) => c.phid);
+  return [...latestByPhid(view.artifacts).values()].map((a) => a.data).filter((c) => !c.byMe && !c.done && !seen.has(c.phid) && (cutoff === -Infinity || c.dateCreated >= cutoff)).map((c) => c.phid);
 }
 
 /** Starts comment interpretation when a watched implement session becomes idle with new comments. */
