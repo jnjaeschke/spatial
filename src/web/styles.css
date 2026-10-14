@@ -492,6 +492,9 @@ button.file-link:hover:not(:disabled) { background: transparent; text-decoration
 .file-diff-binary { color: var(--text-3); margin: 4px 0; }
 .chat-node .messages { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .box .messages { margin-top: 6px; scrollbar-width: thin; }
+/* A chat the user resized gives its height to the messages, keeping the reply form in view. */
+.react-flow__node.fixed-height > :is(.chat-node, .conversation-node) { display: flex; flex-direction: column; }
+.react-flow__node.fixed-height > :is(.chat-node, .conversation-node) > .messages { flex: 1 1 auto; min-height: 0; max-height: none; }
 .chat-node .enable-mcp-request .mcp-command { word-break: break-all; }
 .chat-node .enable-mcp-request { display: flex; align-items: center; gap: 6px; font-size: calc(12px * var(--text-scale, 1)); padding: 4px 0; }
 .msg { padding: 6px 9px; border-radius: var(--radius-md); line-height: 1.4; }

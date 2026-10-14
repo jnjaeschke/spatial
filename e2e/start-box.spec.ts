@@ -79,6 +79,40 @@ test("/chat starts a conversation session", async ({ page, request }) => {
   await expect(conversation.locator(".msg.assistant", { hasText: "Stub answer." })).toHaveCount(2, { timeout: 10_000 });
 });
 
+test("a conversation resized to a height of its own gives that height to its messages", async ({ page, request }) => {
+  await openStartBox(page, request);
+  const box = page.getByLabel("start");
+  await box.fill("/chat LONG-ANSWER-PLEASE resize me");
+  await box.press("Enter");
+  const conversation = page.getByTestId("conversation");
+  await expect(conversation.locator(".msg.assistant")).toHaveCount(1, { timeout: 10_000 });
+  const node = conversation.locator("..");
+  const messages = conversation.locator(".messages");
+  const composer = conversation.getByLabel("message");
+  const dragBottom = async (dy: number) => {
+    const edge = (await node.locator(".react-flow__resize-control.line.bottom").boundingBox())!;
+    await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2 + dy, { steps: 10 });
+    await page.mouse.up();
+  };
+  const composerInNode = async () => {
+    const nodeBox = (await node.boundingBox())!, composerBox = (await composer.boundingBox())!;
+    return composerBox.y >= nodeBox.y && composerBox.y + composerBox.height <= nodeBox.y + nodeBox.height;
+  };
+
+  const before = (await messages.boundingBox())!;
+  await dragBottom(120);
+  await expect(node).toHaveClass(/fixed-height/);
+  await expect.poll(async () => (await messages.boundingBox())!.height).toBeGreaterThan(before.height + 100);
+  expect(await composerInNode()).toBe(true);
+
+  await dragBottom(-((await node.boundingBox())!.height - 300));
+  await expect.poll(async () => (await messages.boundingBox())!.height).toBeLessThan(before.height);
+  expect(await composerInNode()).toBe(true);
+  expect(await messages.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+});
+
 test("an answer opens the log of the turn that wrote it", async ({ page, request }) => {
   await openStartBox(page, request);
   const box = page.getByLabel("start");
